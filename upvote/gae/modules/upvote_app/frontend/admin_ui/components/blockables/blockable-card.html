@@ -1,0 +1,73 @@
+<md-card layout="column" layout-align="start center">
+  <md-card-title>
+    <md-card-title-text>
+      <span class="md-headline">{{ card.class_ | prettifyType }}</span>
+    </md-card-title-text>
+  </md-card-title>
+  <md-card-content>
+    <div ng-show="card.fileName">
+      File Name: {{ card.fileName }}
+    </div>
+    <div ng-show="card.name">
+      Package Name: {{ card.name }}
+    </div>
+    <div ng-show="card.commonName">
+      Common Name: {{ card.commonName }}
+    </div>
+    <div ng-show="card.organization">
+      Organization: {{ card.organization }}
+    </div>
+    <div ng-show="card.organizationalUnit">
+      Organizational Unit: {{ card.organizationalUnit }}
+    </div>
+    <div ng-show="card.validFromDt">
+      Valid From: {{ card.validFromDt }}
+    </div>
+    <div ng-show="card.validUntilDt">
+      Valid Until: {{ card.validUntilDt }}
+    </div>
+    <div>
+      ID: {{ card.id }}
+    </div>
+    <div>
+      ID Type: {{ card.idType }}
+    </div>
+    <div ng-show="card.publisher">
+      Publisher: {{ card.publisher }}
+    </div>
+    <div ng-show="card.productName">
+      Product Name: {{ card.productName }}
+    </div>
+    <div ng-show="card.bundleId">
+      Bundle ID: {{ card.bundleId }}
+    </div>
+    <div ng-show="card.certId">
+      Cert Hash:
+      <a href="/admin/blockables/{{ card.certId }}">
+        {{ card.certId }}
+      </a>
+    </div>
+    <div ng-show="card.version">
+      Version: {{ card.version }}
+    </div>
+    <div ng-show="card.score">
+      Score: {{ card.score }}
+    </div>
+    <div ng-show="card.occurredDt">
+      First Seen: {{ card.occurredDt }}
+    </div>
+    <div ng-show="card.flagged">
+      Flagged: {{ card.flagged }}
+    </div>
+    <div>
+      State: {{ card.state | prettifyState }}
+    </div>
+    <div>
+      Last Changed State: {{ card.stateChangeDt }}
+    </div>
+    <div ng-repeat="note in card.notes">
+      <span ng-show="$first">Notes: </span>
+      {{ note }}
+    </div>
+  </md-card-content>
+</md-card>

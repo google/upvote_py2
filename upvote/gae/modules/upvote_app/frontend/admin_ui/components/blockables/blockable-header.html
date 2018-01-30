@@ -1,0 +1,11 @@
+<div flex layout>
+  <uv-listing-header flex-gt-md="15" flex="25">File Name</uv-listing-header>
+  <uv-listing-header flex-gt-md="15" flex="20">Publisher</uv-listing-header>
+  <uv-listing-header flex-gt-md="15" flex="20">Product Name</uv-listing-header>
+  <uv-listing-header flex="10">Flagged</uv-listing-header>
+  <uv-listing-header hide show-gt-md flex="15">Occurred</uv-listing-header>
+  <uv-listing-header hide show-gt-md flex="15">Score</uv-listing-header>
+  <uv-listing-header ng-if="type != 'TRENDING_ALLOWED'"
+    flex-gt-md="15" flex="25">State</uv-listing-header >
+  <uv-listing-header ng-if="type == 'TRENDING_ALLOWED'" flex="15">Count</uv-listing-header>
+</div>

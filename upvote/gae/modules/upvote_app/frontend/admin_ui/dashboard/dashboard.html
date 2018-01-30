@@ -1,0 +1,42 @@
+<div layout-padding>
+  <md-card ng-show="dashboardCtrl.suspectBlockables.length">
+    <md-card-title>
+      <md-card-title-text>
+        <span class="md-headline">Suspect Blockables</span>
+      </md-card-title-text>
+    </md-card-title>
+    <md-card-content>
+      <uv-listing>
+        <listing-header>
+          <uv-blockable-header></uv-blockable-header>
+        </listing-header>
+        <listing-body>
+          <uv-blockable-listing ng-repeat="item in dashboardCtrl.suspectBlockables"
+                                 item="item"
+                                 on-selected="dashboardCtrl.onSelectedItem(item.id)">
+          </uv-blockable-listing>
+        </listing-body>
+      </uv-listing>
+    </md-card-content>
+  </md-card>
+  <md-card ng-show="dashboardCtrl.flaggedBlockables.length">
+    <md-card-title>
+      <md-card-title-text>
+        <span class="md-headline">Flagged Blockables</span>
+      </md-card-title-text>
+    </md-card-title>
+    <md-card-content>
+      <uv-listing>
+        <listing-header>
+          <uv-blockable-header></uv-blockable-header>
+        </listing-header>
+        <listing-body>
+          <uv-blockable-listing ng-repeat="item in dashboardCtrl.flaggedBlockables"
+                                 item="item"
+                                 on-selected="dashboardCtrl.onSelectedItem(item.id)">
+          </uv-blockable-listing>
+        </listing-body>
+      </uv-listing>
+    </md-card-content>
+  </md-card>
+</div>

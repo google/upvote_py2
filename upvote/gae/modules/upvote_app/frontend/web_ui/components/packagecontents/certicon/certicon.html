@@ -1,0 +1,8 @@
+<div>
+  <md-tooltip md-delay="500">
+    {{ ctrl.getStatusText() }}
+  </md-tooltip>
+  <md-icon ng-class="ctrl.getClass()">
+    {{ ctrl.isBinarySigned() ? 'lock' : 'no_encryption' }}
+  </md-icon>
+</div>

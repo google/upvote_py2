@@ -1,0 +1,230 @@
+<div layout-padding>
+    <md-content layout-padding class="md-whiteframe-4dp">
+      <div>
+        <form name="debugSetting">
+          <md-switch ng-model="settingsCtrl.settings.debug" aria-label="Debug Mode" disabled>
+            <md-tooltip>
+              run the server in debug mode.
+            </md-tooltip>
+            Debug Mode
+          </md-switch>
+        </form>
+      </div>
+    </md-content>
+    <h3 class="md-title">API Keys</h3>
+    <md-content layout-padding class="md-whiteframe-4dp">
+      <form name="virusTotalApiKey">
+        <div>
+          <md-input-container flex>
+            <label>VirusTotal API Key Value</label>
+            <input type="text" ng-model="settingsCtrl.apiKeys.virustotal">
+          </md-input-container>
+        </div>
+      </form>
+      <form name="bit9ApiKey">
+        <div>
+          <md-input-container flex>
+            <label>Bit9 API Key Value</label>
+            <input type="text" ng-model="settingsCtrl.apiKeys.bit9">
+          </md-input-container>
+        </div>
+      </form>
+    </md-content>
+    <h3 class="md-title">Santa</h3>
+    <md-content layout-padding class="md-whiteframe-4dp">
+      <div>
+        <form name="eventBatchSizeSetting">
+          <md-input-container flex>
+            <md-tooltip>
+              Just like it says.
+            </md-tooltip>
+            <label>API Event Batch Size</label>
+            <input type="number" ng-model="settingsCtrl.settings.santaEventBatchSize" disabled>
+          </md-input-container>
+        </form>
+      </div>
+      <div>
+        <form name="ruleBatchSizeSetting">
+          <md-input-container flex>
+            <md-tooltip>
+              Just like it says.
+            </md-tooltip>
+            <label>API Rule Batch Size</label>
+            <input type="number" ng-model="settingsCtrl.settings.santaRuleBatchSize" disabled>
+          </md-input-container>
+        </form>
+      </div>
+      <div>
+        <form name="bundlesEnabledSetting">
+          <md-switch ng-model="settingsCtrl.values.santaBundlesEnabled" disabled>
+            Instruct clients to perform bundle scans
+          </md-switch>
+        </form>
+      </div>
+      <div>
+        <form name="requireXsrfSetting">
+          <md-switch ng-model="settingsCtrl.settings.santaRequireXsrf"
+                     aria-label="Require Santa clients to use XSRF tokens" disabled>
+            <md-tooltip>
+              Require Santa clients to use XSRF tokens.
+            </md-tooltip>
+            Require XSRF tokens on Santa API.
+          </md-switch>
+        </form>
+      </div>
+    </md-content>
+    <h3 class="md-title">Voting Thresholds</h3>
+    <md-content layout-padding class="md-whiteframe-4dp">
+      <form name="votingThresholdsSetting">
+        <div>
+          <md-input-container flex>
+            <md-tooltip>
+              Votes to Blacklist.
+            </md-tooltip>
+            <label>Banned</label>
+            <input type="number" ng-model="settingsCtrl.settings.votingThresholds.BANNED" disabled>
+          </md-input-container>
+        </div>
+        <div>
+          <md-input-container flex>
+            <md-tooltip>
+              Votes to Globbally Whitelist.
+            </md-tooltip>
+            <label>Globally Whitelisted</label>
+            <input type="number" ng-model="settingsCtrl.settings.votingThresholds.GLOBALLY_WHITELISTED" disabled>
+          </md-input-container>
+        </div>
+        <div>
+           <md-input-container flex>
+              <md-tooltip>
+                Votes to Locally Whitelist.
+              </md-tooltip>
+              <label>Available For Local Whitelisting</label>
+              <input type="number" ng-model="settingsCtrl.settings.votingThresholds.APPROVED_FOR_LOCAL_WHITELISTING" disabled>
+            </md-input-container>
+        </div>
+      </form>
+    </md-content>
+    <h3 class="md-title">Voting Weights</h3>
+    <md-content layout-padding class="md-whiteframe-4dp">
+      <form name="votingWeightsSetting">
+        <div>
+          <md-input-container flex>
+            <md-tooltip>
+              Standard User Vote Weight.
+            </md-tooltip>
+            <label>User</label>
+            <input type="number" ng-model="settingsCtrl.settings.votingWeights.USER" disabled>
+          </md-input-container>
+        </div>
+        <div>
+          <md-input-container flex>
+            <md-tooltip>
+              Trusted User Vote Weight.
+            </md-tooltip>
+            <label>Trusted User</label>
+            <input type="number" ng-model="settingsCtrl.settings.votingWeights.TRUSTED_USER" disabled>
+          </md-input-container>
+        </div>
+        <div>
+          <md-input-container flex>
+            <md-tooltip>
+              Untrusted User Vote Weight.
+            </md-tooltip>
+            <label>Untrusted User</label>
+            <input type="number" ng-model="settingsCtrl.settings.votingWeights.UNTRUSTED_USER" disabled>
+          </md-input-container>
+        </div>
+        <div>
+          <md-input-container flex>
+            <md-tooltip>
+              Super User Vote Weight.
+            </md-tooltip>
+            <label>Super User</label>
+            <input type="number" ng-model="settingsCtrl.settings.votingWeights.SUPERUSER" disabled>
+          </md-input-container>
+        </div>
+        <div>
+          <md-input-container flex>
+            <md-tooltip>
+              Administrator Vote Weight.
+            </md-tooltip>
+            <label>Administrator</label>
+            <input type="number" ng-model="settingsCtrl.settings.votingWeights.ADMINISTRATOR" disabled>
+          </md-input-container>
+        </div>
+      </form>
+    </md-content>
+    <h3 class="md-title">User Roles</h3>
+    <md-content layout-padding class="md-whiteframe-4dp">
+      <form name="userRoleSetting">
+        <div>
+          <md-input-container flex>
+            <label>Lockdown Group</label>
+            <input type="text" ng-model="settingsCtrl.settings.lockdownGroup" disabled>
+          </md-input-container>
+        </div>
+        <div>
+          <md-input-container flex>
+            <label>Monitor Group</label>
+            <input type="text" ng-model="settingsCtrl.settings.monitorGroup" disabled>
+          </md-input-container>
+        </div>
+        <div>
+          <md-input-container flex>
+            <label>SUPERUSER Groups</label>
+            <input type="text" ng-model="settingsCtrl.settings.rolesToSync.SUPERUSER" disabled>
+          </md-input-container>
+        </div>
+        <div>
+          <md-input-container flex>
+            <label>TRUSTED_USER Groups</label>
+            <input type="text" ng-model="settingsCtrl.settings.rolesToSync.TRUSTED_USER" disabled>
+          </md-input-container>
+        </div>
+        <div>
+          <md-input-container flex>
+            <label>UNTRUSTED_USER Groups</label>
+            <input type="text" ng-model="settingsCtrl.settings.rolesToSync.UNTRUSTED_USER" disabled>
+          </md-input-container>
+        </div>
+      </form>
+    </md-content>
+    <h3 class="md-title">Warnings and Alerts</h3>
+    <md-content layout-padding class="md-whiteframe-4dp">
+      <form name="siteAlertSetting">
+        <div>
+          <md-input-container flex>
+            <label>Warning Text</label>
+            <input type="text" ng-model="settingsCtrl.settings.siteAlert.message" disabled>
+          </md-input-container>
+        </div>
+        <div>
+          <md-input-container flex class="md-input-has-value">
+            <label>Severity</label>
+            <md-radio-group ng-model="settingsCtrl.settings.siteAlert.severity" disabled>
+              <md-radio-button value="FYI" class="md-primary">FYI</md-radio-button>
+              <md-radio-button value="DOOM">DOOM</md-radio-button>
+            </md-radio-group>
+          </md-input-container>
+        </div>
+        <div>
+          <md-input-container>
+            <md-switch ng-model="settingsCtrl.settings.siteAlert.isActive" aria-label="Is Active" disabled>
+              <md-tooltip>
+                Should the Alert still be shown?
+              </md-tooltip>
+              Active
+            </md-switch>
+          </md-input-container>
+        </div>
+      </form>
+    </md-content>
+    <md-button id="save-button"
+               ng-enabled="settingsCtrl.okToSave"
+               class="md-fab md-raised md-primary"
+               ng-click="settingsCtrl.saveSettings()">
+      <md-icon>save</md-icon>
+      <md-tooltip md-delay=500>Save Settings</md-tooltip>
+    </md-button>
+</div>

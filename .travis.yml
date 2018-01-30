@@ -1,0 +1,33 @@
+dist: trusty
+language: python
+addons:
+  apt:
+    sources:
+      - ubuntu-toolchain-r-test
+    packages:
+      - wget
+      - pkg-config
+
+virtualenv:
+  system_site_packages: true
+
+before_install:
+    # Install Bazel
+  - wget https://github.com/bazelbuild/bazel/releases/download/0.9.0/bazel_0.9.0-linux-x86_64.deb
+  - echo a600454ec218bffd1a1cea0f5bb511031081d23c4de15bfde674164dc2f9cd7f bazel_0.9.0-linux-x86_64.deb | sha256sum -c -
+  - sudo dpkg -i bazel_0.9.0-linux-x86_64.deb
+  - rm bazel_0.9.0-linux-x86_64.deb
+    # Install App Engine test dependency
+  - pip install Pillow
+
+# Shard test execution to avoid Bazel failing with OOM/OOS on the Travis VM.
+# Without sharding, failure occurred after ~25 tests.
+script: "./run_tests.sh $GROUP $TOTAL_GROUPS"
+env:
+    global:
+        - TOTAL_GROUPS=4
+    matrix:
+        - GROUP=0
+        - GROUP=1
+        - GROUP=2
+        - GROUP=3

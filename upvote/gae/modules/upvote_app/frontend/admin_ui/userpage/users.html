@@ -1,0 +1,76 @@
+<div layout-padding>
+  <!-- Top Card -->
+  <div ng-show="userCtrl.card.$resolved">
+    <uv-user-card card="userCtrl.card" constant="userCtrl.userRole"></uv-user-card>
+  </div>
+
+  <div ng-show="userCtrl.showForm">
+    <md-card layout="column" layout-align="start center">
+      <md-card-content>
+        <h3>New User</h3>
+        <form name="newUser">
+          <md-input-container>
+            <label>Email:</label>
+            <input name="id" type="text" ng-model="userCtrl.form.id" required>
+          </md-input-container>
+          <md-input-container>
+            <label>Role</label>
+            <md-select ng-model="userCtrl.form.roles">
+              <md-option ng-repeat="role in userCtrl.userRole.UserRole" value="{{role}}">
+                {{ role | prettifyRole }}
+              </md-option>
+            </md-select>
+          </md-input-container>
+          <p>
+            <md-button class="md-raised md-primary"
+                       ng-show="newUser.$valid"
+                       ng-click="userCtrl.form.save()">
+              Save
+            </md-button>
+          </p>
+        </form>
+      </md-card-content>
+    </md-card>
+  </div>
+
+  <!-- Search Box -->
+  <md-input-container flex>
+    <label>Search By ID</label>
+    <input ng-model="userCtrl.queryData.search"
+           ng-model-options="{ debounce: 1000 }"
+           ng-change="userCtrl.search()"
+           ng-focus="userCtrl.searchSelected()" />
+  </md-input-container>
+
+  <!--  Create New Button -->
+  <p ng-show="userCtrl.rootScope.currentUser.permissions.includes('EDIT_USERS')">
+    <md-button class="md-raised md-primary"
+               ng-click="userCtrl.toggleForm()"
+               ng-hide="userCtrl.showForm">
+      Create New User
+    </md-button>
+  </p>
+
+  <!-- Results List -->
+  <md-content layout-padding class="md-whiteframe-4dp" ng-show="userCtrl.content.length > 0">
+    <uv-listing>
+      <listing-header>
+        <uv-listing-header flex="25">User</uv-listing-header>
+        <uv-listing-header flex="15">Voting Weight</uv-listing-header>
+        <uv-listing-header flex="25">Roles</uv-listing-header>
+      </listing-header>
+      <listing-body>
+        <uv-listing-row on-select="userCtrl.selectItem(item.id)" ng-repeat="item in userCtrl.content">
+          <uv-listing-cell>{{item.id}}</uv-listing-cell>
+          <uv-listing-cell>{{item.voteWeight}}</uv-listing-cell>
+          <uv-listing-cell>{{item.roles | displayArray}}</uv-listing-cell>
+        </uv-listing-row>
+      </listing-body>
+    </uv-listing>
+    <md-button class="md-raised md-primary"
+               ng-show="userCtrl.requestData.more"
+               ng-click="userCtrl.loadMore()">
+      More
+    </md-button>
+  </md-content>
+</div>

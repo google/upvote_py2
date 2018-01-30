@@ -1,0 +1,90 @@
+<div flex layout="column" layout-padding layout-align="start center">
+
+  <div flex ng-hide="hostListCtrl.hosts != null">
+    <md-progress-circular id="page-load-spinner" md-mode="indeterminate" md-diameter="96"></md-progress-circular>
+  </div>
+
+  <div flex layout="column" ng-show="hostListCtrl.hosts" id="host-card-list">
+    <md-card ng-repeat="host in hostListCtrl.hosts"
+             md-theme="default" md-theme-watch
+             class="md-card-medium _md md-default-theme"
+             ng-if="!host.hidden || hostListCtrl.showHidden">
+      <md-card-title>
+        <md-card-title-media class="uv-platform-logo">
+          <img ng-src="{{hostListCtrl.getPlatformImageUrl(host.operatingSystemFamily)}}"
+               class="md-card-image uv-platform-logo"
+               alt="{{host.operatingSystemFamily}}">
+        </md-card-title-media>
+        <md-card-title-text>
+          <span class="md-headline">
+            {{ host.hostname }}
+            <md-button class="visibility-button md-ink-ripple"
+                       ng-click="hostListCtrl.toggleVisibility(host)">
+              <md-tooltip md-delay=500>
+                {{ host.hidden ? 'Show this host' : 'Hide this host' }}
+              </md-tooltip>
+              <md-icon>{{ host.hidden ? 'visibility' : 'visibility_off' }}</md-icon>
+            </md-button>
+          </span>
+          <span class="md-subhead uv-host-card-detail">
+            Status:
+            <span ng-class="hostListCtrl.isInLockdown(host) ? 'protected-host' : 'unprotected-host'"
+                  ng-if="hostListCtrl.isBit9Host(host)">
+              {{ host.policyEnforcementLevel | prettifyEnforcementLevel }}
+            </span>
+            <span ng-class="hostListCtrl.isInLockdown(host) ? 'protected-host' : 'unprotected-host'"
+                  ng-if="hostListCtrl.isSantaHost(host)">
+              {{ host.clientMode | prettifyMode }}
+            </span>
+          </span>
+          <span ng-if="hostListCtrl.isSantaHost(host)"
+                class="md-subhead uv-host-card-detail">
+            Primary User:
+            <span class="uv-host-card-value">
+              {{ host.primaryUser }}
+            </span>
+          </span>
+          <span class="md-subhead uv-host-card-detail">
+            Last Sync:
+            <span class="uv-host-card-value">
+              <span ng-if="host.ruleSyncDt">
+                {{ host.ruleSyncDt | date:'mediumDate' }}
+              </span>
+              <span ng-if="host.lastEventDt">
+                {{ host.lastEventDt | date:'mediumDate' }}
+              </span>
+              <span ng-if="!host.ruleSyncDt && !host.lastEventDt">
+                Never
+              </span>
+            </span>
+          </span>
+        </md-card-title-text>
+      </md-card-title>
+      <md-card-actions layout="row" layout-align="left center"
+                       class="layout-align-start-center layout-row">
+        <button class="md-button md-default-theme md-ink-ripple"
+                ng-click="hostListCtrl.goToRequestPage(host.id)"
+                type="button"
+                ng-class="hostListCtrl.isInLockdown(host) ? 'protected-host' : 'unprotected-host'"
+                ng-if="hostListCtrl.isSantaHost(host) && hostListCtrl.isInLockdown(host)">
+          <span class="ng-scope">Disable Full Protection</span>
+        </button>
+        <button class="md-button md-default-theme md-ink-ripple"
+                ng-click="hostListCtrl.requestLockdown(host.id)"
+                type="button"
+                ng-class="hostListCtrl.isInLockdown(host) ? 'protected-host' : 'unprotected-host'"
+                ng-if="hostListCtrl.isSantaHost(host) && !hostListCtrl.isInLockdown(host)">
+          <span class="ng-scope">Enable Full Protection</span>
+        </button>
+        <button class="md-button md-default-theme md-ink-ripple"
+                ng-click="hostListCtrl.goToBlockablesPage(host.id)"
+                type="button">
+          <span class="ng-scope">Show Applications</span>
+        </button>
+      </md-card-actions>
+    </md-card>
+    <md-button ng-click="hostListCtrl.showHidden = !hostListCtrl.showHidden">
+      {{ hostListCtrl.showHidden ? 'Hide' : 'Show Hidden' }}
+    </md-button>
+  </div>
+</div>

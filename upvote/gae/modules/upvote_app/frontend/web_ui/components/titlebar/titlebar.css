@@ -1,0 +1,14 @@
+#menu-button {
+  margin: 0px;
+}
+
+#upvote-logo {
+  cursor: pointer;
+  height: 50px;
+  margin: 0px 15px 0px 0px;
+  width: 50px;
+}
+
+.md-title {
+  cursor: pointer;
+}

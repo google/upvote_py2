@@ -1,0 +1,87 @@
+.next-button.ng-leave {
+  transition: 0.1s ease all;
+  opacity: 1;
+}
+
+.next-button.ng-leave.ng-leave-active {
+  opacity: 0;
+}
+
+md-list.uv-info-list {
+  padding: 0;
+}
+
+md-list.uv-info-list>.md-subheader {
+  background-color: inherit;
+}
+
+md-list.uv-info-list .uv-mini-icon {
+  font-size: 18px;
+  display: inline;
+}
+
+md-list.uv-info-list md-list-item.md-2-line {
+  min-height: 0;
+  height: 54px;
+}
+
+md-list.uv-info-list md-list-item.md-2-line .md-avatar {
+  margin-top: 12px;
+  margin-bottom: 9px;
+}
+
+md-list.uv-info-list .uv-clickable {
+  cursor: pointer;
+}
+
+md-list.uv-info-list .md-list-item-text h3 {
+  overflow-x: visible;
+  text-overflow: clip;
+}
+
+md-list.uv-info-list md-list-item .md-avatar {
+  filter: grayscale(100%);
+}
+
+.signals-error md-icon {
+  margin-right: 5px;
+}
+
+.md-actions {
+  margin: 0px !important;
+}
+
+.voting-button {
+  width: 55% !important;
+}
+
+.voting-button md-icon {
+  margin-right: 10px;
+}
+
+#request-button {
+  background-color: #0F9D58;
+  margin-bottom: 20px !important;
+}
+
+#request-button:disabled {
+  background-color: #87CEAC;
+  margin-bottom: 20px !important;
+}
+
+#flag-button {
+  background-color: #DB4437;
+}
+
+#flag-button:disabled {
+  background-color: #EDA29B;
+}
+
+#fake-butterbar {
+  background: #F4C7C3;
+  max-width: 640px;
+}
+
+#fake-butterbar-title {
+  font-weight: bold;
+}

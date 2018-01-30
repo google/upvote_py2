@@ -1,0 +1,355 @@
+# Copyright 2017 Google Inc. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS-IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+indexes:
+
+- kind: AuditLog
+  properties:
+  - name: target_object_key
+  - name: recorded_dt
+
+- kind: AuditLog
+  properties:
+  - name: target_object_key
+  - name: recorded_dt
+    direction: desc
+
+- kind: BigQueryRow
+  properties:
+  - name: class
+  - name: timestamp
+
+- kind: Blockable
+  properties:
+  - name: state
+  - name: updated_dt
+    direction: desc
+
+- kind: Blockable
+  properties:
+  - name: flagged
+  - name: updated_dt
+    direction: desc
+
+- kind: Event
+  properties:
+  - name: usernames
+  - name: occurred_dt
+    direction: desc
+
+- kind: Event
+  properties:
+  - name: blockable_id
+  - name: usernames
+  - name: host_id
+
+- kind: Event
+  properties:
+  - name: host_id
+  - name: executing_user
+
+- kind: Event
+  properties:
+  - name: host_id
+  - name: occurred_dt
+    direction: desc
+
+- kind: Event
+  properties:
+  - name: usernames
+  - name: host_id
+
+- kind: Event
+  ancestor: yes
+  properties:
+  - name: class
+  - name: host_id
+
+- kind: Event
+  properties:
+  - name: class
+  - name: bit9_id
+    direction: desc
+
+- kind: Event
+  ancestor: yes
+  properties:
+  - name: blockable_key
+  - name: host_id
+
+- kind: Event
+  ancestor: yes
+  properties:
+  - name: host_id
+  - name: last_blocked_dt
+    direction: desc
+
+- kind: Event
+  properties:
+  - name: class
+  - name: host_id
+  - name: last_blocked_dt
+    direction: desc
+
+- kind: Event
+  properties:
+  - name: host_id
+  - name: last_blocked_dt
+    direction: desc
+
+- kind: Event
+  properties:
+  - name: usernames
+  - name: last_blocked_dt
+    direction: desc
+
+- kind: Event
+  properties:
+  - name: class
+  - name: last_blocked_dt
+    direction: desc
+
+- kind: Event
+  properties:
+  - name: blockable_key
+  - name: last_blocked_dt
+    direction: desc
+
+- kind: Event
+  ancestor: yes
+  properties:
+  - name: bundle_key
+  - name: last_blocked_dt
+    direction: desc
+
+- kind: Event
+  properties:
+  - name: class
+  - name: executing_user
+  - name: last_blocked_dt
+    direction: desc
+
+- kind: Event
+  properties:
+  - name: class
+  - name: event_type
+  - name: last_blocked_dt
+
+- kind: Event
+  properties:
+  - name: blockable_key
+  - name: count
+
+- kind: Event
+  properties:
+  - name: class
+  - name: occurred_dt
+    direction: desc
+
+- kind: Event
+  properties:
+  - name: blockable_id
+  - name: executing_user
+  - name: occurred_dt
+    direction: desc
+
+- kind: Event
+  properties:
+  - name: blockable_id
+  - name: last_blocked_dt
+    direction: desc
+
+- kind: Event
+  properties:
+  - name: class
+  - name: executing_user
+
+- kind: Event
+  properties:
+  - name: executing_user
+  - name: last_blocked_dt
+    direction: desc
+
+- kind: Event
+  properties:
+  - name: file_name
+  - name: last_blocked_dt
+    direction: desc
+
+- kind: Event
+  properties:
+  - name: file_path
+  - name: last_blocked_dt
+    direction: desc
+
+- kind: Event
+  properties:
+  - name: publisher
+  - name: last_blocked_dt
+    direction: desc
+
+- kind: Event
+  ancestor: yes
+  properties:
+  - name: blockable_key
+  - name: last_blocked_dt
+    direction: desc
+
+- kind: Event
+  ancestor: yes
+  properties:
+  - name: class
+  - name: host_id
+  - name: last_blocked_dt
+    direction: desc
+
+- kind: Event
+  ancestor: yes
+  properties:
+  - name: class
+  - name: last_blocked_dt
+    direction: desc
+
+- kind: Event
+  ancestor: yes
+  properties:
+  - name: last_blocked_dt
+    direction: desc
+
+- kind: Host
+  properties:
+  - name: class
+  - name: client_mode
+  - name: last_postflight_dt
+
+- kind: Host
+  properties:
+  - name: client_mode_lock
+  - name: last_postflight_dt
+
+- kind: Host
+  properties:
+  - name: class
+  - name: primary_user
+  - name: last_postflight_dt
+
+- kind: Rule
+  properties:
+  - name: class
+  - name: host_id
+  - name: in_effect
+  - name: updated_dt
+    direction: desc
+
+- kind: Rule
+  properties:
+  - name: class
+  - name: host_id
+  - name: in_effect
+  - name: updated_dt
+
+- kind: Rule
+  properties:
+  - name: class
+  - name: host_id
+  - name: in_effect
+  - name: primary_user
+
+- kind: Rule
+  properties:
+  - name: class
+  - name: in_effect
+  - name: policy
+  - name: recorded_dt
+
+- kind: Rule
+  properties:
+  - name: in_effect
+  - name: policy
+  - name: updated_dt
+
+- kind: Rule
+  ancestor: yes
+  properties:
+  - name: class
+  - name: host_id
+  - name: is_committed
+  - name: is_fulfilled
+  - name: updated_dt
+
+- kind: Rule
+  ancestor: yes
+  properties:
+  - name: class
+  - name: in_effect
+  - name: policy
+  - name: updated_dt
+    direction: desc
+
+- kind: Rule
+  properties:
+  - name: class
+  - name: is_fulfilled
+  - name: recorded_dt
+
+- kind: RuleChangeSet
+  ancestor: yes
+  properties:
+  - name: recorded_dt
+
+- kind: SantaBundleBinary
+  ancestor: yes
+  properties:
+  - name: cert_key
+
+- kind: SantaBundleBinary
+  ancestor: yes
+  properties:
+  - name: rel_path
+  - name: file_name
+
+- kind: _UnsyncedEvent
+  properties:
+  - name: host_id
+  - name: bit9_id
+
+- kind: Vote
+  ancestor: yes
+  properties:
+  - name: in_effect
+  - name: was_yes_vote
+  - name: user_email
+
+- kind: Vote
+  ancestor: yes
+  properties:
+  - name: recorded_dt
+    direction: desc
+
+- kind: Vote
+  properties:
+  - name: candidate_id
+  - name: recorded_dt
+    direction: desc
+
+- kind: Vote
+  properties:
+  - name: in_effect
+  - name: recorded_dt
+    direction: desc
+
+- kind: Vote
+  properties:
+  - name: was_yes_vote
+  - name: recorded_dt

@@ -1,0 +1,18 @@
+<div class="md-whiteframe-4dp uv-sidenav slide"
+     ng-class="{open: ctrl.isOpen}"
+     layout="column"
+     ng-cloak>
+  <div id="uv-home" layout="row" flex>
+    <md-button id="uv-logo-button"
+               ng-href="ctrl.isAdmin ? '/admin' : '/'"
+               md-ink-ripple="false">
+      <md-icon class="uv-logo" md-svg-icon="upvote-logo"></md-icon>
+      <span class="uv-nav-label fade" id="uv-title">Upvote</span>
+    </md-button>
+  </div>
+  <div class="uv-divider"></div>
+  <div class="uv-nav-buttons"
+    layout="column"
+    ng-transclude>
+  </div>
+</div>

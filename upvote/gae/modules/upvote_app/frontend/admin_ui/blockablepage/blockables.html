@@ -1,0 +1,144 @@
+<div layout-padding>
+
+  <!-- Top Card -->
+  <div layout layout-align="start" ng-show="blockableCtrl.card.$resolved">
+    <uv-blockable-card card="blockableCtrl.card"></uv-blockable-card>
+  </div>
+
+  <!-- Voting Buttons -->
+  <div class="md-actions"
+       layout="row"
+       layout-align="start center"
+       ng-show="blockableCtrl.card.$resolved">
+    <md-button class="md-raised md-primary" ng-click="blockableCtrl.upVote()">
+      Up Vote
+    </md-button>
+    <md-button class="md-raised md-primary" ng-click="blockableCtrl.reset()">
+      Reset Binary
+    </md-button>
+    <md-button class="md-raised md-primary" ng-click="blockableCtrl.downVote()">
+      Down Vote
+    </md-button>
+    <md-button class="md-primary" ng-click="blockableCtrl.goToBlockable(true)">
+      Admin Link
+    </md-button>
+    <md-button class="md-primary" ng-click="blockableCtrl.goToBlockable(false)">
+      Non Admin Link
+    </md-button>
+  </div>
+
+
+  <!--  New Entry Form -->
+  <div layout layout-align="start" ng-show="blockableCtrl.showForm">
+    <md-card layout="column" layout-align="start center">
+      <md-card-content>
+        <h3>New Blockable</h3>
+        <form name="newBlockable">
+          <md-input-container>
+            <label>Hash:</label>
+            <input name="id" type="text"
+                   ng-model="blockableCtrl.form.id" required>
+          </md-input-container>
+          <md-input-container>
+            <label>File Name:</label>
+            <input name="fileName" type="text"
+                   ng-model="blockableCtrl.form.fileName">
+          </md-input-container>
+          <md-input-container>
+            <label>Publisher:</label>
+            <input name="publisher" type="text"
+                   ng-model="blockableCtrl.form.publisher">
+          </md-input-container>
+          <p>
+            <input type="checkbox" ng-model="blockableCtrl.form.flagged">
+            Flagged
+          </p>
+            <textarea ng-model="blockableCtrl.form.notes">
+            </textarea>
+          <md-input-container>
+            <md-select ng-model="blockableCtrl.form.type" required>
+              <md-option value="SANTA_BINARY">Santa Binary</md-option>
+              <md-option value="SANTA_CERTIFICATE">Santa Certificate</md-option>
+            </md-select>
+          </md-input-container>
+          <p>
+            <md-button class="md-raised md-primary"
+                       ng-show="newBlockable.$valid"
+                       ng-click="blockableCtrl.form.save()">
+              Save
+            </md-button>
+          </p>
+        </form>
+      </md-card-content>
+    </md-card>
+  </div>
+
+  <!-- Search Box -->
+  <md-input-container flex>
+    <label>Search</label>
+    <input ng-model="blockableCtrl.queryData.search"
+           ng-model-options="{ debounce: 1000 }"
+           ng-change="blockableCtrl.search()"
+           ng-focus="blockableCtrl.searchSelected()" />
+  </md-input-container>
+
+  <div ng-show="blockableCtrl.showSearchBase">
+    Search In:
+    <!-- Platform Selector -->
+    <md-input-container>
+      <md-select ng-model="blockableCtrl.requestData.platform"
+                 ng-change="blockableCtrl.updateOptions()">
+        <md-option ng-repeat="platform in blockableCtrl.platforms"
+                   ng-value="platform.value">
+          {{platform.displayName}}
+        </md-option>
+      </md-select>
+    </md-input-container>
+    <!-- Blockable Type Selector -->
+    <md-input-container>
+      <md-select ng-model="blockableCtrl.requestData.type"
+                 ng-change="blockableCtrl.updateOptions()">
+        <md-option ng-repeat="type in blockableCtrl.types"
+                   ng-value="type.value">
+          {{type.displayName}}
+        </md-option>
+      </md-select>
+    </md-input-container>
+    <!-- Field Selector -->
+    <md-radio-group ng-model="blockableCtrl.queryData.searchBase"
+                     class="md-primary" ng-change="blockableCtrl.search()">
+      <md-radio-button ng-repeat="field in blockableCtrl.fields"
+                       ng-value="field.value" class="md-primary" >
+        {{field.displayName}}
+      </md-radio-button>
+    </md-radio-group>
+  </div>
+
+  <!--  Create New Button -->
+  <p ng-show="blockableCtrl.rootScope.currentUser.permissions.includes('INSERT_BLOCKABLES')">
+    <md-button class="md-raised md-primary"
+               ng-click="blockableCtrl.toggleForm()"
+               ng-hide="blockableCtrl.showForm">
+      Create New Blockable
+    </md-button>
+  </p>
+
+  <!-- Results List -->
+  <md-content layout-padding class="md-whiteframe-4dp" ng-show="blockableCtrl.content.length > 0">
+    <uv-listing>
+      <listing-header>
+        <uv-blockable-header></uv-blockable-header>
+      </listing-header>
+      <listing-body>
+        <uv-blockable-listing ng-repeat="item in blockableCtrl.content" item="item"
+          on-selected="blockableCtrl.selectItem(item.id)">
+        </uv-blockable-listing>
+      </listing-body>
+    </uv-listing>
+    <md-button class="md-raised md-primary"
+               ng-show="blockableCtrl.requestData.more"
+               ng-click="blockableCtrl.loadMore()">
+      More
+    </md-button>
+  </md-content>
+</div>

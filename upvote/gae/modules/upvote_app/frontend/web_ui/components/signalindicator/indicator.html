@@ -1,0 +1,38 @@
+<span class="signal-indicator"
+      ng-class="ctrl.asIcon ? 'signal-icon' : 'signal-text'"
+      ng-switch="ctrl.state">
+  <span ng-switch-when="GOOD" class="uv-success">
+    <div ng-if="!ctrl.asIcon">Analyzed: Safe</div>
+    <md-icon ng-if="ctrl.asIcon" class="uv-success">check_circle</md-icon>
+    <md-tooltip md-delay="500">
+      No malware detected.
+    </md-tooltip>
+  </span>
+  <span ng-switch-when="BAD" class="uv-error">
+    <div ng-if="!ctrl.asIcon">Analyzed: Possible Malware</div>
+    <md-icon ng-if="ctrl.asIcon" class="uv-error">report</md-icon>
+    <md-tooltip md-delay="500">
+      Scanner(s) detected possible malware! Please review the analysis
+      service report and escalate as appropriate.
+    </md-tooltip>
+  </span>
+  <span ng-switch-when="NONE" class="uv-warning">
+    <div ng-if="!ctrl.asIcon">Not Analyzed</div>
+    <md-icon ng-if="ctrl.asIcon" class="uv-warning">help</md-icon>
+    <md-tooltip md-delay="500">No analysis found.</md-tooltip>
+  </span>
+  <span ng-switch-when="PENDING" class="uv-neutral">
+    <div ng-if="!ctrl.asIcon">Analysis In-Progress</div>
+    <md-icon ng-if="ctrl.asIcon" class="uv-neutral">watch_later</md-icon>
+    <md-tooltip md-delay="500">
+      File is currently being analyzed.
+    </md-tooltip>
+  </span>
+  <span ng-switch-default class="uv-warning">
+    <div ng-if="!ctrl.asIcon">Status Unavailable</div>
+    <md-icon ng-if="ctrl.asIcon" class="uv-warning">warning</md-icon>
+    <md-tooltip md-delay="500">
+      Analysis could not be fetched.
+    </md-tooltip>
+  </span>
+</span>

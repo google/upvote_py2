@@ -1,0 +1,310 @@
+<div layout="column" layout-padding layout-align="start center"
+                     ng-show="ctrl.blockable">
+
+  <md-card id="blockable-card" layout="column" layout-align="start center">
+    <md-card-content>
+      <div ng-if="!ctrl.blockable.id">Blockable not found :(</div>
+      <md-stepper id="voting-stepper" md-vertical="true" md-linear="true" ng-if="ctrl.blockable.id">
+        <md-step md-label="Verify that this is the application you intended to run">
+          <div layout-padding>
+            <md-list class="uv-info-list">
+              <md-subheader class="md-no-sticky">General Info</md-subheader>
+              <md-list-item class="md-2-line">
+                <md-icon class="md-avatar">insert_drive_file</md-icon>
+                <div class="md-list-item-text">
+                  <h3>{{ ctrl.blockable | blockableDisplayName }}
+                    <small ng-if="ctrl.isPackage()">
+                      ({{ ctrl.blockable.binaryCount }} {{ ctrl.blockable.binaryCount == 1 ? "Binary" : "Binaries" }})
+                    </small>
+                  </h3>
+                  <p ng-if="ctrl.isPackage()">Package Name</p>
+                  <p ng-if="!ctrl.isPackage()">File Name</p>
+                </div>
+                <uv-package-contents class="md-secondary" ng-if="ctrl.isPackage()"
+                                      contents="ctrl.contents"
+                                      main-cert-id="ctrl.blockable.certId"
+                                      package-id="ctrl.blockable.id"
+                                      package-name="ctrl.blockable | blockableDisplayName">
+                </uv-package-contents>
+              </md-list-item>
+              <md-list-item class="md-2-line" ng-if="!ctrl.isPackage()">
+                <md-icon class="md-avatar">fingerprint</md-icon>
+                <div class="md-list-item-text">
+                  <h3 ng-if="!ctrl.expandHash">
+                    {{ ctrl.blockable.id | truncateHash }}
+                    <span class="uv-clickable" ng-click="ctrl.expandHash = true">
+                      &hellip;
+                      <md-tooltip md-delay="500">Display the full fingerprint</md-tooltip>
+                    </span>
+                  </h3>
+                  <h3 ng-if="ctrl.expandHash">
+                    {{ ctrl.blockable.id }}
+                  </h3>
+                  <span layout="row" layout-align="start center">
+                    <p>
+                      File Fingerprint
+                      <md-icon class="uv-mini-icon">
+                        help_outline
+                        <md-tooltip md-delay="500" md-direction="right">
+                          The <span ng-if="!ctrl.expandHash">truncated</span> SHA-256 hash of the binary
+                        </md-tooltip>
+                      </md-icon>
+                    </p>
+                  </span>
+                </div>
+              </md-list-item>
+              <md-list-item class="md-2-line" ng-if="ctrl.isPackage()">
+                <md-icon class="md-avatar">info_outline</md-icon>
+                <div class="md-list-item-text">
+                  <h3>{{ ctrl.blockable.version || "(Unknown)" }}</h3>
+                  <p>Version</p>
+                </div>
+              </md-list-item>
+              <md-list-item class="md-2-line">
+                <md-icon class="md-avatar">business</md-icon>
+                <div class="md-list-item-text">
+                  <h3>{{ ctrl.cert.organization || "(Unknown)" }}</h3>
+                  <p>Publisher</p>
+                </div>
+              </md-list-item>
+              <md-divider></md-divider>
+              <md-subheader class="md-no-sticky">Upvote Status</md-subheader>
+              <md-list-item class="md-2-line">
+                <md-icon class="md-avatar">import_export</md-icon>
+                <div class="md-list-item-text">
+                  <h3 class="vote-score">{{ ctrl.blockable.score }}</h3>
+                  <p>Score</p>
+                </div>
+              </md-list-item>
+              <md-list-item class="md-2-line">
+                <md-icon class="md-avatar">gavel</md-icon>
+                <div class="md-list-item-text">
+                  <div layout="row" layout-align="start center">
+                    <uv-state-chip state="ctrl.blockable.state"
+                                    vote="ctrl.vote"
+                                    cert="!ctrl.isPackage() && ctrl.cert"
+                                    is-pending="ctrl.isPending">
+                    </uv-state-chip>
+                  </div>
+                  <p>
+                    State
+                    <uv-state-chip-help></uv-state-chip-help>
+                  </p>
+                </div>
+              </md-list-item>
+              <md-list-item class="md-2-line" ng-if="ctrl.isBit9">
+                <md-icon class="md-avatar">file_download</md-icon>
+                <div class="md-list-item-text">
+                  <h3>{{ ctrl.isInstaller ? "Installer" : "Normal Application" }}<span ng-if="ctrl.isInstallerPending"> (Pending)</span></h3>
+                  <p></p>
+                  <span layout="row" layout-align="start center">
+                    <p>
+                      Application Role
+                      <md-icon class="uv-mini-icon">
+                        help_outline
+                        <md-tooltip md-delay="500">
+                          Whether the application is an installer of other software (e.g. "setup.exe").
+                        </md-tooltip>
+                      </md-icon>
+                    </p>
+                  </span>
+                </div>
+                <md-button class="md-secondary md-raised"
+                           ng-click="ctrl.requestInstallerToggle()">
+                  Mark as {{ ctrl.isInstaller ? "Non-Installer" : "Installer" }}
+                </md-button>
+              </md-list-item>
+              <md-divider></md-divider>
+              <md-subheader class="md-no-sticky">Your Last Run</md-subheader>
+              <md-list-item class="md-2-line" ng-if="!ctrl.hasRecentEvent()">
+                <div class="md-list-item-text">
+                  <h3>You haven't run this application before.</h3>
+                  <p>&nbsp;</p>
+                </div>
+              </md-list-item>
+              <md-list-item class="md-2-line" ng-if="ctrl.hasRecentEvent()">
+                <md-icon class="md-avatar">schedule</md-icon>
+                <div class="md-list-item-text">
+                  <h3>{{ ctrl.recentEventCtx.event.lastBlockedDt | timeSince }}</h3>
+                  <p>Time</p>
+                </div>
+              </md-list-item>
+              <md-list-item class="md-2-line" ng-if="ctrl.hasRecentEvent()">
+                <md-icon class="md-avatar">computer</md-icon>
+                <div class="md-list-item-text">
+                  <h3>{{ ctrl.recentEventCtx.host.hostname }}</h3>
+                  <p>Host</p>
+                </div>
+              </md-list-item>
+              <md-list-item class="md-2-line" ng-if="ctrl.hasRecentEvent()">
+                <md-icon class="md-avatar">folder</md-icon>
+                <div class="md-list-item-text">
+                  <h3 ng-if="ctrl.isPackage()">
+                    {{ ctrl.recentEventCtx.event.bundlePath || "(Unknown)" }}
+                  </h3>
+                  <h3 ng-if="!ctrl.isPackage()">
+                    {{ ctrl.recentEventCtx.event.filePath || "(Unknown)" }}
+                  </h3>
+                  <p>Local Path</p>
+                </div>
+              </md-list-item>
+            </md-list>
+          </div>
+          <md-step-actions>
+            <br />
+            <md-button class="md-raised md-primary next-button"
+                   ng-click="ctrl.next()"
+                   ng-if="ctrl.isCurrentStep(0)">
+              Yup that's the one
+            </md-button>
+          </md-step-actions>
+        </md-step>
+        <md-step md-label="Review whether our analysis services consider this application to be safe">
+          <div layout-padding>
+            <md-list class="uv-info-list">
+              <uv-virus-total-widget blockable="ctrl.blockable" contents="ctrl.contents">
+              </uv-virus-total-widget>
+            </md-list>
+            <md-step-actions>
+              <br />
+              <md-button class="md-raised md-primary next-button"
+                     ng-click="ctrl.next()"
+                     ng-if="ctrl.isCurrentStep(1)">
+                I've checked
+              </md-button>
+            </md-step-actions>
+          </div>
+        </md-step>
+        <md-step md-label="Cast your vote for this application">
+          <div layout-padding>
+            <div ng-if="ctrl.userHasElevatedPermissions()">
+              <md-input-container>
+                <label>Vote Weight</label>
+                <md-select ng-model="ctrl.requestedVoteRole">
+                  <md-option ng-value="null">
+                    Default
+                  </md-option>
+                  <md-option ng-repeat="entry in ctrl.votingWeights | orderBy:['weight', 'role']"
+                             ng-value="entry.role"
+                             ng-disabled="!ctrl.user.isAdmin && !ctrl.user.roles.includes(entry.role)">
+                    &plusmn;{{ entry.weight }} ({{ entry.role }})
+                  </md-option>
+                </md-select>
+              </md-input-container>
+            </div>
+            <div class="md-actions"
+                 layout="column"
+                 layout-align="space-around center">
+              <md-button id="request-button"
+                         class="md-raised md-primary voting-button"
+                         ng-click="ctrl.request()"
+                         ng-disabled="ctrl.disableRequestButton()">
+                <md-icon>check_circle</md-icon>
+
+                <span ng-show="!ctrl.hasCastVote() || !ctrl.wasYesVote()">
+                  Vote To Whitelist This
+                </span>
+                <span ng-show="ctrl.hasCastVote() && ctrl.wasYesVote()">
+                  Voted To Whitelist
+                </span>
+
+                <md-tooltip md-delay="500">
+                  Request that this binary be whitelisted
+                </md-tooltip>
+              </md-button>
+              <span flex></span>
+              <md-button id="flag-button"
+                         class="md-raised md-primary voting-button"
+                         ng-click="ctrl.flag()"
+                         ng-disabled="ctrl.disableFlagButton()">
+                <md-icon>report_problem</md-icon>
+
+                <span ng-show="!ctrl.hasCastVote() || ctrl.wasYesVote()">
+                  Flag Possible Malware
+                </span>
+                <span ng-show="ctrl.hasCastVote() && !ctrl.wasYesVote()">
+                  Flagged As Malware
+                </span>
+
+                <md-tooltip md-delay="500">
+                  Flag this software as potential malware
+                </md-tooltip>
+              </md-button>
+            </div>
+            <div ng-if="!ctrl.isVotingAllowed()">
+              <p><b>Voting Disabled</b></p>
+              <p>
+                {{ ctrl.blockable.votingProhibitedReason | prettifyVotingProhibitedReason }}
+              </p>
+            </div>
+          </div>
+        </md-step>
+        <md-step md-label="What happens next?">
+          <md-progress-circular md-mode="indeterminate" md-diameter="30" ng-show="ctrl.localVoteCast"></md-progress-circular>
+          <div ng-switch="ctrl.getUiState()" ng-if="ctrl.votingThresholds" ng-hide="ctrl.localVoteCast" layout-padding>
+            <div ng-switch-when="AWAITING_VOTES">
+              <p>
+                <ng-pluralize count="ctrl.votesToGo()"
+                              when="{'1': '1 more vote', 'other': '{} more votes'}">
+                </ng-pluralize>
+                needed to whitelist this application.
+              </p>
+              <p>To get the necessary votes, you can...</p>
+              <ul>
+                <li>Share this voting page with a coworker</li>
+              </ul>
+            </div>
+            <div ng-switch-when="FLAGGED">
+              This application is flagged and will not be available until it is
+              reviewed by an admin.
+            </div>
+            <div ng-switch-when="WHITELISTED">
+              <div ng-if="ctrl.isBit9">
+                You are now permitted to run this application!
+                <ul>
+                  <li>
+                    You may need to wait up to 10 minutes for the changes to
+                    propagate to your machine.
+                  </li>
+                </ul>
+              </div>
+              <div ng-if="!ctrl.isBit9">
+                You are now able to run this application!
+                <ul>
+                  <li>
+                    You may need to wait up to 10 minutes for your machine to sync.
+                  </li>
+                  <li>
+                    Alternatively, you can force a sync by clicking on the gmenu
+                    icon &#8594; gMac Tasks &#8594; Sync Santa Rules.
+                  </li>
+                </ul>
+              </div>
+            </div>
+            <!-- NOTE: The AVAILABLE case should never be visible as it requires no vote be cast. -->
+            <div ng-switch-when="AVAILABLE">
+              Vote to run this application.
+            </div>
+            <!-- NOTE: The BANNED and GLOBALLY... cases should never be visible as they are not votable states. -->
+            <div ng-switch-when="GLOBALLY_WHITELISTED">
+              You are now able to run this application!
+            </div>
+            <div ng-switch-when="BANNED">
+              This application is banned from execution at Google.
+            </div>
+            <div ng-switch-default>
+              Unknown state.
+            </div>
+          </div>
+        </md-step>
+      </md-stepper>
+    </md-card-content>
+
+    <md-button class="md-primary"
+               ng-show="ctrl.userHasElevatedPermissions()"
+               ng-href="{{ ctrl.getAdminUrl() }}"
+               target="_blank">View as Admin
+    </md-button>
+
+  </md-card>
+</div>

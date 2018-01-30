@@ -1,0 +1,33 @@
+<div role="dialog" class="uv-dialog md-whiteframe-6dp"
+     layout="column" layout-align="center center" layout-padding>
+  <h3>
+    {{ ctrl.packageName }}
+    <md-button class="md-icon-button" ng-href="/blockables/{{ctrl.packageId}}">
+      <md-icon>open_in_new</md-icon>
+    </md-button>
+  </h3>
+  <md-content>
+    <md-list class="md-dense">
+      <md-list-item class="md-2-line signal-indicator" ng-repeat="bin in ctrl.contents">
+        <div class="md-avatar">
+          <uv-cert-icon package-cert-id="ctrl.mainCertId" binary-cert-id="bin.certId">
+          </uv-cert-icon>
+        </div>
+        <div class="md-list-item-text">
+          <h3>{{ bin.fileName }}</h3>
+          <p>{{ bin.relPath }}</p>
+        </div>
+        <md-button class="md-secondary md-icon-button"
+                   ng-href="/blockables/{{bin.id}}">
+          <md-icon>open_in_new</md-icon>
+        </md-button>
+      </md-list-item>
+    </md-list>
+  </md-content>
+  <div class="dialog-close-container">
+    <md-button class="md-primary dialog-close-button"
+               ng-click="ctrl.closeDialog()" md-autofocus>
+        Close
+    </md-button>
+  </div>
+</div>

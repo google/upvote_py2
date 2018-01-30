@@ -1,0 +1,20 @@
+md-stepper.uv-sticky-stepper .md-stepper-title {
+  font-size: 110%;
+}
+
+md-stepper.uv-sticky-stepper .md-stepper-indicator.md-active .md-stepper-number {
+  /* Material Blue 500 */
+  background-color: #2196F3;
+}
+
+md-stepper.uv-sticky-stepper .md-stepper-indicator-wrapper {
+  background-color: transparent;
+}
+
+md-stepper.uv-sticky-stepper .md-steppers-vertical .md-stepper {
+  padding: 0px 0px 25px 0px;
+}
+
+md-stepper.uv-sticky-stepper .md-steppers-vertical .md-steppers-scope {
+  padding: 17px 0px 0px 0px;
+}

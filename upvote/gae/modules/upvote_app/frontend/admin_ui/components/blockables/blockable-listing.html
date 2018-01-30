@@ -1,0 +1,27 @@
+<uv-listing-row on-select="onSelected()">
+  <uv-listing-cell>{{item.fileName}}</uv-listing-cell>
+  <uv-listing-cell>{{item.publisher}}</uv-listing-cell>
+  <uv-listing-cell>{{item.productName}}</uv-listing-cell>
+  <uv-listing-cell>
+    <md-checkbox ng-disabled="true" ng-checked="item.flagged"></md-checkbox>
+  </uv-listing-cell>
+  <uv-listing-cell>{{ item.occurredDt | date:'mediumDate' }}</uv-listing-cell>
+  <uv-listing-cell>{{item.score}}</uv-listing-cell>
+  <uv-listing-cell ng-if="type != 'TRENDING_ALLOWED'">
+    <uv-state-chip state="item.state"></uv-state-chip>
+  </uv-listing-cell>
+  <uv-listing-cell ng-if="type == 'TRENDING_ALLOWED'">{{item.count}}</uv-listing-cell>
+  <md-tooltip>
+    {{item.idType}},
+    {{item.version}},
+    {{item.occurredDt| date:'mediumDate' }},
+    {{item.updatedDt| date:'mediumDate' }},
+    {{item.recordedDt| date:'mediumDate' }},
+    {{item.score}},
+    {{item.flagged}},
+    {{item.notes}},
+    {{item.stateChangeDt| date:'mediumDate' }},
+    {{item.bundleId}},
+    {{item.certId}}
+  </md-tooltip>
+</uv-listing-row>

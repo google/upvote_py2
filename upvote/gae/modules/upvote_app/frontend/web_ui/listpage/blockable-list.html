@@ -1,0 +1,39 @@
+<div flex layout="column" layout-padding layout-align="start center">
+  <md-content flex="nogrow" class="blockable-table md-whiteframe-4dp">
+    <uv-listing>
+      <listing-header>
+        <uv-listing-header flex="25">Application</uv-listing-header>
+        <uv-listing-header flex="25">
+          Status
+          <uv-state-chip-help></uv-state-chip-help>
+        </uv-listing-header>
+        <uv-listing-header flex="25">Host</uv-listing-header>
+        <uv-listing-header flex="25">Last Blocked</uv-listing-header>
+      </listing-header>
+      <listing-body>
+        <uv-listing-row on-select="blockableListCtrl.goToBlockable(ctx.blockable)"
+                         ng-repeat="ctx in blockableListCtrl.results.content"
+                         ng-class="blockableListCtrl.getBlockableClass(ctx.blockable)">
+          <uv-listing-cell>
+            <md-icon ng-if="!ctx.blockable">broken_image</md-icon>
+            <img class="platform-logo"
+                 alt="{{blockableListCtrl.getPlatformImageAltText(ctx.blockable)}}"
+                 ng-src="{{blockableListCtrl.getPlatformImageUrl(ctx.blockable)}}"
+                 ng-if="ctx.blockable">
+            <span class="name-container">{{ ctx.blockable | blockableDisplayName }}</span>
+          </uv-listing-cell>
+          <uv-listing-cell>
+            <uv-state-chip state="ctx.blockable.state" vote="ctx.vote" cert="ctx.cert" is-pending="ctx.isPending"></uv-state-chip>
+          </uv-listing-cell>
+          <uv-listing-cell>{{ ctx.host.hostname | hostDisplayHostname }}</uv-listing-cell>
+          <uv-listing-cell>{{ ctx.event.occurredDt | timeSince }}</uv-listing-cell>
+        </uv-listing-row>
+      </listing-body>
+    </md-list>
+  </md-content>
+  <div ng-show="blockableListCtrl.isLoadingMore">
+    <md-progress-circular id="load-more-spinner" md-mode="indeterminate"></md-progress-circular>
+  </div>
+
+  <uv-more-footer ctrl="blockableListCtrl" />
+</div>

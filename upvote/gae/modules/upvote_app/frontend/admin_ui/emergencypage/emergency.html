@@ -1,0 +1,33 @@
+<div layout-padding>
+  <md-content layout-padding class="md-whiteframe-4dp">
+    <md-switch ng-model="emergencyCtrl.buttonStatus.bigRedButton"
+               class="md-block"
+               ng-change="emergencyCtrl.setBigRedButton()">
+      Big Red Button
+    </md-switch>
+    <md-switch ng-show="emergencyCtrl.buttonStatus.bigRedButton"
+               ng-model="emergencyCtrl.buttonStatus.bigRedButtonStop1"
+               class="md-block"
+               ng-change="emergencyCtrl.setBigRedButtonStop1()">
+      STOP
+    </md-switch>
+    <md-switch ng-show="emergencyCtrl.buttonStatus.bigRedButtonStop1"
+               ng-model="emergencyCtrl.buttonStatus.bigRedButtonStop2"
+               class="md-block"
+               ng-change="emergencyCtrl.setBigRedButtonStop2()">
+      STOP
+    </md-switch>
+    <md-switch ng-show="emergencyCtrl.buttonStatus.bigRedButton"
+               ng-model="emergencyCtrl.buttonStatus.bigRedButtonGo1"
+               class="md-block"
+               ng-change="emergencyCtrl.setBigRedButtonGo1()">
+      GO
+    </md-switch>
+    <md-switch ng-show="emergencyCtrl.buttonStatus.bigRedButtonGo1"
+               ng-model="emergencyCtrl.buttonStatus.bigRedButtonGo2"
+               class="md-block"
+               ng-change="emergencyCtrl.setBigRedButtonGo2()">
+      GO
+    </md-switch>
+  </md-content>
+</div>

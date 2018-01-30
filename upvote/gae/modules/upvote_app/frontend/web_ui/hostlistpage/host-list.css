@@ -1,0 +1,45 @@
+#status-annotation {
+  margin-left: 5px;
+}
+
+#host-card-list {
+  width: 85%;
+}
+
+span.md-subhead.uv-host-card-detail {
+  font-weight: bold;
+}
+
+.uv-host-card-value {
+  font-weight: 400;
+}
+
+span.protected-host, button.unprotected-host {
+  /* Promote with green color. */
+  color: #0F9D58;
+}
+
+span.unprotected-host, button.protected-host {
+  /* Deter with red color. */
+  color: #FF5252;
+}
+
+button.visibility-button {
+  float: right;
+  min-width: 40px;
+  opacity: 0;
+  transition: .5s;
+}
+
+md-card:hover button.visibility-button {
+  opacity: 1;
+}
+
+.md-card-image.uv-platform-logo {
+  width: 112px;
+  height: 112px;
+}
+
+md-card-title-media.uv-platform-logo {
+  padding-right: 16px;
+}

@@ -1,0 +1,16 @@
+.uv-dialog {
+  background-color: white;
+  max-height: 700px;
+}
+
+.uv-dialog>md-content {
+  background-color: inherit;
+}
+
+.uv-dialog .dialog-close-button {
+  width: 100%;
+}
+
+.uv-dialog .dialog-close-container {
+  width: 100%;
+}

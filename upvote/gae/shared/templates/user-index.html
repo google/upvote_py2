@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en" ng-app="upvote.app" ng-controller="MainController as main">
+
+  <head>
+    <title>Upvote</title>
+    <meta content="initial-scale=1" name="viewport">
+
+    <base href="/">
+
+    <meta charset="utf-8">
+
+    <link rel="stylesheet" href="/app_css.css">
+    <link rel="icon" href="/static/images/favicon.ico" type="image/x-icon">
+    <link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/angular_material/1.1.0/angular-material.min.css">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Extended" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <script type="text/javascript">CLOSURE_NO_DEPS = true;</script>
+  </head>
+
+  <body layout="column">
+
+    <md-content id="uv-all-content" layout="row" flex>
+      <uv-sidenav is-open="main.isSidenavOpen" is-admin="false">
+        <uv-nav-button
+          uv-href="/blockables"
+          icon="list_alt"
+          title="Applications">
+        </uv-nav-button>
+        <uv-nav-button
+          uv-href="/hosts"
+          icon="computer"
+          title="Hosts">
+        </uv-nav-button>
+      </uv-sidenav>
+
+      <div id="uv-main-content" layout="column" flex>
+        <uv-titlebar is-sidenav-open="main.isSidenavOpen" ng-cloak>{{main.page.title}}</uv-titlebar>
+        <div class="scroll-y" flex>
+          <ng-view></ng-view>
+        </div>
+      </div>
+    </md-content>
+
+    {# Load AngularJS from the CDN. These are likely to be cached in the user's
+      browser already and we don't need to serve them. #}
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.6.0/angular.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.6.0/angular-route.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.6.0/angular-resource.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.6.0/angular-sanitize.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.6.0/angular-aria.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.6.0/angular-animate.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/angular_material/1.1.0/angular-material.min.js"></script>
+    {% if debug %}
+      <script type="text/javascript" src="/app_debug.js"></script>
+    {% else %}
+      <script type="text/javascript" src="/app_min.js"></script>
+    {% endif %}
+    <script type="text/javascript">
+      upvote.app.start('[[username]]');
+    </script>
+  </body>
+</html>

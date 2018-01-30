@@ -1,0 +1,115 @@
+# Copyright 2017 Google Inc. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS-IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+application: auto
+version: auto
+module: default
+runtime: python27
+instance_class: F2
+api_version: 1
+threadsafe: true
+inbound_services:
+- warmup
+builtins:
+- deferred: on
+libraries:
+- name: ssl
+  version: latest
+- name: pycrypto
+  version: latest
+- name: jinja2
+  version: latest
+
+automatic_scaling:
+    min_pending_latency: 100ms
+    max_pending_latency: 450ms
+    max_concurrent_requests: 5
+
+derived_file_type:
+- python_precompiled
+
+handlers:
+- url: /cron/.*
+  script: upvote.gae.modules.upvote_app.cron.main.app
+  secure: always
+  login: admin
+
+- url: /api/web/.*
+  script: upvote.gae.modules.upvote_app.api.main.app
+  secure: always
+  login: required
+
+- url: /admin/(.*\.(css|js))
+  static_files: upvote/gae/modules/upvote_app/frontend/\1
+  secure: always
+  login: required
+  upload: upvote/gae/modules/upvote_app/frontend/.*\.(css|js)
+
+- url: /admin/html
+  static_dir: upvote/gae/modules/upvote_app/frontend/admin_ui/html
+  secure: always
+  login: required
+
+- url: /admin/static
+  static_dir: upvote/gae/modules/upvote_app/frontend/admin_ui/
+  secure: always
+  login: required
+
+- url: /(.*\.(css|js))
+  static_files: upvote/gae/modules/upvote_app/frontend/\1
+  secure: always
+  login: required
+  upload: upvote/gae/modules/upvote_app/frontend/.*\.(css|js)
+
+- url: /html
+  static_dir: upvote/gae/modules/upvote_app/frontend/web_ui/html
+  secure: always
+  login: required
+
+- url: /static/images
+  static_dir: upvote/gae/modules/upvote_app/frontend/web_ui/static
+  secure: always
+  login: required
+
+- url: /static
+  static_dir: upvote/gae/modules/upvote_app/frontend/web_ui/
+  secure: always
+  login: required
+
+- url: /_ah/warmup
+  script: upvote.gae.modules.upvote_app.api.main.app
+  secure: always
+
+- url: /_ah/admin.*
+  script: google.appengine.ext.admin.application
+  login: admin
+
+- url: /_ah/queue/deferred
+  script: google.appengine.ext.deferred.deferred.application
+  login: admin
+
+- url: /.*
+  script: upvote.gae.modules.upvote_app.api.main.app
+  secure: always
+  login: required
+
+skip_files:
+# Default patterns skipped by App Engine, which must be repeated since
+# specifying skip_files overrides them otherwise.  See
+# https://cloud.google.com/appengine/docs/standard/python/config/appref#skip_files
+- ^(.*/)?#.*#$
+- ^(.*/)?.*~$
+- ^(.*/)?.*\.pyo$
+- ^(.*/)?.*/RCS/.*$
+- ^(.*/)?\..*$

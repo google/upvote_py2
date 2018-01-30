@@ -1,0 +1,28 @@
+<div role="dialog" class="uv-dialog md-whiteframe-6dp"
+     layout="column" layout-align="center center" layout-padding>
+  <md-content>
+    <md-list class="md-dense">
+      <md-list-item class="md-2-line signal-indicator" ng-repeat="item in ctrl.reportMap">
+        <div class="md-avatar">
+          <uv-signal-indicator state="ctrl.getState(item.report)" as-icon="true"></uv-signal-indicator>
+        </div>
+        <div class="md-list-item-text">
+          <h3>{{ item.binary.fileName || '???' }}</h3>
+          <p>{{ item.binary.relPath || '???' }}</p>
+        </div>
+        <md-button class="md-secondary md-icon-button"
+                   href="{{ item.report.permalink }}"
+                   target="_blank"
+                   ng-if="item.report.responseCode == 1">
+          <md-icon>launch</md-icon>
+        </md-button>
+      </md-list-item>
+    </md-list>
+  </md-content>
+  <div class="dialog-close-container">
+    <md-button class="md-primary dialog-close-button"
+               ng-click="ctrl.closeDialog()" md-autofocus>
+        Close
+    </md-button>
+  </div>
+</div>

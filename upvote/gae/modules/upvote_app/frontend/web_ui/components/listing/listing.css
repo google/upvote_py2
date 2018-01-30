@@ -1,0 +1,10 @@
+.uv-listing-row {
+  width: 100%;
+}
+
+.uv-listing-cell {
+  margin: 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  background-color: transparent;
+}

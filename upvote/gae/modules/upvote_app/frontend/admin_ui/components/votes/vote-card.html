@@ -1,0 +1,19 @@
+<md-card layout="column" layout-align="start center">
+  <md-card-content>
+    <div>
+      User Email: {{ card.userEmail }}
+    </div>
+    <div>
+      Date: {{ card.recordedDt | date:'mediumDate' }} ({{ card.recordedDt | timeSince }})
+    </div>
+    <div>
+      Blockable: {{ card.candidateId }}
+    </div>
+    <div>
+      Blockable Type: {{ card.candidateType }}
+    </div>
+    <div>
+      Vote Weight: {{ card.weight }}
+    </div>
+  </md-card-content>
+</md-card>

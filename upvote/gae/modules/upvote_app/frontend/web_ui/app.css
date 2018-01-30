@@ -1,0 +1,65 @@
+body {
+  background-color: #FFF;
+}
+
+#uv-all-content {
+  background-color: inherit;
+}
+
+#uv-main-content {
+  overflow: hidden;
+  background-color: #EEE;
+}
+
+#blockable-card {
+  max-width: 640px;
+}
+
+body>md-tooltip {
+  z-index: 150;
+}
+
+.scroll-y {
+  overflow-y: auto;
+  height: 100%;
+}
+
+.uv-minibutton.md-icon-button.md-button {
+  display: inline;
+  margin: 0;
+  padding: 0;
+}
+
+button.uv-minibutton.md-icon-button.md-button {
+  width: 20px;
+  height: 20px;
+}
+
+.uv-minibutton.md-icon-button md-icon {
+  display: inline !important;
+  font-size: 18px;
+}
+
+.uv-success {
+  /* Material Green 600 (White text) */
+  color: #43A047;
+}
+
+.uv-warning {
+  /* Material Orange 600 */
+  color: #FB8C00;
+}
+
+.uv-error {
+  /* Material Red 500 */
+  color: #F44336;
+}
+
+.uv-neutral {
+  /* Material Gray 600 */
+  color: #757575;
+}
+
+md-content {
+  background-color: white;
+}

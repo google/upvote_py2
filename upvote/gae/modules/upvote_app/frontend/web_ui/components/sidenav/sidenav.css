@@ -1,0 +1,83 @@
+.uv-divider {
+  height: 1px;
+  width: 100%;
+  background-color: rgba(0, 0, 0, 0.12);
+}
+
+.uv-sidenav {
+  z-index: 100;
+  overflow: hidden;
+  height: 100%;
+  position: relative;
+}
+
+.uv-sidenav .md-button {
+  margin: 0px;
+  min-width: 0px;
+  padding: 8px 0px;
+  text-align: left;
+  text-transform: none;
+  width: 100%;
+}
+
+#uv-title {
+  color: rgba(0, 0, 0, 0.54);
+  font-size: 22px;
+  display: inline-block;
+  vertical-align: -webkit-baseline-middle;
+}
+
+.uv-nav-buttons {
+    padding: 10px 0px;
+}
+
+.uv-nav-icon {
+  padding: 0px 25px;
+}
+
+.uv-logo {
+  height: 45px;
+  width: 45px;
+  padding: 0px 3px 0px 15px;
+  cursor: pointer;
+  vertical-align: -webkit-baseline-middle;
+}
+
+#uv-logo-button {
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+#uv-logo-button:hover {
+  background: transparent;
+}
+
+#uv-logo-button:active {
+  animation: none;
+}
+
+#uv-home {
+  height: 64px;
+}
+
+.uv-sidenav .uv-nav-label.fade {
+  transition: 0.15s cubic-bezier(0.4, 0, 0.2, 0.1) all;
+  opacity: 0;
+}
+
+.uv-sidenav.open .uv-nav-label.fade {
+  transition: 0.2s cubic-bezier(0.4, 0, 0.2, 0.1) all;
+  opacity: 1;
+}
+
+.uv-sidenav.slide {
+  transition: 0.25s cubic-bezier(0.4, 0, 0.2, 0.1) all;
+  width: 75px;
+  display: block;
+}
+
+.uv-sidenav.slide.open {
+  transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1) all;
+  width: 250px;
+  display: block;
+}

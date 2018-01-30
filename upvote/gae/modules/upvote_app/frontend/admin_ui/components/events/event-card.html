@@ -1,0 +1,26 @@
+<md-card layout="column" layout-align="start center">
+  <md-card-content>
+    <h3>Filename: {{ card.fileName }}</h3>
+    <div>
+      Date: {{ card.occurredDt | date:'mediumDate' }} - {{ card.occurredDt | timeSince }}
+    </div>
+    <div>
+      Type: {{ card.eventType }}
+    </div>
+    <div>
+      Host ID: {{ card.hostId | prettifyUuid }}
+    </div>
+    <div>
+      Path: {{ card.filePath }}
+    </div>
+    <div>
+      Publisher: {{ card.publisher }}
+    </div>
+    <div>
+      Version: {{ card.version }}
+    </div>
+    <div>
+      User: {{ card.executingUser }}
+    </div>
+  </md-card-content>
+</md-card>

@@ -1,0 +1,49 @@
+<md-list-item class="vt-widget md-2-line md-no-proxy">
+  <md-icon md-svg-src="/static/images/vt_logo.svg"
+           class="md-avatar"></md-icon>
+  <div class="md-list-item-text">
+    <h3>
+      <span ng-hide="ctrl.report || ctrl.requestFailed">
+        <md-progress-circular md-mode="indeterminate" md-diameter="20"></md-progress-circular>
+      </span>
+      <span ng-if="ctrl.report">
+        <uv-signal-indicator state="ctrl.getState()"></uv-signal-indicator>
+      </span>
+      <span ng-if="ctrl.requestFailed">
+        Error fetching VirusTotal information.
+      </span>
+    </h3>
+    <p>
+      VirusTotal
+      <span class="help-button">
+        <md-button href="https://support.virustotal.com/hc/en-us/articles/115002126889-How-it-works"
+                   target="_blank"
+                   class="uv-minibutton md-icon-button"
+                   md-no-ink>
+            <md-icon>help_outline</md-icon>
+            <md-tooltip md-delay="500">What is VirusTotal?</md-tooltip>
+        </md-button>
+      </span>
+    </p>
+    <uv-package-results class="md-secondary"
+                        ng-if="ctrl.isPackage()"
+                        results="ctrl.report"
+                        contents="ctrl.contents"
+                        package-name="ctrl.blockable | blockableDisplayName"></uv-package-results>
+    <md-button class="md-secondary md-icon-button md-raised"
+               ng-click="ctrl.showUploadConfirmation($event)"
+               ng-if="ctrl.report.responseCode == 0">
+      <md-icon>file_upload</md-icon>
+      <md-tooltip md-delay="500">
+        Upload the application for analysis.
+      </md-tooltip>
+    </md-button>
+    <md-button class="md-secondary md-icon-button md-raised"
+               href="{{ ctrl.report.permalink }}"
+               target="_blank"
+               ng-if="!ctrl.isPackage() && ctrl.report.responseCode == 1">
+      <md-icon>launch</md-icon>
+      <md-tooltip md-delay="500">View VirusTotal Report.</md-tooltip>
+    </md-button>
+  </div>
+</md-list-item>

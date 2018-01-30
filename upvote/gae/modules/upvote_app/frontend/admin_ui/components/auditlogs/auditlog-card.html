@@ -1,0 +1,23 @@
+<md-card layout="column" layout-align="start center">
+  <md-card-content>
+    <h3>Auditlog: {{ card.id }}</h3>
+    <div>
+      Recorded: {{ card.recordedDt | date:'mediumDate' }}
+    </div>
+    <div>
+      Event: {{ card.logEvent }}
+    </div>
+    <div>
+      User: {{ card.user }}
+    </div>
+    <div ng-if="card.targetObjectKey">
+      Target Object Key: {{ card.targetObjectKey }}
+    </div>
+    <div ng-if="!card.targetObjectKey">
+      Target Object Type: {{ card.targetObjectType }}
+    </div>
+    <div ng-if="!card.targetObjectKey">
+      Target ID: {{ card.targetObjectId }}
+    </div>
+  </md-card-content>
+</md-card>

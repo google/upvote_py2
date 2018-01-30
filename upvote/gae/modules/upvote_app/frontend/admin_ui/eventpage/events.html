@@ -1,0 +1,98 @@
+<div layout-padding>
+  <!-- Top Card -->
+  <div ng-show="eventCtrl.card.$resolved">
+    <uv-event-card card="eventCtrl.card"></uv-event-card>
+  </div>
+
+  <!-- Voting Buttons -->
+  <div class="md-actions"
+       layout="row"
+       layout-align="start center"
+       ng-show="eventCtrl.card.$resolved">
+    <md-button class="md-raised md-primary" ng-click="eventCtrl.goToBlockable()">
+      Go to Blockable
+    </md-button>
+    <md-button class="md-raised md-primary" ng-click="eventCtrl.goToHost()">
+      Go to Host
+    </md-button>
+  </div>
+
+  <!-- Search Box -->
+  <md-input-container flex ng-hide="eventCtrl.hostId" />
+    <label>Search</label>
+    <input ng-model="eventCtrl.queryData.search"
+           ng-model-options="{ debounce: 1000 }"
+           ng-change="eventCtrl.search()"
+           ng-focus="eventCtrl.searchSelected()" />
+  </md-input-container>
+
+  <div ng-show="eventCtrl.showSearchBase">Search In:
+    <md-radio-group ng-model="eventCtrl.queryData.searchBase"
+                    class="md-primary"
+                    ng-change="eventCtrl.search()">
+      <md-radio-button value="id" class="md-primary" >
+        ID
+      </md-radio-button>
+      <md-radio-button value="blockableId" class="md-primary">
+        Blockable ID
+      </md-radio-button>
+      <md-radio-button value="hostId" class="md-primary"
+                       ng-hide="eventCtrl.hostId">
+        Host ID
+      </md-radio-button>
+      <md-radio-button value="fileName" class="md-primary">
+        File Name
+      </md-radio-button>
+      <md-radio-button value="filePath" class="md-primary">
+        File Path
+      </md-radio-button>
+      <md-radio-button value="publisher" class="md-primary">
+        Publisher
+      </md-radio-button>
+      <md-radio-button value="usernames" class="md-primary">
+        User Names
+      </md-radio-button>
+      <md-radio-button value="executingUser" class="md-primary">
+        Executing User
+      </md-radio-button>
+    </md-radio-group>
+  </div>
+
+  <!-- Results List -->
+  <md-content layout-padding class="md-whiteframe-4dp" ng-show="eventCtrl.content.length > 0">
+    <uv-listing>
+      <listing-header>
+        <uv-listing-header flex-gt-md="15" flex="25">Name</uv-listing-header>
+        <uv-listing-header flex-gt-md="15" flex="25">Date</uv-listing-header>
+        <uv-listing-header flex-gt-md="15" flex="25">Type</uv-listing-header>
+        <uv-listing-header flex-gt-md="15" flex="25">User</uv-listing-header>
+        <uv-listing-header hide show-gt-md flex="15">Filename</uv-listing-header>
+        <uv-listing-header hide show-gt-md flex="15">Publisher</uv-listing-header>
+      </listing-header>
+      <listing-body>
+        <uv-listing-row on-select="eventCtrl.selectItem(item.key)" ng-repeat="item in eventCtrl.content">
+          <uv-listing-cell>{{item.fileName}}</uv-listing-cell>
+          <uv-listing-cell>{{item.occurredDt | date:'mediumDate'}}</uv-listing-cell>
+          <uv-listing-cell>{{item.eventType}}</uv-listing-cell>
+          <uv-listing-cell>{{item.executingUser}}</uv-listing-cell>
+          <uv-listing-cell>{{item.publisher}}</uv-listing-cell>
+          <md-tooltip layout="column">
+            Filename: {{item.fileName}},
+            Date: {{item.occurredDt | date:'mediumDate'}},
+            {{item.occurredDt | timeSince}},
+            Type: {{item.eventType}},
+            Host ID: {{item.hostId | prettifyUuid}},
+            Path: {{item.filePath}},
+            Publisher: {{item.publisher}},
+            Version: {{item.version}},
+            User: {{item.executingUser}}
+          </md-tooltip>
+      </listing-body>
+    </uv-listing>
+    <md-button class="md-raised md-primary"
+               ng-show="eventCtrl.requestData.more"
+               ng-click="eventCtrl.loadMore()">
+      More
+    </md-button>
+  </md-content>
+</div>

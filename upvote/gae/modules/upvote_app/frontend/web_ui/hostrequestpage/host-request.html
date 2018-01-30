@@ -1,0 +1,42 @@
+<div flex layout="row" layout-padding layout-align="center start">
+  <div flex ng-hide="hostRequestCtrl.host != null">
+    <md-progress-circular id="page-load-spinner" md-mode="indeterminate" md-diameter="96"></md-progress-circular>
+  </div>
+
+  <md-card layout="column" layout-align="start center" ng-show="hostRequestCtrl.host">
+    <md-card-title>
+      <md-card-title-text class="md-headline">
+        Request Exception for Host {{ hostRequestCtrl.host.hostname }}
+      </md-card-title-text>
+    </md-card-title>
+    <md-card-content>
+      <div ng-show="!hostRequestCtrl.requested">
+        <p>These are <b>all</b> valid reasons for requesting an exception. Please answer truthfully :)</p>
+        <md-radio-group ng-model="hostRequestCtrl.requestData.reason">
+          <md-radio-button ng-repeat="(value, describe) in hostRequestCtrl.reasonDescriptions"
+                           ng-value="value">
+            {{ describe }}
+          </md-radio-button>
+        </md-radio-group>
+        <md-input-container ng-show="hostRequestCtrl.isOtherSelected()">
+          <label>Other Reason:</label>
+          <input name="other-reason" type="text"
+                 ng-model="hostRequestCtrl.requestData.otherText">
+        </md-input-container>
+      </div>
+      <div ng-show="hostRequestCtrl.requested" layout="column" layout-align="start center">
+        <p>Your host exception was granted! The change should take effect in a few seconds.</p>
+        <md-button ng-href="/hosts/" class="md-raised md-primary">
+          BACK TO HOSTS
+        </md-button>
+      </div>
+    </md-card-content>
+    <md-card-actions layout="row" layout-align="center center">
+      <md-button class="md-raised md-primary"
+                 ng-show="!hostRequestCtrl.requested"
+                 ng-click="hostRequestCtrl.submitRequest()">
+        Submit Request
+      </md-button>
+    </md-card-actions>
+  </md-card>
+</div>

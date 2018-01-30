@@ -1,0 +1,66 @@
+<div role="dialog" class="uv-help-dialog md-whiteframe-4dp"
+     layout="column" layout-align="center center" layout-padding>
+  <h3>Application States</h3>
+  <table>
+    <tr>
+      <td>
+        <uv-static-state-chip ui-state="'BANNED'"></uv-static-state-chip>
+      </td>
+      <td>Cannot be run anywhere (it's probably malware)</td>
+    </tr>
+    <tr>
+      <td>
+        <uv-static-state-chip ui-state="'CERT_BANNED'"></uv-static-state-chip>
+      </td>
+      <td>Cannot be run anywhere (untrusted publisher)</td>
+    </tr>
+    <tr>
+      <td>
+        <uv-static-state-chip ui-state="'FLAGGED'"></uv-static-state-chip>
+      </td>
+      <td>Cannot be run and requires review by an admin</td>
+    </tr>
+    <tr>
+      <td>
+        <uv-static-state-chip ui-state="'AWAITING_VOTES'"></uv-static-state-chip>
+      </td>
+      <td>Cannot be run yet (needs more votes)</td>
+    </tr>
+    <tr>
+      <td>
+        <uv-static-state-chip ui-state="'AVAILABLE'"></uv-static-state-chip>
+      </td>
+      <td>Can be run by anyone who upvotes the application</td>
+    </tr>
+    <tr>
+      <td>
+        <uv-static-state-chip ui-state="'WHITELISTED'"></uv-static-state-chip>
+      </td>
+      <td>Can be run by you</td>
+    </tr>
+    <tr>
+      <td>
+        <uv-static-state-chip ui-state="'CERT_WHITELISTED'"></uv-static-state-chip>
+      </td>
+      <td>Can be run by anyone (trusted publisher)</td>
+    </tr>
+    <tr>
+      <td>
+        <uv-static-state-chip ui-state="'GLOBALLY_WHITELISTED'"></uv-static-state-chip>
+      </td>
+      <td>Can be run by anyone</td>
+    </tr>
+    <tr>
+      <td>
+        <uv-static-state-chip ui-state="'[state] (Pending)'"></uv-static-state-chip>
+      </td>
+      <td>State change has not yet taken effect</td>
+    </tr>
+  </table>
+  <div class="dialog-close-container">
+    <md-button class="md-primary dialog-close-button"
+               ng-click="ctrl.closeDialog()" md-autofocus>
+        Close
+    </md-button>
+  </div>
+</div>

@@ -1,0 +1,116 @@
+# Copyright 2017 Google Inc. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS-IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+cron:
+
+#### BEGIN:daily_backup ####
+# Cron jobs handled by the upvote_app module.
+- description: daily datastore backup
+  url: /cron/export/datastore-to-gcs
+  schedule: every day 22:00
+  retry_parameters:
+    job_retry_limit: 3
+    min_backoff_seconds: 300
+  target: upvote-app
+  timezone: US/Pacific
+
+#### END:daily_backup ####
+#### BEGIN:bigquery ####
+- description: periodic BigQuery stream
+  url: /cron/export/stream-to-bigquery
+  schedule: every 30 mins
+  retry_parameters:
+    job_retry_limit: 0
+    min_backoff_seconds: 300
+  target: upvote-app
+
+- description: Counts the number of tasks in the bigquery-row-persistence queue.
+  url: /cron/export/count-rows-to-persist
+  schedule: every 2 hours
+  retry_parameters:
+    job_retry_limit: 0
+  target: upvote-app
+
+- description: Counts the number of pending BigQuery rows to stream.
+  url: /cron/export/count-rows-to-stream
+  schedule: every 2 hours
+  retry_parameters:
+    job_retry_limit: 0
+  target: upvote-app
+
+#### END:bigquery ####
+#### BEGIN:groups ####
+- description: Sync members of external groups to roles in Upvote.
+  url: /cron/roles/sync
+  schedule: every 1 hours
+  target: upvote-app
+
+#### END:groups ####
+#### BEGIN:santa ####
+- description: Lock down all hosts of users in lockdown group.
+  url: /cron/roles/lock-it-down
+  schedule: every 1 hours
+  target: upvote-app
+
+- description: Lock down all hosts not locked to monitor.
+  url: /cron/roles/lock-spider
+  schedule: every 1 hours
+  target: upvote-app
+
+- description: Put all hosts of users in monitor group into monitor mode.
+  url: /cron/roles/monitor-it
+  schedule: every 1 hours
+  target: upvote-app
+
+#### END:santa ####
+#### BEGIN:bit9 ####
+# Cron jobs handled by the bit9_api module.
+- description: Sync host policies from Bit9.
+  url: /api/bit9/cron/update-policies
+  schedule: every 1 hours
+  target: bit9-api
+
+- description: Attempt to commit any uncommitted/failing change sets.
+  url: /api/bit9/cron/commit-pending-change-sets
+  schedule: every 5 minutes
+  target: bit9-api
+
+- description: Counts the number of Bit9 events to be pulled.
+  url: /api/bit9/cron/count-events-to-pull
+  schedule: every 1 minutes
+  retry_parameters:
+    job_retry_limit: 0
+  target: bit9-api
+
+- description: Pulls events from Bit9.
+  url: /api/bit9/cron/pull-events
+  schedule: every 1 minutes
+  retry_parameters:
+    job_retry_limit: 0
+  target: bit9-api
+
+- description: Counts the number of _UnsyncedEvents to be processed.
+  url: /api/bit9/cron/count-events-to-process
+  schedule: every 1 minutes
+  retry_parameters:
+    job_retry_limit: 0
+  target: bit9-api
+
+- description: Processes _UnsyncedEvents.
+  url: /api/bit9/cron/process-events
+  schedule: every 1 minutes
+  retry_parameters:
+    job_retry_limit: 0
+  target: bit9-api
+#### END:bit9 ####

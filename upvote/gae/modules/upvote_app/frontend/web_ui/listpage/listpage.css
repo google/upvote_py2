@@ -1,0 +1,18 @@
+.blockable-table {
+  width: 1000px;
+}
+
+.platform-logo {
+  width: 20px;
+  height: 20px;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.name-container {
+  vertical-align: sub;
+}
+
+.blockable-header {
+  text-align: center;
+}

@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en" ng-app="upvote.admin.app" ng-controller="MainController as main">
+
+  <head>
+    <title>Upvote Admin</title>
+    <meta content="initial-scale=1" name="viewport">
+
+    <base href="/">
+
+    <meta charset="utf-8">
+
+    <link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/angular_material/1.1.0/angular-material.min.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=RobotoDraft:400,500,700,400italic">
+    <link rel="stylesheet" href="/admin/app_css.css">
+    <link rel="icon" href="/static/images/favicon.ico" type="image/x-icon">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Extended" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <script type="text/javascript">CLOSURE_NO_DEPS = true;</script>
+  </head>
+
+  <body layout="column">
+
+    <!-- Admin navigation panel. -->
+    <md-content id="uv-all-content" layout="row" flex>
+      <uv-sidenav is-open="main.isSidenavOpen" is-admin="true">
+        <uv-nav-button
+          uv-href="/admin"
+          ng-show="currentUser.permissions.includes('VIEW_DASHBOARD')"
+          icon="dashboard"
+          title="Dashboard">
+        </uv-nav-button>
+        <uv-nav-button
+          uv-href="/admin/blockables"
+          ng-show="currentUser.permissions.includes('VIEW_OTHER_BLOCKABLES')"
+          icon="apps"
+          title="Blockables">
+        </uv-nav-button>
+        <uv-nav-button
+          uv-href="/admin/events"
+          ng-show="currentUser.permissions.includes('VIEW_OTHER_EVENTS')"
+          icon="timeline"
+          title="Events">
+        </uv-nav-button>
+        <uv-nav-button
+          uv-href="/admin/hosts"
+          ng-show="currentUser.permissions.includes('VIEW_OTHER_HOSTS')"
+          icon="computer"
+          title="Hosts">
+        </uv-nav-button>
+        <uv-nav-button
+          uv-href="/admin/logs"
+          ng-show="currentUser.permissions.includes('VIEW_AUDIT_LOGS')"
+          icon="storage"
+          title="Audit">
+        </uv-nav-button>
+        <uv-nav-button
+          uv-href="/admin/rules"
+          ng-show="currentUser.permissions.includes('VIEW_RULES')"
+          icon="security"
+          title="Rules">
+        </uv-nav-button>
+        <uv-nav-button
+          uv-href="/admin/users"
+          ng-show="currentUser.permissions.includes('VIEW_OTHER_USERS')"
+          icon="person"
+          title="Users">
+        </uv-nav-button>
+        <uv-nav-button
+          uv-href="/admin/votes"
+          ng-show="currentUser.permissions.includes('VIEW_VOTES')"
+          icon="import_export"
+          title="Votes">
+        </uv-nav-button>
+        <uv-nav-button
+          uv-href="/admin/settings"
+          ng-show="currentUser.roles.includes('ADMINISTRATOR')"
+          icon="settings"
+          title="Settings">
+        </uv-nav-button>
+        <uv-nav-button
+          uv-href="/admin/emergency"
+          ng-show="currentUser.roles.includes('ADMINISTRATOR')"
+          icon="error"
+          title="Panic">
+        </uv-nav-button>
+      </uv-sidenav>
+      <!-- Main section of page. -->
+      <div flex id="uv-main-content">
+        <uv-titlebar is-sidenav-open="main.isSidenavOpen" ng-cloak>{{main.page.title}}</uv-titlebar>
+        <div class="scroll-y" flex>
+          <ng-view></ng-view>
+        </div>
+      </div>
+    </md-content>
+
+    {# Load AngularJS from the CDN. These are likely to be cached in the user's
+      browser already and we don't need to serve them. #}
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.6.0/angular.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.6.0/angular-route.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.6.0/angular-resource.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.6.0/angular-sanitize.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.6.0/angular-aria.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.6.0/angular-animate.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/angular_material/1.1.0/angular-material.min.js"></script>
+    {% if debug %}
+      <script src="/admin/app_debug.js"></script>
+    {% else %}
+      <script src="/admin/app_min.js"></script>
+    {% endif %}
+    <script type="text/javascript">
+      upvote.admin.app.start('[[username]]');
+    </script>
+  </body>
+</html>

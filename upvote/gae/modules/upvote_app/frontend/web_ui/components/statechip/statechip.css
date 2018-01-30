@@ -1,0 +1,19 @@
+.awaiting-votes {
+  color: #888888;
+}
+
+.flagged {
+  color: #F0AD4E;
+}
+
+.banned {
+  color: #F44336;
+}
+
+.available {
+  color: #4D90FE;
+}
+
+.whitelisted {
+  color: #3D9400;
+}

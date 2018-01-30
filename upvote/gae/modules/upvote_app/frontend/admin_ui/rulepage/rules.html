@@ -1,0 +1,71 @@
+<div layout-padding>
+  <!-- Top Card -->
+  <div ng-show="ruleCtrl.card.$resolved">
+    <uv-rule-card card="ruleCtrl.card"></uv-rule-card>
+  </div>
+
+  <!-- Search Box -->
+  <md-input-container flex>
+    <label>Search</label>
+    <input ng-model="ruleCtrl.queryData.search"
+           ng-model-options="{ debounce: 1000 }"
+           ng-change="ruleCtrl.search()"
+           ng-focus="ruleCtrl.searchSelected()" />
+  </md-input-container>
+  <div ng-show="ruleCtrl.showSearchBase">Search In:
+    <md-radio-group ng-model="ruleCtrl.queryData.searchBase"
+                    class="md-primary"
+                    ng-change="ruleCtrl.search()">
+      <md-radio-button value="id" class="md-primary" >
+        ID
+      </md-radio-button>
+      <md-radio-button value="targetId" class="md-primary">
+        Target ID
+      </md-radio-button>
+      <md-radio-button value="ruleType" class="md-primary">
+        Rule Type
+      </md-radio-button>
+    </md-radio-group>
+  </div>
+
+  <!-- Results List -->
+  <md-content layout-padding class="md-whiteframe-4dp" ng-show="ruleCtrl.content.length > 0">
+    <uv-listing>
+      <listing-header>
+        <uv-listing-header flex-gt-md="15" flex="25">ID</uv-listing-header>
+        <uv-listing-header flex-gt-md="15" flex="25">Rule Type</uv-listing-header>
+        <uv-listing-header flex-gt-md="15" flex="25">Policy</uv-listing-header>
+        <uv-listing-header flex-gt-md="15" flex="25">Recorded Date</uv-listing-header>
+        <uv-listing-header hide show-gt-md flex="15">Message</uv-listing-header>
+        <uv-listing-header hide show-gt-md flex="15">Updated Date</uv-listing-header>
+      </listing-header>
+      <listing-body>
+        <uv-listing-row on-select="ruleCtrl.selectItem(item.key)" ng-repeat="item in ruleCtrl.content">
+          <uv-listing-cell>{{item.id}}</uv-listing-cell>
+          <uv-listing-cell>{{item.ruleType}}</uv-listing-cell>
+          <uv-listing-cell>{{item.policy}}</uv-listing-cell>
+          <uv-listing-cell>{{item.recordedDt | date:'mediumDate'}}</uv-listing-cell>
+          <uv-listing-cell>{{item.customMsg}}</uv-listing-cell>
+          <uv-listing-cell>
+          <md-tooltip>
+            {{item.id}},
+            {{item.targetId}},
+            {{item.ruleType}},
+            {{item.policy}},
+            {{item.in_effect}},
+            {{item.recordedDt | date:'mediumDate'}},
+            {{item.hostId}},
+            {{item.customMsg}},
+            {{item.updatedDt | date:'mediumDate'}},
+            {{item.recordedDt | date:'mediumDate'}},
+          </md-tooltip>
+        </uv-listing-row>
+      </listing-body>
+    </uv-listing>
+    <md-button class="md-raised md-primary"
+               ng-show="ruleCtrl.requestData.more"
+               ng-click="ruleCtrl.loadMore()">
+      More
+    </md-button>
+  </md-content>
+</div>

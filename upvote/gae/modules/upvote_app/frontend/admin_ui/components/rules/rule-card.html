@@ -1,0 +1,29 @@
+<md-card layout="column" layout-align="start center">
+  <md-card-content>
+    <h3>Rule ID: {{ card.id }}</h3>
+    <div>
+      Target ID: {{ card.targetId }}
+    </div>
+    <div>
+      Rule Type: {{ card.ruleType }}
+    </div>
+    <div>
+      Policy: {{ card.policy }}
+    </div>
+    <div>
+      In Effect: {{ card.in_effect }}
+    </div>
+    <div>
+      Recorded: {{ card.recordedDt | date:'mediumDate' }}
+    </div>
+    <div>
+      Host ID: {{ card.hostId }}
+    </div>
+    <div>
+      Custom Message: {{ card.customMsg }}
+    </div>
+    <div>
+      Last Updated: {{ card.updatedDt | date:'mediumDate' }}
+    </div>
+  </md-card-content>
+</md-card>

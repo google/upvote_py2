@@ -1,0 +1,15 @@
+<md-toolbar class="md-whiteframe-4dp uv-titlebar">
+  <div layout="row" layout-align="start center" class="md-toolbar-tools">
+
+    <md-button id="menu-button" class="md-icon-button" ng-click="ctrl.toggleSidenav()">
+      <md-icon>menu</md-icon>
+    </md-button>
+    <h1 class="md-headline" layout-padding><ng-transclude></ng-transclude></h1>
+
+    <!-- Fill space -->
+    <span flex></span>
+
+    <!-- Right-hand items -->
+    <h2 class="md-subhead" layout-padding>{{ctrl.username}}</h2>
+  </div>
+</md-toolbar>

@@ -1,0 +1,91 @@
+<div layout-padding>
+  <!-- Top Card -->
+  <div ng-show="hostCtrl.card.$resolved">
+    <uv-host-card card="hostCtrl.card" on-change='hostCtrl.card.save()'></uv-host-card>
+  </div>
+
+  <!-- Voting Buttons -->
+  <div class="md-actions"
+       layout="row"
+       layout-align="start center"
+       ng-show="hostCtrl.card.$resolved">
+    <md-button class="md-raised md-primary"
+               ng-click="hostCtrl.goToHostEvents()">
+      View Events from this Host
+    </md-button>
+  </div>
+
+  <!-- Search Box -->
+  <md-input-container flex>
+    <label>Search</label>
+    <input ng-model="hostCtrl.queryData.search"
+           ng-model-options="{ debounce: 1000 }"
+           ng-change="hostCtrl.search()"
+           ng-focus="hostCtrl.searchSelected()" />
+  </md-input-container>
+  <div ng-show="hostCtrl.showSearchBase">
+    Search In:
+    <!-- Platform Selector -->
+    <md-input-container>
+      <md-select ng-model="hostCtrl.requestData.platform"
+                 ng-change="hostCtrl.updateOptions()">
+        <md-option ng-repeat="platform in hostCtrl.platforms"
+                   ng-value="platform.value">
+          {{platform.displayName}}
+        </md-option>
+      </md-select>
+    </md-input-container>
+    <!-- Field Selector -->
+    <md-radio-group ng-model="hostCtrl.queryData.searchBase"
+                    class="md-primary"
+                    ng-change="hostCtrl.search()">
+      <md-radio-button ng-repeat="field in hostCtrl.fields"
+                       ng-value="field.value" class="md-primary" >
+        {{field.displayName}}
+      </md-radio-button>
+    </md-radio-group>
+  </div>
+
+  <!-- Results List -->
+  <md-content layout-padding class="md-whiteframe-4dp" ng-show="hostCtrl.content.length > 0">
+    <uv-listing>
+      <listing-header>
+        <uv-listing-header flex-gt-md="15" flex="25">ID</uv-listing-header>
+        <uv-listing-header flex-gt-md="15" flex="25">User</uv-listing-header>
+        <uv-listing-header flex-gt-md="15" flex="25">Host Name</uv-listing-header>
+        <uv-listing-header flex-gt-md="15" flex="25">OS Version</uv-listing-header>
+        <uv-listing-header hide show-gt-md flex="15">OS Build</uv-listing-header>
+        <uv-listing-header hide show-gt-md flex="15">Client Mode</uv-listing-header>
+      </listing-header>
+      <listing-body>
+        <uv-listing-row on-select="hostCtrl.selectItem(item.id)" ng-repeat="item in hostCtrl.content">
+          <uv-listing-cell>{{item.id | prettifyUuid}}</uv-listing-cell>
+          <uv-listing-cell>{{item.primaryUser}}</uv-listing-cell>
+          <uv-listing-cell>{{item.hostname}}</uv-listing-cell>
+          <uv-listing-cell>{{item.osVersion}}</uv-listing-cell>
+          <uv-listing-cell>{{item.osBuild}}</uv-listing-cell>
+          <uv-listing-cell>{{item.clientMode}}</uv-listing-cell>
+          <md-tooltip>
+            {{item.id | prettifyUuid}},
+            {{item.primaryUser}},
+            {{item.hostname}},
+            {{item.serialNum}},
+            {{item.santaVersion}},
+            {{item.osVersion}},
+            {{item.osBuild}},
+            {{item.lastPreflightDt | date:'mediumDate'}},
+            {{item.lastPreflightIp}},
+            {{item.lastPostflightDt | date:'mediumDate'}},
+            {{item.firstSeenDt | date:'mediumDate'}},
+            {{item.clientMode}}
+          </md-tooltip>
+        </uv-listing-row>
+      </listing-body>
+    </md-list>
+    <md-button class="md-raised md-primary"
+               ng-show="hostCtrl.requestData.more"
+               ng-click="hostCtrl.loadMore()">
+      More
+    </md-button>
+  </md-content>
+</div>
