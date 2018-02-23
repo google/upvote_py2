@@ -4,7 +4,7 @@ if [[ -z "${PROJ_ID}" ]]; then
   echo "  To locate your project ID, see https://support.google.com/cloud/answer/6158840?hl=en"
   echo "  To set it, run \"export PROJ_ID=my-proj-id\""
   exit 1
-elif [[ -e WORKSPACE ]]; then
+elif [[ ! -f WORKSPACE ]]; then
   echo "Error: Must be run from upvote root directory"
   exit 1
 elif [[ -z $(which gcloud) ]]; then
@@ -23,7 +23,7 @@ set -xe
 gcloud config set project "${PROJ_ID}"
 
 echo Enabling App Engine...
-if [[ "$(gcloud app describe --format='value(id)')" -ne "${PROJ_ID}" ]]; then
+if [[ "$(gcloud app describe --format='value(id)' 2> /dev/null)" != "${PROJ_ID}" ]]; then
   gcloud app create
 fi
 
@@ -39,6 +39,12 @@ echo Granting necessary permissions to App Engine...
 SERVICE_ACCOUNT=$(gcloud iam service-accounts list --filter="App Engine app default service account" --format="value(email)")
 gcloud projects add-iam-policy-binding "${PROJ_ID}" --member serviceAccount:"${SERVICE_ACCOUNT}" --role roles/cloudkms.cryptoKeyEncrypterDecrypter
 
-echo Deploying to App Engine...
+echo Configuring App Engine...
 ./manage_crons.py disable_all
+
+echo Deploying temporary default version to App Engine...
+# NOTE: This is expected to fail but continue processing.
+bazel run upvote/gae:monolith_binary.deploy -- "${PROJ_ID}" app.yaml 2> /dev/null || echo
+
+echo Deploying to App Engine...
 bazel run upvote/gae:monolith_binary.deploy -- "${PROJ_ID}" app.yaml santa_api.yaml bit9_api.yaml

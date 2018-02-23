@@ -23,11 +23,11 @@ import mock
 from google.appengine.api import users
 from google.appengine.ext import ndb
 
+from upvote.gae.datastore.models import base
+from upvote.gae.datastore.models import bit9
+from upvote.gae.datastore.models import santa
 from upvote.gae.shared.common import settings
 from upvote.gae.shared.common import user_map
-from upvote.gae.shared.models import base
-from upvote.gae.shared.models import bit9
-from upvote.gae.shared.models import santa
 from upvote.shared import constants
 
 
@@ -265,11 +265,11 @@ def CreateSantaBundle(bundle_binaries=None, **kwargs):
   return santa_bundle
 
 
-def CreateBit9Binarys(count, **kwargs):
-  """Creates a list of Bit9Binarys.
+def CreateBit9Binaries(count, **kwargs):
+  """Creates a list of Bit9Binary entities.
 
   Args:
-    count: The number of Bit9Binarys to create.
+    count: The number of Bit9Binary entities to create.
     **kwargs: Dictionary of any Blockable properties to customize.
 
   Returns:
@@ -395,8 +395,10 @@ def CreateBit9Events(blockable, event_count):
   return [CreateBit9Event(blockable) for _ in xrange(event_count)]
 
 
-@mock.patch.dict(settings.__dict__, values={'ENABLE_BIGQUERY_STREAMING': False})
-def CreateUser(admin=False, **kwargs):
+@mock.patch.object(
+    settings.ProdEnv, 'ENABLE_BIGQUERY_STREAMING',
+    new_callable=mock.PropertyMock(return_value=False))
+def CreateUser(_, admin=False, **kwargs):
   """Creates an User entity.
 
   Args:
@@ -440,9 +442,11 @@ def _CreateHost(host_cls, **kwargs):
     The newly created host.
   """
   defaults = {
-      'id': RandomLetters(16),
-      'hostname': 'host_%s' % RandomLetters(4)}
+      'id': RandomLetters(16).upper(),
+      'hostname': 'host_%s' % RandomLetters(4)
+  }
   defaults.update(kwargs.copy())
+  defaults['id'] = base.Host.NormalizeId(defaults['id'])
 
   new_host = host_cls(**defaults)
   new_host.put()

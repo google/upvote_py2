@@ -17,7 +17,7 @@
 from google.appengine.ext import ndb
 from google.appengine.ext.ndb import polymodel
 
-from upvote.gae.shared.models import base
+from upvote.gae.datastore.models import base
 from upvote.shared import constants
 
 

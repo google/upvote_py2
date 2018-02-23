@@ -17,6 +17,7 @@ goog.provide('upvote.admin.hostpage.HostController');
 goog.require('upvote.admin.lib.controllers.ModelController');
 goog.require('upvote.errornotifier.ErrorService');
 goog.require('upvote.hosts.HostService');
+goog.require('upvote.hosts.HostUtilsService');
 goog.require('upvote.shared.Page');
 
 goog.scope(() => {
@@ -29,6 +30,7 @@ upvote.admin.hostpage.HostController = class extends ModelController {
    * @param {!angular.Resource} hostResource
    * @param {!angular.Resource} hostQueryResource
    * @param {!upvote.hosts.HostService} hostService
+   * @param {!upvote.hosts.HostUtilsService} hostUtilsService
    * @param {!upvote.errornotifier.ErrorService} errorService
    * @param {!angular.$routeParams} $routeParams
    * @param {!angular.Scope} $scope
@@ -38,12 +40,9 @@ upvote.admin.hostpage.HostController = class extends ModelController {
    * @ngInject
    */
   constructor(
-      hostResource, hostQueryResource, hostService, errorService, $routeParams,
-      $scope, $rootScope, $location, page) {
+      hostResource, hostQueryResource, hostService, hostUtilsService,
+      errorService, $routeParams, $scope, $rootScope, $location, page) {
     super(hostResource, hostQueryResource, $routeParams, $scope, $location);
-
-    // No Bit9-specific Host model implemented so no Bit9 option should be shown
-    delete this.platforms['bit9'];
 
     /** @export {!Object<string, !upvote.admin.lib.controllers.Field>} */
     this.fields = HostController.BASE_FIELDS_;
@@ -51,8 +50,14 @@ upvote.admin.hostpage.HostController = class extends ModelController {
     this.errorService_ = errorService;
     /** @private {!upvote.hosts.HostService} */
     this.hostService_ = hostService;
+    /** @export {!upvote.hosts.HostUtilsService} */
+    this.hostUtils = hostUtilsService;
     /** @export {!angular.Scope} */
     this.rootScope = $rootScope;
+
+    // A list of hostnames that have visible host details
+    /** @private {!Set<string>} */
+    this.visibleHostDetails_ = new Set();
 
     page.title = 'Hosts';
 
@@ -63,15 +68,6 @@ upvote.admin.hostpage.HostController = class extends ModelController {
   /** @override */
   updateToAll() {
     this.fields = HostController.BASE_FIELDS_;
-  }
-
-  /** @override */
-  loadCard() {
-    let cardPromise = super.loadCard();
-    return (!cardPromise) ? cardPromise : cardPromise.then(() => {
-      this.card['user'] = this.rootScope['currentUser'];
-      delete this.card['user']['$promise'];
-    });
   }
 
   /** @override */
@@ -86,10 +82,61 @@ upvote.admin.hostpage.HostController = class extends ModelController {
 
   /**
    * Navigate to the Event page for the selected Host.
+   * @param {!string} hostId
    * @export
    */
-  goToHostEvents() {
-    this.location.path('/admin/events').search({'hostId': this.card['id']});
+  goToHostEvents(hostId) {
+    this.location.path('/admin/events').search({'hostId': hostId});
+  }
+
+  /**
+   * Navigates to a host's "blockables" page.
+   * @param {!string} hostId
+   * @export
+   */
+  goToBlockablesPage(hostId) {
+    let requestPath = '/hosts/' + hostId + '/blockables';
+    this.location_.path(requestPath);
+  }
+
+  /**
+   * Requests logs for a santa host
+   * @param {!Object} host
+   * @export
+   */
+  requestLogs(host) {
+    host['shouldUploadLogs'] = true;
+    this.resource['update'](host)['$promise'].catch(() => {
+      host['shouldUploadLogs'] = false;
+    });
+  }
+
+  /**
+   * Returns true if the host details are visible
+   * @param {!string} hostId
+   * @return {!boolean} the host visibility
+   * @export
+   */
+  detailsVisible(hostId) {
+    return this.visibleHostDetails_.has(hostId);
+  }
+
+  /**
+   * Makes the host details visible for given host ID
+   * @param {!string} hostId
+   * @export
+   */
+  showDetails(hostId) {
+    this.visibleHostDetails_.add(hostId);
+  }
+
+  /**
+   * Hides the host details for given host ID
+   * @param {!string} hostId
+   * @export
+   */
+  hideDetails(hostId) {
+    this.visibleHostDetails_.delete(hostId);
   }
 };
 let HostController = upvote.admin.hostpage.HostController;
@@ -99,4 +146,5 @@ HostController.BASE_FIELDS_ = {
   'id': {'displayName': 'ID', 'value': 'id'},
   'hostname': {'displayName': 'Hostname', 'value': 'hostname'}
 };
+
 });  // goog.scope

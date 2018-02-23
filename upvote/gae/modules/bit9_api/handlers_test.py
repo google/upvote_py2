@@ -21,6 +21,8 @@ import webapp2
 
 from google.appengine.ext import ndb
 
+from upvote.gae.datastore import test_utils
+from upvote.gae.datastore.models import bit9 as bit9_db
 from upvote.gae.modules.bit9_api import change_set
 from upvote.gae.modules.bit9_api import constants as bit9_constants
 from upvote.gae.modules.bit9_api import handlers
@@ -28,8 +30,6 @@ from upvote.gae.modules.bit9_api import utils
 from upvote.gae.modules.bit9_api.api import api
 from upvote.gae.shared.common import basetest
 from upvote.gae.shared.common import settings
-from upvote.gae.shared.models import bit9 as bit9_db
-from upvote.gae.shared.models import test_utils
 from upvote.shared import constants
 
 _HOST_HEALTH_PROPS = bit9_constants.UpvoteHostHealthProperties

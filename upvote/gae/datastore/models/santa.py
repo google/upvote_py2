@@ -18,9 +18,9 @@ import datetime
 
 from google.appengine.ext import ndb
 
+from upvote.gae.datastore.models import base
+from upvote.gae.datastore.models import bigquery
 from upvote.gae.shared.common import query_utils
-from upvote.gae.shared.models import base
-from upvote.gae.shared.models import bigquery
 from upvote.shared import constants
 
 

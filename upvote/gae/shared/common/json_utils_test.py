@@ -20,8 +20,8 @@ import json
 from google.appengine.ext import ndb
 
 from common.testing import basetest
+from upvote.gae.datastore.models import santa
 from upvote.gae.shared.common import json_utils
-from upvote.gae.shared.models import santa
 from upvote.shared import constants
 
 

@@ -1,16 +1,4 @@
 <div layout-padding>
-    <md-content layout-padding class="md-whiteframe-4dp">
-      <div>
-        <form name="debugSetting">
-          <md-switch ng-model="settingsCtrl.settings.debug" aria-label="Debug Mode" disabled>
-            <md-tooltip>
-              run the server in debug mode.
-            </md-tooltip>
-            Debug Mode
-          </md-switch>
-        </form>
-      </div>
-    </md-content>
     <h3 class="md-title">API Keys</h3>
     <md-content layout-padding class="md-whiteframe-4dp">
       <form name="virusTotalApiKey">
@@ -173,19 +161,19 @@
         <div>
           <md-input-container flex>
             <label>SUPERUSER Groups</label>
-            <input type="text" ng-model="settingsCtrl.settings.rolesToSync.SUPERUSER" disabled>
+            <input type="text" ng-model="settingsCtrl.settings.groupRoleAssignments.SUPERUSER" disabled>
           </md-input-container>
         </div>
         <div>
           <md-input-container flex>
             <label>TRUSTED_USER Groups</label>
-            <input type="text" ng-model="settingsCtrl.settings.rolesToSync.TRUSTED_USER" disabled>
+            <input type="text" ng-model="settingsCtrl.settings.groupRoleAssignments.TRUSTED_USER" disabled>
           </md-input-container>
         </div>
         <div>
           <md-input-container flex>
             <label>UNTRUSTED_USER Groups</label>
-            <input type="text" ng-model="settingsCtrl.settings.rolesToSync.UNTRUSTED_USER" disabled>
+            <input type="text" ng-model="settingsCtrl.settings.groupRoleAssignments.UNTRUSTED_USER" disabled>
           </md-input-container>
         </div>
       </form>

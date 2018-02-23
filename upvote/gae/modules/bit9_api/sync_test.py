@@ -24,6 +24,11 @@ from google.appengine.ext import ndb
 from common import datastore_locks
 
 from absl.testing import absltest
+from upvote.gae.datastore import test_utils
+from upvote.gae.datastore import utils as model_utils
+from upvote.gae.datastore.models import base as base_db
+from upvote.gae.datastore.models import bigquery as bigquery_db
+from upvote.gae.datastore.models import bit9 as bit9_db
 from upvote.gae.modules.bit9_api import change_set
 from upvote.gae.modules.bit9_api import constants as bit9_constants
 from upvote.gae.modules.bit9_api import monitoring
@@ -34,11 +39,6 @@ from upvote.gae.modules.bit9_api.api import api
 from upvote.gae.shared.common import basetest
 from upvote.gae.shared.common import settings
 from upvote.gae.shared.common import user_map
-from upvote.gae.shared.models import base as base_db
-from upvote.gae.shared.models import bigquery as bigquery_db
-from upvote.gae.shared.models import bit9 as bit9_db
-from upvote.gae.shared.models import test_utils
-from upvote.gae.shared.models import utils as model_utils
 from upvote.shared import constants
 from upvote.shared import time_utils
 
@@ -231,6 +231,8 @@ class ProcessTest(SyncTestCase):
 
     self.mock_events_processed = self.Patch(monitoring, 'events_processed')
 
+    self.PatchEnv(settings.ProdEnv, ENABLE_BIGQUERY_STREAMING=True)
+
   def testPersistsCertificateRow(self):
     event, signing_chain = _CreateEventTuple()
     sync._UnsyncedEvent.Generate(event, signing_chain).put()
@@ -384,6 +386,11 @@ class GetCertKeyTest(basetest.UpvoteTestCase):
 
 class PersistBit9BinaryTest(basetest.UpvoteTestCase):
 
+  def setUp(self):
+    super(PersistBit9BinaryTest, self).setUp()
+
+    self.PatchEnv(settings.ProdEnv, ENABLE_BIGQUERY_STREAMING=True)
+
   def testNewBit9Binary(self):
     event, signing_chain = _CreateEventTuple(
         subtype=bit9_constants.SUBTYPE.BANNED)
@@ -398,7 +405,7 @@ class PersistBit9BinaryTest(basetest.UpvoteTestCase):
     self.assertEntityCount(bit9_db.Bit9Binary, 1)
 
     # Should be 2: 1 for new Binary, 1 For the BANNED State.
-    self.RunDeferredTasks(constants.TASK_QUEUE.BQ_PERSISTENCE)
+    self.DrainTaskQueue(constants.TASK_QUEUE.BQ_PERSISTENCE)
     self.assertEntityCount(bigquery_db.BinaryRow, 2)
 
   def testNewBit9Binary_ForcedInstaller(self):
@@ -429,7 +436,7 @@ class PersistBit9BinaryTest(basetest.UpvoteTestCase):
     self.assertTaskCount(constants.TASK_QUEUE.METRICS, 1)
 
     # Should be 1 for the new Binary
-    self.RunDeferredTasks(constants.TASK_QUEUE.BQ_PERSISTENCE)
+    self.DrainTaskQueue(constants.TASK_QUEUE.BQ_PERSISTENCE)
     self.assertEntityCount(bigquery_db.BinaryRow, 1)
 
   def testFileCatalogIdChanged(self):
@@ -492,7 +499,7 @@ class PersistBit9BinaryTest(basetest.UpvoteTestCase):
     self.assertEqual(constants.STATE.BANNED, bit9_binary.state)
 
     # Should be 1 for the BANNED State.
-    self.RunDeferredTasks(constants.TASK_QUEUE.BQ_PERSISTENCE)
+    self.DrainTaskQueue(constants.TASK_QUEUE.BQ_PERSISTENCE)
     self.assertEntityCount(bigquery_db.BinaryRow, 1)
 
   def testForcedInstaller_PreexistingRule_SamePolicy(self):
@@ -611,6 +618,11 @@ class PersistBanNoteTest(basetest.UpvoteTestCase):
 
 
 class PersistBit9HostTest(basetest.UpvoteTestCase):
+
+  def setUp(self):
+    super(PersistBit9HostTest, self).setUp()
+
+    self.PatchEnv(settings.ProdEnv, ENABLE_BIGQUERY_STREAMING=True)
 
   def testNewHost(self):
     users = test_utils.RandomStrings(2)

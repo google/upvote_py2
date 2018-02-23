@@ -11,7 +11,7 @@
              ng-if="!host.hidden || hostListCtrl.showHidden">
       <md-card-title>
         <md-card-title-media class="uv-platform-logo">
-          <img ng-src="{{hostListCtrl.getPlatformImageUrl(host.operatingSystemFamily)}}"
+          <img ng-src="{{hostListCtrl.hostUtils.getPlatformImageURL(host)}}"
                class="md-card-image uv-platform-logo"
                alt="{{host.operatingSystemFamily}}">
         </md-card-title-media>
@@ -28,16 +28,16 @@
           </span>
           <span class="md-subhead uv-host-card-detail">
             Status:
-            <span ng-class="hostListCtrl.isInLockdown(host) ? 'protected-host' : 'unprotected-host'"
-                  ng-if="hostListCtrl.isBit9Host(host)">
+            <span ng-class="hostListCtrl.hostUtils.isInLockdown(host) ? 'protected-host' : 'unprotected-host'"
+                  ng-if="hostListCtrl.hostUtils.isBit9Host(host)">
               {{ host.policyEnforcementLevel | prettifyEnforcementLevel }}
             </span>
-            <span ng-class="hostListCtrl.isInLockdown(host) ? 'protected-host' : 'unprotected-host'"
-                  ng-if="hostListCtrl.isSantaHost(host)">
+            <span ng-class="hostListCtrl.hostUtils.isInLockdown(host) ? 'protected-host' : 'unprotected-host'"
+                  ng-if="hostListCtrl.hostUtils.isSantaHost(host)">
               {{ host.clientMode | prettifyMode }}
             </span>
           </span>
-          <span ng-if="hostListCtrl.isSantaHost(host)"
+          <span ng-if="hostListCtrl.hostUtils.isSantaHost(host)"
                 class="md-subhead uv-host-card-detail">
             Primary User:
             <span class="uv-host-card-value">
@@ -65,15 +65,15 @@
         <button class="md-button md-default-theme md-ink-ripple"
                 ng-click="hostListCtrl.goToRequestPage(host.id)"
                 type="button"
-                ng-class="hostListCtrl.isInLockdown(host) ? 'protected-host' : 'unprotected-host'"
-                ng-if="hostListCtrl.isSantaHost(host) && hostListCtrl.isInLockdown(host)">
+                ng-class="hostListCtrl.hostUtils.isInLockdown(host) ? 'protected-host' : 'unprotected-host'"
+                ng-if="hostListCtrl.hostUtils.isSantaHost(host) && hostListCtrl.hostUtils.isInLockdown(host)">
           <span class="ng-scope">Disable Full Protection</span>
         </button>
         <button class="md-button md-default-theme md-ink-ripple"
                 ng-click="hostListCtrl.requestLockdown(host.id)"
                 type="button"
-                ng-class="hostListCtrl.isInLockdown(host) ? 'protected-host' : 'unprotected-host'"
-                ng-if="hostListCtrl.isSantaHost(host) && !hostListCtrl.isInLockdown(host)">
+                ng-class="hostListCtrl.hostUtils.isInLockdown(host) ? 'protected-host' : 'unprotected-host'"
+                ng-if="hostListCtrl.hostUtils.isSantaHost(host) && !hostListCtrl.hostUtils.isInLockdown(host)">
           <span class="ng-scope">Enable Full Protection</span>
         </button>
         <button class="md-button md-default-theme md-ink-ripple"

@@ -26,6 +26,10 @@ from google.appengine.ext import ndb
 from common import memcache_decorator
 from common import datastore_locks
 
+from upvote.gae.datastore import utils as model_utils
+from upvote.gae.datastore.models import base
+from upvote.gae.datastore.models import bigquery
+from upvote.gae.datastore.models import bit9
 from upvote.gae.modules.bit9_api import change_set
 from upvote.gae.modules.bit9_api import constants as bit9_constants
 from upvote.gae.modules.bit9_api import rest_utils
@@ -36,10 +40,6 @@ from upvote.gae.shared.binary_health import metrics
 from upvote.gae.shared.common import query_utils
 from upvote.gae.shared.common import taskqueue_utils
 from upvote.gae.shared.common import user_map
-from upvote.gae.shared.models import base
-from upvote.gae.shared.models import bigquery
-from upvote.gae.shared.models import bit9
-from upvote.gae.shared.models import utils as model_utils
 from upvote.shared import constants
 from upvote.shared import time_utils
 
@@ -422,13 +422,13 @@ def _CheckAndResolveInstallerState(blockable_key, bit9_policy):
 
 
 @ndb.transactional_tasklet
-@taskqueue_utils.GroupTransactionalDefers
+@taskqueue_utils.GroupTransactionalTaskletDefers
 def _PersistBit9Binary(event, file_catalog, signing_chain):
   """Creates or updates a Bit9Binary from the given Event protobuf."""
   changed = False
 
   # Grab the corresponding Bit9Binary.
-  bit9_blockable = yield bit9.Bit9Binary.get_by_id_async(file_catalog.sha256)
+  bit9_binary = yield bit9.Bit9Binary.get_by_id_async(file_catalog.sha256)
 
   detected_installer = bool(
       file_catalog.file_flags &
@@ -437,10 +437,10 @@ def _PersistBit9Binary(event, file_catalog, signing_chain):
       rest_utils.GetEffectiveInstallerState(file_catalog.file_flags))
 
   # Doesn't exist? Guess we better fix that.
-  if bit9_blockable is None:
+  if bit9_binary is None:
     logging.info('Creating new Bit9Binary')
 
-    bit9_blockable = bit9.Bit9Binary(
+    bit9_binary = bit9.Bit9Binary(
         id=file_catalog.sha256,
         id_type=bit9_constants.SHA256_TYPE.MAP_TO_ID_TYPE[
             file_catalog.sha256_hash_type],
@@ -465,36 +465,36 @@ def _PersistBit9Binary(event, file_catalog, signing_chain):
         is_installer=is_installer,
         file_catalog_id=str(file_catalog.id))
 
-    bit9_blockable.PersistRow(
+    bit9_binary.PersistRow(
         constants.BLOCK_ACTION.FIRST_SEEN,
-        bit9_blockable.recorded_dt)
+        bit9_binary.recorded_dt)
     metrics.DeferLookupMetric(
         file_catalog.sha256, constants.ANALYSIS_REASON.NEW_BLOCKABLE)
     changed = True
 
   # If the file catalog ID has changed, update it.
-  if (not bit9_blockable.file_catalog_id or
-      bit9_blockable.file_catalog_id != str(file_catalog.id)):
-    bit9_blockable.file_catalog_id = str(file_catalog.id)
+  if (not bit9_binary.file_catalog_id or
+      bit9_binary.file_catalog_id != str(file_catalog.id)):
+    bit9_binary.file_catalog_id = str(file_catalog.id)
     changed = True
 
   # Binary state comes from clients, which may have outdated policies. Only
   # update Bit9Binary state if the client claims BANNED and the
   # Bit9Binary is still UNTRUSTED.
   if (event.subtype == bit9_constants.SUBTYPE.BANNED and
-      bit9_blockable.state == constants.STATE.UNTRUSTED):
+      bit9_binary.state == constants.STATE.UNTRUSTED):
     logging.info(
-        'Changing Bit9Binary state from %s to %s', bit9_blockable.state,
+        'Changing Bit9Binary state from %s to %s', bit9_binary.state,
         constants.STATE.BANNED)
-    bit9_blockable.state = constants.STATE.BANNED
+    bit9_binary.state = constants.STATE.BANNED
 
-    bit9_blockable.PersistRow(
+    bit9_binary.PersistRow(
         constants.BLOCK_ACTION.STATE_CHANGE, event.timestamp)
     changed = True
 
-  if bit9_blockable.detected_installer != detected_installer:
-    bit9_blockable.detected_installer = detected_installer
-    bit9_blockable.is_installer = bit9_blockable.CalculateInstallerState()
+  if bit9_binary.detected_installer != detected_installer:
+    bit9_binary.detected_installer = detected_installer
+    bit9_binary.is_installer = bit9_binary.CalculateInstallerState()
     changed = True
 
   # Create installer Rules for Bit9Binary installer status if it's been forced
@@ -508,16 +508,16 @@ def _PersistBit9Binary(event, file_catalog, signing_chain):
         if marked
         else constants.RULE_POLICY.FORCE_NOT_INSTALLER)
     changed_installer_state = yield _CheckAndResolveInstallerState(
-        bit9_blockable.key, bit9_policy)
+        bit9_binary.key, bit9_policy)
     if changed_installer_state:
-      bit9_blockable.is_installer = (
+      bit9_binary.is_installer = (
           bit9_policy == constants.RULE_POLICY.FORCE_INSTALLER)
     changed = changed_installer_state or changed
 
   # Only persist if needed.
   if changed:
     logging.info('Attempting to put Bit9Binary...')
-    yield bit9_blockable.put_async()
+    yield bit9_binary.put_async()
 
   # Indicate whether there was a change, primarily for better unit testing.
   raise ndb.Return(changed)

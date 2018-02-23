@@ -30,15 +30,6 @@ from upvote.shared import constants
 # NOTE: Must be all lowercase.
 USER_EMAIL_DOMAIN = 'todo-example-domain.com'
 
-# Whether the BigQuery streaming feature is enabled.
-#
-# BigQuery streaming extracts a number of system events (e.g. Execution event,
-# Blockable state change, User vote, etc.) and streams them to tables in
-# BigQuery.
-#
-# See docs for complete setup instructions.
-ENABLE_BIGQUERY_STREAMING = False
-
 # Whether all new applications will be checked against binary analysis service.
 #
 # NOTE: This is a relatively high QPS option for the VirusTotal API and will
@@ -121,6 +112,18 @@ GROUP_ROLE_ASSIGNMENTS = {
     constants.USER_ROLE.SECURITY: [],
 }
 
+# Certificate hashes that are critical to the macOS platform.
+CRITICAL_MAC_OS_CERT_HASHES = [
+
+    # Google Certificate for Chrome
+    '345a8e098bd04794aaeefda8c9ef56a0bf3d3706d67d35bc0e23f11bb3bffce5',
+
+    # Apple Software Signing for macOS 10.10, 10.11, 10.12, and 10.13
+    '2aa4b9973b7ba07add447ee4da8b5337c3ee2c3a991911e80e7282e8a751fc32',
+
+    # Google Certificate for Santa
+    '33b9aee3b089c922952c9240a40a0daa271bebf192cf3f7d964722e8f2170e48']
+
 # These groups mandate a specific client mode for all Santa clients belonging to
 # the users in the associated group.
 #
@@ -161,6 +164,15 @@ class ProdEnv(settings_utils.DefaultEnv):
   # The address of the Bit9 frontend server from which the REST API is served.
   # The path /api/bit9platform/v1 at this address should display the API docs.
   BIT9_REST_URL = 'address-of-my-bit9-frontend-server.com'
+
+  # Whether the BigQuery streaming feature is enabled.
+  #
+  # BigQuery streaming extracts a number of system events (e.g. Execution event,
+  # Blockable state change, User vote, etc.) and streams them to tables in
+  # BigQuery.
+  #
+  # See docs for complete setup instructions.
+  ENABLE_BIGQUERY_STREAMING = False
 
 
 @context.LazyProxy

@@ -14,9 +14,9 @@
 
 """Tests that bigquery.py and bigquery_schema.py are in sync."""
 
+from upvote.gae.datastore.models import bigquery as bq
 from upvote.gae.modules.upvote_app.lib import bigquery_schema as bqs
 from upvote.gae.shared.common import basetest
-from upvote.gae.shared.models import bigquery as bq
 
 from upvote.shared import constants
 

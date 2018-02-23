@@ -18,6 +18,7 @@ from google.appengine.ext import deferred
 from google.appengine.ext import ndb
 from google.appengine.ext.ndb import polymodel
 
+from upvote.gae.datastore import utils as model_utils
 from upvote.gae.shared.common import settings
 from upvote.gae.shared.common import monitoring
 from upvote.monitoring import metrics
@@ -32,7 +33,7 @@ class BigQueryRow(polymodel.PolyModel):
 
   @classmethod
   def DeferCreate(cls, **row_params):
-    if not settings.ENABLE_BIGQUERY_STREAMING:
+    if not settings.ENV.ENABLE_BIGQUERY_STREAMING:
       return
     deferred.defer(
         cls.Create,
@@ -42,14 +43,15 @@ class BigQueryRow(polymodel.PolyModel):
 
   @classmethod
   def Create(cls, **row_params):
-    if not settings.ENABLE_BIGQUERY_STREAMING:
+    if not settings.ENV.ENABLE_BIGQUERY_STREAMING:
       return
     return cls.CreateAsync(**row_params).get_result()
 
   @classmethod
   def CreateAsync(cls, **row_params):
-    if not settings.ENABLE_BIGQUERY_STREAMING:
-      return
+    if not settings.ENV.ENABLE_BIGQUERY_STREAMING:
+      return model_utils.GetNoOpFuture()
+
     row = cls(**row_params)
     future = row.put_async()
     _PERSISTED_METRIC.Increment()

@@ -16,6 +16,7 @@ goog.provide('upvote.hosts.module');
 
 goog.require('upvote.app.httpProvider');
 goog.require('upvote.hosts.HostService');
+goog.require('upvote.hosts.HostUtilsService');
 goog.require('upvote.hosts.prettifyEnforcementLevel');
 goog.require('upvote.hosts.prettifyMode');
 goog.require('upvote.hosts.rateToImpactString');
@@ -25,6 +26,7 @@ goog.require('upvote.hosts.rateToImpactString');
 upvote.hosts.module =
     angular.module('upvote.hosts', [])
         .service('hostService', upvote.hosts.HostService)
+        .service('hostUtilsService', upvote.hosts.HostUtilsService)
         .filter('rateToImpactString', () => upvote.hosts.rateToImpactString)
         .filter('prettifyMode', () => upvote.hosts.prettifyMode)
         .filter(

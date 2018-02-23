@@ -16,11 +16,12 @@
 
 import datetime
 
+from upvote.gae.datastore import test_utils
+from upvote.gae.datastore import utils
+from upvote.gae.datastore.models import bigquery
+from upvote.gae.datastore.models import bit9
 from upvote.gae.shared.common import basetest
-from upvote.gae.shared.models import bigquery
-from upvote.gae.shared.models import bit9
-from upvote.gae.shared.models import test_utils
-from upvote.gae.shared.models import utils
+from upvote.gae.shared.common import settings
 from upvote.shared import constants
 
 
@@ -135,6 +136,8 @@ class Bit9BinaryTest(basetest.UpvoteTestCase):
     super(Bit9BinaryTest, self).setUp()
     self.bit9_binary = test_utils.CreateBit9Binary()
 
+    self.PatchEnv(settings.ProdEnv, ENABLE_BIGQUERY_STREAMING=True)
+
   def testCalculateInstallerState(self):
     self.bit9_binary.detected_installer = False
     self.bit9_binary.put()
@@ -192,6 +195,8 @@ class Bit9CertificateTest(basetest.UpvoteTestCase):
   def setUp(self):
     super(Bit9CertificateTest, self).setUp()
     self.bit9_certificate = test_utils.CreateBit9Certificate()
+
+    self.PatchEnv(settings.ProdEnv, ENABLE_BIGQUERY_STREAMING=True)
 
   def testPersistsStateChange(self):
     self.bit9_certificate.ChangeState(constants.STATE.SUSPECT)

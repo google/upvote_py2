@@ -34,10 +34,10 @@ py_appengine_library(
     deps = [
         ":binary_health",
         ":monitoring",
+        "//upvote/gae/datastore/models:base",
+        "//upvote/gae/datastore/models:metrics",
         "//upvote/gae/shared/binary_health/virustotal:constants",
         "//upvote/gae/shared/common:settings",
-        "//upvote/gae/shared/models:base",
-        "//upvote/gae/shared/models:metrics",
         "//upvote/shared:constants",
     ],
 )
@@ -74,8 +74,8 @@ upvote_appengine_test(
         ":metrics",
         "//external:mock",
         "//external:webtest",
+        "//upvote/gae/datastore:test_utils",
         "//upvote/gae/shared/common:basetest",
-        "//upvote/gae/shared/models:test_utils",
         "//upvote/shared:constants",
     ],
 )

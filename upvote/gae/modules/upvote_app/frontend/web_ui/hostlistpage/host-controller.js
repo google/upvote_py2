@@ -15,10 +15,9 @@
 goog.provide('upvote.hostlistpage.HostListController');
 
 goog.require('upvote.errornotifier.ErrorService');
-goog.require('upvote.hosts.ClientMode');
 goog.require('upvote.hosts.EventRateResponse');
 goog.require('upvote.hosts.HostService');
-goog.require('upvote.hosts.PolicyLevel');
+goog.require('upvote.hosts.HostUtilsService');
 goog.require('upvote.shared.Page');
 goog.require('upvote.shared.models.AnyHost');
 
@@ -28,12 +27,13 @@ goog.scope(() => {
 upvote.hostlistpage.HostListController = class {
   /**
    * @param {!upvote.hosts.HostService} hostService
+   * @param {!upvote.hosts.HostUtilsService} hostUtilsService
    * @param {!upvote.errornotifier.ErrorService} errorService
    * @param {!angular.$location} $location
    * @param {!upvote.shared.Page} page Details about the active page
    * @ngInject
    */
-  constructor(hostService, errorService, $location, page) {
+  constructor(hostService, hostUtilsService, errorService, $location, page) {
     /** @private {!upvote.hosts.HostService} */
     this.hostService_ = hostService;
     /** @private {!upvote.errornotifier.ErrorService} errorService */
@@ -41,6 +41,8 @@ upvote.hostlistpage.HostListController = class {
     /** @private {!angular.$location} $location */
     this.location_ = $location;
 
+    /** @export {!upvote.hosts.HostUtilsService} */
+    this.hostUtils = hostUtilsService;
     /** @export {?Array<upvote.shared.models.AnyHost>} */
     this.hosts = null;
     /** @export {!Object<string, !upvote.hosts.EventRateResponse>} */
@@ -87,23 +89,6 @@ upvote.hostlistpage.HostListController = class {
   }
 
   /**
-   * Return whether a host is in Lockdown mode.
-   * @param {!upvote.shared.models.AnyHost} host
-   * @return {boolean}
-   * @export
-   */
-  isInLockdown(host) {
-    if (this.isSantaHost(host)) {
-      return host['clientMode'] == upvote.hosts.ClientMode['LOCKDOWN'];
-    } else if (this.isBit9Host(host)) {
-      return host['policyEnforcementLevel'] ==
-          upvote.hosts.PolicyLevel['LOCKDOWN'];
-    } else {
-      return false;
-    }
-  }
-
-  /**
    * Return whether a host's mode is locked.
    * @param {!upvote.shared.models.AnyHost} host
    * @return {boolean}
@@ -111,26 +96,6 @@ upvote.hostlistpage.HostListController = class {
    */
   isModeLocked(host) {
     return !!host['clientModeLock'];
-  }
-
-  /**
-   * Return whether a host is a SantaHost.
-   * @param {!upvote.shared.models.AnyHost} host
-   * @return {boolean}
-   * @export
-   */
-  isSantaHost(host) {
-    return host && host['class_'].includes('SantaHost');
-  }
-
-  /**
-   * Return whether a host is a Bit9Host.
-   * @param {!upvote.shared.models.AnyHost} host
-   * @return {boolean}
-   * @export
-   */
-  isBit9Host(host) {
-    return host && host['class_'].includes('Bit9Host');
   }
 
   /**
@@ -203,23 +168,6 @@ upvote.hostlistpage.HostListController = class {
         .catch((response) => {
           this.errorService_.createDialogFromError(response);
         });
-  }
-
-  /**
-   * Returns the image URL associated with a host's platform.
-   * @param {string} operatingSystemFamily The host's operating system family.
-   * @return {string} The URL path of the image for the host's platform
-   * @export
-   */
-  getPlatformImageUrl(operatingSystemFamily) {
-    switch (operatingSystemFamily) {
-      case upvote.app.constants.PLATFORMS.MACOS:
-        return '/static/images/apple_logo.svg';
-      case upvote.app.constants.PLATFORMS.WINDOWS:
-        return '/static/images/windows_logo.svg';
-      default:
-        return '';
-    }
   }
 
   /**

@@ -28,8 +28,6 @@ upvote.admin.settingspage.ApiKeyStruct;
  */
 upvote.admin.settingspage.Settings = class {
   constructor() {
-    /** @export {boolean} */
-    this.debug = false;
     /** @export {number} */
     this.santaEventBatchSize = 0;
     /** @export {number} */
@@ -47,7 +45,7 @@ upvote.admin.settingspage.Settings = class {
     /** @export {string} */
     this.monitorGroup = '';
     /** @export {!Object<string, (Array<string>|string)>} */
-    this.rolesToSync = {};
+    this.groupRoleAssignments = {};
     /**
      * @export {{
      *   message: string,

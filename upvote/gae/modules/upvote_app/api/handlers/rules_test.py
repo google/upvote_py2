@@ -18,11 +18,11 @@ import httplib
 
 import webapp2
 
+from upvote.gae.datastore import test_utils
+from upvote.gae.datastore.models import base
+from upvote.gae.datastore.models import santa
 from upvote.gae.modules.upvote_app.api.handlers import rules
 from upvote.gae.shared.common import basetest
-from upvote.gae.shared.models import base
-from upvote.gae.shared.models import santa
-from upvote.gae.shared.models import test_utils
 
 
 class RulesTest(basetest.UpvoteTestCase):

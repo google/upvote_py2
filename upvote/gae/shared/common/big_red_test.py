@@ -14,9 +14,9 @@
 
 """Tests for the big red button."""
 
+from upvote.gae.datastore.models import cache
 from upvote.gae.shared.common import basetest
 from upvote.gae.shared.common import big_red
-from upvote.gae.shared.models import cache
 
 
 class BigRedButtonTests(basetest.UpvoteTestCase):
@@ -153,4 +153,3 @@ class BigRedButtonTests(basetest.UpvoteTestCase):
 
 if __name__ == '__main__':
   basetest.main()
-

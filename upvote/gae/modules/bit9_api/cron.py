@@ -16,10 +16,13 @@
 
 import datetime
 import logging
+import random
 
 from google.appengine.ext import deferred
 from google.appengine.ext import ndb
 
+from upvote.gae.datastore.models import base
+from upvote.gae.datastore.models import bit9
 from upvote.gae.modules.bit9_api import change_set
 from upvote.gae.modules.bit9_api import constants as bit9_constants
 from upvote.gae.modules.bit9_api import monitoring
@@ -30,8 +33,6 @@ from upvote.gae.shared.common import handlers
 from upvote.gae.shared.common import query_utils
 from upvote.gae.shared.common import taskqueue_utils
 from upvote.gae.shared.common import user_map
-from upvote.gae.shared.models import base
-from upvote.gae.shared.models import bit9
 from upvote.shared import constants
 
 
@@ -45,10 +46,26 @@ class CommitAllChangeSets(handlers.UpvoteRequestHandler):
   def get(self):
     changes = bit9.RuleChangeSet.query(
         projection=[bit9.RuleChangeSet.blockable_key], distinct=True).fetch()
-    monitoring.pending_changes.Set(len(changes))
-    keys = [change.blockable_key for change in changes]
-    for key in keys:
-      change_set.DeferCommitBlockableChangeSet(key)
+
+    change_count = len(changes)
+    logging.info('Retrieved %d pending Bit9 change(s)', change_count)
+    monitoring.pending_changes.Set(change_count)
+
+    # Don't over-defer to the bit9-commit-change queue, otherwise it can back up
+    # real fast with duplicate tasks in the event of a large backlog.
+    queue_size = taskqueue_utils.QueueSize(
+        queue=constants.TASK_QUEUE.BIT9_COMMIT_CHANGE, deadline=30)
+    available = max(20 - queue_size, 0)
+    logging.info('Deferring %d Bit9 change(s)', available)
+
+    # Randomly sample from the outstanding changes in order to avoid
+    # head-of-the-line blocking due to unsynced hosts, for example.
+    sample_size = min(change_count, available)
+    selected_changes = random.sample(changes, sample_size)
+
+    blockable_keys = [change.blockable_key for change in selected_changes]
+    for blockable_key in blockable_keys:
+      change_set.DeferCommitBlockableChangeSet(blockable_key)
 
 
 class UpdateBit9Policies(handlers.UpvoteRequestHandler):

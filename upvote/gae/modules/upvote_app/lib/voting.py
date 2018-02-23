@@ -21,16 +21,16 @@ import logging
 from google.appengine.api import urlfetch
 from google.appengine.ext import ndb
 
+from upvote.gae.datastore import utils as model_utils
+from upvote.gae.datastore.models import base
+from upvote.gae.datastore.models import bigquery
+from upvote.gae.datastore.models import bit9
+from upvote.gae.datastore.models import santa
 from upvote.gae.shared.binary_health import metrics
 from upvote.gae.shared.common import intermodule
 from upvote.gae.shared.common import settings
 from upvote.gae.shared.common import taskqueue_utils
 from upvote.gae.shared.common import user_map
-from upvote.gae.shared.models import base
-from upvote.gae.shared.models import bigquery
-from upvote.gae.shared.models import bit9
-from upvote.gae.shared.models import santa
-from upvote.gae.shared.models import utils as model_utils
 from upvote.shared import constants
 
 

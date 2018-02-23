@@ -30,10 +30,11 @@ from google.appengine.datastore import datastore_stub_util
 
 from common.testing import basetest
 
+from upvote.gae.datastore import test_utils
 from upvote.gae.shared.common import handlers
 from upvote.gae.shared.common import settings
+from upvote.gae.shared.common import settings_utils
 from upvote.gae.shared.common import xsrf_utils
-from upvote.gae.shared.models import test_utils
 from upvote.shared import constants
 
 
@@ -64,10 +65,16 @@ class UpvoteTestCase(basetest.AppEngineTestCase):
     self.secret_key = 'test-secret'
     xsrf_utils.SiteXsrfSecret.SetInstance(secret=self.secret_key.encode('hex'))
 
+    self._env_patcher = None
+
     if patch_generate_token:
       self.Patch(xsrfutil, 'generate_token', return_value='token')
 
-    self.Patch(settings, 'ENABLE_BIGQUERY_STREAMING', return_value=True)
+    self.PatchEnv(settings.ProdEnv)
+
+  def tearDown(self):
+    super(UpvoteTestCase, self).tearDown()
+    self.UnpatchEnv()
 
   @contextlib.contextmanager
   def LoggedInUser(self, user=None, email_addr=None, admin=False):
@@ -118,6 +125,13 @@ class UpvoteTestCase(basetest.AppEngineTestCase):
     actual_count = model_class.query(ancestor=ancestor).count(keys_only=True)
     self.assertEqual(expected_count, actual_count)
 
+  def assertEntitiesExist(self, model_class, ancestor=None):
+    count = model_class.query(ancestor=ancestor).count(keys_only=True)
+    self.assertGreater(count, 0)
+
+  def assertNoEntitiesExist(self, model_class, ancestor=None):
+    self.assertEntityCount(model_class, 0, ancestor=ancestor)
+
   def assertTaskCount(self, queue_name, expected_count):  # pylint: disable=g-bad-name
     self.assertEqual(expected_count, len(self.GetTasks(queue_name)))
 
@@ -144,6 +158,30 @@ class UpvoteTestCase(basetest.AppEngineTestCase):
     patcher = mock.patch.object(target, attribute, **kwargs)
     self.addCleanup(patcher.stop)
     return patcher.start()
+
+  def PatchEnv(self, new_env=None, **new_settings):
+    self.UnpatchEnv()
+
+    # Create a dummy environment if one wasn't provided.
+    if new_env is None:
+      class DummyEnv(settings_utils.DefaultEnv):
+        pass
+
+      new_env = DummyEnv()
+
+    # Override/set any settings provided as kwargs.
+    if new_settings:
+      for name, value in new_settings.iteritems():
+        setattr(new_env, name, value)
+
+    self._env_patcher = mock.patch.object(
+        settings, 'ENV', new_callable=mock.PropertyMock(return_value=new_env))
+    self._env_patcher.start()
+
+  def UnpatchEnv(self):
+    if self._env_patcher:
+      self._env_patcher.stop()
+      self._env_patcher = None
 
   def PatchValidateXSRFToken(self):
     self.Patch(xsrfutil, 'validate_token')

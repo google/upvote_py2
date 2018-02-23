@@ -259,8 +259,8 @@ const ModelController = upvote.admin.lib.controllers.ModelController;
  */
 ModelController.VALID_PLATFORMS_ = {
   'all': {'displayName': 'All Platforms', 'value': ''},
-  'bit9': {'displayName': 'Only Bit9', 'value': 'bit9'},
-  'santa': {'displayName': 'Only Santa', 'value': 'santa'}
+  'bit9': {'displayName': 'Windows', 'value': 'bit9'},
+  'santa': {'displayName': 'macOS', 'value': 'santa'}
 };
 
 /**

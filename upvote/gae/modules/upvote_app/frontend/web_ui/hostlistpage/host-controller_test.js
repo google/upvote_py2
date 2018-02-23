@@ -24,7 +24,7 @@ const HostListController = upvote.hostlistpage.HostListController;
 
 
 describe('Host List Controller', () => {
-  let hostService, errorService, location, q, rootScope, page;
+  let hostService, hostUtilsService, errorService, location, q, rootScope, page;
   let ctrl;
 
   beforeEach(/** @suppress {missingProperties} */ () => {
@@ -32,9 +32,11 @@ describe('Host List Controller', () => {
     angular.mock.module(upvote.hosts.module.name);
 
     angular.mock.inject(
-        (_hostService_, _errorService_, $location, $q, $rootScope) => {
+        (_hostService_, _hostUtilsService_, _errorService_, $location, $q,
+         $rootScope) => {
           // Store injected components.
           hostService = _hostService_;
+          hostUtilsService = _hostUtilsService_;
           errorService = _errorService_;
           location = $location;
           q = $q;
@@ -69,8 +71,8 @@ describe('Host List Controller', () => {
         q.resolve({'data': {'avgRate': 0.1}}));
   });
 
-  let buildController = () =>
-      new HostListController(hostService, errorService, location, page);
+  let buildController = () => new HostListController(
+      hostService, hostUtilsService, errorService, location, page);
 
   /**
    * @param {?Object=} opt_properties
@@ -78,13 +80,6 @@ describe('Host List Controller', () => {
    */
   let getHost = (opt_properties) =>
       Object.assign({'id': 'foo', 'class_': ['Host']}, opt_properties);
-
-  /**
-   * @param {?Object=} opt_properties
-   * @return {!Object}
-   */
-  let getBit9Host = (opt_properties) =>
-      Object.assign(getHost({'class_': ['Host', 'Bit9Host']}), opt_properties);
 
   /**
    * @param {?Object=} opt_properties
@@ -143,77 +138,6 @@ describe('Host List Controller', () => {
     });
   });
 
-  describe('should reflect the proper host type', () => {
-    beforeEach(() => {
-      ctrl = buildController();
-      rootScope.$apply();
-    });
-
-    it('for Santa hosts', () => {
-      let fakeHost = getSantaHost();
-
-      expect(ctrl.isSantaHost(fakeHost)).toBe(true);
-      expect(ctrl.isBit9Host(fakeHost)).toBe(false);
-    });
-
-    it('for Bit9 hosts', () => {
-      let fakeHost = getBit9Host();
-
-      expect(ctrl.isSantaHost(fakeHost)).toBe(false);
-      expect(ctrl.isBit9Host(fakeHost)).toBe(true);
-    });
-
-    it('for other hosts', () => {
-      let fakeHost = getHost();
-
-      expect(ctrl.isSantaHost(fakeHost)).toBe(false);
-      expect(ctrl.isBit9Host(fakeHost)).toBe(false);
-    });
-  });
-
-  describe('should return', () => {
-    beforeEach(() => {
-      ctrl = buildController();
-      rootScope.$apply();
-    });
-
-    describe('whether the Host is in lockdown mode', () => {
-      describe('for a Santa host', () => {
-        it('when it is in lockdown', () => {
-          let fakeHost = getSantaHost({'clientMode': 'LOCKDOWN'});
-
-          expect(ctrl.isInLockdown(fakeHost)).toBe(true);
-        });
-
-        it('when it is in an unexpected mode', () => {
-          let fakeHost = getSantaHost({'clientMode': 'not anything'});
-
-          expect(ctrl.isInLockdown(fakeHost)).toBe(false);
-        });
-      });
-
-      describe('for a Bit9 host', () => {
-        it('when it is in lockdown', () => {
-          let fakeHost = getBit9Host({'policyEnforcementLevel': 'LOCKDOWN'});
-
-          expect(ctrl.isInLockdown(fakeHost)).toBe(true);
-        });
-
-        it('when it is in an unexpected mode', () => {
-          let fakeHost = getBit9Host({'policyEnforcementLevel': 'nothing'});
-
-          expect(ctrl.isInLockdown(fakeHost)).toBe(false);
-        });
-      });
-    });
-
-    it('false for unexpected host types', () => {
-      let fakeHost = getHost({'clientMode': 'LOCKDOWN'});
-
-      expect(ctrl.isInLockdown(fakeHost)).toBe(false);
-    });
-  });
-
   describe('should return whether a Host is stale', () => {
     beforeEach(() => {
       ctrl = buildController();
@@ -238,7 +162,7 @@ describe('Host List Controller', () => {
     it('when it is fresh', () => {
       let fakeHost = getHost({'ruleSyncDt': new Date().toISOString()});
 
-      expect(ctrl.isInLockdown(fakeHost)).toBe(false);
+      expect(ctrl.hostUtils.isInLockdown(fakeHost)).toBe(false);
     });
   });
 

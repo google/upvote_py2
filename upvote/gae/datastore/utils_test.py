@@ -20,12 +20,11 @@ from google.appengine.api import datastore_errors
 from google.appengine.ext import ndb
 from google.appengine.ext.ndb import polymodel
 
-from common.testing import basetest
+from upvote.gae.datastore import utils
+from upvote.gae.shared.common import basetest
 
-from upvote.gae.shared.models import utils
 
-
-class SingletonTest(basetest.AppEngineTestCase):
+class SingletonTest(basetest.UpvoteTestCase):
 
   def setUp(self):
     super(SingletonTest, self).setUp()
@@ -57,7 +56,7 @@ class SingletonTest(basetest.AppEngineTestCase):
     self.assertEqual('1', inst.key.id())
 
 
-class CopyEntityTest(basetest.AppEngineTestCase):
+class CopyEntityTest(basetest.UpvoteTestCase):
 
   def setUp(self):
     super(CopyEntityTest, self).setUp()
@@ -205,7 +204,7 @@ class CopyEntityTest(basetest.AppEngineTestCase):
     self.assertFalse(hasattr(copy, 'a'))
 
 
-class DeletePropertyTest(basetest.AppEngineTestCase):
+class DeletePropertyTest(basetest.UpvoteTestCase):
 
   def setUp(self):
     super(DeletePropertyTest, self).setUp()
@@ -383,7 +382,7 @@ class DeletePropertyTest(basetest.AppEngineTestCase):
     self.assertIsNone(inst.b)
 
 
-class DeletePropertyValueTest(basetest.AppEngineTestCase):
+class DeletePropertyValueTest(basetest.UpvoteTestCase):
 
   def setUp(self):
     super(DeletePropertyValueTest, self).setUp()
@@ -480,7 +479,7 @@ class DeletePropertyValueTest(basetest.AppEngineTestCase):
     self.assertIsNotNone(inst.a)
 
 
-class GetLocalComputedPropertyValueTest(basetest.AppEngineTestCase):
+class GetLocalComputedPropertyValueTest(basetest.UpvoteTestCase):
 
   def setUp(self):
     super(GetLocalComputedPropertyValueTest, self).setUp()
@@ -509,7 +508,7 @@ class GetLocalComputedPropertyValueTest(basetest.AppEngineTestCase):
       utils.GetLocalComputedPropertyValue(self.inst, 'a')
 
 
-class FutureFactoryTest(basetest.AppEngineTestCase):
+class FutureFactoryTest(basetest.UpvoteTestCase):
 
   def testInTxn(self):
     def AssertInTxn():
@@ -524,7 +523,7 @@ class FutureFactoryTest(basetest.AppEngineTestCase):
     ndb.transaction(RunAssert)
 
 
-class GetMultiFutureTest(basetest.AppEngineTestCase):
+class GetMultiFutureTest(basetest.UpvoteTestCase):
 
   def testNoInput(self):
     mf = utils.GetMultiFuture([])
@@ -572,7 +571,7 @@ class GetMultiFutureTest(basetest.AppEngineTestCase):
       mf.add_dependent(ndb.Future())
 
 
-class GetChainingMultiFutureTest(basetest.AppEngineTestCase):
+class GetChainingMultiFutureTest(basetest.UpvoteTestCase):
 
   def testNoInput(self):
     mf = utils.GetChainingMultiFuture([])
@@ -622,7 +621,7 @@ class GetChainingMultiFutureTest(basetest.AppEngineTestCase):
       mf.add_dependent(ndb.Future())
 
 
-class OtherUtilsTest(basetest.AppEngineTestCase):
+class OtherUtilsTest(basetest.UpvoteTestCase):
 
   def testHasValue(self):
 

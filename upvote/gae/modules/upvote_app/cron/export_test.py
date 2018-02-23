@@ -32,8 +32,8 @@ from upvote.gae.shared.common import basetest
 from upvote.gae.shared.common import settings
 from upvote.gae.shared.common import settings_utils
 from upvote.gae.shared.common import utils
-from upvote.gae.shared.models import bigquery as bq_models
-from upvote.gae.shared.models import test_utils
+from upvote.gae.datastore.models import bigquery as bq_models
+from upvote.gae.datastore import test_utils
 from upvote.shared import constants
 
 
@@ -405,6 +405,11 @@ class StreamPageTest(basetest.UpvoteTestCase):
 
 class StreamToBigQueryTest(basetest.UpvoteTestCase):
 
+  def setUp(self):
+    super(StreamToBigQueryTest, self).setUp()
+
+    self.PatchEnv(settings.ProdEnv, ENABLE_BIGQUERY_STREAMING=True)
+
   def testDefers(self):
     export.StreamToBigQuery().get()
     self.assertTaskCount(constants.TASK_QUEUE.BQ_DISPATCH, 1)
@@ -415,6 +420,8 @@ class CountRowsToStreamTest(basetest.UpvoteTestCase):
   def setUp(self):
     app = webapp2.WSGIApplication([('/', export.CountRowsToStream)])
     super(CountRowsToStreamTest, self).setUp(wsgi_app=app)
+
+    self.PatchEnv(settings.ProdEnv, ENABLE_BIGQUERY_STREAMING=True)
 
   @mock.patch.object(export.monitoring, 'rows_to_stream')
   def testSuccess(self, mock_metric):

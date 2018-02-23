@@ -22,14 +22,55 @@ from google.appengine.ext import deferred
 
 from absl.testing import absltest
 
+from upvote.gae.datastore import test_utils
+from upvote.gae.datastore.models import bit9
 from upvote.gae.modules.bit9_api import change_set
 from upvote.gae.modules.bit9_api import constants as bit9_constants
 from upvote.gae.modules.bit9_api import utils
 from upvote.gae.modules.bit9_api.api import api
 from upvote.gae.shared.common import basetest
-from upvote.gae.shared.models import bit9
-from upvote.gae.shared.models import test_utils
 from upvote.shared import constants
+
+
+class WithRetriesTest(basetest.UpvoteTestCase):
+
+  def _CreateDecoratedFunc(self, side_effect=None, **decorator_kwargs):
+
+    func = mock.MagicMock(side_effect=side_effect)
+    func.__name__ = 'placeholder'  # Needed to keep functools.wraps() happy.
+
+    decorator = change_set._WithRetries(**decorator_kwargs)
+    return decorator(func)
+
+  def testImmediateSuccess(self):
+
+    decorated = self._CreateDecoratedFunc(side_effect=[123], max_retries=3)
+
+    result = decorated()
+
+    self.assertEqual(123, result)
+    self.assertEqual(1, decorated.__wrapped__.call_count)
+
+  def testUnexpectedException(self):
+
+    decorated = self._CreateDecoratedFunc(
+        side_effect=[change_set.WaitingForSyncError, NotImplementedError],
+        max_retries=3)
+
+    with self.assertRaises(NotImplementedError):
+      decorated()
+
+    self.assertEqual(2, decorated.__wrapped__.call_count)
+
+  def testExhaustRetries(self):
+
+    decorated = self._CreateDecoratedFunc(
+        side_effect=[change_set.WaitingForSyncError] * 4, max_retries=3)
+
+    with self.assertRaises(change_set.WaitingForSyncError):
+      decorated()
+
+    self.assertEqual(4, decorated.__wrapped__.call_count)
 
 
 class CommitBlockableChangeSetTest(basetest.UpvoteTestCase):
@@ -99,6 +140,7 @@ class CommitBlockableChangeSetTest(basetest.UpvoteTestCase):
             'GET', api_route='fileInstance',
             query_args=[r'q=computerId:5678', 'q=fileCatalogId:1234'])])
 
+    self.assertIsNotNone(self.local_rule.key.get().is_fulfilled)
     self.assertFalse(self.local_rule.key.get().is_fulfilled)
     self.assertTrue(self.local_rule.key.get().is_committed)
     self.assertIsNone(change.key.get())
@@ -113,6 +155,7 @@ class CommitBlockableChangeSetTest(basetest.UpvoteTestCase):
 
     change_set.CommitBlockableChangeSet(cert.key)
 
+    self.assertIsNotNone(self.local_rule.key.get().is_fulfilled)
     self.assertFalse(local_rule.key.get().is_fulfilled)
     self.assertTrue(local_rule.key.get().is_committed)
     self.assertIsNone(change.key.get())
@@ -434,16 +477,6 @@ class DeferCommitTest(basetest.UpvoteTestCase):
       self.assertTaskCount(constants.TASK_QUEUE.BIT9_COMMIT_CHANGE, 0)
 
       mock_commit.assert_called_once_with(self.change.key)
-
-  def testDeferCommitChangeSet(self):
-    with mock.patch.object(change_set, '_Whitelist') as mock_whitelist:
-      change_set.DeferCommitChangeSet(self.change.key)
-
-      self.assertTaskCount(constants.TASK_QUEUE.BIT9_COMMIT_CHANGE, 1)
-      self.RunDeferredTasks(constants.TASK_QUEUE.BIT9_COMMIT_CHANGE)
-      self.assertTaskCount(constants.TASK_QUEUE.BIT9_COMMIT_CHANGE, 0)
-
-      self.assertTrue(mock_whitelist.called)
 
 
 if __name__ == '__main__':

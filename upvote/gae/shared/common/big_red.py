@@ -16,7 +16,7 @@
 
 import logging
 
-from upvote.gae.shared.models import cache
+from upvote.gae.datastore.models import cache
 
 
 class BigRedButton(object):

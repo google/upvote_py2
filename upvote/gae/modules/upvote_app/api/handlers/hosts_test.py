@@ -19,15 +19,16 @@ import httplib
 
 import webapp2
 
+from upvote.gae.datastore import test_utils
+from upvote.gae.datastore import utils
+from upvote.gae.datastore.models import bigquery
+from upvote.gae.datastore.models import bit9
+from upvote.gae.datastore.models import santa
+from upvote.gae.datastore.models import tickets
 from upvote.gae.modules.upvote_app.api.handlers import hosts
 from upvote.gae.shared.common import basetest
+from upvote.gae.shared.common import settings
 from upvote.gae.shared.common import test_utils as common_test_utils
-from upvote.gae.shared.models import bigquery
-from upvote.gae.shared.models import bit9
-from upvote.gae.shared.models import santa
-from upvote.gae.shared.models import test_utils
-from upvote.gae.shared.models import tickets
-from upvote.gae.shared.models import utils
 from upvote.shared import constants
 
 
@@ -377,6 +378,8 @@ class HostExceptionHandlerTest(HostsTest):
 
     self.santa_blockable.put()
     self.santa_event.put()
+
+    self.PatchEnv(settings.ProdEnv, ENABLE_BIGQUERY_STREAMING=True)
 
   def testCreateHostException(self):
     params = {'reason': constants.HOST_EXEMPTION_REASON.OSX_DEVELOPER}

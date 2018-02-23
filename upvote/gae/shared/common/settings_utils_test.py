@@ -21,18 +21,18 @@ from upvote.gae.shared.common import settings
 from upvote.gae.shared.common import settings_utils
 
 
-class SettingsUtilsTest(basetest.UpvoteTestCase):
+class CurrentEnvironmentTest(basetest.UpvoteTestCase):
 
-  def testCurrentEnvironment_HostnameCheck(self):
+  def testHostnameCheck(self):
     os.environ['DEFAULT_VERSION_HOSTNAME'] = settings.ProdEnv.HOSTNAME
     self.assertEqual(settings.ProdEnv, settings_utils.CurrentEnvironment())
 
-  def testCurrentEnvironment_HostnameCheck_Unknown(self):
+  def testHostnameCheck_Unknown(self):
     os.environ['DEFAULT_VERSION_HOSTNAME'] = 'something_else'
     with self.assertRaises(settings_utils.UnknownEnvironment):
       settings_utils.CurrentEnvironment()
 
-  def testCurrentEnvironment_AppIdCheck(self):
+  def testAppIdCheck(self):
     os.environ['APPLICATION_ID'] = settings.ProdEnv.PROJECT_ID
     self.assertEqual(settings.ProdEnv, settings_utils.CurrentEnvironment())
 
@@ -40,7 +40,7 @@ class SettingsUtilsTest(basetest.UpvoteTestCase):
     with self.assertRaises(settings_utils.UnknownEnvironment):
       settings_utils.CurrentEnvironment()
 
-  def testCurrentEnvironment_Unknown(self):
+  def testUnknown(self):
     with self.assertRaises(settings_utils.UnknownEnvironment):
       settings_utils.CurrentEnvironment()
 

@@ -23,6 +23,9 @@ import webapp2
 from google.appengine.ext import ndb
 
 from absl.testing import absltest
+from upvote.gae.datastore import test_utils
+from upvote.gae.datastore.models import base as base_db
+from upvote.gae.datastore.models import bit9 as bit9_db
 from upvote.gae.modules.bit9_api import change_set
 from upvote.gae.modules.bit9_api import cron
 from upvote.gae.modules.bit9_api import sync
@@ -30,9 +33,6 @@ from upvote.gae.modules.bit9_api import utils
 from upvote.gae.modules.bit9_api.api import api
 from upvote.gae.shared.common import basetest
 from upvote.gae.shared.common import user_map
-from upvote.gae.shared.models import base as base_db
-from upvote.gae.shared.models import bit9 as bit9_db
-from upvote.gae.shared.models import test_utils
 from upvote.shared import constants
 
 

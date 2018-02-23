@@ -20,12 +20,12 @@ import mock
 import webapp2
 
 from absl.testing import absltest
+from upvote.gae.datastore import test_utils
 from upvote.gae.modules.upvote_app.api.handlers import lookups
 from upvote.gae.shared.binary_health import binary_health
 from upvote.gae.shared.common import basetest
 from upvote.gae.shared.common import settings
 from upvote.gae.shared.common import settings_utils
-from upvote.gae.shared.models import test_utils
 from upvote.shared import constants
 
 

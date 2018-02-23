@@ -21,13 +21,13 @@ import mock
 from google.appengine.ext import ndb
 from google.appengine.ext import testbed
 
+from upvote.gae.datastore import test_utils
+from upvote.gae.datastore import utils
+from upvote.gae.datastore.models import base
+from upvote.gae.datastore.models import bigquery
 from upvote.gae.shared.common import basetest
 from upvote.gae.shared.common import settings
 from upvote.gae.shared.common import user_map
-from upvote.gae.shared.models import base
-from upvote.gae.shared.models import bigquery
-from upvote.gae.shared.models import test_utils
-from upvote.gae.shared.models import utils
 from upvote.shared import constants
 
 
@@ -621,6 +621,8 @@ class UserTest(basetest.UpvoteTestCase):
   def setUp(self):
     super(UserTest, self).setUp()
     self._voting_weights = settings.VOTING_WEIGHTS
+
+    self.PatchEnv(settings.ProdEnv, ENABLE_BIGQUERY_STREAMING=True)
 
   def testGetOrInsert_ExistingUser_EmailAddr(self):
 

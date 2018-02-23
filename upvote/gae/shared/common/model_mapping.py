@@ -14,7 +14,7 @@
 
 """Mappings from constants.BlockableType to blockable models."""
 
-from upvote.gae.shared.models import santa
+from upvote.gae.datastore.models import santa
 
 
 class BlockableTypeModelMap(object):

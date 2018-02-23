@@ -7,6 +7,5 @@ py_appengine_library(
     deps = [
         "//upvote/gae/shared/binary_health:all",
         "//upvote/gae/shared/common:all",
-        "//upvote/gae/shared/models:all",
     ],
 )

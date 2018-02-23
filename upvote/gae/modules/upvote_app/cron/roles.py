@@ -22,13 +22,13 @@ import webapp2
 from google.appengine.ext import deferred
 from google.appengine.ext import ndb
 
+from upvote.gae.datastore.models import base
+from upvote.gae.datastore.models import santa
 from upvote.gae.shared.common import groups
 from upvote.gae.shared.common import query_utils
 from upvote.gae.shared.common import settings
 from upvote.gae.shared.common import user_map
 from upvote.gae.shared.common import utils
-from upvote.gae.shared.models import base
-from upvote.gae.shared.models import santa
 from upvote.shared import constants
 
 # This number may need tweaking.
@@ -134,7 +134,9 @@ class ClientModeChangeHandler(webapp2.RequestHandler):
 
     for user_key_group in utils.Grouper(user_keys, BATCH_SIZE):
       user_key_group = filter(None, user_key_group)
-      deferred.defer(_ChangeModeForHosts, mode, user_key_group, honor_lock)
+      deferred.defer(
+          _ChangeModeForHosts, mode, user_key_group, honor_lock,
+          _queue=constants.TASK_QUEUE.DEFAULT)
 
 
 def _ChangeModeForHosts(mode, user_keys, honor_lock=True):

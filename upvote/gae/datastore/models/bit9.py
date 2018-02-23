@@ -20,9 +20,9 @@ import logging
 from google.appengine.ext import ndb
 
 from common.cloud_kms import kms_ndb
-from upvote.gae.shared.models import base
-from upvote.gae.shared.models import bigquery
-from upvote.gae.shared.models import utils
+from upvote.gae.datastore import utils
+from upvote.gae.datastore.models import base
+from upvote.gae.datastore.models import bigquery
 from upvote.shared import constants
 
 _KEY_LOC = 'global'

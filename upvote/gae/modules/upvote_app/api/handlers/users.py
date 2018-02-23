@@ -16,12 +16,12 @@
 import httplib
 import logging
 
+from upvote.gae.datastore.models import base as base_db
 from upvote.gae.modules.upvote_app.api import monitoring
 from upvote.gae.modules.upvote_app.api.handlers import base
 from upvote.gae.shared.common import handlers
 from upvote.gae.shared.common import user_map
 from upvote.gae.shared.common import xsrf_utils
-from upvote.gae.shared.models import base as base_db
 from upvote.shared import constants
 
 

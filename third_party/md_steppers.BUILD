@@ -12,6 +12,7 @@ genrule(
 closure_js_library(
     name = "material_steppers",
     srcs = ["md-stepper.js"],
+		suppress = ["JSC_JSDOC_MISSING_TYPE_WARNING"],
 )
 
 closure_css_library(

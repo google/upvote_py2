@@ -14,10 +14,8 @@
 
 goog.provide('upvote.admin.blockablepage.BlockableController');
 
-goog.require('goog.Uri');
 goog.require('upvote.admin.app.constants');
 goog.require('upvote.admin.lib.controllers.ModelController');
-goog.require('upvote.admin.settings.SettingsService');
 goog.require('upvote.app.constants');
 goog.require('upvote.errornotifier.ErrorService');
 goog.require('upvote.shared.Page');
@@ -31,7 +29,6 @@ upvote.admin.blockablepage.BlockableController = class extends ModelController {
    * @param {!angular.Resource} blockableResource
    * @param {!angular.Resource} blockableQueryResource
    * @param {!angular.Resource} voteCastResource
-   * @param {!upvote.admin.settings.SettingsService} settingsService
    * @param {!upvote.errornotifier.ErrorService} errorService
    * @param {!angular.$routeParams} $routeParams
    * @param {!angular.Scope} $scope
@@ -42,26 +39,20 @@ upvote.admin.blockablepage.BlockableController = class extends ModelController {
    * @ngInject
    */
   constructor(
-      blockableResource, blockableQueryResource, voteCastResource,
-      settingsService, errorService, $routeParams, $scope, $rootScope,
-      $location, $window, page) {
+      blockableResource, blockableQueryResource, voteCastResource, errorService,
+      $routeParams, $scope, $rootScope, $location, $window, page) {
     super(
         blockableResource, blockableQueryResource, $routeParams, $scope,
         $location);
 
     /** @private {!angular.Resource} */
     this.voteCastResource_ = voteCastResource;
-    /** @private {!upvote.admin.settings.SettingsService} */
-    this.settingsService_ = settingsService;
     /** @private {!upvote.errornotifier.ErrorService} */
     this.errorService_ = errorService;
     /** @private {!angular.$window} */
     this.window_ = $window;
     /** @export {!angular.Scope} */
     this.rootScope = $rootScope;
-
-    /** @private {string} */
-    this.baseUrl_ = '';
 
     /** @export {!Object<string, !upvote.admin.lib.controllers.Field>} */
     this.fields = BlockableController.BASE_FIELDS_;
@@ -102,15 +93,6 @@ upvote.admin.blockablepage.BlockableController = class extends ModelController {
     this.updateOptions();
     this.loadData();
 
-    // Retrieve baseUrl
-    this.settingsService_.get('baseUrl')
-        .then((result) => {
-          this.baseUrl_ = result['data'];
-        })
-        .catch((reason) => {
-          this.errorService_.createDialogFromError(reason);
-        });
-
     // Add a save function to the form
     this.form['save'] = () => {
       this.resource.save(this.form)['$promise']
@@ -140,27 +122,12 @@ upvote.admin.blockablepage.BlockableController = class extends ModelController {
    */
   goToBlockable(adminView) {
     if (this.id) {
-      // Add a url scheme if there isn't one of the baseUrl_.
-      // NOTE: This is necessary because goog.Uri doesn't assume the
-      // scheme is HTTP if none is provided.
-      let baseUrl = this.baseUrl_;
-      if (baseUrl.search(/^https?:\/\//) == -1) {
-        baseUrl = 'https://' + baseUrl;
-      }
-
-      let uri = new goog.Uri(baseUrl);
-
-      // Build path to blockable
-      let basePathPrefix = uri.getPath();
-      // Strip trailing slashes
-      basePathPrefix = basePathPrefix.replace(/\/*$/, '');
       // Add the prefix for admin or non-admin sections of the app
       let appPrefix = adminView ? upvote.admin.app.constants.URL_PREFIX :
                                   upvote.app.constants.URL_PREFIX;
-      uri.setPath(basePathPrefix + appPrefix + 'blockables/' + this.id);
 
       // Open url in a new window
-      this.window_.open(uri.toString(), '_blank');
+      this.window_.open(appPrefix + 'blockables/' + this.id, '_blank');
     }
   }
 

@@ -43,3 +43,8 @@ md-card:hover button.visibility-button {
 md-card-title-media.uv-platform-logo {
   padding-right: 16px;
 }
+
+.host-search {
+    margin-left: 50px;
+    margin-top: 30px;
+}

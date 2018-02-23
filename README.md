@@ -37,11 +37,23 @@ Black Protection) on Windows.
 
 ## Setup
 
-See the [docs page](setup.md) for full instructions.
+See the [docs page](docs/setup.md) for full instructions.
 
 ## Docs
 
-Documentation is currently located in the top-level [docs](./docs/) directory.
+-   **Background**
+    -   [What is Application Whitelisting?](docs/basics.md)
+    -   [Security Discussion](docs/security.md)
+    -   [General Architecture](docs/architecture.md)
+-   **Setup**
+    -   [Setup](docs/setup.md)
+    -   [How to Set Policy](docs/voting.md)
+    -   [Users in Upvote](docs/users.md)
+-   **Santa**
+    -   [Santa Syncing](docs/santa_sync.md)
+    -   [Santa Bundle Voting](docs/bundles.md)
+-   **Bit9**
+    -   [Bit9 Syncing](docs/bit9_sync.md)
 
 ## Contributing
 

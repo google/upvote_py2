@@ -15,7 +15,7 @@
 """NDB models for VirusTotal interactions."""
 
 from common.cloud_kms import kms_ndb
-from upvote.gae.shared.models import utils
+from upvote.gae.datastore import utils
 
 _KEY_LOC = 'global'
 _KEY_RING = 'ring'

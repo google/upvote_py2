@@ -31,7 +31,7 @@ class InitializeBigqueryStreaming(base.BaseHandler):
 
   @base.RequireCapability('admin')
   def get(self):
-    if not settings.ENABLE_BIGQUERY_STREAMING:
+    if not settings.ENV.ENABLE_BIGQUERY_STREAMING:
       return
 
     self.response.headers['Content-Type'] = 'text/plain'

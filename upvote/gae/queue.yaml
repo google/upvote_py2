@@ -13,6 +13,7 @@
 # limitations under the License.
 
 queue:
+
 - name: default
   rate: 10/s
   bucket_size: 10
@@ -40,11 +41,12 @@ queue:
     task_retry_limit: 10
 
 - name: bit9-commit-change
-  rate: 2/s
-  bucket_size: 10
+  max_concurrent_requests: 25
+  bucket_size: 25
+  rate: 5/s  # Refill the bucket at 5 tokens/sec.
+  # Don't retry, the commit-pending-change-sets cron will run again soon.
   retry_parameters:
-    min_backoff_seconds: 30
-    task_retry_limit: 1
+    task_retry_limit: 0
 
 - name: bit9-count
   rate: 1/s

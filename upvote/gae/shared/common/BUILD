@@ -24,7 +24,7 @@ py_library(
     name = "model_mapping",
     srcs = ["model_mapping.py"],
     deps = [
-        "//upvote/gae/shared/models:santa",
+        "//upvote/gae/datastore/models:santa",
         "//upvote/shared:constants",
     ],
 )
@@ -58,7 +58,7 @@ py_appengine_library(
     name = "big_red",
     srcs = ["big_red.py"],
     deps = [
-        "//upvote/gae/shared/models:cache",
+        "//upvote/gae/datastore/models:cache",
     ],
 )
 
@@ -118,13 +118,15 @@ py_appengine_library(
     data = ["//upvote/gae:index.yaml"],
     deps = [
         ":handlers",
+        ":settings",
+        ":settings_utils",
         ":xsrf_utils",
         "//common/testing:basetest",
         "//external:mock",
         "//external:oauth2client",
         "//external:webob",
         "//external:webtest",
-        "//upvote/gae/shared/models:test_utils",
+        "//upvote/gae/datastore:test_utils",
         "//upvote/shared:constants",
     ],
 )
@@ -157,6 +159,7 @@ py_appengine_library(
     name = "taskqueue_utils",
     srcs = ["taskqueue_utils.py"],
     deps = [
+        "//upvote/gae/datastore:utils",
         "//upvote/shared:constants",
     ],
 )
@@ -196,8 +199,8 @@ upvote_appengine_test(
     srcs = ["big_red_test.py"],
     deps = [
         ":big_red",
+        "//upvote/gae/datastore/models:santa",
         "//upvote/gae/shared/common:basetest",
-        "//upvote/gae/shared/models:santa",
         "//upvote/shared:constants",
     ],
 )
@@ -220,7 +223,7 @@ upvote_appengine_test(
     deps = [
         ":json_utils",
         "//common/testing:basetest",
-        "//upvote/gae/shared/models:santa",
+        "//upvote/gae/datastore/models:santa",
         "//upvote/shared:constants",
     ],
 )

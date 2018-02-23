@@ -34,8 +34,8 @@ from upvote.gae.shared.common import handlers
 from upvote.gae.shared.common import settings
 from upvote.gae.shared.common import taskqueue_utils
 from upvote.gae.shared.common import utils
-from upvote.gae.shared.models import base
-from upvote.gae.shared.models import bigquery as bigquery_models
+from upvote.gae.datastore.models import base
+from upvote.gae.datastore.models import bigquery as bigquery_models
 from upvote.shared import constants
 from upvote.shared import time_utils
 
@@ -379,7 +379,7 @@ class StreamToBigQuery(BaseHandler):
   """Handler for streaming BigQueryRow models to Bigquery."""
 
   def get(self):
-    if not settings.ENABLE_BIGQUERY_STREAMING:
+    if not settings.ENV.ENABLE_BIGQUERY_STREAMING:
       return
     deferred.defer(
         _Dispatch,
@@ -389,7 +389,7 @@ class StreamToBigQuery(BaseHandler):
 class CountRowsToPersist(handlers.UpvoteRequestHandler):
 
   def get(self):
-    if not settings.ENABLE_BIGQUERY_STREAMING:
+    if not settings.ENV.ENABLE_BIGQUERY_STREAMING:
       return
     # Don't exceed the 60s request deadline.
     rows_to_persist = taskqueue_utils.QueueSize(
@@ -423,7 +423,7 @@ def _CountRows():
 class CountRowsToStream(handlers.UpvoteRequestHandler):
 
   def get(self):
-    if not settings.ENABLE_BIGQUERY_STREAMING:
+    if not settings.ENV.ENABLE_BIGQUERY_STREAMING:
       return
     taskqueue_utils.CappedDefer(
         _CountRows, 5, queue=constants.TASK_QUEUE.BQ_COUNTING)

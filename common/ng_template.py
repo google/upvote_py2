@@ -21,26 +21,23 @@ import sys
 
 
 def main(argv):
-  # path to node binary.
-  node_bin = argv[1]
   # path to html2js
-  html2js = argv[2]
+  html2js = argv[1]
   # A string that will be stripped out of every filename in the template id.
-  strip_prefix = argv[3]
+  strip_prefix = argv[2]
   # A string to prepend to template paths.
-  prepend_prefix = argv[4]
+  prepend_prefix = argv[3]
   # Name of AngularJS module that needs to be created.
-  module_name = argv[5]
+  module_name = argv[4]
   # goog module name.
-  goog_provide = argv[6]
+  goog_provide = argv[5]
   # remaining args interpreted as html location.
-  html_paths = argv[7:]
+  html_paths = argv[6:]
 
   result = ["goog.provide('{}');".format(goog_provide)]
   for src in html_paths:
     assert src.startswith(strip_prefix)
-    js = subprocess.check_output([
-        node_bin, html2js, src, '--module', module_name])
+    js = subprocess.check_output([html2js, src, '--module', module_name])
     template_name = prepend_prefix + src[len(strip_prefix):]
     js = js.replace(src, template_name)
 

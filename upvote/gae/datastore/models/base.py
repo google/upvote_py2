@@ -25,11 +25,11 @@ from google.appengine.api import users
 from google.appengine.ext import ndb
 from google.appengine.ext.ndb import polymodel
 
+from upvote.gae.datastore import utils as model_utils
+from upvote.gae.datastore.models import bigquery
 from upvote.gae.shared.common import settings
 from upvote.gae.shared.common import taskqueue_utils
 from upvote.gae.shared.common import user_map
-from upvote.gae.shared.models import bigquery
-from upvote.gae.shared.models import utils as model_utils
 from upvote.shared import constants
 
 

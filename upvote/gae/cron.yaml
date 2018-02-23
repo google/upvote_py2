@@ -83,7 +83,7 @@ cron:
 
 - description: Attempt to commit any uncommitted/failing change sets.
   url: /api/bit9/cron/commit-pending-change-sets
-  schedule: every 5 minutes
+  schedule: every 1 minutes
   target: bit9-api
 
 - description: Counts the number of Bit9 events to be pulled.

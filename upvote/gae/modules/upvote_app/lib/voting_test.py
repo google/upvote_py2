@@ -19,16 +19,16 @@ import mock
 
 from google.appengine.ext import ndb
 
+from upvote.gae.datastore import test_utils
+from upvote.gae.datastore import utils
+from upvote.gae.datastore.models import base
+from upvote.gae.datastore.models import bigquery
+from upvote.gae.datastore.models import bit9
+from upvote.gae.datastore.models import santa
 from upvote.gae.modules.upvote_app.lib import voting
 from upvote.gae.shared.common import basetest
 from upvote.gae.shared.common import intermodule
 from upvote.gae.shared.common import settings
-from upvote.gae.shared.models import base
-from upvote.gae.shared.models import bigquery
-from upvote.gae.shared.models import bit9
-from upvote.gae.shared.models import santa
-from upvote.gae.shared.models import test_utils
-from upvote.gae.shared.models import utils
 from upvote.shared import constants
 
 
@@ -56,6 +56,8 @@ class VotingTest(basetest.UpvoteTestCase):
 
     self.local_threshold = settings.VOTING_THRESHOLDS[
         constants.STATE.APPROVED_FOR_LOCAL_WHITELISTING]
+
+    self.PatchEnv(settings.ProdEnv, ENABLE_BIGQUERY_STREAMING=True)
 
   def testGetBallotBox(self):
     ballot_box = voting.GetBallotBox(self.santa_blockable1.key.id())

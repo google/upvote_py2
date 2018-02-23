@@ -16,11 +16,11 @@
 
 import mock
 
+from upvote.gae.datastore import test_utils
+from upvote.gae.datastore.models import metrics as metrics_db
 from upvote.gae.shared.binary_health import metrics
 from upvote.gae.shared.binary_health.virustotal import constants as vt_constants
 from upvote.gae.shared.common import basetest
-from upvote.gae.shared.models import metrics as metrics_db
-from upvote.gae.shared.models import test_utils
 from upvote.shared import constants
 
 

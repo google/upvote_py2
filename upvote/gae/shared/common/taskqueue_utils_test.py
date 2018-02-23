@@ -67,6 +67,7 @@ class GroupTransactionalDefersTest(basetest.UpvoteTestCase):
             _FreeFunction, a=i, _queue=_METRICS, _transactional=True)
 
     _Foo()
+
     self.assertEqual(1, taskqueue_utils.QueueSize(_METRICS))
     self.RunDeferredTasks(_METRICS)
     self.assertEqual(6, taskqueue_utils.QueueSize(_METRICS))
@@ -140,12 +141,64 @@ class GroupTransactionalDefersTest(basetest.UpvoteTestCase):
     ndb.transaction(_Foo)
 
   def testSuccess_Tasklet(self):
-    @ndb.transactional_tasklet
-    @taskqueue_utils.GroupTransactionalDefers
-    def _Foo():
-      deferred.defer(_FreeFunction, _queue=_METRICS, _transactional=True)
+    class A(ndb.Model):
+      pass
 
-    _Foo().get_result()
+    @ndb.transactional_tasklet
+    @taskqueue_utils.GroupTransactionalTaskletDefers
+    def _Foo():
+      # Do some generator operations and make sure they behave as expected.
+      expected_key = ndb.Key(A, '1')
+      a_key = yield A(key=expected_key).put_async()
+      self.assertEqual(expected_key, a_key)
+      yield expected_key.get_async()
+
+      # Defer >5 txnl functions we can verify the expected grouping behavior.
+      for _ in xrange(6):
+        deferred.defer(_FreeFunction, _queue=_DEFAULT, _transactional=True)
+
+      # Return a value so we can verify the return is propogated as expected.
+      raise ndb.Return('1234')
+
+    result = _Foo().get_result()
+
+    self.assertEqual('1234', result)
+    self.assertIsNotNone(ndb.Key(A, '1').get())
+
+    self.assertEqual(1, taskqueue_utils.QueueSize(_DEFAULT))
+    self.RunDeferredTasks(_DEFAULT)
+    self.assertEqual(6, taskqueue_utils.QueueSize(_DEFAULT))
+    self.RunDeferredTasks(_DEFAULT)
+    self.assertEqual(0, taskqueue_utils.QueueSize(_DEFAULT))
+
+  def testSuccess_Tasklet_Nested(self):
+
+    @ndb.tasklet
+    def _Bar():
+      # Create a dummy async op so the initial yield returns a Future.
+      model = yield ndb.Key('A', '1').get_async()
+      raise ndb.Return(model is None)
+
+    @ndb.transactional_tasklet
+    @taskqueue_utils.GroupTransactionalTaskletDefers
+    def _Foo():
+      # Create a dummy async op for the initial yield.
+      yield ndb.Key('A', '1').get_async()
+      # Make result.send() return a Future which needs to be resolved before
+      # this tasklet can return.
+      foo = yield _Bar()
+      raise ndb.Return(foo)
+
+    self.assertTrue(_Foo().get_result())
+
+  def testSuccess_Tasklet_Empty(self):
+
+    @ndb.transactional_tasklet
+    @taskqueue_utils.GroupTransactionalTaskletDefers
+    def _Foo():
+      raise ndb.Return(True)
+
+    self.assertTrue(_Foo().get_result())
 
   def testNoLeftoverPayloads(self):
 

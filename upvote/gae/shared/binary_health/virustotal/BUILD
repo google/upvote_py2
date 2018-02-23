@@ -19,8 +19,8 @@ py_appengine_library(
     srcs = ["virustotal_client.py"],
     deps = [
         ":constants",
+        "//upvote/gae/datastore/models:virustotal",
         "//upvote/gae/shared/common:memcache_utils",
-        "//upvote/gae/shared/models:virustotal",
     ],
 )
 

@@ -22,9 +22,10 @@ from google.cloud import bigquery
 import mock
 import webapp2
 
-from upvote.gae.shared.common import basetest
 from upvote.gae.modules.upvote_app.api.handlers import export
 from upvote.gae.modules.upvote_app.lib import bigquery_schema
+from upvote.gae.shared.common import basetest
+from upvote.gae.shared.common import settings
 
 
 class InitializeBigqueryStreamingTest(basetest.UpvoteTestCase):
@@ -32,6 +33,8 @@ class InitializeBigqueryStreamingTest(basetest.UpvoteTestCase):
   def setUp(self):
     app = webapp2.WSGIApplication([('/', export.InitializeBigqueryStreaming)])
     super(InitializeBigqueryStreamingTest, self).setUp(wsgi_app=app)
+
+    self.PatchEnv(settings.ProdEnv, ENABLE_BIGQUERY_STREAMING=True)
 
   @mock.patch.object(
       bigquery.dataset.Dataset, 'exists', autospec=True,

@@ -14,8 +14,8 @@
 
 """Tests for ticket models."""
 
+from upvote.gae.datastore.models import tickets
 from upvote.gae.shared.common import basetest
-from upvote.gae.shared.models import tickets
 
 
 class TicketTest(basetest.UpvoteTestCase):

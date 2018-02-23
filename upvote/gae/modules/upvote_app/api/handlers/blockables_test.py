@@ -21,13 +21,13 @@ import webapp2
 
 from google.appengine.ext import ndb
 
+from upvote.gae.datastore import test_utils
+from upvote.gae.datastore import utils
+from upvote.gae.datastore.models import base
+from upvote.gae.datastore.models import bit9
+from upvote.gae.datastore.models import santa
 from upvote.gae.modules.upvote_app.api.handlers import blockables
 from upvote.gae.shared.common import basetest
-from upvote.gae.shared.models import base
-from upvote.gae.shared.models import bit9
-from upvote.gae.shared.models import santa
-from upvote.gae.shared.models import test_utils
-from upvote.gae.shared.models import utils
 from upvote.shared import constants
 
 

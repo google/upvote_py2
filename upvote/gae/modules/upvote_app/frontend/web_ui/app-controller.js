@@ -20,22 +20,16 @@ goog.require('upvote.shared.Page');
 /** Main controller for UI. */
 upvote.app.MainController = class {
   /**
-   * @param {!angular.Resource} settingResource
    * @param {!md.$mdMedia} $mdMedia
    * @param {!angular.Scope} $scope
    * @param {!upvote.shared.Page} page Details about the active page
    * @ngInject
    */
-  constructor(settingResource, $mdMedia, $scope, page) {
-    /** @private {!angular.Resource} */
-    this.settingResource_ = settingResource;
+  constructor($mdMedia, $scope, page) {
     /** @private {!md.$mdMedia} */
     this.mdMedia_ = $mdMedia;
     /** @private {!angular.Scope} */
     this.scope_ = $scope;
-
-    /** @export {?{siteName: string}} */
-    this.appTitle = null;
 
     /** @export {boolean} */
     this.isSidenavOpen = false;
@@ -48,8 +42,6 @@ upvote.app.MainController = class {
 
   /** @private */
   init_() {
-    this.appTitle = this.settingResource_.get({'setting': 'siteName'});
-
     this.isSidenavOpen = this.mdMedia_('gt-md');
     // Force-open the sidenav when the screen is greater than 'md'.
     this.scope_.$watch(

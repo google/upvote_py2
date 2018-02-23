@@ -409,10 +409,11 @@ new_http_archive(
 
 http_archive(
     name = "io_bazel_rules_closure",
-    sha256 = "110fe68753413777944b473c25eed6368c4a0487cee23a7bac1b13cc49d3e257",
-    strip_prefix = "rules_closure-4af89ef1db659eb41f110df189b67d4cf14073e1",
+    sha256 = "8026155cf296459b63e318ccd230f0ad79eae3b1e339a49ea7122a3c512ed680",
+    strip_prefix = "rules_closure-f4d0633f14570313b94822223039ebda0f398102",
     urls = [
-        "http://github.com/bazelbuild/rules_closure/archive/4af89ef1db659eb41f110df189b67d4cf14073e1.tar.gz",
+        "http://mirror.bazel.build/github.com/bazelbuild/rules_closure/archive/f4d0633f14570313b94822223039ebda0f398102.tar.gz",
+        "https://github.com/bazelbuild/rules_closure/archive/f4d0633f14570313b94822223039ebda0f398102.tar.gz",
     ],
 )
 
@@ -420,17 +421,21 @@ load("@io_bazel_rules_closure//closure:defs.bzl", "closure_repositories")
 
 closure_repositories(omit_com_google_javascript_closure_library = True)
 
-git_repository(
+http_archive(
     name = "org_pubref_rules_node",
-    commit = "f6fff71fe8b1bee8d3a22e50eca0f76427ab939e",
-    remote = "https://github.com/pubref/rules_node.git",
+    sha256 = "d161dd6551c1061ee954fd6ec014a671d932728776f55a6dcb6ac8ddd5cb5354",
+    strip_prefix = "rules_node-993a258096aaf3d4b295c18856e3405011cad99c",
+    urls = [
+        "http://mirror.bazel.build/github.com/pubref/rules_node/archive/993a258096aaf3d4b295c18856e3405011cad99c.tar.gz",
+        "https://github.com/pubref/rules_node/archive/993a258096aaf3d4b295c18856e3405011cad99c.tar.gz",
+    ],
 )
 
-load("@org_pubref_rules_node//node:rules.bzl", "node_repositories", "npm_repository")
+load("@org_pubref_rules_node//node:rules.bzl", "node_repositories", "yarn_modules")
 
 node_repositories()
 
-npm_repository(
+yarn_modules(
     name = "npm_html2js",
     deps = {
         "ng-html2js": "3.0.0",

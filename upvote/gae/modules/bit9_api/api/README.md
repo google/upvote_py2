@@ -114,14 +114,14 @@ same property e.g. I want "fileCatalogId" to be either 12345 or 67890. This can
 be accomplished using builtin Python operators:
 
 <!--
-The pipe characters in the snippet below are (U+2223, Symbol divides) because
+The pipe character in the snippet below is a (U+2223, Symbol divides) because
 GitHub's Markdown parser currently does not support escaped pipes.
 -->
 
 ```python
 events = (
     api.Event.query()
-    .filter((api.Event.file_catalog_id == 12345) ǀǀ (api.Event.file_catalog_id == 67890))
+    .filter((api.Event.file_catalog_id == 12345) ǀ (api.Event.file_catalog_id == 67890))
     .execute(CONTEXT))
 ```
 

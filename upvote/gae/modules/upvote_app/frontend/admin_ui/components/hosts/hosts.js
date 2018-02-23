@@ -18,7 +18,6 @@ goog.require('upvote.admin.hosts.HostQueryResource');
 goog.require('upvote.admin.hosts.HostResource');
 goog.require('upvote.admin.hosts.prettifyMode');
 goog.require('upvote.admin.hosts.prettifyUuid');
-goog.require('upvote.admin.hosts.uvHostCard');
 
 
 /** @type {!angular.Module} */
@@ -26,6 +25,5 @@ upvote.admin.hosts.module =
     angular.module('upvote.admin.hosts', ['ngResource'])
         .factory('hostResource', upvote.admin.hosts.HostResource)
         .factory('hostQueryResource', upvote.admin.hosts.HostQueryResource)
-        .directive('uvHostCard', upvote.admin.hosts.uvHostCard)
         .filter('prettifyMode', () => upvote.admin.hosts.prettifyMode)
         .filter('prettifyUuid', () => upvote.admin.hosts.prettifyUuid);

@@ -26,6 +26,10 @@ from google.appengine.ext import blobstore
 from google.appengine.ext import ndb
 from google.appengine.ext.webapp import blobstore_handlers
 
+from upvote.gae.datastore import utils
+from upvote.gae.datastore.models import base as base_db
+from upvote.gae.datastore.models import bigquery
+from upvote.gae.datastore.models import santa as santa_db
 from upvote.gae.modules.santa_api import auth
 from upvote.gae.modules.santa_api import constants as santa_const
 from upvote.gae.modules.santa_api import monitoring
@@ -38,10 +42,6 @@ from upvote.gae.shared.common import taskqueue_utils
 from upvote.gae.shared.common import user_map
 from upvote.gae.shared.common import utils as common_utils
 from upvote.gae.shared.common import xsrf_utils
-from upvote.gae.shared.models import base as base_db
-from upvote.gae.shared.models import bigquery
-from upvote.gae.shared.models import santa as santa_db
-from upvote.gae.shared.models import utils
 from upvote.shared import constants as common_const
 
 _SANTA_ACTION = 'santa_action'
@@ -512,7 +512,7 @@ class EventUploadHandler(BaseSantaApiHandler):
   # pylint: disable=g-doc-return-or-yield
   @classmethod
   @ndb.transactional_tasklet
-  @taskqueue_utils.GroupTransactionalDefers
+  @taskqueue_utils.GroupTransactionalTaskletDefers
   def _CreateBlockableFromJsonEvent(cls, json_event):
     """Creates a SantaBlockable from a JSON event if it does not already exist.
 
@@ -536,19 +536,18 @@ class EventUploadHandler(BaseSantaApiHandler):
     blockable = yield blockable_key.get_async()
     if not blockable:
       blockable = cls._GenerateBinaryFromJsonEvent(json_event)
-      put_fut = blockable.put_async()
+      yield blockable.put_async()
 
       blockable.PersistRow(
           common_const.BLOCK_ACTION.FIRST_SEEN, blockable.recorded_dt)
 
-      put_fut.add_callback(
-          metrics.DeferLookupMetric, blockable_id,
-          common_const.ANALYSIS_REASON.NEW_BLOCKABLE)
+      metrics.DeferLookupMetric(
+          blockable_id, common_const.ANALYSIS_REASON.NEW_BLOCKABLE)
 
   # pylint: disable=g-doc-return-or-yield
   @classmethod
   @ndb.transactional_tasklet
-  @taskqueue_utils.GroupTransactionalDefers
+  @taskqueue_utils.GroupTransactionalTaskletDefers
   def _CreateBundleFromJsonEvent(cls, json_event):
     """Creates a SantaBundle from a JSON event if it does not already exist.
 
@@ -585,7 +584,7 @@ class EventUploadHandler(BaseSantaApiHandler):
 
   @classmethod
   @ndb.transactional_tasklet
-  @taskqueue_utils.GroupTransactionalDefers
+  @taskqueue_utils.GroupTransactionalTaskletDefers
   def _CreateBundleBinaries(cls, bundle_key, bundle_upload_events):
     """Create the uploaded binaries associated with a single bundle."""
     logging.info(

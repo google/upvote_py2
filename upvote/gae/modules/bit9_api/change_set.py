@@ -21,10 +21,10 @@ import logging
 from google.appengine.ext import deferred
 from google.appengine.ext import ndb
 
+from upvote.gae.datastore.models import bit9
 from upvote.gae.modules.bit9_api import constants as bit9_constants
 from upvote.gae.modules.bit9_api import utils
 from upvote.gae.modules.bit9_api.api import api
-from upvote.gae.shared.models import bit9
 from upvote.shared import constants
 
 _COMMIT_RETRIES = 3
@@ -45,8 +45,8 @@ class WaitingForSyncError(TransientError):
   """The operation could not be completed due to a pending client sync."""
 
 
-def _WithRetries(max_retries=_COMMIT_RETRIES,
-                 errors_to_retry=(TransientError,)):
+def _WithRetries(
+    max_retries=_COMMIT_RETRIES, errors_to_retry=(TransientError,)):
   """Retry the decorated function when given exceptions are raised."""
   def Decorator(func):
     """The function decorator."""
@@ -59,6 +59,10 @@ def _WithRetries(max_retries=_COMMIT_RETRIES,
         except errors_to_retry as last_error:  # pylint: disable=broad-except
           continue
       raise last_error  # pylint: disable=raising-bad-type
+
+    # Rip off Python 3 and make this thing easier to debug.
+    Wrapper.__wrapped__ = func
+
     return Wrapper
   return Decorator
 
@@ -93,7 +97,7 @@ def _ChangeLocalState(new_state, file_catalog_id, host_id):
       raise WaitingForSyncError('Client not yet synced.')
 
     # The host doesn't currently have an instance of the blockable.
-    logging.debug('State could not fulfilled')
+    logging.debug('State could not be fulfilled')
     return False
   else:
     for instance in file_instances:
@@ -296,10 +300,4 @@ def CommitChangeSet(change_key):
 def DeferCommitBlockableChangeSet(blockable_key, tail_defer=True):
   deferred.defer(
       CommitBlockableChangeSet, blockable_key, tail_defer=tail_defer,
-      _queue=constants.TASK_QUEUE.BIT9_COMMIT_CHANGE)
-
-
-def DeferCommitChangeSet(change_key):
-  deferred.defer(
-      CommitChangeSet, change_key,
       _queue=constants.TASK_QUEUE.BIT9_COMMIT_CHANGE)

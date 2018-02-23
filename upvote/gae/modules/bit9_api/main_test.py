@@ -14,14 +14,14 @@
 
 """Unit tests for routes.py."""
 
-from upvote.gae.modules.bit9_api import routes
+from upvote.gae.modules.bit9_api import main
 from upvote.gae.shared.common import basetest
 
 
-class RoutesTest(basetest.UpvoteTestCase):
+class MainTest(basetest.UpvoteTestCase):
 
   def setUp(self):
-    super(RoutesTest, self).setUp(wsgi_app=routes.bit9)
+    super(MainTest, self).setUp(wsgi_app=main.app)
 
   def testRoutes(self):
     self.assertRoutesDefined(

@@ -31,11 +31,11 @@ def _IsRunningInEnvironment(expected_env):
     return False
 
 
-def RunningInProd():  # pylint:disable=invalid-name
+def RunningInProd():
   return _IsRunningInEnvironment(settings.ProdEnv)
 
 
-def RunningLocally():  # pylint:disable=invalid-name
+def RunningLocally():
   is_local = os.environ.get('SERVER_SOFTWARE', '').startswith('Development')
   verb = 'is' if is_local else 'is not'
   logging.debug('Application environment %s local', verb)

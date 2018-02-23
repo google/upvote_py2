@@ -18,10 +18,10 @@ import httplib
 
 import webapp2
 
+from upvote.gae.datastore import test_utils
+from upvote.gae.datastore.models import base as base_db
 from upvote.gae.modules.upvote_app.api.handlers import auditlogs
 from upvote.gae.shared.common import basetest
-from upvote.gae.shared.models import base as base_db
-from upvote.gae.shared.models import test_utils
 
 
 class AuditLogsTest(basetest.UpvoteTestCase):

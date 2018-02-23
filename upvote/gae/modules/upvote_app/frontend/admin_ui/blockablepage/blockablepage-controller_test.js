@@ -16,31 +16,26 @@ goog.setTestOnly();
 
 goog.require('upvote.admin.blockablepage.BlockableController');
 goog.require('upvote.admin.blockables.module');
-goog.require('upvote.admin.settings.module');
 goog.require('upvote.admin.votes.module');
 goog.require('upvote.errornotifier.module');
 goog.require('upvote.shared.Page');
 
 describe('BlockableController', () => {
-  let blockableResource, blockableQueryResource, voteCastResource,
-      settingsService, errorService, location, window, httpBackend, q,
-      routeParams, rootScope, page;
+  let blockableResource, blockableQueryResource, voteCastResource, errorService,
+      location, window, httpBackend, q, routeParams, rootScope, page;
 
   beforeEach(() => {
     module(upvote.admin.blockables.module.name);
-    module(upvote.admin.settings.module.name);
     module(upvote.admin.votes.module.name);
     module(upvote.errornotifier.module.name);
 
     inject(
         (_blockableResource_, _blockableQueryResource_, _voteCastResource_,
-         _settingsService_, _errorService_, $location, $window, $httpBackend,
-         $q, $rootScope) => {
+         _errorService_, $location, $window, $httpBackend, $q, $rootScope) => {
           // Store injected components.
           blockableResource = _blockableResource_;
           blockableQueryResource = _blockableQueryResource_;
           voteCastResource = _voteCastResource_;
-          settingsService = _settingsService_;
           errorService = _errorService_;
           location = $location;
           window = $window;
@@ -55,7 +50,6 @@ describe('BlockableController', () => {
           spyOn(blockableQueryResource, 'search');
           spyOn(voteCastResource, 'voteYes');
           spyOn(voteCastResource, 'voteNo');
-          settingsService.get = jasmine.createSpy('get');
           errorService.createDialogFromError =
               jasmine.createSpy('createDialogFromError');
           spyOn(window, 'open');
@@ -72,21 +66,16 @@ describe('BlockableController', () => {
   let buildController = () =>
       new upvote.admin.blockablepage.BlockableController(
           blockableResource, blockableQueryResource, voteCastResource,
-          settingsService, errorService, routeParams, rootScope, rootScope,
-          location, window, page);
+          errorService, routeParams, rootScope, rootScope, location, window,
+          page);
 
   let resourcePromiseValue = (value) => {
     return {'$promise': q.when(value)};
   };
 
-  let httpPromiseValue = (value) => {
-    return q.when({'data': value});
-  };
-
   beforeEach(() => {
     blockableResource.get.and.returnValue(resourcePromiseValue({}));
     blockableQueryResource.search.and.returnValue(resourcePromiseValue({}));
-    settingsService.get.and.returnValue(httpPromiseValue('foo'));
     routeParams['id'] = '';
   });
 
@@ -131,7 +120,6 @@ describe('BlockableController', () => {
   });
 
   describe('navigates to the blockable page', () => {
-    let fakeBaseUrl = 'upvote.com';
     let fakeId = 'im21';
     let ctrl;
 
@@ -140,66 +128,21 @@ describe('BlockableController', () => {
     });
 
     it('for admins', () => {
-      settingsService.get.and.returnValue(httpPromiseValue(fakeBaseUrl));
-
       ctrl = buildController();
       rootScope.$apply();
       ctrl.goToBlockable(true);
 
       expect(window.open)
-          .toHaveBeenCalledWith(
-              'https://' + fakeBaseUrl + '/admin/blockables/' + fakeId,
-              '_blank');
+          .toHaveBeenCalledWith('/admin/blockables/' + fakeId, '_blank');
     });
 
     it('for users', () => {
-      settingsService.get.and.returnValue(httpPromiseValue(fakeBaseUrl));
-
       ctrl = buildController();
       rootScope.$apply();
       ctrl.goToBlockable(false);
 
       expect(window.open)
-          .toHaveBeenCalledWith(
-              'https://' + fakeBaseUrl + '/blockables/' + fakeId, '_blank');
-    });
-
-    it('if the baseUrl has a scheme', () => {
-      settingsService.get.and.returnValue(
-          httpPromiseValue('https://' + fakeBaseUrl));
-
-      ctrl = buildController();
-      rootScope.$apply();
-      ctrl.goToBlockable(false);
-
-      expect(window.open)
-          .toHaveBeenCalledWith(
-              'https://' + fakeBaseUrl + '/blockables/' + fakeId, '_blank');
-    });
-
-    it('if the baseUrl has a path', () => {
-      settingsService.get.and.returnValue(
-          httpPromiseValue('https://' + fakeBaseUrl + '/other/'));
-      let expectedUrl =
-          'https://' + fakeBaseUrl + '/other/blockables/' + fakeId;
-
-      ctrl = buildController();
-      rootScope.$apply();
-      ctrl.goToBlockable(false);
-
-      expect(window.open).toHaveBeenCalledWith(expectedUrl, '_blank');
-    });
-
-    it('if the baseUrl has www and no scheme', () => {
-      settingsService.get.and.returnValue(
-          httpPromiseValue('www.' + fakeBaseUrl));
-      let expectedUrl = 'https://www.' + fakeBaseUrl + '/blockables/' + fakeId;
-
-      ctrl = buildController();
-      rootScope.$apply();
-      ctrl.goToBlockable(false);
-
-      expect(window.open).toHaveBeenCalledWith(expectedUrl, '_blank');
+          .toHaveBeenCalledWith('/blockables/' + fakeId, '_blank');
     });
   });
 
@@ -211,5 +154,4 @@ describe('BlockableController', () => {
 
     expect(window.open).not.toHaveBeenCalled();
   });
-
 });

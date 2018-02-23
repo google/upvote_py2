@@ -21,11 +21,12 @@ import mock
 from google.appengine.ext import db
 from google.appengine.ext import ndb
 
+from upvote.gae.datastore import test_utils
+from upvote.gae.datastore import utils
+from upvote.gae.datastore.models import bigquery
+from upvote.gae.datastore.models import santa
 from upvote.gae.shared.common import basetest
-from upvote.gae.shared.models import bigquery
-from upvote.gae.shared.models import santa
-from upvote.gae.shared.models import test_utils
-from upvote.gae.shared.models import utils
+from upvote.gae.shared.common import settings
 from upvote.shared import constants
 
 
@@ -76,6 +77,8 @@ class SantaModelTest(basetest.UpvoteTestCase):
     self.santa_blockable.put()
     self.santa_certificate.put()
     self.santa_event.put()
+
+    self.PatchEnv(settings.ProdEnv, ENABLE_BIGQUERY_STREAMING=True)
 
 
 class SantaBlockableTest(SantaModelTest):

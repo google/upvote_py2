@@ -37,7 +37,7 @@ from oauth2client.contrib import xsrfutil
 from google.appengine.api import users
 from google.appengine.ext import ndb
 
-from upvote.gae.shared.models import utils
+from upvote.gae.datastore import utils
 
 # Token timeout in microseconds.
 xsrfutil.DEFAULT_TIMEOUT_SECS = (

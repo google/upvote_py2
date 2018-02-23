@@ -18,12 +18,12 @@ import logging
 
 from google.appengine.ext import ndb
 
+from upvote.gae.datastore import utils
+from upvote.gae.datastore.models import base as base_db
+from upvote.gae.datastore.models import santa as santa_db
 from upvote.gae.modules.upvote_app.api import monitoring
 from upvote.gae.modules.upvote_app.api.handlers import base
 from upvote.gae.shared.common import handlers
-from upvote.gae.shared.models import base as base_db
-from upvote.gae.shared.models import santa as santa_db
-from upvote.gae.shared.models import utils
 from upvote.shared import constants
 
 

@@ -22,6 +22,8 @@ from google.appengine.ext import ndb
 
 from common import memcache_decorator
 
+from upvote.gae.datastore.models import base as base_db
+from upvote.gae.datastore.models import bit9 as bit9_db
 from upvote.gae.modules.bit9_api import change_set
 from upvote.gae.modules.bit9_api import constants as bit9_constants
 from upvote.gae.modules.bit9_api import rest_utils
@@ -29,8 +31,6 @@ from upvote.gae.modules.bit9_api import utils
 from upvote.gae.modules.bit9_api.api import api
 from upvote.gae.shared.common import handlers
 from upvote.gae.shared.common import settings
-from upvote.gae.shared.models import base as base_db
-from upvote.gae.shared.models import bit9 as bit9_db
 from upvote.shared import constants
 
 _HOST_HEALTH_PROPS = bit9_constants.UpvoteHostHealthProperties

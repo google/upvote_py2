@@ -17,13 +17,13 @@
 import httplib
 import logging
 
+from upvote.gae.datastore.models import base as base_db
+from upvote.gae.datastore.models import santa as santa_db
 from upvote.gae.modules.upvote_app.api import monitoring
 from upvote.gae.modules.upvote_app.api.handlers import base
 from upvote.gae.shared.binary_health import binary_health
 from upvote.gae.shared.binary_health.virustotal import constants as vt_constants
 from upvote.gae.shared.common import handlers
-from upvote.gae.shared.models import base as base_db
-from upvote.gae.shared.models import santa as santa_db
 
 
 class Lookup(base.BaseHandler):

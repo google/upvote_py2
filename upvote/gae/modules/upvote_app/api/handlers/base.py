@@ -19,12 +19,12 @@ import logging
 from google.appengine.datastore.datastore_query import Cursor
 from google.appengine.ext import ndb
 
+from upvote.gae.datastore import utils as model_utils
+from upvote.gae.datastore.models import base
 from upvote.gae.shared.common import handlers
 from upvote.gae.shared.common import json_utils
 from upvote.gae.shared.common import utils
 from upvote.gae.shared.common import xsrf_utils
-from upvote.gae.shared.models import base
-from upvote.gae.shared.models import utils as model_utils
 from upvote.shared import utils as upvote_utils
 
 

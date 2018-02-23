@@ -17,13 +17,13 @@
 import httplib
 import logging
 
+from upvote.gae.datastore.models import bit9
+from upvote.gae.datastore.models import virustotal
 from upvote.gae.modules.upvote_app.api import monitoring
 from upvote.gae.modules.upvote_app.api.handlers import base
 from upvote.gae.shared.common import handlers
 from upvote.gae.shared.common import settings
 from upvote.gae.shared.common import xsrf_utils
-from upvote.gae.shared.models import bit9
-from upvote.gae.shared.models import virustotal
 from upvote.shared import constants
 from upvote.shared import utils
 

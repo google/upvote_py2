@@ -20,9 +20,9 @@ import urllib
 
 from google.appengine.api import urlfetch
 
+from upvote.gae.datastore.models import virustotal
 from upvote.gae.shared.binary_health.virustotal import constants
 from upvote.gae.shared.common import memcache_utils
-from upvote.gae.shared.models import virustotal
 
 _RESULT_CACHE_TIMEOUT = 4. * 60 * 60  # 4 hours
 

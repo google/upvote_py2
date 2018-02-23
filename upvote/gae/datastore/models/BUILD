@@ -1,10 +1,10 @@
+package(default_visibility = ["//upvote"])
+
 load(
     "//upvote:builddefs.bzl",
     "py_appengine_library",
     "upvote_appengine_test",
 )
-
-package(default_visibility = ["//upvote"])
 
 # AppEngine Libraries
 # ==============================================================================
@@ -24,7 +24,7 @@ py_appengine_library(
     srcs = ["base.py"],
     deps = [
         ":bigquery",
-        ":utils",
+        "//upvote/gae/datastore:utils",
         "//upvote/gae/shared/common:settings",
         "//upvote/gae/shared/common:taskqueue_utils",
         "//upvote/gae/shared/common:user_map",
@@ -36,8 +36,10 @@ py_appengine_library(
     name = "bigquery",
     srcs = ["bigquery.py"],
     deps = [
+        "//upvote/gae/datastore:utils",
         "//upvote/gae/shared/common:monitoring",
         "//upvote/gae/shared/common:settings",
+        "//upvote/gae/shared/common:utils",
         "//upvote/monitoring:metrics",
         "//upvote/shared:constants",
     ],
@@ -48,9 +50,9 @@ py_appengine_library(
     srcs = ["bit9.py"],
     deps = [
         ":base",
-        ":utils",
+        ":bigquery",
         "//common/cloud_kms:kms_ndb",
-        "//upvote/gae/shared/models:bigquery",
+        "//upvote/gae/datastore:utils",
         "//upvote/shared:constants",
     ],
 )
@@ -80,20 +82,6 @@ py_appengine_library(
 )
 
 py_appengine_library(
-    name = "test_utils",
-    srcs = ["test_utils.py"],
-    deps = [
-        ":base",
-        ":bit9",
-        ":santa",
-        "//external:mock",
-        "//upvote/gae/shared/common:settings",
-        "//upvote/gae/shared/common:user_map",
-        "//upvote/shared:constants",
-    ],
-)
-
-py_appengine_library(
     name = "tickets",
     srcs = ["tickets.py"],
     deps = [
@@ -102,16 +90,11 @@ py_appengine_library(
 )
 
 py_appengine_library(
-    name = "utils",
-    srcs = ["utils.py"],
-)
-
-py_appengine_library(
     name = "virustotal",
     srcs = ["virustotal.py"],
     deps = [
-        ":utils",
         "//common/cloud_kms:kms_ndb",
+        "//upvote/gae/datastore:utils",
     ],
 )
 
@@ -125,10 +108,10 @@ upvote_appengine_test(
     deps = [
         ":base",
         ":bigquery",
-        ":test_utils",
-        ":utils",
         "//common/testing:basetest",
         "//external:mock",
+        "//upvote/gae/datastore:test_utils",
+        "//upvote/gae/datastore:utils",
         "//upvote/gae/shared/common:basetest",
         "//upvote/gae/shared/common:settings",
         "//upvote/gae/shared/common:utils",
@@ -143,11 +126,13 @@ upvote_appengine_test(
     srcs = ["bigquery_test.py"],
     deps = [
         ":bigquery",
-        ":test_utils",
-        ":utils",
         "//common/testing:basetest",
         "//external:mock",
+        "//upvote/gae/datastore:test_utils",
+        "//upvote/gae/datastore:utils",
         "//upvote/gae/shared/common:basetest",
+        "//upvote/gae/shared/common:settings",
+        "//upvote/gae/shared/common:settings_utils",
         "//upvote/shared:constants",
         "@absl_git//absl/testing:absltest",
     ],
@@ -159,9 +144,9 @@ upvote_appengine_test(
     srcs = ["bit9_test.py"],
     deps = [
         ":bit9",
-        ":test_utils",
-        ":utils",
         "//common/testing:basetest",
+        "//upvote/gae/datastore:test_utils",
+        "//upvote/gae/datastore:utils",
         "//upvote/gae/shared/common:basetest",
         "//upvote/shared:constants",
         "@absl_git//absl/testing:absltest",
@@ -174,10 +159,10 @@ upvote_appengine_test(
     srcs = ["santa_test.py"],
     deps = [
         ":santa",
-        ":test_utils",
-        ":utils",
         "//common/testing:basetest",
         "//external:mock",
+        "//upvote/gae/datastore:test_utils",
+        "//upvote/gae/datastore:utils",
         "//upvote/gae/shared/common:basetest",
         "//upvote/shared:constants",
         "@absl_git//absl/testing:absltest",
@@ -192,18 +177,6 @@ upvote_appengine_test(
         ":tickets",
         "//common/testing:basetest",
         "//upvote/gae/shared/common:basetest",
-        "@absl_git//absl/testing:absltest",
-    ],
-)
-
-upvote_appengine_test(
-    name = "utils_test",
-    size = "small",
-    srcs = ["utils_test.py"],
-    deps = [
-        ":utils",
-        "//common/testing:basetest",
-        "//external:mock",
         "@absl_git//absl/testing:absltest",
     ],
 )

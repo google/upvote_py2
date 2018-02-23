@@ -18,7 +18,7 @@ from common import context
 
 from upvote.gae.modules.bit9_api.api import api  # pylint: disable=line-too-long
 from upvote.gae.shared.common import settings
-from upvote.gae.shared.models import bit9
+from upvote.gae.datastore.models import bit9
 
 
 def ExpandHostname(bit9_hostname):

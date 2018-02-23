@@ -23,7 +23,7 @@ from upvote.gae.modules.bit9_api import handlers
 from upvote.gae.shared.common import handlers as common_handlers
 
 
-bit9 = webapp2.WSGIApplication(routes=[
+app = webapp2.WSGIApplication(routes=[
 
     webapp2.Route('/_ah/warmup', handler=common_handlers.AckHandler),
 
@@ -64,4 +64,4 @@ bit9 = webapp2.WSGIApplication(routes=[
     ]),
 ])
 
-common_handlers.CreateErrorHandlersForApplications([bit9])
+common_handlers.CreateErrorHandlersForApplications([app])

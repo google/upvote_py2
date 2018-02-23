@@ -50,11 +50,9 @@ configuration instructions.
 ##### Bit9
 
 Bit9 reports logged-in users in down-level domain format (e.g. `DOMAIN\USER`) so
-Upvote first strips off the domain (the domain to be stripped is configured with
-the `AD_DOMAIN` setting), then converts the user to lowercase, then applies
-`UsernameToEmail`.
-
-`upvote/shared/constants.py` `USER_EMAIL_DOMAIN = 'gmail.com'`
+Upvote first strips off the domain (the exact domain to be stripped is
+configured with the `AD_DOMAIN` setting), then converts the user to lowercase,
+then applies `UsernameToEmail`.
 
 ### Groups
 
@@ -82,7 +80,7 @@ Once the deploy completes, the `/api/web/cron/roles/sync` cron can be manually
 triggered from the Cloud Console's [cron
 page](https://console.cloud.google.com/appengine/taskqueues/cron). You can
 confirm this was successful when you can access the admin site at
-`https://<my-app>.appspot.com/admin/settings`.
+"`https://<my-app>.appspot.com/admin/settings`".
 
 ### (Optional) VirusTotal
 
@@ -92,12 +90,32 @@ application scanners and is free to use up to a certain usage limit (4 req/min).
 
 To integrate with VirusTotal, perform the following steps:
 
-1.  Sign up for account at https://www.virustotal.com/#/join-us
+1.  Sign up for a VirusTotal account at https://www.virustotal.com/#/join-us
 2.  Activate your account and log in
 3.  Copy API Key at https://www.virustotal.com/#/settings/apikey
-4.  Go to `https://<my-app>.appspot.com/admin/settings`
+4.  Go to "`https://<my-app>.appspot.com/admin/settings`"
 5.  Enter the copied key into "API Keys > VirusTotal API Key Value" and press
     the save button at the lower right.
+
+### (Optional) BigQuery Streaming
+
+Upvote supports streaming of historical data (e.g. execution events, new
+blockables) to BigQuery. Once there, it can be queried quickly and easily with
+SQL-like syntax. See https://cloud.google.com/bigquery/ for a more in-depth
+introduction to BigQuery.
+
+To enable this feature:
+
+1.  Set `ENABLE_BIGQUERY_STREAMING` to `True` in settings
+2.  `./manage_crons.py enable bigquery`
+3.  `bazel run upvote/gae:monolith_binary.deploy -- ${PROJ_ID} app.yaml
+    santa_api.yaml bit9_api.yaml`
+4.  Once the app is deployed, request the URL
+    "`<my-app>.appspot.com/api/web/export/init-bigquery-streaming`" in your
+    browser to create the necessary tables in BigQuery.
+
+Done! You should start seeing entries at
+"`https://bigquery.cloud.google.com/dataset/<my-app>:gae_streaming`".
 
 ### (Optional) Monitoring
 
@@ -110,6 +128,34 @@ Likely the easiest way to make use of these stubs is through integration with
 [Cloud Monitoring](https://cloud.google.com/monitoring/). However, you may have
 an internal system by which you do monitoring in which case you can implement
 your own sync procedure.
+
+### (Optional) Datastore Backup
+
+Upvote has support for full backups of its Datastore models. This might be
+useful to set up in case of corruption or bad policy updates.
+
+To enable backups:
+
+1.  Set `HOSTNAME` in settings to your App Engine hostname e.g.
+    "`<my-app>.appspot.com`"
+2.  Set `DATASTORE_BACKUP_BUCKET` to the
+    [GCS](https://cloud.google.com/storage/) bucket to which you'd like to store
+    your backups.
+    -   You can use the app default bucket that's created with your Cloud
+        project. It should have the same name as the hostname of your app e.g.
+        "`<my-app>.appspot.com`".
+    -   To view and/or create your project's GCS buckets, see
+        https://console.cloud.google.com/storage/browser.
+3.  `./manage_crons.py enable daily_backup`
+    -   You may want to review the frequency settings as the default is once per
+        day and is likely much more frequent than is desirable. You can view and
+        edit the frequency of the "daily datastore backup" cron in
+        [`cron.yaml`](../upvote/gae/cron.yaml).
+4.  `bazel run upvote/gae:monolith_binary.deploy -- ${PROJ_ID}`
+5.  https://console.cloud.google.com/datastore/settings "Enable Datastore Admin"
+
+Done! You can test it out to make sure it works by manually invoking the cron on
+the [cron page](https://console.cloud.google.com/appengine/taskqueues/cron).
 
 ### Platform Setup
 
