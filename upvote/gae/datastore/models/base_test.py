@@ -279,10 +279,6 @@ class BlockableTest(basetest.UpvoteTestCase):
     self.assertIsNotNone(blockable)
     self.assertEqual(constants.STATE.UNTRUSTED, blockable.state)
 
-    # Verify it has no AuditLogs.
-    audit_logs = base.AuditLog.GetAll(blockable)
-    self.assertEqual(0, len(audit_logs))
-
     # Note the state change timestamp.
     old_state_change_dt = blockable.state_change_dt
 
@@ -293,10 +289,6 @@ class BlockableTest(basetest.UpvoteTestCase):
     blockable = base.Blockable.get_by_id(blockable_hash)
     self.assertIsNotNone(blockable)
     self.assertEqual(constants.STATE.BANNED, blockable.state)
-
-    # Should have a single AuditLog now.
-    audit_logs = base.AuditLog.GetAll(blockable)
-    self.assertEqual(1, len(audit_logs))
 
     # And the state change timestamp should be increased.
     self.assertTrue(blockable.state_change_dt > old_state_change_dt)
@@ -382,44 +374,6 @@ class BlockableTest(basetest.UpvoteTestCase):
     self.assertEqual(0, len(self.blockable_1.GetEvents()))
     test_utils.CreateEvents(self.blockable_1, 5)
     self.assertEqual(5, len(self.blockable_1.GetEvents()))
-
-  def testAddAuditLog(self):
-    logs = base.AuditLog.GetAll(self.blockable_1)
-    self.assertEqual(0, len(logs))
-    base.AuditLog.Create(self.blockable_1, 'blah blah blah')
-    logs = base.AuditLog.GetAll(self.blockable_1)
-    self.assertEqual(1, len(logs))
-
-    self.assertEqual(self.blockable_1.key, logs[0].target_object_key)
-    self.assertEqual(logs[0].key.parent(), logs[0].target_object_key)
-
-  def testAuditLogs_GetAll(self):
-
-    # Create some interleaved AuditLogs for different Blockables.
-    base.AuditLog.Create(self.blockable_1, 'message1', user='user')
-    base.AuditLog.Create(self.blockable_2, 'message2', user='user')
-    base.AuditLog.Create(self.blockable_1, 'message3', user='user')
-
-    # Verify the AuditLogs for the first Blockable (ascending).
-    blockable_1_logs = base.AuditLog.GetAll(self.blockable_1, ascending=True)
-    self.assertEqual(2, len(blockable_1_logs))
-    self.assertEqual('message1', blockable_1_logs[0].log_event)
-    self.assertEqual('message3', blockable_1_logs[1].log_event)
-    self.assertTrue(
-        blockable_1_logs[0].recorded_dt < blockable_1_logs[1].recorded_dt)
-
-    # Verify the AuditLogs for the second Blockable.
-    blockable_2_logs = base.AuditLog.GetAll(self.blockable_2, ascending=True)
-    self.assertEqual(1, len(blockable_2_logs))
-    self.assertEqual('message2', blockable_2_logs[0].log_event)
-
-    # Verify the AuditLogs for the first Blockable (descending).
-    blockable_1_logs = base.AuditLog.GetAll(self.blockable_1, ascending=False)
-    self.assertEqual(2, len(blockable_1_logs))
-    self.assertEqual('message3', blockable_1_logs[0].log_event)
-    self.assertEqual('message1', blockable_1_logs[1].log_event)
-    self.assertTrue(
-        blockable_1_logs[0].recorded_dt > blockable_1_logs[1].recorded_dt)
 
   def testIsVotingAllowed_Allowed(self):
     for state in constants.STATE.SET_VOTING_ALLOWED:

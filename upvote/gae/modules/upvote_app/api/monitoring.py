@@ -18,9 +18,6 @@ from upvote.gae.shared.common import monitoring
 from upvote.monitoring import metrics
 
 
-audit_log_requests = (
-    monitoring.RequestCounter(metrics.UPVOTE_APP.AUDIT_LOG_REQUESTS))
-
 blockable_requests = (
     monitoring.RequestCounter(metrics.UPVOTE_APP.BLOCKABLE_REQUESTS))
 

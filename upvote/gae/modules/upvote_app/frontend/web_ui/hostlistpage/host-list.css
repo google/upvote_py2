@@ -3,7 +3,12 @@
 }
 
 #host-card-list {
+  padding: 0px;
   width: 85%;
+}
+
+.host-card {
+  margin: 16px 8px 0px 8px;
 }
 
 span.md-subhead.uv-host-card-detail {

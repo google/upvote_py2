@@ -1,3 +1,8 @@
+
+#blockable-card {
+  margin: 16px 8px 16px 8px;
+}
+
 .next-button.ng-leave {
   transition: 0.1s ease all;
   opacity: 1;

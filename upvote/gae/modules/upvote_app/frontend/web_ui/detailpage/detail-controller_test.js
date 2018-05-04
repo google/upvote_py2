@@ -778,5 +778,25 @@ describe('Detail Controller', () => {
       expect(ctrl.disableFlagButton()).toBe(true);
     });
   });
+
+  describe('should enable the flag button', () => {
+    it('if the blockable is a non-bundle SantaBlockable', () => {
+      setBlockable({'class_': ['Blockable', 'Binary', 'SantaBlockable']});
+
+      ctrl = buildController();
+      scope.$apply();
+
+      expect(ctrl.disableFlagButton()).toBe(false);
+    });
+    it('if the blockable is a Bit9Binary', () => {
+      setBlockable({'class_': ['Blockable', 'Binary', 'Bit9Binary']});
+
+      ctrl = buildController();
+      scope.$apply();
+
+      expect(ctrl.disableFlagButton()).toBe(false);
+    });
+  });
+
 });
 });  // goog.scope

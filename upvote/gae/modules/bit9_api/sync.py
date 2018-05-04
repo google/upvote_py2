@@ -18,28 +18,29 @@ import datetime
 import httplib
 import logging
 import re
+import sys
 import time
 
+from google.appengine.api import memcache
 from google.appengine.ext import deferred
 from google.appengine.ext import ndb
 
-from common import memcache_decorator
 from common import datastore_locks
 
 from upvote.gae.datastore import utils as model_utils
 from upvote.gae.datastore.models import base
 from upvote.gae.datastore.models import bigquery
 from upvote.gae.datastore.models import bit9
+from upvote.gae.lib.analysis import metrics
 from upvote.gae.modules.bit9_api import change_set
 from upvote.gae.modules.bit9_api import constants as bit9_constants
 from upvote.gae.modules.bit9_api import rest_utils
 from upvote.gae.modules.bit9_api import monitoring
 from upvote.gae.modules.bit9_api import utils
 from upvote.gae.modules.bit9_api.api import api
-from upvote.gae.shared.binary_health import metrics
 from upvote.gae.shared.common import query_utils
-from upvote.gae.shared.common import taskqueue_utils
 from upvote.gae.shared.common import user_map
+from upvote.gae.taskqueue import utils as taskqueue_utils
 from upvote.shared import constants
 from upvote.shared import time_utils
 
@@ -64,7 +65,16 @@ _PROCESS_LOCK_TIMEOUT = int(
 _PROCESS_LOCK_MAX_ACQUIRE_ATTEMPTS = 1
 
 
-_CERTIFICATE_TIMEOUT = datetime.timedelta(days=7).total_seconds()
+_CERT_MEMCACHE_KEY = 'bit9_cert_%s'
+_CERT_MEMCACHE_TIMEOUT = datetime.timedelta(days=7).total_seconds()
+
+
+class Error(Exception):
+  """Base error."""
+
+
+class MalformedCertificate(Error):
+  """A malformed cert has been received from Bit9."""
 
 
 class _UnsyncedEvent(ndb.Model):
@@ -119,26 +129,54 @@ def BuildEventSubtypeFilter():
   return filter_expr
 
 
+def _GetCertificate(cert_id):
+  """Gets a certificate entity."""
+  logging.info('Retrieving certificate (ID=%s)', cert_id)
+
+  # Check memcache first.
+  memcache_key = _CERT_MEMCACHE_KEY % cert_id
+  cert = memcache.get(memcache_key)
+  if cert:
+    return cert
+
+  # If it's not cached then query Bit9.
+  cert = api.Certificate.get(cert_id, utils.CONTEXT)
+
+  # Attempt to parse the cert before caching it, in case Bit9 returns malformed
+  # cert data again.
+  try:
+    cert.to_raw_dict()
+
+  # If anything is amiss, log the error and re-raise as a MalformedCertificate.
+  except:
+    message = 'Unable to parse Certificate %s' % cert_id
+    logging.exception(message)
+    _, _, exc_traceback = sys.exc_info()
+    raise MalformedCertificate, MalformedCertificate(message), exc_traceback
+
+  # Otherwise, add the cert to memcache.
+  memcache.set(memcache_key, cert, time=_CERT_MEMCACHE_TIMEOUT)
+  return cert
+
+
 def _GetSigningChain(cert_id):
   """Gets the signing chain of a leaf certificate.
 
   Args:
     cert_id: int, The id of the certificate to get the signing chain of.
 
-  Yields:
+  Returns:
     The signing chain of the certificate objects in Leaf->Root order.
   """
+  signing_chain = []
   next_cert_id = cert_id
+
   while next_cert_id:
     cert = _GetCertificate(next_cert_id)
-    yield cert
+    signing_chain.append(cert)
     next_cert_id = cert.parent_certificate_id
 
-
-@memcache_decorator.Cached(expire_time=_CERTIFICATE_TIMEOUT)
-def _GetCertificate(cert_id):
-  """Gets a certificate entity."""
-  return api.Certificate.get(cert_id, utils.CONTEXT)
+  return signing_chain
 
 
 def GetEvents(last_synced_id, limit=_PULL_BATCH_SIZE):
@@ -157,8 +195,7 @@ def GetEvents(last_synced_id, limit=_PULL_BATCH_SIZE):
   Returns:
     A list of events not yet pushed to Upvote.
   """
-  logging.info('Getting events after ID=%s (Max %s)', last_synced_id, limit)
-
+  logging.info('Retrieving events after ID=%s (Max %s)', last_synced_id, limit)
   events = (api.Event.query()
             .filter(api.Event.id > last_synced_id)
             .filter(api.Event.file_catalog_id > 0)
@@ -168,23 +205,28 @@ def GetEvents(last_synced_id, limit=_PULL_BATCH_SIZE):
             .limit(limit)
             .order(api.Event.id)
             .execute(utils.CONTEXT))
+  logging.info('Retrieved %d event(s)', len(events))
 
   event_cert_tuples = []
   for event in events:
-    logging.debug('Constructing events: ID=%s', event.id)
+    logging.info('Constructing event (ID=%s)', event.id)
 
+    logging.info('Retrieving fileCatalog (ID=%s)', event.file_catalog_id)
     file_catalog = event.get_expand(api.Event.file_catalog_id)
     if file_catalog is None:
-      logging.warning(
-          'Skipping malformed Event (ID=%s): No fileCatalog with ID=%s',
-          event.id, event.file_catalog_id)
+      logging.warning('Skipping malformed event (No fileCatalog found)')
       continue
 
+    # At bare minimum we need a SHA256 out of the fileCatalog, so if it's not
+    # there we have to skip this event.
+    if not file_catalog.sha256:
+      logging.warning('Skipping malformed event (Incomplete fileCatalog)')
+      continue
+
+    logging.info('Retrieving computer (ID=%s)', event.computer_id)
     computer = event.get_expand(api.Event.computer_id)
     if computer is None:
-      logging.warning(
-          'Skipping malformed Event (ID=%s): No computer with ID=%s',
-          event.id, event.computer_id)
+      logging.warning('Skipping malformed event (No computer found)')
       continue
 
     # Retrieving the signing chain may result in extra API calls but if any of
@@ -192,7 +234,7 @@ def GetEvents(last_synced_id, limit=_PULL_BATCH_SIZE):
     try:
       signing_chain = _GetSigningChain(file_catalog.certificate_id)
     except Exception as e:  # pylint: disable=broad-except
-      logging.warning('Event retrieval failed: %s', e)
+      logging.warning('Error while retrieving signing chain: %s', e)
       return event_cert_tuples
 
     event_cert_tuples.append((event, signing_chain))

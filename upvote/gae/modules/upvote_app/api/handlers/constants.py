@@ -16,6 +16,8 @@
 import httplib
 import logging
 
+import webapp2
+
 from upvote.gae.modules.upvote_app.api import monitoring
 from upvote.gae.modules.upvote_app.api.handlers import base
 from upvote.gae.shared.common import handlers
@@ -47,3 +49,7 @@ class Constant(base.BaseHandler):
     else:
       logging.debug('Unknown constant requested: %s', constant)
       self.abort(httplib.NOT_FOUND, explanation='Unknown constant requested')
+
+
+# The Webapp2 routes defined for these handlers.
+ROUTES = webapp2.Route('/constants/<constant>', handler=Constant)

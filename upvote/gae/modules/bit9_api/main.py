@@ -53,12 +53,6 @@ app = webapp2.WSGIApplication(routes=[
         ]),
 
         webapp2.Route(
-            '/host-health-information',
-            handler=handlers.GetHostHealthInformation),
-        webapp2.Route(
-            '/associated-hosts/<user_id>',
-            handler=handlers.AssociatedHosts),
-        webapp2.Route(
             '/commit-change-set/<blockable_id>',
             handler=handlers.CommitBlockableChangeSet),
     ]),

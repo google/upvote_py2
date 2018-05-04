@@ -17,12 +17,15 @@
 import httplib
 import logging
 
+import webapp2
+from webapp2_extras import routes
+
 from upvote.gae.datastore.models import base as base_db
 from upvote.gae.datastore.models import santa as santa_db
+from upvote.gae.lib.analysis import analysis
+from upvote.gae.lib.analysis.virustotal import constants as vt_constants
 from upvote.gae.modules.upvote_app.api import monitoring
 from upvote.gae.modules.upvote_app.api.handlers import base
-from upvote.gae.shared.binary_health import binary_health
-from upvote.gae.shared.binary_health.virustotal import constants as vt_constants
 from upvote.gae.shared.common import handlers
 
 
@@ -47,8 +50,8 @@ class Lookup(base.BaseHandler):
           'reports': {}}
       for key in keys:
         try:
-          results = binary_health.VirusTotalLookup(key.id())
-        except binary_health.LookupFailure as e:  # pylint: disable=broad-except
+          results = analysis.VirusTotalLookup(key.id())
+        except analysis.LookupFailure as e:  # pylint: disable=broad-except
           # NOTE: We suppress all errors here because an omitted entry will be
           # considered an error and prevent the response from being considered
           # fully analyzed.
@@ -67,9 +70,18 @@ class Lookup(base.BaseHandler):
       self.respond_json(all_results)
     else:
       try:
-        results = binary_health.VirusTotalLookup(blockable_id)
-      except binary_health.LookupFailure as e:  # pylint: disable=broad-except
+        results = analysis.VirusTotalLookup(blockable_id)
+      except analysis.LookupFailure as e:  # pylint: disable=broad-except
         logging.exception(str(e))
         self.abort(httplib.NOT_FOUND)
       else:
         self.respond_json(results)
+
+
+# The Webapp2 routes defined for these handlers.
+ROUTES = routes.PathPrefixRoute('/check', [
+    webapp2.Route(
+        r'/virustotal/<blockable_id>',
+        handler=Lookup,
+        handler_method='check_virus_total'),
+])

@@ -29,6 +29,7 @@ upvote.admin.hostpage.HostController = class extends ModelController {
   /**
    * @param {!angular.Resource} hostResource
    * @param {!angular.Resource} hostQueryResource
+   * @param {!angular.Resource} userResource
    * @param {!upvote.hosts.HostService} hostService
    * @param {!upvote.hosts.HostUtilsService} hostUtilsService
    * @param {!upvote.errornotifier.ErrorService} errorService
@@ -40,8 +41,9 @@ upvote.admin.hostpage.HostController = class extends ModelController {
    * @ngInject
    */
   constructor(
-      hostResource, hostQueryResource, hostService, hostUtilsService,
-      errorService, $routeParams, $scope, $rootScope, $location, page) {
+      hostResource, hostQueryResource, userResource, hostService,
+      hostUtilsService, errorService, $routeParams, $scope, $rootScope,
+      $location, page) {
     super(hostResource, hostQueryResource, $routeParams, $scope, $location);
 
     /** @export {!Object<string, !upvote.admin.lib.controllers.Field>} */
@@ -50,10 +52,14 @@ upvote.admin.hostpage.HostController = class extends ModelController {
     this.errorService_ = errorService;
     /** @private {!upvote.hosts.HostService} */
     this.hostService_ = hostService;
+    /** @private {!angular.Resource} */
+    this.userResource_ = userResource;
     /** @export {!upvote.hosts.HostUtilsService} */
     this.hostUtils = hostUtilsService;
     /** @export {!angular.Scope} */
     this.rootScope = $rootScope;
+    /** @export {?upvote.shared.models.User} */
+    this.user = null;
 
     // A list of hostnames that have visible host details
     /** @private {!Set<string>} */
@@ -63,6 +69,14 @@ upvote.admin.hostpage.HostController = class extends ModelController {
 
     // Initialize the controller
     this.init();
+
+    this.userResource_.getSelf()['$promise']
+        .then((user) => {
+          this.user = user;
+        })
+        .catch((response) => {
+          this.errorService_.createDialogFromError(response);
+        });
   }
 
   /** @override */
@@ -106,9 +120,53 @@ upvote.admin.hostpage.HostController = class extends ModelController {
    */
   requestLogs(host) {
     host['shouldUploadLogs'] = true;
-    this.resource['update'](host)['$promise'].catch(() => {
+    this.resource.update(host)['$promise'].catch(() => {
       host['shouldUploadLogs'] = false;
     });
+  }
+
+  canEnableMonitorMode(host) {
+    return (
+        this.hostUtils.isSantaHost(host) && this.hostUtils.isInLockdown(host) &&
+        this.userCanEditHosts());
+  }
+
+  enableMonitorMode(host) {
+    let previousMode = host['clientMode'];
+    host['clientMode'] = 'MONITOR';
+    this.resource['update'](host)['$promise'].catch(() => {
+      host['clientMode'] = previousMode;
+    });
+  }
+
+  canEnableLockdownMode(host) {
+    return (
+        this.hostUtils.isSantaHost(host) &&
+        !this.hostUtils.isInLockdown(host) && this.userCanEditHosts());
+  }
+
+  enableLockdownMode(host) {
+    let previousMode = host['clientMode'];
+    host['clientMode'] = 'LOCKDOWN';
+    this.resource['update'](host)['$promise'].catch(() => {
+      host['clientMode'] = previousMode;
+    });
+  }
+
+  canToggleClientModeLock(host) {
+    return this.hostUtils.isSantaHost(host) && this.userCanEditHosts();
+  }
+
+  toggleClientModeLock(host) {
+    let previousState = host['clientModeLock'];
+    host['clientModeLock'] = !previousState;
+    this.resource['update'](host)['$promise'].catch(() => {
+      host['clientModeLock'] = previousState;
+    });
+  }
+
+  userCanEditHosts() {
+    return !!this.user && this.user['permissions'].includes('EDIT_HOSTS');
   }
 
   /**

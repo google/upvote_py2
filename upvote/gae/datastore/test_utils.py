@@ -17,12 +17,14 @@
 import datetime
 import random
 import string
+import uuid
 
 import mock
 
 from google.appengine.api import users
 from google.appengine.ext import ndb
 
+from upvote.gae.datastore.models import alert
 from upvote.gae.datastore.models import base
 from upvote.gae.datastore.models import bit9
 from upvote.gae.datastore.models import santa
@@ -431,6 +433,13 @@ def CreateUsers(user_count, **kwargs):
   return [CreateUser(**kwargs) for _ in xrange(user_count)]
 
 
+def _GenerateUnusedEntityId(model_cls, id_gen_func):
+  entity_id = id_gen_func()
+  while model_cls.get_by_id(entity_id) is not None:
+    entity_id = id_gen_func()
+  return entity_id
+
+
 def _CreateHost(host_cls, **kwargs):
   """Creates a Host.
 
@@ -442,7 +451,7 @@ def _CreateHost(host_cls, **kwargs):
     The newly created host.
   """
   defaults = {
-      'id': RandomLetters(16).upper(),
+      'id': str(uuid.uuid4()).upper(),
       'hostname': 'host_%s' % RandomLetters(4)
   }
   defaults.update(kwargs.copy())
@@ -475,7 +484,8 @@ def CreateBit9Host(**kwargs):
   Returns:
     Newly created Bit9Host.
   """
-  defaults = {'id': str(RandomInt(high=100000))}
+  id_gen_func = lambda: str(RandomInt(high=100000))
+  defaults = {'id': _GenerateUnusedEntityId(bit9.Bit9Host, id_gen_func)}
   defaults.update(kwargs.copy())
 
   return _CreateHost(bit9.Bit9Host, **defaults)
@@ -506,26 +516,6 @@ def CreateBlacklist(**kwargs):
   blacklist = base.Blacklist(**defaults)
   blacklist.put()
   return blacklist
-
-
-def CreateAuditLog(obj, **kwargs):
-  """Creates an AuditLog.
-
-  Args:
-    obj: The object with which the AuditLog should be associated.
-    **kwargs: Dictionary of properties to customize.
-
-  Returns:
-    Newly created AuditLog.
-  """
-  defaults = {
-      'log_event': 'log_event_%s' % RandomLetters(4),
-      'user': RandomEmail(),
-      'target_object_key': obj.key}
-  defaults.update(kwargs.copy())
-  audit_log = base.AuditLog(**defaults)
-  audit_log.put()
-  return audit_log
 
 
 def CreateRuleEntity(rule_cls, blockable_key, **kwargs):
@@ -587,8 +577,9 @@ def CreateBit9Policy(**kwargs):
   Returns:
     The newly created host.
   """
+  id_gen_func = lambda: RandomDigits(16)
   defaults = {
-      'id': RandomDigits(16),
+      'id': _GenerateUnusedEntityId(bit9.Bit9Policy, id_gen_func),
       'name': RandomLetters(16),
       'enforcement_level': constants.BIT9_ENFORCEMENT_LEVEL.LOCKDOWN}
   defaults.update(kwargs.copy())
@@ -597,3 +588,25 @@ def CreateBit9Policy(**kwargs):
   new_policy.put()
 
   return new_policy
+
+
+def CreateAlert(**kwargs):
+  """Creates an Alert.
+
+  Args:
+    **kwargs: Dictionary of any Alert properties to customize.
+
+  Returns:
+    The newly-created Alert.
+  """
+  now = datetime.datetime.utcnow()
+  defaults = {
+      'message': 'This is an example alert.',
+      'details': 'These are example details.',
+      'start_date': now - datetime.timedelta(days=1),
+      'end_date': now + datetime.timedelta(days=1),
+      'platform': constants.SITE_ALERT_PLATFORM.ALL,
+      'scope': constants.SITE_ALERT_SCOPE.EVERYWHERE,
+      'severity': constants.SITE_ALERT_SEVERITY.INFO}
+  defaults.update(kwargs.copy())
+  return RandomDatastoreEntity(alert.Alert, **defaults)

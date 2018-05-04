@@ -20,7 +20,7 @@ from google.appengine.api import urlfetch
 
 from common.testing import basetest
 from upvote.gae.datastore.models import virustotal
-from upvote.gae.shared.binary_health.virustotal import virustotal_client
+from upvote.gae.lib.analysis.virustotal import virustotal_client
 
 
 @mock.patch.object(urlfetch, 'fetch')

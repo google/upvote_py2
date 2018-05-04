@@ -175,6 +175,17 @@ class ProdEnv(settings_utils.DefaultEnv):
   ENABLE_BIGQUERY_STREAMING = False
 
 
+class LocalEnv(settings_utils.DefaultEnv):
+  """The Local environment namespace."""
+  NAME = 'Local'
+
+  HOSTNAME = '0.0.0.0:8080'
+
+  PROJECT_ID = 'auto'
+
+  ENABLE_BIGQUERY_STREAMING = False
+
+
 @context.LazyProxy
 def ENV():
   return settings_utils.CurrentEnvironment()

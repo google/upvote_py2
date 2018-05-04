@@ -28,8 +28,8 @@ from google.appengine.ext.ndb import polymodel
 from upvote.gae.datastore import utils as model_utils
 from upvote.gae.datastore.models import bigquery
 from upvote.gae.shared.common import settings
-from upvote.gae.shared.common import taskqueue_utils
 from upvote.gae.shared.common import user_map
+from upvote.gae.taskqueue import utils as taskqueue_utils
 from upvote.shared import constants
 
 
@@ -315,16 +315,11 @@ class Blockable(BaseModelMixin, polymodel.PolyModel):
     Args:
       new_state: New state value to set.
     """
-    old_state = self.state
     self.state = new_state
     self.state_change_dt = datetime.datetime.utcnow()
     self.put()
 
     self.PersistRow(constants.BLOCK_ACTION.STATE_CHANGE, self.state_change_dt)
-
-    message = 'Blockable %s changed from %s to %s' % (
-        self.key.id(), old_state, new_state)
-    AuditLog.Create(self, message)
 
   def GetRules(self, in_effect=True):
     """Queries for all Rules associated with blockable.
@@ -886,90 +881,6 @@ class User(BaseModelMixin, ndb.Model):
       Boolean. True if user has the requested permission.
     """
     return self.is_admin or task in self.permissions
-
-
-class AuditLog(BaseModelMixin, ndb.Model):
-  """Represents an entry in the audit log.
-
-  Records the creation or change of any model, except for events and rules,
-  which are indelible.
-
-  Attributes:
-    log_event: str, the event being inserted into the log.
-    user: string, the e-mail of the user associated with the event.
-    target_object_key: ndb.Key, the key of the target object.
-    recorded_dt: datetime, the insertion time.
-  """
-  log_event = ndb.StringProperty()
-  user = ndb.StringProperty()
-  target_object_key = ndb.KeyProperty(default=None)
-  recorded_dt = ndb.DateTimeProperty(auto_now_add=True)
-
-  @property
-  def target_object_type(self):
-    return self.target_object_key.kind()
-
-  @property
-  def target_object_id(self):
-    return self.target_object_key.id()
-
-  @classmethod
-  def Create(cls, entity, message, user=None):
-    """Adds an AuditLog to the given entity.
-
-    Args:
-      entity: The NDB entity that an AuditLog is being created for.
-      message: The actual message string.
-      user: Optional user email string.
-
-    Returns:
-      An ndb.Future that resolved to the key of the created AuditLog.
-    """
-    future = cls.CreateAsync(entity, message, user=user)
-    return future.get_result()
-
-  @classmethod
-  def CreateAsync(cls, entity, message, user=None):
-    """Asynchronously adds an AuditLog to the given entity."""
-    audit_log = cls.New(entity, message, user=user)
-    return audit_log.put_async()
-
-  @classmethod
-  def New(cls, entity, message, user=None):
-    """Return a new AuditLog instance."""
-    return cls(
-        log_event=message,
-        user=user,
-        target_object_key=entity.key,
-        parent=entity.key)
-
-  @classmethod
-  def GetAll(cls, entity, ascending=True):
-    """Retrieves all AuditLogs for the given entity.
-
-    Args:
-      entity: The NDB entity whose AuditLogs we desire to have.
-      ascending: Whether to order ascending or descending by creation timestamp.
-
-    Returns:
-      A list of AuditLogs.
-    """
-    query = cls.query(cls.target_object_key == entity.key)
-    if ascending:
-      query = query.order(cls.recorded_dt)
-    else:
-      query = query.order(-cls.recorded_dt)
-    return query.fetch()
-
-  def to_dict(self, include=None, exclude=None):  # pylint: disable=g-bad-name
-    """Convert the model to a dict."""
-    result = super(AuditLog, self).to_dict(include=include, exclude=exclude)
-
-    if self.target_object_key is not None:
-      result['target_object_id'] = self.target_object_id
-      result['target_object_type'] = self.target_object_type
-
-    return result
 
 
 class Blacklist(ndb.Model):

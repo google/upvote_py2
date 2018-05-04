@@ -21,9 +21,9 @@ from upvote.gae.datastore.models import base as base_db
 from upvote.gae.datastore.models import bit9 as bit9_db
 from upvote.gae.datastore.models import metrics as metrics_db
 from upvote.gae.datastore.models import santa as santa_db
-from upvote.gae.shared.binary_health import binary_health
-from upvote.gae.shared.binary_health import monitoring
-from upvote.gae.shared.binary_health.virustotal import constants as vt_constants
+from upvote.gae.lib.analysis import analysis
+from upvote.gae.lib.analysis import monitoring
+from upvote.gae.lib.analysis.virustotal import constants as vt_constants
 from upvote.gae.shared.common import settings
 from upvote.shared import constants
 
@@ -64,7 +64,7 @@ def CollectLookup(blockable_id, reason):
 
 def _CollectVirusTotalLookup(blockable_id, reason):
   """Fetches VT analysis for the given blockable and saves the result."""
-  results = binary_health.VirusTotalLookup(blockable_id)
+  results = analysis.VirusTotalLookup(blockable_id)
 
   response_code = results['response_code']
   analysis_state = (

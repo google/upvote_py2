@@ -18,15 +18,15 @@ import mock
 
 from upvote.gae.datastore import test_utils
 from upvote.gae.datastore.models import metrics as metrics_db
-from upvote.gae.shared.binary_health import metrics
-from upvote.gae.shared.binary_health.virustotal import constants as vt_constants
+from upvote.gae.lib.analysis import metrics
+from upvote.gae.lib.analysis.virustotal import constants as vt_constants
 from upvote.gae.shared.common import basetest
 from upvote.shared import constants
 
 
 @mock.patch.object(metrics.monitoring, 'virustotal_new_lookups')
 @mock.patch.object(
-    metrics.binary_health, 'VirusTotalLookup',
+    metrics.analysis, 'VirusTotalLookup',
     return_value={'response_code': 0})
 class MetricsTest(basetest.UpvoteTestCase):
 

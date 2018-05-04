@@ -12,17 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Unit tests for monitoring.py."""
+"""Unit tests for main.py."""
 
-from common.testing import basetest
-from upvote.gae.shared.binary_health import binary_health  # pylint: disable=unused-import
+from upvote.gae.shared.common import basetest
 
 
-class PlaceholderTest(basetest.AppEngineTestCase):
-  """Protects against errors encountered upon import. Replace when prudent."""
+class RouteTest(basetest.UpvoteTestCase):
 
-  def testTrue(self):
-    self.assertTrue(True)
+  def testImport(self):
+    # pylint: disable=g-import-not-at-top, unused-variable
+    from upvote.gae.cron import main
+    # pylint: enable=g-import-not-at-top, unused-variable
 
 
 if __name__ == '__main__':

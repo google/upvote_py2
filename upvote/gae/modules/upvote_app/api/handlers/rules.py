@@ -16,6 +16,9 @@
 import httplib
 import logging
 
+import webapp2
+from webapp2_extras import routes
+
 from google.appengine.ext import ndb
 
 from upvote.gae.datastore import utils
@@ -75,3 +78,17 @@ class RuleHandler(base.BaseHandler):
       self.respond_json(response)
     else:
       self.abort(httplib.NOT_FOUND, explanation='Rule not found')
+
+
+# The Webapp2 routes defined for these handlers.
+ROUTES = routes.PathPrefixRoute('/rules', [
+    webapp2.Route(
+        '/query/santa',
+        handler=SantaRuleQueryHandler),
+    webapp2.Route(
+        '/query',
+        handler=RuleQueryHandler),
+    webapp2.Route(
+        '/<rule_key>',
+        handler=RuleHandler),
+])

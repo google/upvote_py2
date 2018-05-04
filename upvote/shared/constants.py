@@ -21,6 +21,14 @@ _VALUE_TO_NAME_TABLE = string.maketrans(
     _INVALID_NAME_CHARS, '_' * len(_INVALID_NAME_CHARS))
 
 
+class Error(Exception):
+  """Base Exception class."""
+
+
+class InvalidName(Error):
+  """Raised when referencing an invalid Namespace name."""
+
+
 class Namespace(object):
   """Creates a collection of constants, each with a corresponding value."""
 
@@ -101,6 +109,21 @@ class Namespace(object):
   def DefineMap(self, map_name, map_value):
     setattr(self, 'MAP_' + map_name.upper(), map_value)
 
+  def Contains(self, value, ignore_case=False):
+    values = self._values
+    if isinstance(value, str) and ignore_case:
+      value = value.lower()
+      values = {v.lower() if isinstance(v, str) else v for v in self._values}
+    return value in values
+
+  def Get(self, name):
+
+    name = name.upper()
+    if name not in self._names:
+      raise InvalidName(name)
+
+    return getattr(self, name)
+
 
 class UppercaseNamespace(Namespace):
   """Namespace where all values are uppercase strings."""
@@ -135,13 +158,14 @@ BLOCKABLE_TYPE = UppercaseNamespace(['santa_binary', 'santa_certificate'])
 
 
 PERMISSIONS = UppercaseNamespace([
-    'ADD_OVERRIDE', 'CHANGE_SETTINGS', 'EDIT_HOSTS',
+    'ADD_OVERRIDE', 'CHANGE_SETTINGS', 'EDIT_ALERTS', 'EDIT_HOSTS',
     'EDIT_USERS', 'FLAG', 'INSERT_BLOCKABLES',
     'MARK_INSTALLER', 'MARK_MALWARE', 'REQUEST_HOST_EXEMPTION',
     'RESET_BLOCKABLE_STATE', 'RUN_BATCH_JOB', 'TRIGGER_MANUAL_DATA_EXPORT',
-    'UNFLAG', 'VIEW_AUDIT_LOGS', 'VIEW_CONSTANTS', 'VIEW_DASHBOARD',
-    'VIEW_HOST_IP', 'VIEW_OTHER_BLOCKABLES', 'VIEW_OTHER_EVENTS',
-    'VIEW_OTHER_HOSTS', 'VIEW_OTHER_USERS', 'VIEW_RULES', 'VIEW_VOTES',])
+    'UNFLAG', 'VIEW_CONSTANTS', 'VIEW_DASHBOARD', 'VIEW_HOST_IP',
+    'VIEW_OTHER_BLOCKABLES', 'VIEW_OTHER_EVENTS', 'VIEW_OTHER_HOSTS',
+    'VIEW_OTHER_USERS', 'VIEW_RULES', 'VIEW_VOTES',
+])
 PERMISSIONS.DefineSet('BASE', [PERMISSIONS.FLAG])
 PERMISSIONS.DefineSet('UNTRUSTED_USER', PERMISSIONS.SET_BASE)
 PERMISSIONS.DefineSet('USER', PERMISSIONS.SET_BASE)
@@ -157,12 +181,12 @@ PERMISSIONS.DefineSet('SUPERUSER', PERMISSIONS.SET_TRUSTED_USER.union([
     PERMISSIONS.RESET_BLOCKABLE_STATE, PERMISSIONS.EDIT_HOSTS]))
 
 PERMISSIONS.DefineSet('SECURITY', PERMISSIONS.SET_SUPERUSER.union([
-    PERMISSIONS.INSERT_BLOCKABLES, PERMISSIONS.VIEW_AUDIT_LOGS,
-    PERMISSIONS.VIEW_RULES]))
+    PERMISSIONS.INSERT_BLOCKABLES, PERMISSIONS.VIEW_RULES]))
 
 PERMISSIONS.DefineSet('ADMINISTRATOR', PERMISSIONS.SET_SECURITY.union([
     PERMISSIONS.ADD_OVERRIDE, PERMISSIONS.CHANGE_SETTINGS,
-    PERMISSIONS.EDIT_USERS, PERMISSIONS.RUN_BATCH_JOB,
+    PERMISSIONS.EDIT_ALERTS, PERMISSIONS.EDIT_USERS,
+    PERMISSIONS.RUN_BATCH_JOB,
     PERMISSIONS.REQUEST_HOST_EXEMPTION,
     PERMISSIONS.TRIGGER_MANUAL_DATA_EXPORT]))
 
@@ -338,6 +362,13 @@ BLOCK_ACTION = UppercaseNamespace(names=[
 
 USER_ACTION = UppercaseNamespace(names=[
     'FIRST_SEEN', 'ROLE_CHANGE', 'COMMENT'])
+
+SITE_ALERT_PLATFORM = UppercaseNamespace(names=['MACOS', 'WINDOWS', 'ALL'])
+
+SITE_ALERT_SCOPE = UppercaseNamespace(names=[
+    'APPLIST', 'APPDETAIL', 'HOSTLIST', 'EVERYWHERE'])
+
+SITE_ALERT_SEVERITY = UppercaseNamespace(names=['INFO', 'ERROR'])
 
 TASK_QUEUE = Namespace(tuples=[
 

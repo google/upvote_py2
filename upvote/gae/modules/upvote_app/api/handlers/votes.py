@@ -17,6 +17,9 @@ import datetime
 import httplib
 import logging
 
+import webapp2
+from webapp2_extras import routes
+
 from google.appengine.ext import ndb
 
 from upvote.gae.datastore import utils
@@ -147,3 +150,18 @@ class VoteCastHandler(base.BaseHandler):
         base_db.Vote.in_effect == True, ancestor=ancestor_key).get()
     # pylint: enable=g-explicit-bool-comparison
     self.respond_json(vote)
+
+
+# The Webapp2 routes defined for these handlers.
+ROUTES = routes.PathPrefixRoute('/votes', [
+    webapp2.Route(
+        '/cast/<blockable_id>',
+        handler=VoteCastHandler),
+    webapp2.Route(
+        '/query',
+        handler=VoteQueryHandler),
+    webapp2.Route(
+        '/<vote_key>',
+        handler=VoteHandler),
+])
+

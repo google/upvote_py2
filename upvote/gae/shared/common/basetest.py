@@ -15,16 +15,20 @@
 """Base TestCase for Upvote AppEngine unit tests."""
 
 import base64
+import collections
 import contextlib
+import logging
 import os
 import pickle
 
 import mock
 from oauth2client.contrib import xsrfutil
 import webapp2
+from webapp2_extras import routes
 from webob import exc
 import webtest
 
+from google.appengine.api import memcache
 from google.appengine.api import users
 from google.appengine.datastore import datastore_stub_util
 
@@ -36,6 +40,16 @@ from upvote.gae.shared.common import settings
 from upvote.gae.shared.common import settings_utils
 from upvote.gae.shared.common import xsrf_utils
 from upvote.shared import constants
+
+
+def _ExtractRoutes(wsgi_app):
+  queue = collections.deque(wsgi_app.router.match_routes)
+  while queue:
+    route = queue.popleft()
+    if isinstance(route, webapp2.Route):
+      yield route
+    elif isinstance(route, routes.PathPrefixRoute):
+      queue.extendleft(route.routes)
 
 
 class UpvoteTestCase(basetest.AppEngineTestCase):
@@ -57,6 +71,11 @@ class UpvoteTestCase(basetest.AppEngineTestCase):
       # Workaround for lack of "runtime" variable in test env.
       adapter = lambda r, h: webapp2.Webapp2HandlerAdapter(h)
       wsgi_app.router.set_adapter(adapter)
+
+      # Make note of the routes being registered for easier debugging.
+      for route in _ExtractRoutes(wsgi_app):
+        logging.info('Registering route %s', route.template)
+
       handlers.CreateErrorHandlersForApplications([wsgi_app])
       self.testapp = webtest.TestApp(wsgi_app)
     else:
@@ -70,7 +89,7 @@ class UpvoteTestCase(basetest.AppEngineTestCase):
     if patch_generate_token:
       self.Patch(xsrfutil, 'generate_token', return_value='token')
 
-    self.PatchEnv(settings.ProdEnv)
+    self.PatchEnv(settings.ProdEnv, ENABLE_BIGQUERY_STREAMING=True)
 
   def tearDown(self):
     super(UpvoteTestCase, self).tearDown()
@@ -134,6 +153,13 @@ class UpvoteTestCase(basetest.AppEngineTestCase):
 
   def assertTaskCount(self, queue_name, expected_count):  # pylint: disable=g-bad-name
     self.assertEqual(expected_count, len(self.GetTasks(queue_name)))
+
+  def assertMemcacheContains(self, key, expected_value, namespace=None):
+    actual_value = memcache.get(key, namespace=namespace)
+    self.assertEqual(expected_value, actual_value)
+
+  def assertMemcacheLacks(self, key, namespace=None):
+    self.assertIsNone(memcache.get(key, namespace=namespace))
 
   def assertRoutesDefined(self, *args):
     if self.testapp is None:

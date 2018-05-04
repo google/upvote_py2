@@ -30,7 +30,8 @@ from upvote.shared import constants
 class UsersTest(basetest.UpvoteTestCase):
   """Base class for User handler tests."""
 
-  def setUp(self, app):
+  def setUp(self):
+    app = webapp2.WSGIApplication(routes=[users.ROUTES])
     super(UsersTest, self).setUp(wsgi_app=app)
 
     self.PatchValidateXSRFToken()
@@ -38,10 +39,7 @@ class UsersTest(basetest.UpvoteTestCase):
 
 class UserQueryHandlerTest(UsersTest):
 
-  def setUp(self):
-    app = webapp2.WSGIApplication(
-        [webapp2.Route(r'', handler=users.UserQueryHandler)])
-    super(UserQueryHandlerTest, self).setUp(app)
+  ROUTE = '/users/query'
 
   def testAdminGetList(self):
     """Admin retrieves list of all users."""
@@ -50,7 +48,7 @@ class UserQueryHandlerTest(UsersTest):
     test_utils.CreateUsers(user_count)
 
     with self.LoggedInUser(admin=True):
-      response = self.testapp.get('')
+      response = self.testapp.get(self.ROUTE)
 
     output = response.json
 
@@ -66,7 +64,7 @@ class UserQueryHandlerTest(UsersTest):
     test_utils.CreateUsers(user_count)
 
     with self.LoggedInUser(admin=True):
-      response = self.testapp.get('', params)
+      response = self.testapp.get(self.ROUTE, params)
 
     output = response.json
 
@@ -77,7 +75,7 @@ class UserQueryHandlerTest(UsersTest):
   def testUserGetListNoPermissions(self):
     """Normal user attempts to retrieve all users."""
     with self.LoggedInUser():
-      self.testapp.get('', status=httplib.FORBIDDEN)
+      self.testapp.get(self.ROUTE, status=httplib.FORBIDDEN)
 
   def testAdminGetQuery(self):
     """Admin queries a user."""
@@ -87,7 +85,7 @@ class UserQueryHandlerTest(UsersTest):
     test_utils.CreateUsers(user_count)
 
     with self.LoggedInUser(admin=True):
-      response = self.testapp.get('', params)
+      response = self.testapp.get(self.ROUTE, params)
 
     output = response.json
 
@@ -100,20 +98,17 @@ class UserQueryHandlerTest(UsersTest):
     params = {'search': 1, 'searchBase': 'voteWeight'}
 
     with self.LoggedInUser():
-      self.testapp.get('', params, status=httplib.FORBIDDEN)
+      self.testapp.get(self.ROUTE, params, status=httplib.FORBIDDEN)
 
 
 class UserHandlerTest(UsersTest):
 
-  def setUp(self):
-    app = webapp2.WSGIApplication(
-        [webapp2.Route(r'/<user_id>', handler=users.UserHandler)])
-    super(UserHandlerTest, self).setUp(app)
+  ROUTE = '/users/%s'
 
   def testAdminGetSelf(self):
     """Admin getting own information."""
     with self.LoggedInUser(admin=True) as admin:
-      response = self.testapp.get('/' + admin.email)
+      response = self.testapp.get(self.ROUTE % admin.email)
 
       output = response.json
 
@@ -126,7 +121,7 @@ class UserHandlerTest(UsersTest):
     """Admin getting information on another user."""
     user = test_utils.CreateUser()
     with self.LoggedInUser(admin=True):
-      response = self.testapp.get('/' + user.email)
+      response = self.testapp.get(self.ROUTE % user.email)
 
     output = response.json
 
@@ -139,13 +134,13 @@ class UserHandlerTest(UsersTest):
     """Admin attempting to get information on an unknown user."""
     with self.LoggedInUser(admin=True):
       unknown_user = user_map.UsernameToEmail('blahblahblah')
-      self.testapp.get('/' + unknown_user, status=httplib.NOT_FOUND)
+      self.testapp.get(self.ROUTE % unknown_user, status=httplib.NOT_FOUND)
 
   def testUserGetOtherUser(self):
     """Normal user trying to get information on another user."""
     user = test_utils.CreateUser()
     with self.LoggedInUser():
-      self.testapp.get('/' + user.email, status=httplib.FORBIDDEN)
+      self.testapp.get(self.ROUTE % user.email, status=httplib.FORBIDDEN)
 
   def testAdminEditUser(self):
     """Admin editing an existing user through post request."""
@@ -153,7 +148,7 @@ class UserHandlerTest(UsersTest):
     user = test_utils.CreateUser()
 
     with self.LoggedInUser(admin=True):
-      response = self.testapp.post('/' + user.email, params)
+      response = self.testapp.post(self.ROUTE % user.email, params)
 
     expected_dict = {'roles': [constants.USER_ROLE.TRUSTED_USER]}
 
@@ -176,7 +171,7 @@ class UserHandlerTest(UsersTest):
     params = {'roles': constants.USER_ROLE.TRUSTED_USER}
 
     with self.LoggedInUser(admin=True):
-      response = self.testapp.post('/' + id_, params)
+      response = self.testapp.post(self.ROUTE % id_, params)
 
     expected_dict = {'id': id_, 'roles': [constants.USER_ROLE.TRUSTED_USER]}
 
@@ -197,7 +192,8 @@ class UserHandlerTest(UsersTest):
     params = json.dumps(raw_params)
 
     with self.LoggedInUser() as user:
-      self.testapp.post('/' + user.email, params, status=httplib.FORBIDDEN)
+      self.testapp.post(
+          self.ROUTE % user.email, params, status=httplib.FORBIDDEN)
 
 
 if __name__ == '__main__':

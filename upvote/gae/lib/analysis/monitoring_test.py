@@ -12,14 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Monitoring metrics for the binary_health services."""
+"""Unit tests for monitoring.py."""
 
-from upvote.gae.shared.common import monitoring
-from upvote.monitoring import metrics
+from common.testing import basetest
+from upvote.gae.lib.analysis import analysis  # pylint: disable=unused-import
 
 
-virustotal_requests = monitoring.SuccessFailureCounter(
-    metrics.BINARY_HEALTH.VIRUSTOTAL_REQUESTS)
+class PlaceholderTest(basetest.AppEngineTestCase):
+  """Protects against errors encountered upon import. Replace when prudent."""
 
-virustotal_new_lookups = monitoring.Counter(
-    metrics.BINARY_HEALTH.VIRUSTOTAL_NEW_LOOKUPS, fields=[(u'state', str)])
+  def testTrue(self):
+    self.assertTrue(True)
+
+
+if __name__ == '__main__':
+  basetest.main()

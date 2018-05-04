@@ -41,7 +41,7 @@ derived_file_type:
 
 handlers:
 - url: /cron/.*
-  script: upvote.gae.modules.upvote_app.cron.main.app
+  script: upvote.gae.cron.main.app
   secure: always
   login: admin
 

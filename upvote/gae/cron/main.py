@@ -18,8 +18,8 @@ import webapp2
 
 from webapp2_extras import routes
 
-from upvote.gae.modules.upvote_app.cron import export
-from upvote.gae.modules.upvote_app.cron import roles
+from upvote.gae.cron import export
+from upvote.gae.cron import roles
 
 
 app = webapp2.WSGIApplication([

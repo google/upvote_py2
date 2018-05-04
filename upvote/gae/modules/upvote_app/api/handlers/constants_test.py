@@ -25,14 +25,15 @@ from upvote.shared import constants as common_constants
 class ConstantTest(basetest.UpvoteTestCase):
   """Test Constant handler class."""
 
+  ROUTE = '/constants/%s'
+
   def setUp(self):
-    app = webapp2.WSGIApplication(
-        [webapp2.Route(r'/<constant>', handler=constants.Constant)])
+    app = webapp2.WSGIApplication(routes=[constants.ROUTES])
     super(ConstantTest, self).setUp(wsgi_app=app)
 
   def testGetExisting(self):
     with self.LoggedInUser(admin=True):
-      response = self.testapp.get('/userrole')
+      response = self.testapp.get(self.ROUTE % 'userrole')
     # Quick and dirty way to make sure everything is all unicoded up.
     unicode_elems = map(unicode, common_constants.USER_ROLE.SET_ALL)
     self.assertIn(u'UserRole', response.json)
@@ -40,13 +41,15 @@ class ConstantTest(basetest.UpvoteTestCase):
 
   def testGetExistingNoPermission(self):
     with self.LoggedInUser():
-      response = self.testapp.get('/userrole', status=httplib.FORBIDDEN)
+      response = self.testapp.get(
+          self.ROUTE % 'userrole', status=httplib.FORBIDDEN)
 
     self.assertEqual(response.status_int, httplib.FORBIDDEN)
 
   def testGetNoExisting(self):
     with self.LoggedInUser(admin=True):
-      response = self.testapp.get('/DoesntExist', status=httplib.NOT_FOUND)
+      response = self.testapp.get(
+          self.ROUTE % 'DoesntExist', status=httplib.NOT_FOUND)
 
     self.assertEqual(response.status_int, httplib.NOT_FOUND)
 

@@ -156,15 +156,6 @@ py_appengine_library(
 )
 
 py_appengine_library(
-    name = "taskqueue_utils",
-    srcs = ["taskqueue_utils.py"],
-    deps = [
-        "//upvote/gae/datastore:utils",
-        "//upvote/shared:constants",
-    ],
-)
-
-py_appengine_library(
     name = "template_utils",
     srcs = ["template_utils.py"],
 )
@@ -285,17 +276,6 @@ upvote_appengine_test(
         ":settings",
         ":settings_utils",
         "//external:mock",
-    ],
-)
-
-upvote_appengine_test(
-    name = "taskqueue_utils_test",
-    size = "small",
-    srcs = ["taskqueue_utils_test.py"],
-    deps = [
-        ":basetest",
-        ":taskqueue_utils",
-        "//common/testing:basetest",
     ],
 )
 

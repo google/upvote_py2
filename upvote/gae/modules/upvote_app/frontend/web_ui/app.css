@@ -63,3 +63,19 @@ button.uv-minibutton.md-icon-button.md-button {
 md-content {
   background-color: white;
 }
+
+md-toolbar.uv-site-alert span a {
+  text-decoration: underline;
+}
+
+md-toolbar.uv-site-alert-info {
+  /* Material Yellow 600 */
+  background-color: #FDD835;
+  color: #000;
+}
+
+md-toolbar.uv-site-alert-error {
+  /* Material Red 500 */
+  background-color: #F44336;
+  color: #FFF;
+}

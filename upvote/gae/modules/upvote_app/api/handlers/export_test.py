@@ -30,8 +30,10 @@ from upvote.gae.shared.common import settings
 
 class InitializeBigqueryStreamingTest(basetest.UpvoteTestCase):
 
+  ROUTE = '/export/init-bigquery-streaming'
+
   def setUp(self):
-    app = webapp2.WSGIApplication([('/', export.InitializeBigqueryStreaming)])
+    app = webapp2.WSGIApplication(routes=[export.ROUTES])
     super(InitializeBigqueryStreamingTest, self).setUp(wsgi_app=app)
 
     self.PatchEnv(settings.ProdEnv, ENABLE_BIGQUERY_STREAMING=True)
@@ -51,7 +53,7 @@ class InitializeBigqueryStreamingTest(basetest.UpvoteTestCase):
       mock_dataset_exists):
 
     with self.LoggedInUser(admin=True):
-      response = self.testapp.get('/')
+      response = self.testapp.get(self.ROUTE)
 
     self.assertEqual(httplib.OK, response.status_int)
     self.assertEqual(
@@ -71,7 +73,7 @@ class InitializeBigqueryStreamingTest(basetest.UpvoteTestCase):
   def testFail_NotAdmin(self, *_):
 
     with self.LoggedInUser():
-      self.testapp.get('/', status=httplib.FORBIDDEN)
+      self.testapp.get(self.ROUTE, status=httplib.FORBIDDEN)
 
 
 if __name__ == '__main__':

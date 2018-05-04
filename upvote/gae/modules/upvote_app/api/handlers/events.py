@@ -16,6 +16,9 @@
 import httplib
 import logging
 
+import webapp2
+from webapp2_extras import routes
+
 from google.appengine.ext import ndb
 
 from upvote.gae.datastore import utils as model_utils
@@ -217,3 +220,23 @@ class RecentEventHandler(base.BaseHandler):
       response_data = _GetEventContext([event])[0] if with_context else event
 
     self.respond_json(response_data)
+
+
+# The Webapp2 routes defined for these handlers.
+ROUTES = routes.PathPrefixRoute('/events', [
+    webapp2.Route(
+        '/most-recent/<blockable_id>',
+        handler=RecentEventHandler),
+    webapp2.Route(
+        '/query/bit9',
+        handler=Bit9EventQueryHandler),
+    webapp2.Route(
+        '/query/santa',
+        handler=SantaEventQueryHandler),
+    webapp2.Route(
+        '/query',
+        handler=EventQueryHandler),
+    webapp2.Route(
+        '/<event_key>',
+        handler=EventHandler),
+])

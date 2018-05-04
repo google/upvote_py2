@@ -26,11 +26,11 @@ py_appengine_library(
         "//upvote/gae/datastore/models:base",
         "//upvote/gae/datastore/models:bigquery",
         "//upvote/gae/datastore/models:santa",
-        "//upvote/gae/shared/binary_health:metrics",
+        "//upvote/gae/lib/analysis:metrics",
         "//upvote/gae/shared/common:intermodule",
         "//upvote/gae/shared/common:settings",
-        "//upvote/gae/shared/common:taskqueue_utils",
         "//upvote/gae/shared/common:user_map",
+        "//upvote/gae/taskqueue:utils",
         "//upvote/shared:constants",
     ],
 )

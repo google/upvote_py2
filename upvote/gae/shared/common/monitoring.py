@@ -45,6 +45,20 @@ class Metric(object):
     pass
 
 
+class LatencyMetric(object):
+  """Upvote metric for tracking latency."""
+
+  def __init__(self, metric, fields=None):
+    self.display_name = metric.display_name
+    self.metric_name = metric.metric_name
+    self.fields = fields
+
+  @ContainExceptions
+  def Record(self, value, *args):
+    # <Your code here>Implement recording a latency value</Your code here>
+    pass
+
+
 class Counter(object):
   """Base Upvote counter."""
 

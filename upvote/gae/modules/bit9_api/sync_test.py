@@ -19,6 +19,7 @@ import random
 
 import mock
 
+from google.appengine.api import memcache
 from google.appengine.ext import ndb
 
 from common import datastore_locks
@@ -43,10 +44,8 @@ from upvote.shared import constants
 from upvote.shared import time_utils
 
 
-def _CreateEventTuple(computer=None,
-                      file_catalog=None,
-                      signing_chain=None,
-                      **event_kwargs):
+def _CreateEventTuple(
+    computer=None, file_catalog=None, signing_chain=None, **event_kwargs):
   if computer is None:
     computer = bit9_test_utils.CreateComputer()
   if file_catalog is None:
@@ -82,7 +81,7 @@ class SyncTestCase(basetest.UpvoteTestCase):
       for _, certs in batch:
         if certs is None:
           continue
-        # Account for the cacheing on GetCertificate.
+        # Account for the caching on _GetCertificate.
         for cert in certs:
           if cert.id not in retrieved_certs:
             requests.append(cert)
@@ -142,6 +141,199 @@ class BuildEventSubtypeFilterTest(basetest.UpvoteTestCase):
     self.assertEqual(expected_expression, actual_expression)
 
 
+class GetCertificateTest(basetest.UpvoteTestCase):
+
+  @mock.patch.object(sync.api.Certificate, 'get', side_effect=Exception)
+  def testMissing(self, mock_get):
+
+    cert_id = 12345
+    memcache_key = sync._CERT_MEMCACHE_KEY % cert_id
+    self.assertIsNone(memcache.get(memcache_key))
+
+    with self.assertRaises(Exception):
+      sync._GetCertificate(cert_id)
+
+    self.assertIsNone(memcache.get(memcache_key))
+
+  @mock.patch.object(sync.api.Certificate, 'get')
+  def testMalformed(self, mock_get):
+
+    malformed_cert = bit9_test_utils.CreateCertificate(
+        thumbprint=None, valid_to=None)
+    mock_get.return_value = malformed_cert
+
+    cert_id = 12345
+    memcache_key = sync._CERT_MEMCACHE_KEY % cert_id
+    self.assertIsNone(memcache.get(memcache_key))
+
+    with self.assertRaises(sync.MalformedCertificate):
+      sync._GetCertificate(cert_id)
+
+    self.assertIsNone(memcache.get(memcache_key))
+
+  @mock.patch.object(sync.api.Certificate, 'get')
+  def testSuccess(self, mock_get):
+
+    expected_cert = bit9_test_utils.CreateCertificate()
+    mock_get.return_value = expected_cert
+
+    # The key shouldn't initially be in memcache.
+    cert_id = 12345
+    memcache_key = sync._CERT_MEMCACHE_KEY % cert_id
+    self.assertIsNone(memcache.get(memcache_key))
+
+    # The first call should actually trigger an API query.
+    actual_cert = sync._GetCertificate(cert_id)
+    self.assertEqual(expected_cert, actual_cert)
+    self.assertEqual(1, mock_get.call_count)
+    mock_get.reset_mock()
+
+    # Verify that the cert is present in memcache.
+    cached_cert = memcache.get(memcache_key)
+    self.assertEqual(expected_cert, cached_cert)
+
+    # Additional calls shouldn't hit the API.
+    actual_cert = sync._GetCertificate(cert_id)
+    self.assertEqual(expected_cert, actual_cert)
+    self.assertEqual(0, mock_get.call_count)
+
+
+class GetSigningChainTest(basetest.UpvoteTestCase):
+
+  @mock.patch.object(sync, '_GetCertificate')
+  def testSuccess(self, mock_get_certificate):
+
+    cert_root = bit9_test_utils.CreateCertificate()
+    cert_intermediate = bit9_test_utils.CreateCertificate(
+        parent_certificate_id=cert_root.id)
+    cert_leaf = bit9_test_utils.CreateCertificate(
+        parent_certificate_id=cert_intermediate.id)
+
+    expected = [cert_leaf, cert_intermediate, cert_root]
+    mock_get_certificate.side_effect = expected
+
+    actual = sync._GetSigningChain(cert_leaf.id)
+
+    self.assertListEqual(expected, actual)
+
+
+class GetEventsTest(SyncTestCase):
+
+  def testFileCatalogMissing(self):
+
+    # Simulate an event with a missing fileCatalog.
+    computer = bit9_test_utils.CreateComputer(id=100)
+    signing_chain = [bit9_test_utils.CreateCertificate(id=101)]
+    event = bit9_test_utils.CreateEvent(
+        id=102, computer_id=100, file_catalog_id=103)
+    event = bit9_test_utils.Expand(event, api.Event.computer_id, computer)
+
+    self._PatchGetEvents([(event, signing_chain)])
+
+    results = sync.GetEvents(0)
+    self.assertEqual(0, len(results))
+
+  def testFileCatalogMalformed(self):
+
+    # Simulate an event with a malformed fileCatalog (in this case, no SHA256).
+    file_catalog = bit9_test_utils.CreateFileCatalog(
+        id=100, certificate_id=101, sha256=None)
+    computer = bit9_test_utils.CreateComputer(id=102)
+    signing_chain = [bit9_test_utils.CreateCertificate(id=101)]
+    event = bit9_test_utils.CreateEvent(
+        id=103, file_catalog_id=100, computer_id=102)
+    event = bit9_test_utils.Expand(
+        event, api.Event.file_catalog_id, file_catalog)
+    event = bit9_test_utils.Expand(event, api.Event.computer_id, computer)
+
+    self._PatchGetEvents([(event, signing_chain)])
+
+    results = sync.GetEvents(0)
+    self.assertEqual(0, len(results))
+
+  def testComputerMissing(self):
+
+    # Simulate an event with a missing computer.
+    file_catalog = bit9_test_utils.CreateFileCatalog(
+        id=100, certificate_id=101, sha256=None)
+    signing_chain = [bit9_test_utils.CreateCertificate(id=101)]
+    event = bit9_test_utils.CreateEvent(
+        id=102, file_catalog_id=100, computer_id=103)
+    event = bit9_test_utils.Expand(
+        event, api.Event.file_catalog_id, file_catalog)
+
+    self._PatchGetEvents([(event, signing_chain)])
+
+    results = sync.GetEvents(0)
+    self.assertEqual(0, len(results))
+
+  @mock.patch.object(sync, '_GetSigningChain')
+  def testSigningChainException(self, mock_get_signing_chain):
+
+    # Create a properly-formed event that will be returned.
+    file_catalog_1 = bit9_test_utils.CreateFileCatalog(
+        id=100, certificate_id=101)
+    computer_1 = bit9_test_utils.CreateComputer(id=102)
+    signing_chain_1 = [bit9_test_utils.CreateCertificate(id=101)]
+    event_1 = bit9_test_utils.CreateEvent(
+        id=103, file_catalog_id=100, computer_id=102)
+    event_1 = bit9_test_utils.Expand(
+        event_1, api.Event.file_catalog_id, file_catalog_1)
+    event_1 = bit9_test_utils.Expand(event_1, api.Event.computer_id, computer_1)
+
+    # Create a second event for the signing chain exception.
+    file_catalog_2 = bit9_test_utils.CreateFileCatalog(
+        id=200, certificate_id=201)
+    computer_2 = bit9_test_utils.CreateComputer(id=202)
+    event_2 = bit9_test_utils.CreateEvent(
+        id=203, file_catalog_id=200, computer_id=202)
+    event_2 = bit9_test_utils.Expand(
+        event_2, api.Event.file_catalog_id, file_catalog_2)
+    event_2 = bit9_test_utils.Expand(event_2, api.Event.computer_id, computer_2)
+
+    self._PatchGetEvents([(event_1, signing_chain_1), (event_2, None)])
+    mock_get_signing_chain.side_effect = [signing_chain_1, Exception]
+
+    results = sync.GetEvents(0)
+    self.assertEqual(1, len(results))
+    actual_event, actual_signing_chain = results[0]
+    self.assertEqual(1, len(actual_signing_chain))
+    self.assertEqual(103, actual_event.id)
+    self.assertEqual(101, actual_signing_chain[0].id)
+
+  def testSuccess(self):
+
+    # Create two properly-formed events to be returned.
+    file_catalog_1 = bit9_test_utils.CreateFileCatalog(
+        id=100, certificate_id=101)
+    computer_1 = bit9_test_utils.CreateComputer(id=102)
+    signing_chain_1 = [bit9_test_utils.CreateCertificate(id=101)]
+    event_1 = bit9_test_utils.CreateEvent(
+        id=103, file_catalog_id=100, computer_id=102)
+    event_1 = bit9_test_utils.Expand(
+        event_1, api.Event.file_catalog_id, file_catalog_1)
+    event_1 = bit9_test_utils.Expand(event_1, api.Event.computer_id, computer_1)
+
+    file_catalog_2 = bit9_test_utils.CreateFileCatalog(
+        id=200, certificate_id=201)
+    computer_2 = bit9_test_utils.CreateComputer(id=202)
+    signing_chain_2 = [bit9_test_utils.CreateCertificate(id=201)]
+    event_2 = bit9_test_utils.CreateEvent(
+        id=203, file_catalog_id=200, computer_id=202)
+    event_2 = bit9_test_utils.Expand(
+        event_2, api.Event.file_catalog_id, file_catalog_2)
+    event_2 = bit9_test_utils.Expand(event_2, api.Event.computer_id, computer_2)
+
+    self._PatchGetEvents(
+        [(event_1, signing_chain_1), (event_2, signing_chain_2)])
+
+    results = sync.GetEvents(0)
+    self.assertEqual(2, len(results))
+    self.assertListEqual([103, 203], [e.id for e, _ in results])
+    self.assertListEqual(
+        [[101], [201]], [[c.id for c in sc] for _, sc in results])
+
+
 class PullTest(SyncTestCase):
 
   def setUp(self):
@@ -166,21 +358,24 @@ class PullTest(SyncTestCase):
     self.assertEqual(2, self.mock_events_pulled.IncrementBy.call_count)
 
   def testMultiple(self):
+
     batch_count = 3
     events_per_batch = 5
     batches = []
+
     for batch_num in xrange(batch_count):
       batches.append([
           _CreateEventTuple(id=batch_num * events_per_batch + event_num)
           for event_num in xrange(events_per_batch)])
+
     self._PatchGetEvents(*batches)
     self.Patch(time_utils, 'TimeRemains', side_effect=[True, True, True, False])
 
     sync.Pull(batch_size=events_per_batch)
 
     self.assertEntityCount(sync._UnsyncedEvent, batch_count * events_per_batch)
-    self.assertEqual(batch_count,
-                     self.mock_events_pulled.IncrementBy.call_count)
+    self.assertEqual(
+        batch_count, self.mock_events_pulled.IncrementBy.call_count)
 
     self.assertTaskCount(constants.TASK_QUEUE.BIT9_PULL, 0)
 

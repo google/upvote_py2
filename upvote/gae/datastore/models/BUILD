@@ -12,10 +12,19 @@ load(
 py_appengine_library(
     name = "all",
     deps = [
+        ":alert",
         ":base",
         ":bigquery",
         ":bit9",
         ":santa",
+    ],
+)
+
+py_appengine_library(
+    name = "alert",
+    srcs = ["alert.py"],
+    deps = [
+        "//upvote/shared:constants",
     ],
 )
 
@@ -26,8 +35,8 @@ py_appengine_library(
         ":bigquery",
         "//upvote/gae/datastore:utils",
         "//upvote/gae/shared/common:settings",
-        "//upvote/gae/shared/common:taskqueue_utils",
         "//upvote/gae/shared/common:user_map",
+        "//upvote/gae/taskqueue:utils",
         "//upvote/shared:constants",
     ],
 )
@@ -66,7 +75,7 @@ py_appengine_library(
     name = "metrics",
     srcs = ["metrics.py"],
     deps = [
-        "//upvote/gae/shared/binary_health/virustotal:constants",
+        "//upvote/gae/lib/analysis/virustotal:constants",
     ],
 )
 

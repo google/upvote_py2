@@ -24,3 +24,13 @@ events_to_process = monitoring.Metric(
     metrics.BIT9_API.EVENTS_TO_PROCESS, long)
 events_processed = monitoring.Counter(metrics.BIT9_API.EVENTS_PROCESSED)
 pending_changes = monitoring.Metric(metrics.BIT9_API.PENDING_CHANGES, long)
+
+# Bit9 integration metrics
+bit9_logins = monitoring.SuccessFailureCounter(metrics.BIT9_API.BIT9_LOGINS)
+bit9_qps = monitoring.Counter(metrics.BIT9_API.BIT9_QPS)
+bit9_requests = monitoring.Counter(
+    metrics.BIT9_API.BIT9_REQUESTS,
+    fields=[('http_method', str), ('api_object', str), ('http_status', int)])
+bit9_latency = monitoring.LatencyMetric(
+    metrics.BIT9_API.BIT9_LATENCY,
+    fields=[('http_method', str), ('api_object', str)])

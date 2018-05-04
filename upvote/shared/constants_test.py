@@ -28,7 +28,7 @@ _VOTING_SETS = [
 
 class NamespaceTest(absltest.TestCase):
 
-  def testNamespace_Tuples(self):
+  def testTuples(self):
     namespace = constants.Namespace(
         tuples=[('aaa', 111), ('bbb', 222), ('ccc', 333)])
     self.assertEqual(111, namespace.AAA)
@@ -36,18 +36,18 @@ class NamespaceTest(absltest.TestCase):
     self.assertEqual(333, namespace.CCC)
     self.assertSetEqual(set([111, 222, 333]), namespace.SET_ALL)
 
-  def testNamespace_DefineSet_Invalid(self):
+  def testDefineSet_Invalid(self):
     namespace = constants.Namespace(
         tuples=[('aaa', 111), ('bbb', 222), ('ccc', 333)])
     self.assertRaises(ValueError, namespace.DefineSet, 'TEST', ['AAA', 'DDD'])
 
-  def testNamespace_DefineSet_Valid(self):
+  def testDefineSet_Valid(self):
     namespace = constants.Namespace(
         tuples=[('aaa', 111), ('bbb', 222), ('ccc', 333)])
     namespace.DefineSet('test', ['AAA', 'CCC'])
     self.assertSetEqual(set([111, 333]), namespace.SET_TEST)
 
-  def testNamespace_DefineMap(self):
+  def testDefineMap(self):
     namespace = constants.Namespace(
         tuples=[('aaa', 111), ('bbb', 222), ('ccc', 333)])
     namespace.DefineMap('test', {'key1': namespace.AAA, 'key2': namespace.BBB})
@@ -56,7 +56,53 @@ class NamespaceTest(absltest.TestCase):
     self.assertIn('key2', namespace.MAP_TEST)
     self.assertEqual(222, namespace.MAP_TEST['key2'])
 
-  def testNamespace_Prefix(self):
+  def testContains_None(self):
+
+    namespace1 = constants.Namespace(tuples=[('a', None)])
+    namespace2 = constants.Namespace(tuples=[('b', 222)])
+
+    for ignore_case in [True, False]:
+      self.assertTrue(namespace1.Contains(None, ignore_case=ignore_case))
+      self.assertFalse(namespace2.Contains(None, ignore_case=ignore_case))
+
+  def testContains_NonString(self):
+
+    namespace = constants.Namespace(tuples=[('a', 111)])
+
+    for ignore_case in [True, False]:
+      self.assertTrue(namespace.Contains(111, ignore_case=ignore_case))
+      self.assertFalse(namespace.Contains(222, ignore_case=ignore_case))
+
+  def testContains_String_CaseSensitive(self):
+
+    namespace = constants.Namespace(tuples=[('a', 'aaa')])
+
+    self.assertTrue(namespace.Contains('aaa', ignore_case=False))
+    self.assertFalse(namespace.Contains('AAA', ignore_case=False))
+
+  def testContains_String_CaseInsensitive(self):
+
+    namespace = constants.Namespace(tuples=[('a', 'aaa')])
+
+    self.assertTrue(namespace.Contains('aaa', ignore_case=True))
+    self.assertTrue(namespace.Contains('AAA', ignore_case=True))
+
+  def testGet_Success(self):
+
+    namespace = constants.Namespace(tuples=[('aaa', 111)])
+
+    self.assertEqual(111, namespace.Get('aaa'))
+    self.assertEqual(111, namespace.Get('AAA'))
+    self.assertEqual(111, namespace.Get('Aaa'))
+
+  def testGet_InvalidName(self):
+
+    namespace = constants.Namespace(tuples=[('aaa', 111)])
+
+    with self.assertRaises(constants.InvalidName):
+      namespace.Get('bbb')
+
+  def testPrefix(self):
     namespace = constants.Namespace(
         tuples=[('aaa', 111), ('bbb', 222), ('ccc', 333)], prefix='prefix')
     self.assertEqual('prefix111', namespace.AAA)
@@ -65,7 +111,7 @@ class NamespaceTest(absltest.TestCase):
     self.assertSetEqual(
         set(['prefix111', 'prefix222', 'prefix333']), namespace.SET_ALL)
 
-  def testNamespace_Suffix(self):
+  def testSuffix(self):
     namespace = constants.Namespace(
         tuples=[('aaa', 111), ('bbb', 222), ('ccc', 333)], suffix='suffix')
     self.assertEqual('111suffix', namespace.AAA)
@@ -74,7 +120,7 @@ class NamespaceTest(absltest.TestCase):
     self.assertSetEqual(
         set(['111suffix', '222suffix', '333suffix']), namespace.SET_ALL)
 
-  def testNamespace_ValueFromName(self):
+  def testValueFromName(self):
     namespace = constants.Namespace(
         names=['aaa', 'bbb', 'ccc'], value_from_name=lambda s: s + '!!!')
     self.assertEqual('aaa!!!', namespace.AAA)
@@ -82,7 +128,7 @@ class NamespaceTest(absltest.TestCase):
     self.assertEqual('ccc!!!', namespace.CCC)
     self.assertSetEqual(set(['aaa!!!', 'bbb!!!', 'ccc!!!']), namespace.SET_ALL)
 
-  def testNamespace_WithoutFunction(self):
+  def testWithoutFunction(self):
     namespace = constants.Namespace(names=['aaa', 'bbb', 'ccc'])
     self.assertEqual('aaa', namespace.AAA)
     self.assertEqual('bbb', namespace.BBB)

@@ -17,6 +17,9 @@
 import httplib
 import logging
 
+import webapp2
+from webapp2_extras import routes
+
 from upvote.gae.datastore.models import bit9
 from upvote.gae.datastore.models import virustotal
 from upvote.gae.modules.upvote_app.api import monitoring
@@ -67,3 +70,14 @@ class ApiKeys(base.BaseHandler):
       bit9.Bit9ApiAuth.SetInstance(api_key=value)
     else:
       self.abort(httplib.BAD_REQUEST, explanation='Invalid key name')
+
+
+# The Webapp2 routes defined for these handlers.
+ROUTES = routes.PathPrefixRoute('/settings', [
+    webapp2.Route(
+        '/api-keys/<key_name>',
+        handler=ApiKeys),
+    webapp2.Route(
+        '/<setting>',
+        handler=Settings),
+])

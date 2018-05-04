@@ -20,18 +20,18 @@ from google.appengine.ext import deferred
 from google.appengine.ext import ndb
 
 from upvote.gae.shared.common import basetest
-from upvote.gae.shared.common import taskqueue_utils
+from upvote.gae.taskqueue import utils
 from upvote.shared import constants
 
 
 class QueueSizeTest(basetest.UpvoteTestCase):
 
   def testSuccess(self):
-    self.assertEqual(0, taskqueue_utils.QueueSize())
+    self.assertEqual(0, utils.QueueSize())
     expected_size = 10
     for _ in xrange(expected_size):
       deferred.defer(dir)
-    self.assertEqual(expected_size, taskqueue_utils.QueueSize())
+    self.assertEqual(expected_size, utils.QueueSize())
 
 
 class CappedDeferTest(basetest.UpvoteTestCase):
@@ -43,7 +43,8 @@ class CappedDeferTest(basetest.UpvoteTestCase):
 
     expected_results = [True] * max_size + [False] * (total_size - max_size)
     actual_results = [
-        taskqueue_utils.CappedDefer(dir, max_size) for _ in xrange(total_size)]
+        utils.CappedDefer(dir, max_size) for _ in xrange(total_size)
+    ]
 
     self.assertEqual(expected_results, actual_results)
 
@@ -60,7 +61,7 @@ class GroupTransactionalDefersTest(basetest.UpvoteTestCase):
 
   def testSuccess(self):
     @ndb.transactional
-    @taskqueue_utils.GroupTransactionalDefers
+    @utils.GroupTransactionalDefers
     def _Foo():
       for i in xrange(6):
         deferred.defer(
@@ -68,15 +69,15 @@ class GroupTransactionalDefersTest(basetest.UpvoteTestCase):
 
     _Foo()
 
-    self.assertEqual(1, taskqueue_utils.QueueSize(_METRICS))
+    self.assertEqual(1, utils.QueueSize(_METRICS))
     self.RunDeferredTasks(_METRICS)
-    self.assertEqual(6, taskqueue_utils.QueueSize(_METRICS))
+    self.assertEqual(6, utils.QueueSize(_METRICS))
     self.RunDeferredTasks(_METRICS)
-    self.assertEqual(0, taskqueue_utils.QueueSize(_METRICS))
+    self.assertEqual(0, utils.QueueSize(_METRICS))
 
   def testSuccess_NonTransactional(self):
     @ndb.transactional
-    @taskqueue_utils.GroupTransactionalDefers
+    @utils.GroupTransactionalDefers
     def _Foo():
       for i in xrange(6):
         deferred.defer(
@@ -88,15 +89,15 @@ class GroupTransactionalDefersTest(basetest.UpvoteTestCase):
 
     # Ensure that non-transactional tasks weren't grouped while the
     # transactional tasks were.
-    self.assertEqual(1 + 6, taskqueue_utils.QueueSize(_METRICS))
+    self.assertEqual(1 + 6, utils.QueueSize(_METRICS))
     self.RunDeferredTasks(_METRICS)
-    self.assertEqual(6, taskqueue_utils.QueueSize(_METRICS))
+    self.assertEqual(6, utils.QueueSize(_METRICS))
     self.RunDeferredTasks(_METRICS)
-    self.assertEqual(0, taskqueue_utils.QueueSize(_METRICS))
+    self.assertEqual(0, utils.QueueSize(_METRICS))
 
   def testSuccess_MultiQueue(self):
     @ndb.transactional
-    @taskqueue_utils.GroupTransactionalDefers
+    @utils.GroupTransactionalDefers
     def _Foo():
       for i in xrange(6):
         deferred.defer(
@@ -107,20 +108,20 @@ class GroupTransactionalDefersTest(basetest.UpvoteTestCase):
     _Foo()
 
     # Ensure that each queue's transactional tasks are processed separatedly.
-    self.assertEqual(1, taskqueue_utils.QueueSize(_METRICS))
-    self.assertEqual(1, taskqueue_utils.QueueSize(_DEFAULT))
+    self.assertEqual(1, utils.QueueSize(_METRICS))
+    self.assertEqual(1, utils.QueueSize(_DEFAULT))
     self.RunDeferredTasks(_METRICS)
     self.RunDeferredTasks(_DEFAULT)
-    self.assertEqual(6, taskqueue_utils.QueueSize(_METRICS))
-    self.assertEqual(6, taskqueue_utils.QueueSize(_DEFAULT))
+    self.assertEqual(6, utils.QueueSize(_METRICS))
+    self.assertEqual(6, utils.QueueSize(_DEFAULT))
     self.RunDeferredTasks(_METRICS)
     self.RunDeferredTasks(_DEFAULT)
-    self.assertEqual(0, taskqueue_utils.QueueSize(_METRICS))
-    self.assertEqual(0, taskqueue_utils.QueueSize(_DEFAULT))
+    self.assertEqual(0, utils.QueueSize(_METRICS))
+    self.assertEqual(0, utils.QueueSize(_DEFAULT))
 
   def testSuccess_DeferredRepairedOnExit(self):
     @ndb.transactional
-    @taskqueue_utils.GroupTransactionalDefers
+    @utils.GroupTransactionalDefers
     def _Foo():
       deferred.defer(_FreeFunction, _queue=_DEFAULT, _transactional=True)
     _Foo()
@@ -134,7 +135,8 @@ class GroupTransactionalDefersTest(basetest.UpvoteTestCase):
       _Bar()
 
   def testSuccess_TxnFunction(self):
-    @taskqueue_utils.GroupTransactionalDefers
+
+    @utils.GroupTransactionalDefers
     def _Foo():
       deferred.defer(_FreeFunction, _queue=_METRICS, _transactional=True)
 
@@ -145,7 +147,7 @@ class GroupTransactionalDefersTest(basetest.UpvoteTestCase):
       pass
 
     @ndb.transactional_tasklet
-    @taskqueue_utils.GroupTransactionalTaskletDefers
+    @utils.GroupTransactionalTaskletDefers
     def _Foo():
       # Do some generator operations and make sure they behave as expected.
       expected_key = ndb.Key(A, '1')
@@ -165,11 +167,11 @@ class GroupTransactionalDefersTest(basetest.UpvoteTestCase):
     self.assertEqual('1234', result)
     self.assertIsNotNone(ndb.Key(A, '1').get())
 
-    self.assertEqual(1, taskqueue_utils.QueueSize(_DEFAULT))
+    self.assertEqual(1, utils.QueueSize(_DEFAULT))
     self.RunDeferredTasks(_DEFAULT)
-    self.assertEqual(6, taskqueue_utils.QueueSize(_DEFAULT))
+    self.assertEqual(6, utils.QueueSize(_DEFAULT))
     self.RunDeferredTasks(_DEFAULT)
-    self.assertEqual(0, taskqueue_utils.QueueSize(_DEFAULT))
+    self.assertEqual(0, utils.QueueSize(_DEFAULT))
 
   def testSuccess_Tasklet_Nested(self):
 
@@ -180,7 +182,7 @@ class GroupTransactionalDefersTest(basetest.UpvoteTestCase):
       raise ndb.Return(model is None)
 
     @ndb.transactional_tasklet
-    @taskqueue_utils.GroupTransactionalTaskletDefers
+    @utils.GroupTransactionalTaskletDefers
     def _Foo():
       # Create a dummy async op for the initial yield.
       yield ndb.Key('A', '1').get_async()
@@ -194,7 +196,7 @@ class GroupTransactionalDefersTest(basetest.UpvoteTestCase):
   def testSuccess_Tasklet_Empty(self):
 
     @ndb.transactional_tasklet
-    @taskqueue_utils.GroupTransactionalTaskletDefers
+    @utils.GroupTransactionalTaskletDefers
     def _Foo():
       raise ndb.Return(True)
 
@@ -203,7 +205,7 @@ class GroupTransactionalDefersTest(basetest.UpvoteTestCase):
   def testNoLeftoverPayloads(self):
 
     @ndb.transactional
-    @taskqueue_utils.GroupTransactionalDefers
+    @utils.GroupTransactionalDefers
     def _Foo():
       deferred.defer(_FreeFunction, _queue=_METRICS, _transactional=True)
 
@@ -213,7 +215,8 @@ class GroupTransactionalDefersTest(basetest.UpvoteTestCase):
       _Foo()
 
   def testBadDecoratorOrder(self):
-    @taskqueue_utils.GroupTransactionalDefers
+
+    @utils.GroupTransactionalDefers
     @ndb.transactional
     def _Foo():
       deferred.defer(_FreeFunction, _queue=_METRICS, _transactional=True)

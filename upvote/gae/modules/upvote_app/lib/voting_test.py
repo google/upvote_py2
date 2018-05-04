@@ -1188,18 +1188,16 @@ class VotingTest(basetest.UpvoteTestCase):
 
   def testResetBlockable(self):
     """Test resetting a blockable with some votes."""
-    user = test_utils.CreateUser()
     blockable = test_utils.CreateSantaBlockable(state=constants.STATE.SUSPECT)
     test_utils.CreateSantaRule(blockable.key)
     test_utils.CreateVotes(blockable, 11)
 
     ballot_box = voting.SantaBallotBox(blockable.key.id())
-    ballot_box.Reset(user)
+    ballot_box.Reset()
 
     self.assertEqual(constants.STATE.UNTRUSTED, blockable.key.get().state)
 
     total_votes = base.Vote.query()
-    retrieved_logs = base.AuditLog.query(base.AuditLog.user == user.email)
     retrieved_rules = base.Rule.query(ancestor=blockable.key)
     # pylint: disable=g-explicit-bool-comparison
     retrieved_in_effect_rules = base.Rule.query(
@@ -1208,18 +1206,15 @@ class VotingTest(basetest.UpvoteTestCase):
 
     self.assertEqual(total_votes.count(), 11)
     self.assertEqual(len(blockable.GetVotes()), 0)
-    self.assertEqual(retrieved_logs.count(), 11)
     self.assertEqual(retrieved_rules.count(), 2)
     self.assertEqual(retrieved_in_effect_rules.count(), 1)
 
   def testResetBlockable_Bundles_NotAllowed(self):
     """Test resetting a blockable with some votes."""
 
-    user = test_utils.CreateUser()
-
     ballot_box = voting.SantaBallotBox(self.santa_bundle.key.id())
     with self.assertRaises(voting.OperationNotAllowed):
-      ballot_box.Reset(user)
+      ballot_box.Reset()
 
   @mock.patch.object(intermodule, 'SubmitIntermoduleRequest')
   def testResetBlockable_Bit9(self, mock_intermodule):
@@ -1237,7 +1232,7 @@ class VotingTest(basetest.UpvoteTestCase):
     self.assertEntityCount(bit9.Bit9Rule, 1)
     self.assertEntityCount(bit9.RuleChangeSet, 1)
 
-    ballot_box.Reset(user)
+    ballot_box.Reset()
 
     self.assertEqual(0, binary.score)
 

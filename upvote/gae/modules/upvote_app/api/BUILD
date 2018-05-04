@@ -19,8 +19,8 @@ py_appengine_library(
     srcs = ["main.py"],
     deps = [
         ":monitoring",
-        "//upvote/gae/modules/upvote_app/api/handlers:all_srcs",
-        "//upvote/gae/modules/upvote_app/cron:all",
+        "//upvote/gae/cron:all",
+        "//upvote/gae/modules/upvote_app/api/handlers:all",
         "//upvote/gae/shared/common:handlers",
         "//upvote/gae/shared/common:settings",
     ],

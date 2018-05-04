@@ -48,7 +48,7 @@ def DefaultCreateKey(func, prefix, args, kwargs=None):
 
 def Cached(
     key_name=None, expire_time=0, create_key_func=DefaultCreateKey,
-    namespace_var=None):
+    namespace=context.APP_VERSION):
   """Decorator function to cache (using memcache API) a function's results.
 
   This decorator won't work in all cases and you should pay attention on how you
@@ -73,8 +73,7 @@ def Cached(
     create_key_func: function - Functions used to generate the memcache key
         where the result of each call will be cached. See _DefaultCreateKey for
         the signature. _DefaultCreateKey is also the default parameter.
-    namespace_var: str - variable name in the kwargs of the wrapped function
-        that indicates the namespace name of the memcache call.
+    namespace: str - the memcache namespace to use.
   Returns:
     A decorator.
   """
@@ -88,15 +87,9 @@ def Cached(
       function - the wrapped function.
     """
 
-    def _GetNamespace(kwargs):
-      if namespace_var in kwargs:
-        return kwargs[namespace_var]
-      return context.APP_VERSION
-
     @functools.wraps(func)
     def Wrapped(*args, **kwargs):
       key = create_key_func(func, key_name, args, kwargs)
-      namespace = _GetNamespace(kwargs)
       result = memcache.get(key, namespace=namespace)
       if result is not None:
         return result
@@ -121,7 +114,7 @@ def Cached(
         MyFunc.DeleteCache('a')  // Delete the cache for 'a'.
       """
       memcache.delete(create_key_func(func, key_name, args, kwargs),
-                      namespace=_GetNamespace(kwargs))
+                      namespace=namespace)
 
     Wrapped.DeleteCache = DeleteCache
 

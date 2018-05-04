@@ -32,7 +32,8 @@ from upvote.shared import constants
 class EventsTest(basetest.UpvoteTestCase):
   """Base class for Event handler tests."""
 
-  def setUp(self, app):
+  def setUp(self):
+    app = webapp2.WSGIApplication(routes=[events.ROUTES])
     super(EventsTest, self).setUp(wsgi_app=app)
     self.santa_cert = test_utils.CreateSantaCertificate()
     self.santa_blockable1 = test_utils.CreateSantaBlockable(
@@ -143,19 +144,14 @@ class EventsTest(basetest.UpvoteTestCase):
 
 class EventQueryHandlerTest(EventsTest):
 
-  def setUp(self):
-    app = webapp2.WSGIApplication([
-        webapp2.Route(r'', handler=events.EventQueryHandler),
-        webapp2.Route(r'/santa', handler=events.SantaEventQueryHandler),
-        webapp2.Route(r'/bit9', handler=events.Bit9EventQueryHandler)])
-    super(EventQueryHandlerTest, self).setUp(app)
+  ROUTE = '/events/query'
 
   def testAdminGetListAllEvents(self):
     """Admin user getting list of all events for a blockable_id."""
     params = {'asAdmin': 'true'}
 
     with self.LoggedInUser(admin=True):
-      response = self.testapp.get('', params)
+      response = self.testapp.get(self.ROUTE, params)
 
     output = response.json
 
@@ -169,7 +165,7 @@ class EventQueryHandlerTest(EventsTest):
               'asAdmin': 'true'}
 
     with self.LoggedInUser(admin=True):
-      response = self.testapp.get('', params)
+      response = self.testapp.get(self.ROUTE, params)
 
     output = response.json
 
@@ -186,7 +182,7 @@ class EventQueryHandlerTest(EventsTest):
     params = {'asAdmin': 'true'}
 
     with self.LoggedInUser(admin=True):
-      response = self.testapp.get('/bit9', params)
+      response = self.testapp.get(self.ROUTE + '/bit9', params)
 
     output = response.json
 
@@ -203,7 +199,7 @@ class EventQueryHandlerTest(EventsTest):
     params = {'asAdmin': 'true'}
 
     with self.LoggedInUser(admin=True):
-      response = self.testapp.get('/santa', params)
+      response = self.testapp.get(self.ROUTE + '/santa', params)
 
     output = response.json
 
@@ -220,12 +216,12 @@ class EventQueryHandlerTest(EventsTest):
     params = {'asAdmin': 'true'}
 
     with self.LoggedInUser(user=self.user_1):
-      self.testapp.get('', params, status=httplib.FORBIDDEN)
+      self.testapp.get(self.ROUTE, params, status=httplib.FORBIDDEN)
 
   def testUserGetListOwnEvents(self):
     """Normal user getting list of their events."""
     with self.LoggedInUser(user=self.user_1):
-      response = self.testapp.get('')
+      response = self.testapp.get(self.ROUTE)
 
     output = response.json
 
@@ -239,7 +235,7 @@ class EventQueryHandlerTest(EventsTest):
     """Normal user getting list of their events."""
     params = {'hostId': self.santa_host1.key.id()}
     with self.LoggedInUser(user=self.user_1):
-      response = self.testapp.get('', params)
+      response = self.testapp.get(self.ROUTE, params)
 
     output = response.json
 
@@ -258,7 +254,7 @@ class EventQueryHandlerTest(EventsTest):
 
     params = {'withContext': 'true'}
     with self.LoggedInUser(user=self.user_1):
-      response = self.testapp.get('', params)
+      response = self.testapp.get(self.ROUTE, params)
 
     content = response.json['content']
     self.assertEqual(4, len(content))
@@ -285,7 +281,7 @@ class EventQueryHandlerTest(EventsTest):
     params = {'blockableKey': self.santa_blockable1.key.urlsafe()}
 
     with self.LoggedInUser(user=self.user_1):
-      response = self.testapp.get('', params)
+      response = self.testapp.get(self.ROUTE, params)
 
     self.assertEqual(len(response.json['content']), 2)
     self.assertFalse(response.json['more'])
@@ -302,7 +298,7 @@ class EventQueryHandlerTest(EventsTest):
         'withContext': 'true'}
 
     with self.LoggedInUser(user=self.user_1):
-      response = self.testapp.get('', params)
+      response = self.testapp.get(self.ROUTE, params)
 
     output = response.json
 
@@ -332,7 +328,7 @@ class EventQueryHandlerTest(EventsTest):
         'asAdmin': True}
 
     with self.LoggedInUser(admin=True):
-      response = self.testapp.get('', params)
+      response = self.testapp.get(self.ROUTE, params)
 
     output = response.json
 
@@ -348,7 +344,7 @@ class EventQueryHandlerTest(EventsTest):
         'asAdmin': True}
 
     with self.LoggedInUser(admin=True):
-      response = self.testapp.get('/bit9', params)
+      response = self.testapp.get(self.ROUTE + '/bit9', params)
 
     output = response.json
 
@@ -363,7 +359,7 @@ class EventQueryHandlerTest(EventsTest):
               'asAdmin': True}
 
     with self.LoggedInUser(admin=True):
-      self.testapp.get('/bit9', params, status=httplib.BAD_REQUEST)
+      self.testapp.get(self.ROUTE + '/bit9', params, status=httplib.BAD_REQUEST)
 
   def testAdminGetQueryNoSearch(self):
     """Admin searching with no search term."""
@@ -371,7 +367,7 @@ class EventQueryHandlerTest(EventsTest):
               'asAdmin': True}
 
     with self.LoggedInUser(admin=True):
-      self.testapp.get('', params, status=httplib.BAD_REQUEST)
+      self.testapp.get(self.ROUTE, params, status=httplib.BAD_REQUEST)
 
   def testAdminGetQueryNoSearchBase(self):
     """Admin searching with no searchBase param."""
@@ -379,7 +375,7 @@ class EventQueryHandlerTest(EventsTest):
               'asAdmin': True}
 
     with self.LoggedInUser(admin=True):
-      self.testapp.get('', params, status=httplib.BAD_REQUEST)
+      self.testapp.get(self.ROUTE, params, status=httplib.BAD_REQUEST)
 
   def testAdminGetQueryInvalidSearchBase(self):
     """Admin searching with invalid searchBase param."""
@@ -388,21 +384,18 @@ class EventQueryHandlerTest(EventsTest):
               'asAdmin': True}
 
     with self.LoggedInUser(admin=True):
-      self.testapp.get('', params, status=httplib.BAD_REQUEST)
+      self.testapp.get(self.ROUTE, params, status=httplib.BAD_REQUEST)
 
 
 class EventHandlerTest(EventsTest):
 
-  def setUp(self):
-    app = webapp2.WSGIApplication([
-        webapp2.Route(r'/<event_key>', handler=events.EventHandler)])
-    super(EventHandlerTest, self).setUp(app)
+  ROUTE = '/events/%s'
 
   def testUserGetOwnEvent(self):
     """Getting an event of the requesting user's by id."""
     with self.LoggedInUser(user=self.user_1):
       response = self.testapp.get(
-          '/%s' % self.santa_event1_from_user1.key.urlsafe())
+          self.ROUTE % self.santa_event1_from_user1.key.urlsafe())
 
     output = response.json
 
@@ -417,7 +410,7 @@ class EventHandlerTest(EventsTest):
     params = {'withContext': 'true'}
     with self.LoggedInUser(user=self.user_1):
       response = self.testapp.get(
-          '/%s' % self.santa_event1_from_user1.key.urlsafe(), params)
+          self.ROUTE % self.santa_event1_from_user1.key.urlsafe(), params)
 
     output = response.json
 
@@ -441,7 +434,7 @@ class EventHandlerTest(EventsTest):
     params = {'withContext': 'true'}
     with self.LoggedInUser(user=self.user_1):
       response = self.testapp.get(
-          '/%s' % self.santa_event1_from_user1.key.urlsafe(), params)
+          self.ROUTE % self.santa_event1_from_user1.key.urlsafe(), params)
 
     output = response.json
 
@@ -458,7 +451,7 @@ class EventHandlerTest(EventsTest):
     params = {'withContext': 'true'}
     with self.LoggedInUser(user=self.user_1):
       response = self.testapp.get(
-          '/%s' % self.santa_event1_from_user1.key.urlsafe(), params)
+          self.ROUTE % self.santa_event1_from_user1.key.urlsafe(), params)
 
     output = response.json
 
@@ -484,7 +477,7 @@ class EventHandlerTest(EventsTest):
 
     params = {'withContext': 'true'}
     with self.LoggedInUser(user=self.user_1):
-      response = self.testapp.get('/%s' % event.key.urlsafe(), params)
+      response = self.testapp.get(self.ROUTE % event.key.urlsafe(), params)
 
     output = response.json
 
@@ -499,25 +492,27 @@ class EventHandlerTest(EventsTest):
   def testUserGetBadKey(self):
     """Getting an event of the requesting user's by key."""
     with self.LoggedInUser(user=self.user_1):
-      self.testapp.get('/NotARealKey', status=httplib.BAD_REQUEST)
+      self.testapp.get(self.ROUTE % 'NotARealKey', status=httplib.BAD_REQUEST)
 
   def testUserGetUnknownKey(self):
     """Getting an event of the requesting user's by key."""
     unknown_key = ndb.Key('Event', 'NotARealId')
     with self.LoggedInUser(user=self.user_1):
-      self.testapp.get('/%s' % unknown_key.urlsafe(), status=httplib.NOT_FOUND)
+      self.testapp.get(
+          self.ROUTE % unknown_key.urlsafe(), status=httplib.NOT_FOUND)
 
   def testUserGetOthersEvent(self):
     """Getting another user's event by id without permission."""
     with self.LoggedInUser(user=self.user_1):
-      self.testapp.get('/%s' % self.santa_event1_from_user2.key.urlsafe(),
-                       status=httplib.FORBIDDEN)
+      self.testapp.get(
+          self.ROUTE % self.santa_event1_from_user2.key.urlsafe(),
+          status=httplib.FORBIDDEN)
 
   def testAdminGetOthersEvent(self):
     """Getting another user's event by id."""
     with self.LoggedInUser(admin=True):
       response = self.testapp.get(
-          '/%s' % self.santa_event1_from_user2.key.urlsafe())
+          self.ROUTE % self.santa_event1_from_user2.key.urlsafe())
 
     output = response.json
 
@@ -530,14 +525,11 @@ class EventHandlerTest(EventsTest):
 
 class RecentEventHandlerTest(EventsTest):
 
-  def setUp(self):
-    app = webapp2.WSGIApplication([
-        webapp2.Route(r'/<blockable_id>', handler=events.RecentEventHandler)])
-    super(RecentEventHandlerTest, self).setUp(app)
+  ROUTE = '/events/most-recent/%s'
 
   def testUser_GetOwnEvent(self):
     with self.LoggedInUser(user=self.user_1):
-      response = self.testapp.get('/%s' % self.santa_blockable1.key.id())
+      response = self.testapp.get(self.ROUTE % self.santa_blockable1.key.id())
 
     output = response.json
 
@@ -568,7 +560,7 @@ class RecentEventHandlerTest(EventsTest):
             self.user_1.key, self.santa_host1.key, bundle.key))
 
     with self.LoggedInUser(user=self.user_1):
-      response = self.testapp.get('/%s' % bundle.key.id())
+      response = self.testapp.get(self.ROUTE % bundle.key.id())
 
     output = response.json
 
@@ -582,7 +574,7 @@ class RecentEventHandlerTest(EventsTest):
     """Getting an event of the requesting user's by id."""
     with self.LoggedInUser(user=self.user_1):
       response = self.testapp.get(
-          '/%s' % self.santa_blockable1.key.id(),
+          self.ROUTE % self.santa_blockable1.key.id(),
           params={'withContext': 'true'})
 
     output = response.json
@@ -598,7 +590,7 @@ class RecentEventHandlerTest(EventsTest):
   def testUser_GetOwnEvent_NoEvent(self):
     new_blockable = test_utils.CreateSantaBlockable()
     with self.LoggedInUser(user=self.user_1):
-      response = self.testapp.get('/%s' % new_blockable.key.id())
+      response = self.testapp.get(self.ROUTE % new_blockable.key.id())
 
     output = response.json
 
@@ -606,19 +598,20 @@ class RecentEventHandlerTest(EventsTest):
 
   def testUser_GetUnknownBlockable(self):
     with self.LoggedInUser(user=self.user_1):
-      self.testapp.get('/%s' % 'NotARealId', status=httplib.NOT_FOUND)
+      self.testapp.get(self.ROUTE % 'NotARealId', status=httplib.NOT_FOUND)
 
   def testUser_GetOthersEvent(self):
     with self.LoggedInUser(user=self.user_1):
       self.testapp.get(
-          '/%s' % self.santa_blockable1.key.id(),
-          params={'asUser': self.user_2.nickname}, status=httplib.FORBIDDEN)
+          self.ROUTE % self.santa_blockable1.key.id(),
+          params={'asUser': self.user_2.nickname},
+          status=httplib.FORBIDDEN)
 
   def testAdmin_GetOthersEvent(self):
     """Getting another user's event by id."""
     with self.LoggedInUser(admin=True):
       response = self.testapp.get(
-          '/%s' % self.santa_blockable1.key.id(),
+          self.ROUTE % self.santa_blockable1.key.id(),
           params={'asUser': self.user_2.nickname})
 
     output = response.json

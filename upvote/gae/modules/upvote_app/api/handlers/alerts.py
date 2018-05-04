@@ -1,0 +1,130 @@
+# Copyright 2017 Google Inc. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS-IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""Request handlers for Alert entities."""
+
+import datetime
+import httplib
+import logging
+
+import webapp2
+from webapp2_extras import routes
+
+from google.appengine.api import memcache
+from google.appengine.ext import ndb
+
+from upvote.gae.datastore.models import alert as alert_db
+from upvote.gae.modules.upvote_app.api.handlers import base
+from upvote.shared import constants
+
+_DEFAULT_MEMCACHE_TIMEOUT = datetime.timedelta(days=7).total_seconds()
+
+
+def _CreateMemcacheKey(scope, platform):
+  pieces = ['alert', scope, platform]
+  return '_'.join(p.lower() for p in pieces if p)
+
+
+class AlertHandler(base.BaseHandler):
+  """Handler for interacting with user-facing alert messages."""
+
+  def get(self, scope, platform):
+
+    if not constants.SITE_ALERT_SCOPE.Contains(scope, ignore_case=True):
+      self.abort(httplib.BAD_REQUEST, 'Invalid scope: %s' % scope)
+
+    if not constants.SITE_ALERT_PLATFORM.Contains(platform, ignore_case=True):
+      self.abort(httplib.BAD_REQUEST, 'Invalid platform: %s' % platform)
+
+    scope = constants.SITE_ALERT_SCOPE.Get(scope)
+    platform = constants.SITE_ALERT_PLATFORM.Get(platform)
+
+    # Check Memcache first.
+    memcache_key = _CreateMemcacheKey(scope, platform)
+    alert_dict = memcache.get(memcache_key)
+    if alert_dict:
+      self.respond_json(alert_dict)
+
+    # Fall back and check Datastore.
+    else:
+
+      logging.info('No Alert found in Memcache at %s', memcache_key)
+
+      # Grab all Alerts for this combination of platform and scope, which have
+      # a start_date in the past.
+      now = datetime.datetime.utcnow()
+      # pylint: disable=g-explicit-bool-comparison
+      all_alerts = alert_db.Alert.query(
+          ndb.OR(
+              alert_db.Alert.scope == scope,
+              alert_db.Alert.scope == constants.SITE_ALERT_SCOPE.EVERYWHERE),
+          ndb.OR(
+              alert_db.Alert.platform == platform,
+              alert_db.Alert.platform == constants.SITE_ALERT_PLATFORM.ALL),
+          alert_db.Alert.start_date <= now).fetch()
+      # pylint: enable=g-explicit-bool-comparison
+
+      active_alerts = []
+      expired_alerts = []
+
+      # Any Alerts which also have an end_date in the past can safely be
+      # deleted. This will have the effect of automatically keeping Alert
+      # entities pruned down to only those which are active or upcoming.
+      for alert in all_alerts:
+        if alert.end_date and alert.end_date < now:
+          expired_alerts.append(alert)
+        else:
+          active_alerts.append(alert)
+      logging.info('Found %d active Alert(s)', len(active_alerts))
+      logging.info('Deleting %d expired Alert(s)', len(expired_alerts))
+      ndb.delete_multi(a.key for a in expired_alerts)
+
+      # It's unlikely, but possible, that there could be multiple overlapping
+      # alerts active at a given time (e.g. a long-running degradation could be
+      # interrupted by a short-term outage). So sort by most recent start date.
+      active_alerts = sorted(
+          active_alerts, key=lambda a: a.start_date, reverse=True)
+
+      # If the last active Alert just expired, throw an empty placeholder dict
+      # into Memcache. Otherwise, opt for the Alert with the most recent start
+      # date.
+      alert_dict = active_alerts[0].to_dict() if active_alerts else {}
+
+      # The Memcache entry should expire when the Alert does, or at the default
+      # time if no expiration is specified.
+      alert_end_date = alert_dict.get('end_date')
+      if alert_end_date:
+        memcache_timeout = (alert_end_date - now).total_seconds()
+      else:
+        memcache_timeout = _DEFAULT_MEMCACHE_TIMEOUT
+
+      # Keep the Memcache key set regardless of whether there's actually an
+      # Alert, in order to cut down on needless NDB queries. We avoid false
+      # negatives by purging Memcache any time administrative changes are made
+      # via the POST handler below.
+      memcache.set(memcache_key, alert_dict, time=memcache_timeout)
+
+      self.respond_json(alert_dict)
+
+  @base.RequireCapability(constants.PERMISSIONS.EDIT_ALERTS)
+  def post(self):
+    pass
+
+
+# The Webapp2 routes defined for these handlers.
+ROUTES = routes.PathPrefixRoute('/alert', [
+    webapp2.Route(
+        '/<scope>/<platform>',
+        handler=AlertHandler),
+])

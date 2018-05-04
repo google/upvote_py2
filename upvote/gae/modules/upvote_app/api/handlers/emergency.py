@@ -16,6 +16,8 @@
 import httplib
 import logging
 
+import webapp2
+
 from upvote.gae.modules.upvote_app.api.handlers import base
 from upvote.gae.shared.common import big_red
 from upvote.gae.shared.common import xsrf_utils
@@ -58,3 +60,7 @@ class Emergency(base.BaseHandler):
           httplib.BAD_REQUEST, explanation='Improper switch or value set.')
 
     self.respond_json(big_red_button.get_button_status())
+
+
+# The Webapp2 routes defined for these handlers.
+ROUTES = webapp2.Route('/emergency', handler=Emergency)

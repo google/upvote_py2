@@ -29,10 +29,10 @@ from google.appengine.api import users
 from google.appengine.ext import deferred
 from google.appengine.ext import ndb
 from google.appengine.ext.ndb import metadata
-from upvote.gae.modules.upvote_app.cron import monitoring
+from upvote.gae.cron import monitoring
 from upvote.gae.shared.common import handlers
 from upvote.gae.shared.common import settings
-from upvote.gae.shared.common import taskqueue_utils
+from upvote.gae.taskqueue import utils as taskqueue_utils
 from upvote.gae.shared.common import utils
 from upvote.gae.datastore.models import base
 from upvote.gae.datastore.models import bigquery as bigquery_models

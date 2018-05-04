@@ -35,7 +35,8 @@ from upvote.shared import constants
 class HostsTest(basetest.UpvoteTestCase):
   """Base class for Hosts handler tests."""
 
-  def setUp(self, app):
+  def setUp(self):
+    app = webapp2.WSGIApplication(routes=[hosts.ROUTES])
     super(HostsTest, self).setUp(wsgi_app=app)
 
     self.santa_host_1 = santa.SantaHost(
@@ -70,16 +71,12 @@ class HostsTest(basetest.UpvoteTestCase):
 class HostQueryHandlerTest(HostsTest):
   """Test HostQueryHandler classes."""
 
-  def setUp(self):
-    app = webapp2.WSGIApplication([
-        webapp2.Route(r'/santa', handler=hosts.SantaHostQueryHandler),
-        webapp2.Route(r'', handler=hosts.HostQueryHandler)])
-    super(HostQueryHandlerTest, self).setUp(app)
+  ROUTE = '/hosts/query'
 
   def testAdminGetList(self):
     """Admin gets a list of all hosts."""
     with self.LoggedInUser(admin=True):
-      response = self.testapp.get('')
+      response = self.testapp.get(self.ROUTE)
 
     output = response.json
 
@@ -94,7 +91,7 @@ class HostQueryHandlerTest(HostsTest):
     # Create a dummy host that shouldn't be included in the returned list.
     test_utils.CreateBit9Host()
     with self.LoggedInUser(admin=True):
-      response = self.testapp.get('/santa')
+      response = self.testapp.get(self.ROUTE + '/santa')
 
     output = response.json
 
@@ -106,7 +103,7 @@ class HostQueryHandlerTest(HostsTest):
   def testUserGetListNoPermissions(self):
     """Unprivileged user attempts to get a list of all hosts."""
     with self.LoggedInUser():
-      self.testapp.get('', status=httplib.FORBIDDEN)
+      self.testapp.get(self.ROUTE, status=httplib.FORBIDDEN)
 
   def testAdminGetQuery(self):
     """Admin queries for a host."""
@@ -115,7 +112,7 @@ class HostQueryHandlerTest(HostsTest):
         'searchBase': 'hostname'}
 
     with self.LoggedInUser(admin=True):
-      response = self.testapp.get('', params)
+      response = self.testapp.get(self.ROUTE, params)
 
     output = response.json
 
@@ -131,7 +128,7 @@ class HostQueryHandlerTest(HostsTest):
         'searchBase': 'hostname'}
 
     with self.LoggedInUser(admin=True):
-      response = self.testapp.get('/santa', params)
+      response = self.testapp.get(self.ROUTE + '/santa', params)
 
     output = response.json
 
@@ -147,16 +144,13 @@ class HostQueryHandlerTest(HostsTest):
         'searchBase': 'NotAField'}
 
     with self.LoggedInUser(admin=True):
-      self.testapp.get('', params, status=httplib.BAD_REQUEST)
+      self.testapp.get(self.ROUTE, params, status=httplib.BAD_REQUEST)
 
 
 class HostHandlerTest(HostsTest):
   """Test HostHandler class."""
 
-  def setUp(self):
-    app = webapp2.WSGIApplication(
-        [webapp2.Route(r'/<host_id>', handler=hosts.HostHandler)])
-    super(HostHandlerTest, self).setUp(app)
+  ROUTE = '/hosts/%s'
 
   def testAssociatedUserGet(self):
     """Normal user associated with a host gets it by ID."""
@@ -168,7 +162,7 @@ class HostHandlerTest(HostsTest):
           parent=utils.ConcatenateKeys(
               user.key, self.santa_host_1.key, blockable.key))
       self.assertTrue(self.santa_host_1.IsAssociatedWithUser(user))
-      response = self.testapp.get('/' + self.santa_host_1.key.id())
+      response = self.testapp.get(self.ROUTE % self.santa_host_1.key.id())
 
     output = response.json
 
@@ -181,7 +175,7 @@ class HostHandlerTest(HostsTest):
       self.santa_host_3.primary_user = user.nickname
       self.santa_host_3.put()
       self.assertTrue(self.santa_host_3.IsAssociatedWithUser(user))
-      response = self.testapp.get('/' + self.santa_host_3.key.id())
+      response = self.testapp.get(self.ROUTE % self.santa_host_3.key.id())
 
     output = response.json
 
@@ -193,12 +187,12 @@ class HostHandlerTest(HostsTest):
     with self.LoggedInUser() as user:
       self.assertFalse(self.santa_host_1.IsAssociatedWithUser(user))
       self.testapp.get(
-          '/' + self.santa_host_1.key.id(), status=httplib.FORBIDDEN)
+          self.ROUTE % self.santa_host_1.key.id(), status=httplib.FORBIDDEN)
 
   def testAdminGet(self):
     """Admin gets a single host by ID."""
     with self.LoggedInUser(admin=True):
-      response = self.testapp.get('/' + self.santa_host_1.key.id())
+      response = self.testapp.get(self.ROUTE % self.santa_host_1.key.id())
 
     output = response.json
 
@@ -208,12 +202,12 @@ class HostHandlerTest(HostsTest):
   def testAdminGet_UnknownID(self):
     """Admin attempts to get an unknown ID."""
     with self.LoggedInUser(admin=True):
-      self.testapp.get('/UnknownID', status=httplib.NOT_FOUND)
+      self.testapp.get(self.ROUTE % 'UnknownID', status=httplib.NOT_FOUND)
 
   def testAdminPost(self):
     """Admin posts a single host with no update params."""
     with self.LoggedInUser(admin=True):
-      response = self.testapp.post('/' + self.santa_host_1.key.id())
+      response = self.testapp.post(self.ROUTE % self.santa_host_1.key.id())
 
     output = response.json
 
@@ -223,7 +217,7 @@ class HostHandlerTest(HostsTest):
   def testAdminPost_UnknownID(self):
     """Admin attempts to post an unknown ID."""
     with self.LoggedInUser(admin=True):
-      self.testapp.post('/UnknownID', status=httplib.NOT_FOUND)
+      self.testapp.post(self.ROUTE % 'UnknownID', status=httplib.NOT_FOUND)
 
   def testAdminPost_Update(self):
     """Admin posts a single host with update params."""
@@ -238,7 +232,8 @@ class HostHandlerTest(HostsTest):
         'clientMode': constants.SANTA_CLIENT_MODE.LOCKDOWN}
 
     with self.LoggedInUser(admin=True):
-      response = self.testapp.post('/' + self.santa_host_1.key.id(), params)
+      response = self.testapp.post(
+          self.ROUTE % self.santa_host_1.key.id(), params)
 
     output = response.json
 
@@ -254,13 +249,11 @@ class HostHandlerTest(HostsTest):
 class AssociatedHostHandlerTest(HostsTest):
   """Test HostHandler class."""
 
+  SELF_ROUTE = '/hosts/associated'
+  USER_ID_ROUTE = '/hosts/associated/%s'
+
   def setUp(self):
-    app = webapp2.WSGIApplication([
-        webapp2.Route(r'/', handler=hosts.AssociatedHostHandler,
-                      handler_method='GetSelf'),
-        webapp2.Route(r'/<user_id:.*>', handler=hosts.AssociatedHostHandler,
-                      handler_method='GetByUserId')])
-    super(AssociatedHostHandlerTest, self).setUp(app)
+    super(AssociatedHostHandlerTest, self).setUp()
 
     self.user = test_utils.CreateUser()
     self.admin = test_utils.CreateUser(admin=True)
@@ -278,7 +271,7 @@ class AssociatedHostHandlerTest(HostsTest):
 
   def testGetByUserId(self):
     with self.LoggedInUser(user=self.admin):
-      response = self.testapp.get('/' + self.user.key.id())
+      response = self.testapp.get(self.USER_ID_ROUTE % self.user.key.id())
     output = response.json
     self.assertEqual(2, len(output))
     ids = set(host['id'] for host in output)
@@ -287,15 +280,17 @@ class AssociatedHostHandlerTest(HostsTest):
 
   def testGetByUserId_NotAuthorized(self):
     with self.LoggedInUser(user=self.user):
-      self.testapp.get('/' + self.admin.key.id(), status=httplib.FORBIDDEN)
+      self.testapp.get(
+          self.USER_ID_ROUTE % self.admin.key.id(), status=httplib.FORBIDDEN)
 
   def testGetByUserId_UnknownUser(self):
     with self.LoggedInUser(user=self.admin):
-      self.testapp.get('/NotAUser', status=httplib.NOT_FOUND)
+      self.testapp.get(
+          self.USER_ID_ROUTE % 'NotAUser', status=httplib.NOT_FOUND)
 
   def testGetSelf(self):
     with self.LoggedInUser(user=self.user):
-      response = self.testapp.get('/')
+      response = self.testapp.get(self.SELF_ROUTE)
     output = response.json
     self.assertEqual(2, len(output))
 
@@ -319,7 +314,7 @@ class AssociatedHostHandlerTest(HostsTest):
     self.assertTrue(self.bit9_host_1.IsAssociatedWithUser(self.user))
 
     with self.LoggedInUser(user=self.user):
-      response = self.testapp.get('/')
+      response = self.testapp.get(self.SELF_ROUTE)
     output = response.json
 
     self.assertIn('application/json', response.headers['Content-type'])
@@ -341,7 +336,7 @@ class AssociatedHostHandlerTest(HostsTest):
     self.bit9_host_1.put()
 
     with self.LoggedInUser(user=self.user):
-      response = self.testapp.get('/')
+      response = self.testapp.get(self.SELF_ROUTE)
     output = response.json
     self.assertIn('application/json', response.headers['Content-type'])
 
@@ -352,7 +347,7 @@ class AssociatedHostHandlerTest(HostsTest):
     self.santa_host_1.key.delete()
     self.bit9_host_1.key.delete()
     with self.LoggedInUser(user=self.user):
-      response = self.testapp.get('/')
+      response = self.testapp.get(self.SELF_ROUTE)
     output = response.json
     self.assertEqual(0, len(output))
 
@@ -360,10 +355,10 @@ class AssociatedHostHandlerTest(HostsTest):
 class HostExceptionHandlerTest(HostsTest):
   """Test HostExceptionHandler class."""
 
+  ROUTE = '/hosts/%s/request-exception'
+
   def setUp(self):
-    app = webapp2.WSGIApplication(
-        [webapp2.Route(r'/<host_id>', handler=hosts.HostExceptionHandler)])
-    super(HostExceptionHandlerTest, self).setUp(app)
+    super(HostExceptionHandlerTest, self).setUp()
 
     self.user = test_utils.CreateUser(admin=True)
 
@@ -384,12 +379,13 @@ class HostExceptionHandlerTest(HostsTest):
   def testCreateHostException(self):
     params = {'reason': constants.HOST_EXEMPTION_REASON.OSX_DEVELOPER}
     with self.LoggedInUser(user=self.user):
-      response = self.testapp.post('/' + self.santa_host_3.key.id(), params)
+      response = self.testapp.post(
+          self.ROUTE % self.santa_host_3.key.id(), params)
     self.assertEqual(httplib.OK, response.status_int)
     self.assertEqual(response.json['id'], self.santa_host_3.key.id())
   # pylint: disable=line-too-long
     self.assertTaskCount(constants.TASK_QUEUE.BQ_PERSISTENCE, 1)
-    self.RunDeferredTasks(constants.TASK_QUEUE.BQ_PERSISTENCE)
+    self.DrainTaskQueue(constants.TASK_QUEUE.BQ_PERSISTENCE)
     self.assertEntityCount(bigquery.HostRow, 1)
     ticket = tickets.HostExceptionTicket.query().get()
     self.assertEqual(self.santa_host_3.key.id(), ticket.host_id)
@@ -407,10 +403,10 @@ class HostExceptionHandlerTest(HostsTest):
     params = {'reason': constants.HOST_EXEMPTION_REASON.OTHER,
               'otherText': 'foo'}
     with self.LoggedInUser(user=self.user):
-      self.testapp.post('/' + self.santa_host_3.key.id(), params)
+      self.testapp.post(self.ROUTE % self.santa_host_3.key.id(), params)
   # pylint: disable=line-too-long
     self.assertTaskCount(constants.TASK_QUEUE.BQ_PERSISTENCE, 1)
-    self.RunDeferredTasks(constants.TASK_QUEUE.BQ_PERSISTENCE)
+    self.DrainTaskQueue(constants.TASK_QUEUE.BQ_PERSISTENCE)
     self.assertEntityCount(bigquery.HostRow, 1)
     ticket = tickets.HostExceptionTicket.query().get()
     self.assertEqual(constants.HOST_EXEMPTION_REASON.OTHER, ticket.reason)
@@ -424,16 +420,18 @@ class HostExceptionHandlerTest(HostsTest):
   def testCreateHostException_UnknownHost(self):
     params = {'reason': constants.HOST_EXEMPTION_REASON.OSX_DEVELOPER}
     with self.LoggedInUser(user=self.user):
-      self.testapp.post('/NotAHost', params, status=httplib.NOT_FOUND)
+      self.testapp.post(
+          self.ROUTE % 'NotAHost', params, status=httplib.NOT_FOUND)
 
   def testCreateHostException_AdminCreate(self):
     with self.LoggedInUser(admin=True) as admin:
       self.assertFalse(self.santa_host_3.IsAssociatedWithUser(admin))
 
       params = {'reason': constants.HOST_EXEMPTION_REASON.OSX_DEVELOPER}
-      response = self.testapp.post('/' + self.santa_host_3.key.id(), params)  # pylint: disable=line-too-long
+      response = self.testapp.post(
+          self.ROUTE % self.santa_host_3.key.id(), params)  # pylint: disable=line-too-long
       self.assertTaskCount(constants.TASK_QUEUE.BQ_PERSISTENCE, 1)
-      self.RunDeferredTasks(constants.TASK_QUEUE.BQ_PERSISTENCE)
+      self.DrainTaskQueue(constants.TASK_QUEUE.BQ_PERSISTENCE)
       self.assertEntityCount(bigquery.HostRow, 1)
       self.assertTrue(response)
       self.assertTrue(tickets.HostExceptionTicket.query().get())
@@ -444,40 +442,44 @@ class HostExceptionHandlerTest(HostsTest):
     params = {'reason': constants.HOST_EXEMPTION_REASON.OSX_DEVELOPER}
     with self.LoggedInUser(user=superuser):
       self.testapp.post(
-          '/' + self.santa_host_2.key.id(), params, status=httplib.FORBIDDEN)
+          self.ROUTE % self.santa_host_2.key.id(), params,
+          status=httplib.FORBIDDEN)
 
   def testCreateHostException_ExistingTicket(self):
     params = {'reason': constants.HOST_EXEMPTION_REASON.OSX_DEVELOPER}
     with self.LoggedInUser(user=self.user):
-      response = self.testapp.post('/' + self.santa_host_3.key.id(), params)
+      response = self.testapp.post(
+          self.ROUTE % self.santa_host_3.key.id(), params)
     self.assertEqual(httplib.OK, response.status_int)  # pylint: disable=line-too-long
     self.assertTaskCount(constants.TASK_QUEUE.BQ_PERSISTENCE, 1)
-    self.RunDeferredTasks(constants.TASK_QUEUE.BQ_PERSISTENCE)
+    self.DrainTaskQueue(constants.TASK_QUEUE.BQ_PERSISTENCE)
     self.assertEntityCount(bigquery.HostRow, 1)
 
   def testCreateHostException_NoReason(self):
     with self.LoggedInUser(user=self.user):
       self.testapp.post(
-          '/' + self.santa_host_3.key.id(), status=httplib.BAD_REQUEST)
+          self.ROUTE % self.santa_host_3.key.id(), status=httplib.BAD_REQUEST)
 
   def testCreateHostException_BadReason(self):
     params = {'reason': 'NotARealReason'}
     with self.LoggedInUser(user=self.user):
       self.testapp.post(
-          '/' + self.santa_host_3.key.id(), params, status=httplib.BAD_REQUEST)
+          self.ROUTE % self.santa_host_3.key.id(), params,
+          status=httplib.BAD_REQUEST)
 
   def testCreateHostException_NoOtherReason(self):
     params = {'reason': constants.HOST_EXEMPTION_REASON.OTHER}
     with self.LoggedInUser(user=self.user):
       self.testapp.post(
-          '/' + self.santa_host_3.key.id(), params, status=httplib.BAD_REQUEST)
+          self.ROUTE % self.santa_host_3.key.id(), params,
+          status=httplib.BAD_REQUEST)
 
   def testGetHostException(self):
     tickets.HostExceptionTicket.get_open_or_insert_did_insert(
         self.user.key.id(), self.santa_host_3.key.id())
 
     with self.LoggedInUser(user=self.user):
-      response = self.testapp.get('/' + self.santa_host_3.key.id())
+      response = self.testapp.get(self.ROUTE % self.santa_host_3.key.id())
 
     output = response.json
 
@@ -486,17 +488,17 @@ class HostExceptionHandlerTest(HostsTest):
 
   def testGetHostException_UnknownHost(self):
     with self.LoggedInUser(user=self.user):
-      self.testapp.get('/NotAHost', status=httplib.NOT_FOUND)
+      self.testapp.get(self.ROUTE % 'NotAHost', status=httplib.NOT_FOUND)
 
   def testGetHostException_UnownedHost(self):
     with self.LoggedInUser():
       self.testapp.get(
-          '/' + self.santa_host_2.key.id(), status=httplib.FORBIDDEN)
+          self.ROUTE % self.santa_host_2.key.id(), status=httplib.FORBIDDEN)
 
   def testGetHostException_NoTicket(self):
     with self.LoggedInUser(user=self.user):
       self.testapp.get(
-          '/' + self.santa_host_3.key.id(), status=httplib.NOT_FOUND)
+          self.ROUTE % self.santa_host_3.key.id(), status=httplib.NOT_FOUND)
 
   def testGetHostException_GetByOtherUsername(self):
     with self.LoggedInUser(admin=True) as admin:
@@ -504,7 +506,8 @@ class HostExceptionHandlerTest(HostsTest):
           admin.key.id(), self.santa_host_3.key.id())
 
       params = {'user_id': admin.email}
-      response = self.testapp.get('/' + self.santa_host_3.key.id(), params)
+      response = self.testapp.get(
+          self.ROUTE % self.santa_host_3.key.id(), params)
       self.assertEqual(httplib.OK, response.status_int)
 
   def testGetHostException_AdminGetByOtherUsername(self):
@@ -513,17 +516,18 @@ class HostExceptionHandlerTest(HostsTest):
 
     params = {'user_id': self.user.email}
     with self.LoggedInUser(admin=True):
-      response = self.testapp.get('/' + self.santa_host_3.key.id(), params)
+      response = self.testapp.get(
+          self.ROUTE % self.santa_host_3.key.id(), params)
     self.assertEqual(httplib.OK, response.status_int)
 
 
 class LockdownHandlerTest(HostsTest):
   """Test LockdownHandler class."""
 
+  ROUTE = '/hosts/%s/request-lockdown'
+
   def setUp(self):
-    app = webapp2.WSGIApplication(
-        [webapp2.Route(r'/<host_id>', handler=hosts.LockdownHandler)])
-    super(LockdownHandlerTest, self).setUp(app)
+    super(LockdownHandlerTest, self).setUp()
 
     self.user = test_utils.CreateUser()
 
@@ -542,7 +546,7 @@ class LockdownHandlerTest(HostsTest):
 
   def testLockdown(self):
     with self.LoggedInUser(user=self.user):
-      response = self.testapp.post('/' + self.santa_host_3.key.id())
+      response = self.testapp.post(self.ROUTE % self.santa_host_3.key.id())
     self.assertEqual(httplib.OK, response.status_int)
     self.assertEqual(response.json['id'], self.santa_host_3.key.id())
 
@@ -555,7 +559,7 @@ class LockdownHandlerTest(HostsTest):
 
   def testLockdown_Admin(self):
     with self.LoggedInUser(admin=True):
-      response = self.testapp.post('/' + self.santa_host_3.key.id())
+      response = self.testapp.post(self.ROUTE % self.santa_host_3.key.id())
     self.assertEqual(httplib.OK, response.status_int)
 
     updated_host = self.santa_host_3.key.get()
@@ -565,20 +569,20 @@ class LockdownHandlerTest(HostsTest):
 
   def testLockdown_UnknownHost(self):
     with self.LoggedInUser(user=self.user):
-      self.testapp.post('/NotAHost', status=httplib.NOT_FOUND)
+      self.testapp.post(self.ROUTE % 'NotAHost', status=httplib.NOT_FOUND)
 
   def testLockdown_UnownedHost(self):
     with self.LoggedInUser(user=self.user):
       self.testapp.post(
-          '/' + self.santa_host_2.key.id(), status=httplib.FORBIDDEN)
+          self.ROUTE % self.santa_host_2.key.id(), status=httplib.FORBIDDEN)
 
 
 class HostEventRateHandlerTest(HostsTest):
 
+  ROUTE = '/hosts/%s/event-rate'
+
   def setUp(self):
-    app = webapp2.WSGIApplication([
-        webapp2.Route(r'/<host_id>', handler=hosts.HostEventRateHandler)])
-    super(HostEventRateHandlerTest, self).setUp(app)
+    super(HostEventRateHandlerTest, self).setUp()
 
     self.user = test_utils.CreateUser()
 
@@ -592,7 +596,7 @@ class HostEventRateHandlerTest(HostsTest):
 
   def testNonMax(self):
     with self.LoggedInUser(user=self.user):
-      response = self.testapp.get('/%s' % self.santa_host_1.key.id())
+      response = self.testapp.get(self.ROUTE % self.santa_host_1.key.id())
     output = response.json
 
     self.assertIn('application/json', response.headers['Content-type'])
@@ -603,22 +607,20 @@ class HostEventRateHandlerTest(HostsTest):
 
   def testUnknownHost(self):
     with self.LoggedInUser(user=self.user):
-      self.testapp.get('/NotARealHost', status=httplib.NOT_FOUND)
+      self.testapp.get(self.ROUTE % '/NotARealHost', status=httplib.NOT_FOUND)
 
   def testUnassociatedUser(self):
     with self.LoggedInUser():
       self.testapp.get(
-          '/%s' % self.santa_host_1.key.id(), status=httplib.FORBIDDEN)
+          self.ROUTE % self.santa_host_1.key.id(), status=httplib.FORBIDDEN)
 
 
 class VisibilityHandlerTest(HostsTest):
 
+  ROUTE = '/hosts/%s/hidden/%s'
+
   def setUp(self):
-    app = webapp2.WSGIApplication(
-        [webapp2.Route(
-            r'/<host_id>/hidden/<hidden>',
-            handler=hosts.VisibilityHandler)])
-    super(VisibilityHandlerTest, self).setUp(app)
+    super(VisibilityHandlerTest, self).setUp()
 
     self.user = test_utils.CreateUser()
 
@@ -632,37 +634,36 @@ class VisibilityHandlerTest(HostsTest):
 
     with self.LoggedInUser(user=self.user):
       self.testapp.put(
-          '/%s/hidden/false' % self.santa_host_1.key.id(), status=httplib.OK)
+          self.ROUTE % (self.santa_host_1.key.id(), 'false'), status=httplib.OK)
     self.assertFalse(self.santa_host_1.key.get().hidden)
 
   def testHide_Success(self):
     with self.LoggedInUser(user=self.user):
       self.testapp.put(
-          '/%s/hidden/true' % self.santa_host_1.key.id(), status=httplib.OK)
+          self.ROUTE % (self.santa_host_1.key.id(), 'true'), status=httplib.OK)
     self.assertTrue(self.santa_host_1.key.get().hidden)
 
   def testHide_Capital(self):
     with self.LoggedInUser(user=self.user):
       self.testapp.put(
-          '/%s/hidden/True' % self.santa_host_1.key.id(), status=httplib.OK)
+          self.ROUTE % (self.santa_host_1.key.id(), 'True'), status=httplib.OK)
     self.assertTrue(self.santa_host_1.key.get().hidden)
 
   def testHide_Forbidden(self):
     with self.LoggedInUser():
       self.testapp.put(
-          '/%s/hidden/true' % self.santa_host_1.key.id(),
+          self.ROUTE % (self.santa_host_1.key.id(), 'true'),
           status=httplib.FORBIDDEN)
     self.assertFalse(self.santa_host_1.key.get().hidden)
 
   def testHide_NotFound(self):
     with self.LoggedInUser(user=self.user):
-      self.testapp.put(
-          '/%s/hidden/true' % 'DNE', status=httplib.NOT_FOUND)
+      self.testapp.put(self.ROUTE % ('DNE', 'true'), status=httplib.NOT_FOUND)
 
   def testHide_BadRequest(self):
     with self.LoggedInUser(user=self.user):
       self.testapp.put(
-          '/%s/hidden/badrequest' % self.santa_host_1.key.id(),
+          self.ROUTE % (self.santa_host_1.key.id(), 'badrequest'),
           status=httplib.BAD_REQUEST)
     self.assertFalse(self.santa_host_1.key.get().hidden)
 

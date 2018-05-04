@@ -24,6 +24,7 @@ from google.appengine.ext import ndb
 from upvote.gae.datastore import test_utils
 from upvote.gae.datastore import utils
 from upvote.gae.datastore.models import base
+from upvote.gae.datastore.models import bigquery
 from upvote.gae.datastore.models import bit9
 from upvote.gae.datastore.models import santa
 from upvote.gae.modules.upvote_app.api.handlers import blockables
@@ -32,9 +33,10 @@ from upvote.shared import constants
 
 
 class BlockablesTest(basetest.UpvoteTestCase):
-  """Base class for Audit Logs handler tests."""
+  """Base class for Blockable handler tests."""
 
-  def setUp(self, app):
+  def setUp(self):
+    app = webapp2.WSGIApplication(routes=[blockables.ROUTES])
     super(BlockablesTest, self).setUp(wsgi_app=app)
 
     self.bit9_blockable = test_utils.CreateBit9Binary(
@@ -47,12 +49,9 @@ class BlockablesTest(basetest.UpvoteTestCase):
         file_name='app.exe')
 
     self.generic_blockable = test_utils.CreateBlockable(
-        file_name='Not4Mac.exe',
-        state=constants.STATE.SUSPECT)
+        file_name='Not4Mac.exe', state=constants.STATE.SUSPECT)
     self.santa_blockable = test_utils.CreateSantaBlockable(
-        publisher='Arple',
-        product_name='New Shiny',
-        flagged=True)
+        publisher='Arple', product_name='New Shiny', flagged=True)
     self.santa_certificate = test_utils.CreateSantaCertificate(
         id_type=constants.ID_TYPE.SHA256,
         common_name='Best Cert Ever',
@@ -63,16 +62,10 @@ class BlockablesTest(basetest.UpvoteTestCase):
 
 class BlockableQueryHandlerTest(BlockablesTest):
 
-  def setUp(self):
-    app = webapp2.WSGIApplication([
-        webapp2.Route('/<platform>/<blockable_type>',
-                      handler=blockables.BlockableQueryHandler)])
-    super(BlockableQueryHandlerTest, self).setUp(app)
-
   def testAdminGetList(self):
     """Admin getting list of all blockables."""
     with self.LoggedInUser(admin=True):
-      response = self.testapp.get('/all/all')
+      response = self.testapp.get('/blockables/all/all')
 
     output = response.json
 
@@ -83,7 +76,7 @@ class BlockableQueryHandlerTest(BlockablesTest):
   def testAdminGetListWithPlatform(self):
     """Admin getting list of all blockables on a specific platform."""
     with self.LoggedInUser(admin=True):
-      response = self.testapp.get('/santa/certificates')
+      response = self.testapp.get('/blockables/santa/certificates')
 
     output = response.json
 
@@ -95,19 +88,19 @@ class BlockableQueryHandlerTest(BlockablesTest):
     """Normal user getting a list of all blockables."""
 
     with self.LoggedInUser():
-      self.testapp.get('/all/all', status=httplib.FORBIDDEN)
+      self.testapp.get('/blockables/all/all', status=httplib.FORBIDDEN)
 
   def testUserGetFlaggedBlockables(self):
     """Normal user getting a list of flagged blockables."""
     params = {'filter': 'flagged'}
     with self.LoggedInUser():
-      self.testapp.get('/all/all', params, status=httplib.FORBIDDEN)
+      self.testapp.get('/blockables/all/all', params, status=httplib.FORBIDDEN)
 
   def testUserGetSuspectBlockables(self):
     """Normal user getting a list of suspect blockables."""
     params = {'filter': 'suspect'}
     with self.LoggedInUser():
-      self.testapp.get('/all/all', params, status=httplib.FORBIDDEN)
+      self.testapp.get('/blockables/all/all', params, status=httplib.FORBIDDEN)
 
   def testUserGetOwnBlockables(self):
 
@@ -119,10 +112,8 @@ class BlockableQueryHandlerTest(BlockablesTest):
         self.bit9_blockable,
         executing_user=user_2.nickname,
         host_id='a_host_id',
-        parent=utils.ConcatenateKeys(
-            user_2.key, ndb.Key('Host', 'a_host_id'),
-            self.santa_blockable.key)
-    )
+        parent=utils.ConcatenateKeys(user_2.key, ndb.Key('Host', 'a_host_id'),
+                                     self.santa_blockable.key))
     host_id = 'AAAAAAAA-1111-BBBB-2222-CCCCCCCCCCCC'
     test_utils.CreateSantaEvent(
         self.santa_blockable,
@@ -133,10 +124,8 @@ class BlockableQueryHandlerTest(BlockablesTest):
         host_id=host_id,
         last_blocked_dt=datetime.datetime(2015, 4, 1, 1, 0, 0),
         first_blocked_dt=datetime.datetime(2015, 4, 1, 1, 0, 0),
-        parent=utils.ConcatenateKeys(
-            user_2.key, ndb.Key('Host', host_id),
-            self.santa_blockable.key)
-    )
+        parent=utils.ConcatenateKeys(user_2.key, ndb.Key('Host', host_id),
+                                     self.santa_blockable.key))
     # Create one event for another user. This should not be included in
     # the results when fetching blockables for user_2.
     test_utils.CreateBit9Event(
@@ -147,14 +136,12 @@ class BlockableQueryHandlerTest(BlockablesTest):
         host_id='a_host_id',
         last_blocked_dt=datetime.datetime(2015, 5, 1, 1, 0, 0),
         first_blocked_dt=datetime.datetime(2015, 5, 1, 1, 0, 0),
-        parent=utils.ConcatenateKeys(
-            user_1.key, ndb.Key('Host', 'a_host_id'),
-            self.santa_blockable.key)
-    )
+        parent=utils.ConcatenateKeys(user_1.key, ndb.Key('Host', 'a_host_id'),
+                                     self.santa_blockable.key))
 
     params = {'filter': 'own'}
     with self.LoggedInUser(user=user_2):
-      response = self.testapp.get('/all/all', params)
+      response = self.testapp.get('/blockables/all/all', params)
 
     output = response.json
 
@@ -167,7 +154,7 @@ class BlockableQueryHandlerTest(BlockablesTest):
   def testUserGetOwnBlockables_UserHasNoBlockables(self):
     params = {'filter': 'own'}
     with self.LoggedInUser():
-      response = self.testapp.get('/all/all', params)
+      response = self.testapp.get('/blockables/all/all', params)
     output = response.json
 
     self.assertIn('application/json', response.headers['Content-type'])
@@ -179,7 +166,7 @@ class BlockableQueryHandlerTest(BlockablesTest):
     params = {'filter': 'flagged'}
 
     with self.LoggedInUser(admin=True):
-      response = self.testapp.get('/all/all', params)
+      response = self.testapp.get('/blockables/all/all', params)
 
     output = response.json
 
@@ -192,7 +179,7 @@ class BlockableQueryHandlerTest(BlockablesTest):
     params = {'filter': 'suspect'}
 
     with self.LoggedInUser(admin=True):
-      response = self.testapp.get('/all/all', params)
+      response = self.testapp.get('/blockables/all/all', params)
 
     output = response.json
 
@@ -205,7 +192,7 @@ class BlockableQueryHandlerTest(BlockablesTest):
     params = {'search': 'Not4Mac.exe', 'searchBase': 'fileName'}
 
     with self.LoggedInUser(admin=True):
-      response = self.testapp.get('/all/all', params)
+      response = self.testapp.get('/blockables/all/all', params)
 
     output = response.json
     self.assertIn('application/json', response.headers['Content-type'])
@@ -218,7 +205,7 @@ class BlockableQueryHandlerTest(BlockablesTest):
     params = {'search': 'Arple', 'searchBase': 'publisher'}
 
     with self.LoggedInUser(admin=True):
-      response = self.testapp.get('/all/all', params)
+      response = self.testapp.get('/blockables/all/all', params)
 
     output = response.json
     self.assertIn('application/json', response.headers['Content-type'])
@@ -231,7 +218,7 @@ class BlockableQueryHandlerTest(BlockablesTest):
     params = {'search': 'New Shiny', 'searchBase': 'productName'}
 
     with self.LoggedInUser(admin=True):
-      response = self.testapp.get('/all/all', params)
+      response = self.testapp.get('/blockables/all/all', params)
 
     output = response.json
     self.assertIn('application/json', response.headers['Content-type'])
@@ -244,7 +231,7 @@ class BlockableQueryHandlerTest(BlockablesTest):
     params = {'search': 'New Shiny', 'searchBase': 'productName'}
 
     with self.LoggedInUser(admin=True):
-      response = self.testapp.get('/santa/binaries', params)
+      response = self.testapp.get('/blockables/santa/binaries', params)
 
     output = response.json
     self.assertIn('application/json', response.headers['Content-type'])
@@ -257,28 +244,26 @@ class BlockableQueryHandlerTest(BlockablesTest):
     params = {'search': 'ProbablyNotReal', 'searchBase': 'notReal'}
 
     with self.LoggedInUser(admin=True):
-      self.testapp.get('/all/all', params, status=httplib.BAD_REQUEST)
+      self.testapp.get(
+          '/blockables/all/all', params, status=httplib.BAD_REQUEST)
 
   def testAdminGetQueryBadPlatform(self):
     """Admin searching by a property not valid for the specified platform."""
     params = {'search': 'DoesntMatter', 'searchBase': 'bundle_id'}
 
     with self.LoggedInUser(admin=True):
-      self.testapp.get('/bit9/binaries', params, status=httplib.BAD_REQUEST)
+      self.testapp.get(
+          '/blockables/bit9/binaries', params, status=httplib.BAD_REQUEST)
 
 
 class BlockableHandlerTest(BlockablesTest):
 
-  def setUp(self):
-    app = webapp2.WSGIApplication(
-        [webapp2.Route('/<blockable_id>',
-                       handler=blockables.BlockableHandler)])
-    super(BlockableHandlerTest, self).setUp(app)
+  ROUTE = '/blockables/%s'
 
   def testUserGetGenericByID(self):
     """Normal user querying for a blockable by hash."""
     with self.LoggedInUser():
-      response = self.testapp.get('/' + self.generic_blockable.key.id())
+      response = self.testapp.get(self.ROUTE % self.generic_blockable.key.id())
 
     output = response.json
 
@@ -291,22 +276,21 @@ class BlockableHandlerTest(BlockablesTest):
   def testUserGetSantaBlockableByID(self):
     """Normal user querying for a blockable by hash."""
     with self.LoggedInUser():
-      response = self.testapp.get('/' + self.santa_blockable.key.id())
+      response = self.testapp.get(self.ROUTE % self.santa_blockable.key.id())
 
     output = response.json
 
     self.assertIn('application/json', response.headers['Content-type'])
     self.assertIsInstance(output, dict)
     self.assertEqual(output['fileName'], self.santa_blockable.file_name)
-    self.assertEqual(
-        output['operatingSystemFamily'], constants.PLATFORM.MACOS)
+    self.assertEqual(output['operatingSystemFamily'], constants.PLATFORM.MACOS)
     self.assertIn('Blockable', output['class_'])
     self.assertIn('SantaBlockable', output['class_'])
 
   def testUserGetBit9BinaryByID(self):
     """Normal user querying for a blockable by hash."""
     with self.LoggedInUser():
-      response = self.testapp.get('/' + self.bit9_blockable.key.id())
+      response = self.testapp.get(self.ROUTE % self.bit9_blockable.key.id())
 
     output = response.json
 
@@ -314,22 +298,21 @@ class BlockableHandlerTest(BlockablesTest):
     self.assertIsInstance(output, dict)
     self.assertEqual(output['id'], self.bit9_blockable.key.id())
     self.assertEqual(output['fileName'], self.bit9_blockable.file_name)
-    self.assertEqual(
-        output['operatingSystemFamily'], constants.PLATFORM.WINDOWS)
+    self.assertEqual(output['operatingSystemFamily'],
+                     constants.PLATFORM.WINDOWS)
     self.assertIn('Blockable', output['class_'])
     self.assertIn('Bit9Binary', output['class_'])
 
   def testUserGetSantaCertificateByID(self):
     """Normal user querying for a cert by hash."""
     with self.LoggedInUser():
-      response = self.testapp.get('/' + self.santa_certificate.key.id())
+      response = self.testapp.get(self.ROUTE % self.santa_certificate.key.id())
 
     output = response.json
 
     self.assertIn('application/json', response.headers['Content-type'])
     self.assertIsInstance(output, dict)
-    self.assertEqual(
-        output['commonName'], self.santa_certificate.common_name)
+    self.assertEqual(output['commonName'], self.santa_certificate.common_name)
     self.assertIn('Blockable', output['class_'])
     self.assertIn('SantaCertificate', output['class_'])
 
@@ -339,7 +322,7 @@ class BlockableHandlerTest(BlockablesTest):
 
   def testUserGetUnknownId_Santa(self):
     with self.LoggedInUser():
-      self.testapp.get('/Nonexistent', status=httplib.NOT_FOUND)
+      self.testapp.get(self.ROUTE % 'Nonexistent', status=httplib.NOT_FOUND)
 
   def testAdminPostCallRecount(self):
     """Admin requesting a recount for a blockable."""
@@ -351,7 +334,7 @@ class BlockableHandlerTest(BlockablesTest):
     id_ = self.santa_blockable.key.id()
     params = {'recount': 'recount'}
     with self.LoggedInUser(admin=True):
-      response = self.testapp.post('/' + id_, params)
+      response = self.testapp.post(self.ROUTE % id_, params)
 
     self.assertFalse(rule.key.get().in_effect)
 
@@ -367,9 +350,9 @@ class BlockableHandlerTest(BlockablesTest):
     params = {'reset': 'reset'}
 
     with self.LoggedInUser(admin=True):
-      with mock.patch.object(
-          blockables.BlockableHandler, '_reset_blockable') as mock_method:
-        _ = self.testapp.post('/' + id_, params)
+      with mock.patch.object(blockables.BlockableHandler,
+                             '_reset_blockable') as mock_method:
+        _ = self.testapp.post(self.ROUTE % id_, params)
         mock_method.assert_called_once_with(id_)
 
   def testAdminPostInsertUnknownType(self):
@@ -380,7 +363,7 @@ class BlockableHandlerTest(BlockablesTest):
     with mock.patch.object(blockables, 'model_mapping') as mock_mapping:
       mock_mapping.BlockableTypeModelMap.mock_blockable = None
       with self.LoggedInUser(admin=True):
-        self.testapp.post('/' + id_, params, status=httplib.BAD_REQUEST)
+        self.testapp.post(self.ROUTE % id_, params, status=httplib.BAD_REQUEST)
 
   def testAdminPostInsertExistingID(self):
     """Admin tries to inject an existing blockable."""
@@ -389,7 +372,7 @@ class BlockableHandlerTest(BlockablesTest):
 
     with mock.patch.object(blockables, 'model_mapping'):
       with self.LoggedInUser(admin=True):
-        self.testapp.post('/' + id_, params, status=httplib.CONFLICT)
+        self.testapp.post(self.ROUTE % id_, params, status=httplib.CONFLICT)
 
   def testAdminPostInsert(self):
     """Admin posting a valid blockable."""
@@ -397,7 +380,8 @@ class BlockableHandlerTest(BlockablesTest):
     params = {
         'type': constants.BLOCKABLE_TYPE.SANTA_BINARY,
         'fileName': 'MacIIci.app',
-        'publisher': 'Arple'}
+        'publisher': 'Arple'
+    }
     mock_model = mock.MagicMock()
     mock_model.get_by_id.return_value = False
     test_blockable = test_utils.CreateBlockable(id=id_)
@@ -406,7 +390,7 @@ class BlockableHandlerTest(BlockablesTest):
     with mock.patch.object(blockables, 'model_mapping') as mock_mapping:
       mock_mapping.BlockableTypeModelMap.SANTA_BINARY = mock_model
       with self.LoggedInUser(admin=True):
-        response = self.testapp.post('/%s' % id_, params)
+        response = self.testapp.post(self.ROUTE % id_, params)
 
     output = response.json
 
@@ -417,8 +401,7 @@ class BlockableHandlerTest(BlockablesTest):
         file_name='MacIIci.app',
         publisher='Arple',
         flagged=False,
-        id_type=constants.ID_TYPE.SHA256
-    )
+        id_type=constants.ID_TYPE.SHA256)
 
   def testAdminPostInsert_Note(self):
     """Admin posting a valid blockable."""
@@ -426,10 +409,11 @@ class BlockableHandlerTest(BlockablesTest):
     params = {
         'notes': 'foo',
         'fileName': 'bar',
-        'type': constants.BLOCKABLE_TYPE.SANTA_BINARY}
+        'type': constants.BLOCKABLE_TYPE.SANTA_BINARY
+    }
 
     with self.LoggedInUser(admin=True):
-      self.testapp.post('/%s' % id_, params)
+      self.testapp.post(self.ROUTE % id_, params)
 
     blockable = base.Blockable.get_by_id(id_)
     self.assertEqual('bar', blockable.file_name)
@@ -449,7 +433,7 @@ class BlockableHandlerTest(BlockablesTest):
 
     # Ensure Vote properly updated the blockable score.
     with self.LoggedInUser(admin=True):
-      response = self.testapp.get('/%s' % self.santa_blockable.key.id())
+      response = self.testapp.get(self.ROUTE % self.santa_blockable.key.id())
       output = response.json
 
       self.assertEqual(output['id'], self.santa_blockable.key.id())
@@ -458,7 +442,7 @@ class BlockableHandlerTest(BlockablesTest):
       # Issue a reset and ensure the resulting score is 0.
       params = {'reset': 'reset'}
       response = self.testapp.post(
-          '/%s' % self.santa_blockable.key.id(), params)
+          '/blockables/%s' % self.santa_blockable.key.id(), params)
       output = response.json
 
       self.assertEqual(output['id'], self.santa_blockable.key.id())
@@ -467,25 +451,21 @@ class BlockableHandlerTest(BlockablesTest):
 
 class AuthorizedHostCountHandlerTest(BlockablesTest):
 
-  def setUp(self):
-    app = webapp2.WSGIApplication(
-        [webapp2.Route(r'/<blockable_id>',
-                       handler=blockables.AuthorizedHostCountHandler)])
-    super(AuthorizedHostCountHandlerTest, self).setUp(app)
+  ROUTE = '/blockables/%s/authorized-host-count'
 
   def testGloballyWhitelisted(self):
     self.santa_blockable.state = constants.STATE.GLOBALLY_WHITELISTED
     self.santa_blockable.put()
 
     with self.LoggedInUser(admin=True):
-      response = self.testapp.get('/%s' % self.santa_blockable.key.id())
+      response = self.testapp.get(self.ROUTE % self.santa_blockable.key.id())
       output = response.json
 
       self.assertEqual(-1, output)
 
   def testNone(self):
     with self.LoggedInUser(admin=True):
-      response = self.testapp.get('/%s' % self.santa_blockable.key.id())
+      response = self.testapp.get(self.ROUTE % self.santa_blockable.key.id())
       output = response.json
 
       self.assertEqual(0, output)
@@ -498,58 +478,53 @@ class AuthorizedHostCountHandlerTest(BlockablesTest):
           policy=constants.RULE_POLICY.WHITELIST,
           host_id='host%s' % i)
     test_utils.CreateSantaRule(
-        self.santa_blockable.key,
-        policy=constants.RULE_POLICY.BLACKLIST)
+        self.santa_blockable.key, policy=constants.RULE_POLICY.BLACKLIST)
     test_utils.CreateSantaRule(
         self.santa_blockable.key,
         policy=constants.RULE_POLICY.WHITELIST,
         in_effect=False)
 
     with self.LoggedInUser(admin=True):
-      response = self.testapp.get('/%s' % self.santa_blockable.key.id())
+      response = self.testapp.get(self.ROUTE % self.santa_blockable.key.id())
       output = response.json
 
       self.assertEqual(expected, output)
 
   def testBlockableNotFound(self):
     with self.LoggedInUser(admin=True):
-      self.testapp.get('/NotARealBlockable', status=httplib.NOT_FOUND)
+      self.testapp.get(
+          self.ROUTE % 'NoteARealBlockable', status=httplib.NOT_FOUND)
 
   def testBadBlockableType(self):
     with self.LoggedInUser(admin=True):
       self.testapp.get(
-          '/%s' % self.bit9_blockable.key.id(), status=httplib.BAD_REQUEST)
+          self.ROUTE % self.bit9_blockable.key.id(), status=httplib.BAD_REQUEST)
 
   def testNoPermission(self):
     with self.LoggedInUser():
       self.testapp.get(
-          '/%s' % self.santa_blockable.key.id(), status=httplib.FORBIDDEN)
+          self.ROUTE % self.santa_blockable.key.id(), status=httplib.FORBIDDEN)
 
 
 class UniqueEventCountHandlerTest(BlockablesTest):
 
-  def setUp(self):
-    app = webapp2.WSGIApplication(
-        [webapp2.Route(r'/<blockable_id>',
-                       handler=blockables.UniqueEventCountHandler)])
-    super(UniqueEventCountHandlerTest, self).setUp(app)
+  ROUTE = '/blockables/%s/unique-event-count'
 
   def testBinary_Normal(self):
     test_utils.CreateSantaEvent(self.santa_blockable)
 
     with self.LoggedInUser():
-      response = self.testapp.get('/%s' % self.santa_blockable.key.id())
+      response = self.testapp.get(self.ROUTE % self.santa_blockable.key.id())
     output = response.json
 
     self.assertEqual(1, output)
 
   def testCert_Normal(self):
     test_utils.CreateSantaEvent(
-        self.santa_blockable,
-        cert_sha256=self.santa_certificate.key.id())
+        self.santa_blockable, cert_sha256=self.santa_certificate.key.id())
 
     with self.LoggedInUser():
-      response = self.testapp.get('/%s' % self.santa_certificate.key.id())
+      response = self.testapp.get(self.ROUTE % self.santa_certificate.key.id())
     output = response.json
 
     self.assertEqual(1, output)
@@ -558,29 +533,25 @@ class UniqueEventCountHandlerTest(BlockablesTest):
     self.santa_blockable.key.delete()
     with self.LoggedInUser():
       self.testapp.get(
-          '/%s' % self.santa_blockable.key.id(), status=httplib.NOT_FOUND)
+          self.ROUTE % self.santa_blockable.key.id(), status=httplib.NOT_FOUND)
 
   def testBadBlockableType(self):
     with self.LoggedInUser():
       self.testapp.get(
-          '/%s' % self.generic_blockable.key.id(),
+          self.ROUTE % self.generic_blockable.key.id(),
           status=httplib.BAD_REQUEST)
 
 
 class PackageContentsHandlerTest(BlockablesTest):
 
-  def setUp(self):
-    app = webapp2.WSGIApplication(
-        [webapp2.Route(r'/<package_id>',
-                       handler=blockables.PackageContentsHandler)])
-    super(PackageContentsHandlerTest, self).setUp(app)
+  ROUTE = '/blockables/%s/contents'
 
   def testSuccess_Bundle(self):
     test_blockables = test_utils.CreateSantaBlockables(4)
     bundle = test_utils.CreateSantaBundle(bundle_binaries=test_blockables)
 
     with self.LoggedInUser():
-      response = self.testapp.get('/%s' % bundle.key.id())
+      response = self.testapp.get(self.ROUTE % bundle.key.id())
     output = response.json
 
     self.assertSameElements(
@@ -591,7 +562,7 @@ class PackageContentsHandlerTest(BlockablesTest):
     bundle = test_utils.CreateSantaBundle()
 
     with self.LoggedInUser():
-      response = self.testapp.get('/%s' % bundle.key.id())
+      response = self.testapp.get(self.ROUTE % bundle.key.id())
     output = response.json
 
     self.assertFalse(output)
@@ -603,11 +574,14 @@ class PackageContentsHandlerTest(BlockablesTest):
     for rel_path, file_name in path_pairs:
       binary = test_utils.CreateSantaBlockable()
       santa.SantaBundleBinary.Generate(
-          bundle.key, binary.key, cert_key=binary.cert_key,
-          rel_path=rel_path, file_name=file_name).put()
+          bundle.key,
+          binary.key,
+          cert_key=binary.cert_key,
+          rel_path=rel_path,
+          file_name=file_name).put()
 
     with self.LoggedInUser():
-      response = self.testapp.get('/%s' % bundle.key.id())
+      response = self.testapp.get(self.ROUTE % bundle.key.id())
     output = response.json
 
     self.assertListEqual(
@@ -616,55 +590,57 @@ class PackageContentsHandlerTest(BlockablesTest):
 
   def testNotFound(self):
     with self.LoggedInUser():
-      self.testapp.get('/DoesntExist', status=httplib.NOT_FOUND)
+      self.testapp.get(self.ROUTE % 'DoesntExist', status=httplib.NOT_FOUND)
 
   def testNotAPackage(self):
     blockable = test_utils.CreateSantaBlockable()
     with self.LoggedInUser():
-      self.testapp.get('/%s' % blockable.key.id(), status=httplib.BAD_REQUEST)
+      self.testapp.get(
+          self.ROUTE % blockable.key.id(), status=httplib.BAD_REQUEST)
 
   def testNotASantaBundle(self):
     package_key = base.Package(id='foo', id_type='SHA256').put()
     with self.LoggedInUser():
-      self.testapp.get('/%s' % package_key.id(), status=httplib.BAD_REQUEST)
+      self.testapp.get(
+          self.ROUTE % package_key.id(), status=httplib.BAD_REQUEST)
 
 
 class PendingStateChangeHandlerTest(BlockablesTest):
 
-  def setUp(self):
-    app = webapp2.WSGIApplication(
-        [webapp2.Route(
-            r'/<blockable_id>', handler=blockables.PendingStateChangeHandler)])
-    super(PendingStateChangeHandlerTest, self).setUp(app)
+  ROUTE = '/blockables/%s/pending-state-change'
 
   def testPendingGlobalRule(self):
     test_utils.CreateBit9Rule(
         self.bit9_blockable.key, host_id='', is_committed=False)
 
     with self.LoggedInUser():
-      response = self.testapp.get('/%s' % self.bit9_blockable.key.id())
+      response = self.testapp.get(self.ROUTE % self.bit9_blockable.key.id())
     output = response.json
 
     self.assertTrue(output)
 
   def testPendingDisabledRule(self):
     test_utils.CreateBit9Rule(
-        self.bit9_blockable.key, host_id='', is_committed=False,
+        self.bit9_blockable.key,
+        host_id='',
+        is_committed=False,
         in_effect=False)
 
     with self.LoggedInUser():
-      response = self.testapp.get('/%s' % self.bit9_blockable.key.id())
+      response = self.testapp.get(self.ROUTE % self.bit9_blockable.key.id())
     output = response.json
 
     self.assertFalse(output)
 
   def testPendingGlobalRule_InstallerRule(self):
     test_utils.CreateBit9Rule(
-        self.bit9_blockable.key, host_id='',
-        policy=constants.RULE_POLICY.FORCE_INSTALLER, is_committed=False)
+        self.bit9_blockable.key,
+        host_id='',
+        policy=constants.RULE_POLICY.FORCE_INSTALLER,
+        is_committed=False)
 
     with self.LoggedInUser():
-      response = self.testapp.get('/%s' % self.bit9_blockable.key.id())
+      response = self.testapp.get(self.ROUTE % self.bit9_blockable.key.id())
     output = response.json
 
     self.assertFalse(output)
@@ -673,9 +649,11 @@ class PendingStateChangeHandlerTest(BlockablesTest):
     with self.LoggedInUser() as user:
       bit9_host = test_utils.CreateBit9Host(users=[user.nickname])
       test_utils.CreateBit9Rule(
-          self.bit9_blockable.key, host_id=bit9_host.key.id(),
-          user_key=user.key, is_committed=False)
-      response = self.testapp.get('/%s' % self.bit9_blockable.key.id())
+          self.bit9_blockable.key,
+          host_id=bit9_host.key.id(),
+          user_key=user.key,
+          is_committed=False)
+      response = self.testapp.get(self.ROUTE % self.bit9_blockable.key.id())
     output = response.json
 
     self.assertTrue(output)
@@ -686,167 +664,170 @@ class PendingStateChangeHandlerTest(BlockablesTest):
     with self.LoggedInUser():
       bit9_host = test_utils.CreateBit9Host(users=[other_user.nickname])
       test_utils.CreateBit9Rule(
-          self.bit9_blockable.key, host_id=bit9_host.key.id(),
-          user_key=other_user.key, is_committed=False)
-      response = self.testapp.get('/%s' % self.bit9_blockable.key.id())
+          self.bit9_blockable.key,
+          host_id=bit9_host.key.id(),
+          user_key=other_user.key,
+          is_committed=False)
+      response = self.testapp.get(self.ROUTE % self.bit9_blockable.key.id())
     output = response.json
 
     self.assertFalse(output)
 
   def testNoRules(self):
     with self.LoggedInUser():
-      response = self.testapp.get('/%s' % self.bit9_blockable.key.id())
+      response = self.testapp.get(self.ROUTE % self.bit9_blockable.key.id())
     output = response.json
 
     self.assertFalse(output)
 
   def testOtherPlatform(self):
     with self.LoggedInUser():
-      response = self.testapp.get('/%s' % self.santa_blockable.key.id())
+      response = self.testapp.get(self.ROUTE % self.santa_blockable.key.id())
     output = response.json
 
     self.assertFalse(output)
 
   def testUnknownBlockable(self):
     with self.LoggedInUser():
-      self.testapp.get('/not-a-real-blockable', status=httplib.NOT_FOUND)
+      self.testapp.get(
+          self.ROUTE % 'not-a-real-blockable', status=httplib.NOT_FOUND)
 
 
 class PendingInstallerStateChangeHandlerTest(BlockablesTest):
 
-  def setUp(self):
-    app = webapp2.WSGIApplication(
-        [webapp2.Route(
-            r'/<blockable_id>',
-            handler=blockables.PendingInstallerStateChangeHandler)])
-    super(PendingInstallerStateChangeHandlerTest, self).setUp(app)
+  ROUTE = '/blockables/%s/pending-installer-state-change'
 
   def testPendingInstallerRule(self):
     test_utils.CreateBit9Rule(
-        self.bit9_blockable.key, is_committed=False,
+        self.bit9_blockable.key,
+        is_committed=False,
         policy=constants.RULE_POLICY.FORCE_INSTALLER)
 
     with self.LoggedInUser():
-      response = self.testapp.get('/%s' % self.bit9_blockable.key.id())
+      response = self.testapp.get(self.ROUTE % self.bit9_blockable.key.id())
     output = response.json
 
     self.assertTrue(output)
 
   def testPendingNonInstallerRule(self):
     test_utils.CreateBit9Rule(
-        self.bit9_blockable.key, is_committed=False,
+        self.bit9_blockable.key,
+        is_committed=False,
         policy=constants.RULE_POLICY.WHITELIST)
 
     with self.LoggedInUser():
-      response = self.testapp.get('/%s' % self.bit9_blockable.key.id())
+      response = self.testapp.get(self.ROUTE % self.bit9_blockable.key.id())
     output = response.json
 
     self.assertFalse(output)
 
   def testPendingDisabledRule(self):
     test_utils.CreateBit9Rule(
-        self.bit9_blockable.key, host_id='', is_committed=False,
-        in_effect=False, policy=constants.RULE_POLICY.FORCE_INSTALLER)
+        self.bit9_blockable.key,
+        host_id='',
+        is_committed=False,
+        in_effect=False,
+        policy=constants.RULE_POLICY.FORCE_INSTALLER)
 
     with self.LoggedInUser():
-      response = self.testapp.get('/%s' % self.bit9_blockable.key.id())
+      response = self.testapp.get(self.ROUTE % self.bit9_blockable.key.id())
     output = response.json
 
     self.assertFalse(output)
 
   def testNoRules(self):
     with self.LoggedInUser():
-      response = self.testapp.get('/%s' % self.bit9_blockable.key.id())
+      response = self.testapp.get(self.ROUTE % self.bit9_blockable.key.id())
     output = response.json
 
     self.assertFalse(output)
 
   def testOtherPlatform(self):
     with self.LoggedInUser():
-      response = self.testapp.get('/%s' % self.santa_blockable.key.id())
+      response = self.testapp.get(self.ROUTE % self.santa_blockable.key.id())
     output = response.json
 
     self.assertFalse(output)
 
   def testUnknownBlockable(self):
     with self.LoggedInUser():
-      self.testapp.get('/not-a-real-blockable', status=httplib.NOT_FOUND)
+      self.testapp.get(
+          '/blockables/not-a-real-blockable/pending-installer-state-change',
+          status=httplib.NOT_FOUND)
 
 
 class SetInstallerStateHandlerTest(BlockablesTest):
 
-  def setUp(self):
-    app = webapp2.WSGIApplication(
-        [webapp2.Route(
-            r'/<blockable_id>', handler=blockables.SetInstallerStateHandler)])
-    super(SetInstallerStateHandlerTest, self).setUp(app)
+  ROUTE = '/blockables/%s/installer-state'
 
   def testNoPreexistingRule(self):
     self.assertFalse(self.bit9_blockable.is_installer)
 
     with self.LoggedInUser():
       response = self.testapp.post(
-          '/%s' % self.bit9_blockable.key.id(), {'value': True})
+          self.ROUTE % self.bit9_blockable.key.id(), {'value': True})
     output = response.json
 
     self.assertTrue(output)
 
     self.assertEntityCount(bit9.Bit9Rule, 1)
     self.assertEntityCount(bit9.RuleChangeSet, 1)
-    self.assertEntityCount(base.AuditLog, 1, ancestor=self.bit9_blockable.key)
+    self.assertTaskCount(constants.TASK_QUEUE.BQ_PERSISTENCE, 1)
+    self.DrainTaskQueue(constants.TASK_QUEUE.BQ_PERSISTENCE)
+    self.assertEntityCount(bigquery.BinaryRow, 1)
     self.assertTrue(self.bit9_blockable.key.get().is_installer)
     self.assertTaskCount(constants.TASK_QUEUE.BIT9_COMMIT_CHANGE, 1)
 
   def testPreexistingRule(self):
     test_utils.CreateBit9Rule(
-        self.bit9_blockable.key,
-        policy=constants.RULE_POLICY.FORCE_INSTALLER)
+        self.bit9_blockable.key, policy=constants.RULE_POLICY.FORCE_INSTALLER)
     self.bit9_blockable.is_installer = True
     self.bit9_blockable.put()
 
     with self.LoggedInUser():
       response = self.testapp.post(
-          '/%s' % self.bit9_blockable.key.id(), {'value': False})
+          self.ROUTE % self.bit9_blockable.key.id(), {'value': False})
     output = response.json
 
     self.assertFalse(output)
 
     self.assertEntityCount(bit9.Bit9Rule, 2)
     self.assertEntityCount(bit9.RuleChangeSet, 1)
-    self.assertEntityCount(base.AuditLog, 1, ancestor=self.bit9_blockable.key)
+    self.assertTaskCount(constants.TASK_QUEUE.BQ_PERSISTENCE, 1)
+    self.DrainTaskQueue(constants.TASK_QUEUE.BQ_PERSISTENCE)
+    self.assertEntityCount(bigquery.BinaryRow, 1)
     self.assertFalse(self.bit9_blockable.key.get().is_installer)
     self.assertTaskCount(constants.TASK_QUEUE.BIT9_COMMIT_CHANGE, 1)
 
   def testSameStateAsPreexistingRule(self):
     test_utils.CreateBit9Rule(
-        self.bit9_blockable.key,
-        policy=constants.RULE_POLICY.FORCE_INSTALLER)
+        self.bit9_blockable.key, policy=constants.RULE_POLICY.FORCE_INSTALLER)
     self.bit9_blockable.is_installer = True
     self.bit9_blockable.put()
 
     with self.LoggedInUser():
       response = self.testapp.post(
-          '/%s' % self.bit9_blockable.key.id(), {'value': True})
+          self.ROUTE % self.bit9_blockable.key.id(), {'value': True})
     output = response.json
 
     self.assertTrue(output)
 
     self.assertEntityCount(bit9.Bit9Rule, 1)
     self.assertEntityCount(bit9.RuleChangeSet, 0)
-    self.assertEntityCount(base.AuditLog, 0)
     self.assertTrue(self.bit9_blockable.key.get().is_installer)
     self.assertTaskCount(constants.TASK_QUEUE.BIT9_COMMIT_CHANGE, 0)
 
   def testOtherPlatform(self):
     with self.LoggedInUser():
       self.testapp.post(
-          '/%s' % self.santa_blockable.key.id(), {'value': 'false'},
+          self.ROUTE % self.santa_blockable.key.id(), {'value': 'false'},
           status=httplib.BAD_REQUEST)
 
   def testUnknownBlockable(self):
     with self.LoggedInUser():
       self.testapp.post(
-          '/not-a-real-blockable', {'value': 'false'}, status=httplib.NOT_FOUND)
+          self.ROUTE % 'not-a-real-blockable', {'value': 'false'},
+          status=httplib.NOT_FOUND)
 
 
 if __name__ == '__main__':

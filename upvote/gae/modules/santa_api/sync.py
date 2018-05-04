@@ -30,18 +30,18 @@ from upvote.gae.datastore import utils
 from upvote.gae.datastore.models import base as base_db
 from upvote.gae.datastore.models import bigquery
 from upvote.gae.datastore.models import santa as santa_db
+from upvote.gae.lib.analysis import metrics
 from upvote.gae.modules.santa_api import auth
 from upvote.gae.modules.santa_api import constants as santa_const
 from upvote.gae.modules.santa_api import monitoring
-from upvote.gae.shared.binary_health import metrics
 from upvote.gae.shared.common import big_red
 from upvote.gae.shared.common import handlers
 from upvote.gae.shared.common import query_utils
 from upvote.gae.shared.common import settings
-from upvote.gae.shared.common import taskqueue_utils
 from upvote.gae.shared.common import user_map
 from upvote.gae.shared.common import utils as common_utils
 from upvote.gae.shared.common import xsrf_utils
+from upvote.gae.taskqueue import utils as taskqueue_utils
 from upvote.shared import constants as common_const
 
 _SANTA_ACTION = 'santa_action'
@@ -205,10 +205,25 @@ class PreflightHandler(BaseSantaApiHandler):
 
     reported_mode = self.parsed_json.get(santa_const.PREFLIGHT.CLIENT_MODE)
     if reported_mode != self.host.client_mode:
-      msg = 'Client mode mismatch. Expected: %s. Actual: %s' % (
+
+      message = 'Client mode mismatch (Expected: %s, Actual: %s)' % (
           self.host.client_mode, reported_mode)
-      logging.info(msg)
-      futures.append(base_db.AuditLog.CreateAsync(self.host, msg))
+      logging.info(message)
+
+      # If the client_mode doesn't correspond to a known value, report it as
+      # UNKNOWN.
+      if reported_mode not in common_const.HOST_MODE.SET_ALL:
+        reported_mode = common_const.HOST_MODE.UNKNOWN
+
+      bigquery.HostRow.DeferCreate(
+          device_id=uuid,
+          timestamp=datetime.datetime.utcnow(),
+          action=common_const.HOST_ACTION.COMMENT,
+          hostname=self.host.hostname,
+          platform=common_const.PLATFORM.MACOS,
+          users=santa_db.SantaHost.GetAssociatedUsers(uuid),
+          mode=reported_mode,
+          comment=message)
 
     if self.parsed_json.get(santa_const.PREFLIGHT.REQUEST_CLEAN_SYNC):
       logging.info('Client requested clean sync')

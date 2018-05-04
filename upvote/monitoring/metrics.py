@@ -71,7 +71,11 @@ BIT9_API = UpvoteNamespace('bit9_api/', [
     ('events_pulled', 'Events Pulled'),
     ('events_to_process', 'Events To Process'),
     ('events_processed', 'Events Processed'),
-    ('pending_changes', 'Pending Changes')])
+    ('pending_changes', 'Pending Changes'),
+    ('bit9_logins', 'Bit9 Logins'),
+    ('bit9_qps', 'Bit9 QPS'),
+    ('bit9_requests', 'Bit9 Requests'),
+    ('bit9_latency', 'Bit9 Latency')])
 
 
 BIT9_REST_API = UpvoteNamespace('bit9_rest_api/', [
@@ -81,7 +85,6 @@ BIT9_REST_API = UpvoteNamespace('bit9_rest_api/', [
 
 
 UPVOTE_APP = UpvoteNamespace('upvote_app/', [
-    ('audit_log_requests', 'Audit Log Requested'),
     ('blockable_requests', 'Blockable Requested'),
     ('constant_requests', 'Constant Requested'),
     ('event_requests', 'Event Requested'),
@@ -94,7 +97,7 @@ UPVOTE_APP = UpvoteNamespace('upvote_app/', [
     ('vote_requests', 'Vote Requested')])
 
 
-BINARY_HEALTH = UpvoteNamespace('binary_health/', [
+ANALYSIS = UpvoteNamespace('analysis/', [
     ('virustotal_requests', 'VirusTotal Requests'),
     ('virustotal_new_lookups', 'VirusTotal Results for New Blockables')])
 

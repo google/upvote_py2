@@ -125,6 +125,25 @@
           <span class="ng-scope">Show Events</span>
         </button>
         <button class="md-button md-default-theme md-ink-ripple"
+                type="button"
+                ng-if="hostCtrl.canEnableMonitorMode(host)"
+                ng-click="hostCtrl.enableMonitorMode(host)">
+          <span class="ng-scope">Enable Monitor Mode</span>
+        </button>
+        <button class="md-button md-default-theme md-ink-ripple"
+                type="button"
+                ng-if="hostCtrl.canEnableLockdownMode(host)"
+                ng-click="hostCtrl.enableLockdownMode(host)">
+          <span class="ng-scope">Enable Lockdown Mode</span>
+        </button>
+        <button class="md-button md-default-theme md-ink-ripple"
+                type="button"
+                ng-if="hostCtrl.canToggleClientModeLock(host)"
+                ng-click="hostCtrl.toggleClientModeLock(host)">
+          <span class="ng-scope" ng-if="!host.clientModeLock">Prevent Group Mode Change</span>
+          <span class="ng-scope" ng-if="host.clientModeLock">Allow Group Mode Change</span>
+        </button>
+        <button class="md-button md-default-theme md-ink-ripple"
                 ng-click="hostCtrl.showDetails(host.id)"
                 type="button"
                 ng-if="!hostCtrl.detailsVisible(host.id)">

@@ -1,4 +1,4 @@
-<div flex layout="column" layout-padding layout-align="start center">
+<div flex layout="column" layout-padding layout-align="start center" style="padding: 0px;">
 
   <div flex ng-hide="hostListCtrl.hosts != null">
     <md-progress-circular id="page-load-spinner" md-mode="indeterminate" md-diameter="96"></md-progress-circular>
@@ -7,7 +7,7 @@
   <div flex layout="column" ng-show="hostListCtrl.hosts" id="host-card-list">
     <md-card ng-repeat="host in hostListCtrl.hosts"
              md-theme="default" md-theme-watch
-             class="md-card-medium _md md-default-theme"
+             class="md-card-medium _md md-default-theme host-card"
              ng-if="!host.hidden || hostListCtrl.showHidden">
       <md-card-title>
         <md-card-title-media class="uv-platform-logo">

@@ -17,7 +17,7 @@
 from google.appengine.ext import ndb
 from google.appengine.ext.ndb import polymodel
 
-from upvote.gae.shared.binary_health.virustotal import constants as vt_constants
+from upvote.gae.lib.analysis.virustotal import constants as vt_constants
 from upvote.shared import constants
 
 

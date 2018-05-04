@@ -20,9 +20,9 @@ import webapp2
 
 from google.appengine.ext import ndb
 
+from upvote.gae.cron import roles
 from upvote.gae.datastore import test_utils
 from upvote.gae.datastore.models import base
-from upvote.gae.modules.upvote_app.cron import roles
 from upvote.gae.shared.common import basetest
 from upvote.gae.shared.common import settings
 from upvote.gae.shared.common import user_map

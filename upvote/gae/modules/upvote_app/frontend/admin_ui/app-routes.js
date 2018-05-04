@@ -67,12 +67,6 @@ upvote.admin.app.routeProvider = ($routeProvider, $locationProvider) => {
         controller: 'HostController',
         controllerAs: 'hostCtrl'
       })
-      .when(upvote.admin.app.constants.URL_PREFIX + 'logs/:id?', {
-        templateUrl: upvote.admin.app.constants.STATIC_URL_PREFIX +
-            'auditlogpage/auditlogs.html',
-        controller: 'AuditlogController',
-        controllerAs: 'auditlogCtrl'
-      })
       .when(upvote.admin.app.constants.URL_PREFIX + 'rules/:id?', {
         templateUrl: upvote.admin.app.constants.STATIC_URL_PREFIX +
             'rulepage/rules.html',

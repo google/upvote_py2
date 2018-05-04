@@ -26,11 +26,11 @@ from upvote.gae.datastore.models import base
 from upvote.gae.datastore.models import bigquery
 from upvote.gae.datastore.models import bit9
 from upvote.gae.datastore.models import santa
-from upvote.gae.shared.binary_health import metrics
+from upvote.gae.lib.analysis import metrics
 from upvote.gae.shared.common import intermodule
 from upvote.gae.shared.common import settings
-from upvote.gae.shared.common import taskqueue_utils
 from upvote.gae.shared.common import user_map
+from upvote.gae.taskqueue import utils as taskqueue_utils
 from upvote.shared import constants
 
 
@@ -373,11 +373,8 @@ class BallotBox(object):
 
   @ndb.transactional
   @taskqueue_utils.GroupTransactionalDefers
-  def Reset(self, user):
+  def Reset(self):
     """Resets all policy (i.e. votes, rules, score) for the target blockable.
-
-    Args:
-      user: The user performing the vote reset.
 
     Raises:
       BlockableNotFound: The target blockable ID is not a known Blockable.
@@ -388,12 +385,7 @@ class BallotBox(object):
     if self.blockable is None:
       self._ValidateBlockable()
 
-    # Record an audit log entry for each vote to be deactivated.
     votes = self.blockable.GetVotes()
-    for vote in votes:
-      message = 'Deleting vote because blockable was reset. %s for %s' % (
-          vote.user_email, vote.key.parent().id())
-      base.AuditLog.Create(vote, message, user=user.email)
 
     # Delete existing votes.
     delete_futures = ndb.delete_multi_async(vote.key for vote in votes)
@@ -501,7 +493,7 @@ class BallotBox(object):
         self.blockable.key.id(), user_key.id(), host_ids)
     new_rules = []
     for host_id in host_ids:
-      # Check for exisiting rule.
+      # Check for existing rule.
       # pylint: disable=g-explicit-bool-comparison
       existing_rule_query = base.Rule.query(
           base.Rule.policy == constants.RULE_POLICY.WHITELIST,
@@ -579,21 +571,17 @@ class BallotBox(object):
     existing_rules = rule_query.fetch()
 
     changed_rules = []
-    audit_logs = []
     for rule in existing_rules:
       rule.MarkDisabled()
       changed_rules.append(rule)
-
-      message = 'Disabling whitelist rule because blockable is now banned.'
-      audit_logs.append(base.AuditLog.New(rule, message))
 
     # Create global blacklist rule.
     blacklist_rule = self._GenerateRule(
         policy=constants.RULE_POLICY.BLACKLIST,
         in_effect=True)
 
-    # Put all new/modified Rules and AuditLogs.
-    yield ndb.put_multi_async(changed_rules + [blacklist_rule] + audit_logs)
+    # Put all new/modified Rules.
+    yield ndb.put_multi_async(changed_rules + [blacklist_rule])
     raise ndb.Return([blacklist_rule])
 
   def _CheckBlockableFlagStatus(self):
@@ -741,7 +729,7 @@ class SantaBallotBox(BallotBox):
 
     **NOTE** This method is a noop outside of a transaction (i.e. outside of
     _TransactionalVoting) EXCEPT for SantaBundles. This behavior is intended to
-    accomodate the SantaBundle._HasFlagged* checks which can touch more than 25
+    accommodate the SantaBundle._HasFlagged* checks which can touch more than 25
     entities.
 
     For SantaBundles, IsVotingAllowed is run once in its entirety prior to
@@ -813,12 +801,12 @@ class SantaBallotBox(BallotBox):
     removal_rule.put_async()
 
   @ndb.transactional
-  def Reset(self, user):
+  def Reset(self):
     self.blockable = base.Blockable.get_by_id(self.blockable_id)
     if isinstance(self.blockable, santa.SantaBundle):
       raise OperationNotAllowed('Resetting not supported for Bundles')
 
-    super(SantaBallotBox, self).Reset(user)
+    super(SantaBallotBox, self).Reset()
 
 
 class Bit9BallotBox(BallotBox):

@@ -36,8 +36,6 @@ class MainTest(basetest.UpvoteTestCase):
         '/api/bit9/cron/count-events-to-process',
         '/api/bit9/cron/process-events',
 
-        '/api/bit9/host-health-information',
-        '/api/bit9/associated-hosts/asdf',
         '/api/bit9/commit-change-set/asdf')
 
 

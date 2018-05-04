@@ -16,6 +16,9 @@
 import httplib
 import logging
 
+import webapp2
+from webapp2_extras import routes
+
 from upvote.gae.datastore.models import base as base_db
 from upvote.gae.modules.upvote_app.api import monitoring
 from upvote.gae.modules.upvote_app.api.handlers import base
@@ -78,3 +81,20 @@ class UserHandler(base.BaseHandler):
 
     user = base_db.User.GetOrInsert(email_addr=email_addr)
     self.respond_json(user)
+
+
+# The Webapp2 routes defined for these handlers.
+ROUTES = routes.PathPrefixRoute('/users', [
+    webapp2.Route(
+        '/query',
+        handler=UserQueryHandler),
+    webapp2.Route(
+        '/<user_id>',
+        handler=UserHandler),
+    webapp2.Route(
+        '/',
+        handler=UserHandler),
+    webapp2.Route(
+        '',
+        handler=UserHandler),
+])

@@ -13,12 +13,17 @@
 # limitations under the License.
 
 """Views related to Blockables."""
+import datetime
 import httplib
 import logging
+
+import webapp2
+from webapp2_extras import routes
 
 from google.appengine.ext import ndb
 
 from upvote.gae.datastore.models import base as base_db
+from upvote.gae.datastore.models import bigquery
 from upvote.gae.datastore.models import bit9 as bit9_db
 from upvote.gae.datastore.models import santa as santa_db
 from upvote.gae.modules.bit9_api import change_set
@@ -228,7 +233,7 @@ class BlockableHandler(base.BaseHandler):
     logging.info('Blockable reset: %s', blockable_id)
     try:
       ballot_box = voting.GetBallotBox(blockable_id)
-      ballot_box.Reset(self.user)
+      ballot_box.Reset()
     except voting.BlockableNotFound:
       self.abort(httplib.NOT_FOUND)
     except voting.UnsupportedBlockableType as e:
@@ -415,10 +420,20 @@ class SetInstallerStateHandler(base.BaseHandler):
         change_type=new_rule.policy,
         parent=blockable.key)
     change.put()
-    base_db.AuditLog.Create(
-        blockable,
-        'User %s changing installer state to %s' % (
-            self.user.key.id(), new_policy))
+
+    message = 'User %s changed installer state to %s' % (
+        self.user.key.id(), new_policy)
+    bigquery.BinaryRow.DeferCreate(
+        sha256=blockable.key.id(),
+        timestamp=datetime.datetime.utcnow(),
+        action=constants.BLOCK_ACTION.COMMENT,
+        state=blockable.state,
+        score=blockable.score,
+        platform=constants.PLATFORM.WINDOWS,
+        client=constants.CLIENT.BIT9,
+        first_seen_file_name=blockable.first_seen_name,
+        cert_fingerprint=blockable.cert_id,
+        comment=message)
 
     change_set.DeferCommitBlockableChangeSet(blockable.key)
 
@@ -448,3 +463,32 @@ class SetInstallerStateHandler(base.BaseHandler):
 
     new_installer_state = self._SetInstallerPolicy(blockable_id, new_policy)
     self.respond_json(new_installer_state)
+
+
+# The Webapp2 routes defined for these handlers.
+ROUTES = routes.PathPrefixRoute('/blockables', [
+    webapp2.Route(
+        '/<blockable_id>/authorized-host-count',
+        handler=AuthorizedHostCountHandler),
+    webapp2.Route(
+        '/<blockable_id>/unique-event-count',
+        handler=UniqueEventCountHandler),
+    webapp2.Route(
+        '/<package_id>/contents',
+        handler=PackageContentsHandler),
+    webapp2.Route(
+        '/<blockable_id>/pending-state-change',
+        handler=PendingStateChangeHandler),
+    webapp2.Route(
+        '/<blockable_id>/pending-installer-state-change',
+        handler=(PendingInstallerStateChangeHandler)),
+    webapp2.Route(
+        '/<blockable_id>/installer-state',
+        handler=SetInstallerStateHandler),
+    webapp2.Route(
+        '/<blockable_id>',
+        handler=BlockableHandler),
+    webapp2.Route(
+        '/<platform>/<blockable_type>',
+        handler=BlockableQueryHandler),
+])

@@ -17,6 +17,9 @@ import datetime
 import httplib
 import logging
 
+import webapp2
+from webapp2_extras import routes
+
 from google.appengine.ext import ndb
 
 from upvote.gae.datastore.models import base as base_db
@@ -65,7 +68,7 @@ class HostHandler(base.BaseHandler):
       self.RequireCapability(constants.PERMISSIONS.VIEW_OTHER_HOSTS)
     self.respond_json(host)
 
-  @base.RequireCapability(constants.PERMISSIONS.VIEW_OTHER_HOSTS)
+  @base.RequireCapability(constants.PERMISSIONS.EDIT_HOSTS)
   @xsrf_utils.RequireToken
   def post(self, host_id):
     host_id = base_db.Host.NormalizeId(host_id)
@@ -310,3 +313,40 @@ class VisibilityHandler(base.BaseHandler):
 
     host.hidden = hidden == 'true'
     host.put()
+
+
+# The Webapp2 routes defined for these handlers.
+ROUTES = routes.PathPrefixRoute('/hosts', [
+    webapp2.Route(
+        '/associated/<user_id>',
+        handler=AssociatedHostHandler,
+        handler_method='GetByUserId',
+        methods=['GET']),
+    webapp2.Route(
+        '/associated',
+        handler=AssociatedHostHandler,
+        handler_method='GetSelf',
+        methods=['GET']),
+    webapp2.Route(
+        '/query/santa',
+        handler=SantaHostQueryHandler),
+    webapp2.Route(
+        '/query',
+        handler=HostQueryHandler),
+    webapp2.Route(
+        '/<host_id>/event-rate',
+        handler=HostEventRateHandler),
+    webapp2.Route(
+        '/<host_id>/request-exception',
+        handler=HostExceptionHandler),
+    webapp2.Route(
+        '/<host_id>/request-lockdown',
+        handler=LockdownHandler,
+        methods=['POST']),
+    webapp2.Route(
+        '/<host_id>',
+        handler=HostHandler),
+    webapp2.Route(
+        '/<host_id>/hidden/<hidden>',
+        handler=VisibilityHandler),
+])

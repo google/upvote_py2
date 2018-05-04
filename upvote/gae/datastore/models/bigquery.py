@@ -175,3 +175,16 @@ class UserRow(BigQueryRow):
       required=True, choices=constants.USER_ACTION.SET_ALL)
   roles = ndb.StringProperty(repeated=True)
   comment = ndb.StringProperty()
+
+
+class FailedInsertion(ndb.Model):
+  """Model for temporarily storing a failed BigQuery insertion in Datastore.
+
+  Attribute:
+    table: str, The name of the destination BigQuery table.
+    values: dict, A dict representing the individual row being inserted.
+    created: datetime, The creation time of this entity.
+  """
+  table = ndb.StringProperty()
+  values = ndb.JsonProperty()
+  created = ndb.DateTimeProperty(auto_now_add=True)

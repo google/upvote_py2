@@ -17,6 +17,8 @@
 import httplib
 import logging
 
+import webapp2
+
 import upvote.gae.shared.common.google_cloud_lib_fixer  # pylint: disable=unused-import
 # pylint: disable=g-bad-import-order,g-import-not-at-top
 from google.cloud import bigquery
@@ -70,3 +72,9 @@ class InitializeBigqueryStreaming(base.BaseHandler):
 
     self.response.write('\nOK!')
     self.response.set_status(httplib.OK)
+
+
+# The Webapp2 routes defined for these handlers.
+ROUTES = webapp2.Route(
+    '/export/init-bigquery-streaming',
+    handler=InitializeBigqueryStreaming)

@@ -31,8 +31,8 @@ from upvote.gae.modules.bit9_api import utils
 from upvote.gae.modules.bit9_api.api import api
 from upvote.gae.shared.common import handlers
 from upvote.gae.shared.common import query_utils
-from upvote.gae.shared.common import taskqueue_utils
 from upvote.gae.shared.common import user_map
+from upvote.gae.taskqueue import utils as taskqueue_utils
 from upvote.shared import constants
 
 

@@ -10,7 +10,7 @@ Upvote
   </a>
 </p>
 
-Upvote is multi-platform binary whitelisting solution. It provides both a sync
+Upvote is a multi-platform binary whitelisting solution. It provides both a sync
 server and management interface for binary enforcement clients. Upvote currently
 supports [Santa](https://github.com/google/santa) on macOS and
 [Bit9](https://www.carbonblack.com/products/cb-protection/) (now known as Carbon

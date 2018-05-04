@@ -31,7 +31,8 @@ from upvote.shared import constants
 class VotesTest(basetest.UpvoteTestCase):
   """Test Votes Handler Class."""
 
-  def setUp(self, app):
+  def setUp(self):
+    app = webapp2.WSGIApplication(routes=[votes.ROUTES])
     super(VotesTest, self).setUp(wsgi_app=app)
 
     self.santa_blockable = test_utils.CreateSantaBlockable()
@@ -57,15 +58,12 @@ class VotesTest(basetest.UpvoteTestCase):
 
 class VoteQueryHandlerTest(VotesTest):
 
-  def setUp(self):
-    app = webapp2.WSGIApplication(
-        [webapp2.Route(r'', handler=votes.VoteQueryHandler)])
-    super(VoteQueryHandlerTest, self).setUp(app)
+  ROUTE = '/votes/query'
 
   def testAdminGetList(self):
     """Admin retrieves list of all users."""
     with self.LoggedInUser(admin=True):
-      response = self.testapp.get('')
+      response = self.testapp.get(self.ROUTE)
 
     output = response.json
 
@@ -78,7 +76,7 @@ class VoteQueryHandlerTest(VotesTest):
     params = {'platform': 'santa'}
 
     with self.LoggedInUser(admin=True):
-      response = self.testapp.get('', params)
+      response = self.testapp.get(self.ROUTE, params)
 
     output = response.json
 
@@ -94,14 +92,14 @@ class VoteQueryHandlerTest(VotesTest):
     self.assertEqual(4, base_db.Vote.query().count())
 
     with self.LoggedInUser(admin=True):
-      response = self.testapp.get('')
+      response = self.testapp.get(self.ROUTE)
 
       self.assertEqual(len(response.json['content']), 3)
 
   def testUserGetList_NoPermissions(self):
     """Normal user attempts to retrieve all users."""
     with self.LoggedInUser(email_addr=self.user_1.email):
-      self.testapp.get('', status=httplib.FORBIDDEN)
+      self.testapp.get(self.ROUTE, status=httplib.FORBIDDEN)
 
   def testAdminGetQuery(self):
     """Admin queries a user."""
@@ -110,7 +108,7 @@ class VoteQueryHandlerTest(VotesTest):
         'searchBase': 'userEmail'}
 
     with self.LoggedInUser(admin=True):
-      response = self.testapp.get('', params)
+      response = self.testapp.get(self.ROUTE, params)
 
     output = response.json
 
@@ -128,20 +126,17 @@ class VoteQueryHandlerTest(VotesTest):
         'searchBase': 'userEmail'}
 
     with self.LoggedInUser(email_addr=self.user_1.email):
-      self.testapp.get('', params, status=httplib.FORBIDDEN)
+      self.testapp.get(self.ROUTE, params, status=httplib.FORBIDDEN)
 
 
 class VoteHandlerTest(VotesTest):
 
-  def setUp(self):
-    app = webapp2.WSGIApplication(
-        [webapp2.Route(r'/<vote_key>', handler=votes.VoteHandler)])
-    super(VoteHandlerTest, self).setUp(app)
+  ROUTE = '/votes/%s'
 
   def testAdminGetID(self):
     """Admin gets a vote by ID."""
     with self.LoggedInUser(admin=True):
-      response = self.testapp.get('/%s' % self.vote_1.key.urlsafe())
+      response = self.testapp.get(self.ROUTE % self.vote_1.key.urlsafe())
 
     output = response.json
 
@@ -153,28 +148,25 @@ class VoteHandlerTest(VotesTest):
   def testAdminGetBadKey(self):
     """Admin gets a vote by an invalid key."""
     with self.LoggedInUser(admin=True):
-      self.testapp.get('/BadKey', status=httplib.BAD_REQUEST)
+      self.testapp.get(self.ROUTE % 'BadKey', status=httplib.BAD_REQUEST)
 
   def testAdminGetUnknownID(self):
     """Admin gets a vote by an unknown ID."""
     key = self.vote_3.key.urlsafe()
     self.vote_3.key.delete()
     with self.LoggedInUser(admin=True):
-      self.testapp.get('/%s' % key, status=httplib.NOT_FOUND)
+      self.testapp.get(self.ROUTE % key, status=httplib.NOT_FOUND)
 
   def testUserGetID(self):
     """Normal user attempts to get a vote by ID."""
     with self.LoggedInUser(email_addr=self.user_1.email):
       self.testapp.get(
-          '/%s' % self.vote_1.key.urlsafe(), status=httplib.FORBIDDEN)
+          self.ROUTE % self.vote_1.key.urlsafe(), status=httplib.FORBIDDEN)
 
 
 class VoteCastHandlerTest(VotesTest):
 
-  def setUp(self):
-    app = webapp2.WSGIApplication(
-        [webapp2.Route(r'/<blockable_id>', handler=votes.VoteCastHandler)])
-    super(VoteCastHandlerTest, self).setUp(app)
+  ROUTE = '/votes/cast/%s'
 
   def testAdminPost(self):
     """Admin posts a vote."""
@@ -182,7 +174,7 @@ class VoteCastHandlerTest(VotesTest):
 
     with self.LoggedInUser(admin=True):
       response = self.testapp.post(
-          '/%s' % self.santa_blockable.key.id(), params)
+          self.ROUTE % self.santa_blockable.key.id(), params)
 
     output = response.json
 
@@ -197,7 +189,7 @@ class VoteCastHandlerTest(VotesTest):
 
     with self.LoggedInUser(admin=True):
       response = self.testapp.post(
-          '/%s' % self.santa_certificate.key.id(), params)
+          self.ROUTE % self.santa_certificate.key.id(), params)
 
     output = response.json
 
@@ -212,7 +204,7 @@ class VoteCastHandlerTest(VotesTest):
 
     with self.LoggedInUser(admin=True):
       response = self.testapp.post(
-          '/%s' % self.santa_blockable.key.id(), params)
+          self.ROUTE % self.santa_blockable.key.id(), params)
     output = response.json
 
     self.assertEqual(1, output['vote']['weight'])
@@ -222,7 +214,7 @@ class VoteCastHandlerTest(VotesTest):
 
     with self.LoggedInUser(admin=True) as admin:
       response = self.testapp.post(
-          '/%s' % self.santa_blockable.key.id(), params)
+          self.ROUTE % self.santa_blockable.key.id(), params)
       output = response.json
 
       self.assertEqual(admin.vote_weight, output['vote']['weight'])
@@ -232,7 +224,7 @@ class VoteCastHandlerTest(VotesTest):
 
     with self.LoggedInUser(admin=True):
       self.testapp.post(
-          '/%s' % self.santa_blockable.key.id(), params,
+          self.ROUTE % self.santa_blockable.key.id(), params,
           status=httplib.BAD_REQUEST)
 
   def testUserPost_AsRole_NotAuthorized(self):
@@ -240,7 +232,7 @@ class VoteCastHandlerTest(VotesTest):
 
     with self.LoggedInUser(email_addr=self.user_2.email):
       self.testapp.post(
-          '/%s' % self.santa_blockable.key.id(), params,
+          self.ROUTE % self.santa_blockable.key.id(), params,
           status=httplib.FORBIDDEN)
 
   def testUserPost(self):
@@ -249,7 +241,7 @@ class VoteCastHandlerTest(VotesTest):
 
     with self.LoggedInUser(email_addr=self.user_2.email):
       response = self.testapp.post(
-          '/%s' % self.santa_blockable.key.id(), params)
+          self.ROUTE % self.santa_blockable.key.id(), params)
 
     output = response.json
 
@@ -264,17 +256,18 @@ class VoteCastHandlerTest(VotesTest):
 
     with self.LoggedInUser(email_addr=self.user_2.email):
       self.testapp.post(
-          '/%s' % self.santa_blockable.key.id(), params)
+          self.ROUTE % self.santa_blockable.key.id(), params)
 
       self.testapp.post(
-          '/%s' % self.santa_blockable.key.id(), params,
+          self.ROUTE % self.santa_blockable.key.id(), params,
           status=httplib.CONFLICT)
 
   def testUserPost_UnknownBlockable(self):
     params = {'wasYesVote': 'true'}
 
     with self.LoggedInUser(email_addr=self.user_2.email):
-      self.testapp.post('/notablockable', params, status=httplib.NOT_FOUND)
+      self.testapp.post(
+          self.ROUTE % 'notablockable', params, status=httplib.NOT_FOUND)
 
   def testUserPost_Cert(self):
     """Normal user posts a vote."""
@@ -282,7 +275,7 @@ class VoteCastHandlerTest(VotesTest):
 
     with self.LoggedInUser(email_addr=self.user_2.email):
       self.testapp.post(
-          '/%s' % self.santa_certificate.key.id(), params,
+          self.ROUTE % self.santa_certificate.key.id(), params,
           status=httplib.FORBIDDEN)
 
   def testUserGet(self):
@@ -294,7 +287,7 @@ class VoteCastHandlerTest(VotesTest):
     self.assertFalse(inactive_vote.in_effect)
 
     with self.LoggedInUser(email_addr=self.user_1.email):
-      response = self.testapp.get('/%s' % self.other_blockable.key.id())
+      response = self.testapp.get(self.ROUTE % self.other_blockable.key.id())
 
     self.assertEqual(self.vote_2.key.urlsafe(), response.json['key'])
 

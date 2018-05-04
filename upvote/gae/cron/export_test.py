@@ -26,7 +26,7 @@ import webapp2
 from google.appengine.api import taskqueue
 from google.appengine.ext import db
 from google.appengine.ext import ndb
-from upvote.gae.modules.upvote_app.cron import export
+from upvote.gae.cron import export
 from upvote.gae.modules.upvote_app.lib import bigquery_schema
 from upvote.gae.shared.common import basetest
 from upvote.gae.shared.common import settings

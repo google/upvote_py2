@@ -19,8 +19,6 @@ goog.provide('upvote.admin.app.module');
 
 goog.require('upvote.admin.app.MainController');
 goog.require('upvote.admin.app.routeProvider');
-goog.require('upvote.admin.auditlogpage.AuditlogController');
-goog.require('upvote.admin.auditlogs.module');
 goog.require('upvote.admin.blockablepage.BlockableController');
 goog.require('upvote.admin.blockables.module');
 goog.require('upvote.admin.common.module');
@@ -60,7 +58,6 @@ upvote.admin.app.module = angular.module('upvote.admin.app', [
   upvote.admin.emergency.module.name,
   upvote.admin.events.module.name,
   upvote.admin.hosts.module.name,
-  upvote.admin.auditlogs.module.name,
   upvote.admin.rules.module.name,
   upvote.admin.settings.module.name,
   upvote.admin.templates.module.name,
@@ -138,8 +135,6 @@ upvote.admin.app.start = (username) => {
   module.config(upvote.app.configureColorTheme);
 
   // Register all controllers
-  module.controller(
-      'AuditlogController', upvote.admin.auditlogpage.AuditlogController);
   module.controller(
       'BlockableController', upvote.admin.blockablepage.BlockableController);
   module.controller(

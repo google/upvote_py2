@@ -39,6 +39,9 @@ from upvote.gae.shared.common import user_map
 from upvote.shared import constants as common_const
 
 
+_SANTA_CLIENT_MODE = common_const.SANTA_CLIENT_MODE  # Done for brevity.
+
+
 class SantaApiTestCase(basetest.UpvoteTestCase):
 
   def setUp(self, wsgi_app=None):
@@ -205,7 +208,8 @@ class PreflightHandlerTest(SantaApiTestCase):
         santa_const.PREFLIGHT.SANTA_VERSION: '1.0.0',
         santa_const.PREFLIGHT.OS_VERSION: '10.9.3',
         santa_const.PREFLIGHT.OS_BUILD: '13D65',
-    }
+        santa_const.PREFLIGHT.CLIENT_MODE: _SANTA_CLIENT_MODE.LOCKDOWN}
+
 
   def testFirstCheckin_Success(self):
 
@@ -231,7 +235,7 @@ class PreflightHandlerTest(SantaApiTestCase):
     self.assertEntityCount(bigquery.HostRow, 1)
 
     self.assertEqual(
-        common_const.SANTA_CLIENT_MODE.LOCKDOWN,
+        _SANTA_CLIENT_MODE.LOCKDOWN,
         response.json[santa_const.PREFLIGHT.CLIENT_MODE])
     self.assertEqual(42, response.json[santa_const.PREFLIGHT.BATCH_SIZE])
     self.assertTrue(response.json[santa_const.PREFLIGHT.CLEAN_SYNC])
@@ -324,7 +328,7 @@ class PreflightHandlerTest(SantaApiTestCase):
 
     self.VerifyIncrementCalls(self.mock_metric, httplib.OK, httplib.OK)
 
-  def testCheckin(self):
+  def testCheckin_Success(self):
     santa_db.SantaHost(
         key=ndb.Key('Host', 'my-uuid'),
         client_mode=common_const.SANTA_CLIENT_MODE.LOCKDOWN,
@@ -369,6 +373,80 @@ class PreflightHandlerTest(SantaApiTestCase):
     self.assertTrue(response.json[santa_const.PREFLIGHT.CLEAN_SYNC])
     self.assertEqual(httplib.OK, response.status_int)
     self.VerifyIncrementCalls(self.mock_metric, httplib.OK)
+
+  def testCheckin_ModeMismatch(self):
+
+    santa_db.SantaHost(
+        key=ndb.Key('Host', 'my-uuid'),
+        client_mode=_SANTA_CLIENT_MODE.LOCKDOWN).put()
+    user = test_utils.CreateUser()
+    request_json = {
+        santa_const.PREFLIGHT.SERIAL_NUM: 'serial',
+        santa_const.PREFLIGHT.HOSTNAME: 'vogon',
+        santa_const.PREFLIGHT.PRIMARY_USER: user.nickname,
+        santa_const.PREFLIGHT.SANTA_VERSION: '1.0.0',
+        santa_const.PREFLIGHT.OS_VERSION: '10.9.3',
+        santa_const.PREFLIGHT.OS_BUILD: '13D65',
+        santa_const.PREFLIGHT.CLIENT_MODE: _SANTA_CLIENT_MODE.MONITOR
+    }
+
+    response = self.testapp.post_json('/my-uuid', request_json)
+
+    self.assertEqual(httplib.OK, response.status_int)
+    self.VerifyIncrementCalls(self.mock_metric, httplib.OK)
+    self.assertTaskCount(common_const.TASK_QUEUE.BQ_PERSISTENCE, 1)
+    self.DrainTaskQueue(common_const.TASK_QUEUE.BQ_PERSISTENCE)
+    self.assertEntityCount(bigquery.HostRow, 1)
+
+  def testCheckin_ClientModeUnsupported(self):
+    santa_db.SantaHost(
+        key=ndb.Key('Host', 'my-uuid'),
+        client_mode=_SANTA_CLIENT_MODE.LOCKDOWN).put()
+    user = test_utils.CreateUser()
+    request_json = {
+        santa_const.PREFLIGHT.SERIAL_NUM: 'serial',
+        santa_const.PREFLIGHT.HOSTNAME: 'vogon',
+        santa_const.PREFLIGHT.PRIMARY_USER: user.nickname,
+        santa_const.PREFLIGHT.SANTA_VERSION: '1.0.0',
+        santa_const.PREFLIGHT.OS_VERSION: '10.9.3',
+        santa_const.PREFLIGHT.OS_BUILD: '13D65',
+        santa_const.PREFLIGHT.CLIENT_MODE: 'pineapple'
+    }
+
+    response = self.testapp.post_json('/my-uuid', request_json)
+
+    self.assertEqual(httplib.OK, response.status_int)
+    self.VerifyIncrementCalls(self.mock_metric, httplib.OK)
+    self.assertTaskCount(common_const.TASK_QUEUE.BQ_PERSISTENCE, 1)
+    self.DrainTaskQueue(common_const.TASK_QUEUE.BQ_PERSISTENCE)
+    self.assertEntityCount(bigquery.HostRow, 1)
+    host_row = bigquery.HostRow.query().fetch(1)[0]
+    self.assertEqual(common_const.HOST_MODE.UNKNOWN, host_row.mode)
+
+  def testCheckin_ClientModeMissing(self):
+    santa_db.SantaHost(
+        key=ndb.Key('Host', 'my-uuid'),
+        client_mode=_SANTA_CLIENT_MODE.LOCKDOWN).put()
+    user = test_utils.CreateUser()
+    request_json = {
+        santa_const.PREFLIGHT.SERIAL_NUM: 'serial',
+        santa_const.PREFLIGHT.HOSTNAME: 'vogon',
+        santa_const.PREFLIGHT.PRIMARY_USER: user.nickname,
+        santa_const.PREFLIGHT.SANTA_VERSION: '1.0.0',
+        santa_const.PREFLIGHT.OS_VERSION: '10.9.3',
+        santa_const.PREFLIGHT.OS_BUILD: '13D65'
+    }
+
+    response = self.testapp.post_json('/my-uuid', request_json)
+
+    self.assertEqual(httplib.OK, response.status_int)
+    self.VerifyIncrementCalls(self.mock_metric, httplib.OK)
+    self.assertTaskCount(common_const.TASK_QUEUE.BQ_PERSISTENCE, 1)
+    self.DrainTaskQueue(common_const.TASK_QUEUE.BQ_PERSISTENCE)
+    self.assertEntityCount(bigquery.HostRow, 1)
+    host_row = bigquery.HostRow.query().fetch(1)[0]
+    self.assertEqual(common_const.HOST_MODE.UNKNOWN, host_row.mode)
+
 
 
 class EventUploadHandlerTest(SantaApiTestCase):

@@ -3,12 +3,25 @@
      layout="column"
      ng-cloak>
   <div id="uv-home" layout="row" flex>
+
+    <!-- Logo button for user-facing pages -->
     <md-button id="uv-logo-button"
-               ng-href="ctrl.isAdmin ? '/admin' : '/'"
+               ng-if="!ctrl.isAdmin"
+               ng-href="/"
                md-ink-ripple="false">
       <md-icon class="uv-logo" md-svg-icon="upvote-logo"></md-icon>
       <span class="uv-nav-label fade" id="uv-title">Upvote</span>
     </md-button>
+
+    <!-- Logo button for admin-facing pages -->
+    <md-button id="uv-logo-button"
+               ng-if="ctrl.isAdmin"
+               ng-href="/admin"
+               md-ink-ripple="false">
+      <md-icon class="uv-logo" md-svg-icon="upvote-logo"></md-icon>
+      <span class="uv-nav-label fade" id="uv-title">Upvote</span>
+    </md-button>
+
   </div>
   <div class="uv-divider"></div>
   <div class="uv-nav-buttons"

@@ -26,8 +26,7 @@ class EmergencyTest(basetest.UpvoteTestCase):
   """This is a test of the emergency handler system."""
 
   def setUp(self):
-    app = webapp2.WSGIApplication([
-        webapp2.Route(r'', handler=emergency.Emergency)])
+    app = webapp2.WSGIApplication(routes=[emergency.ROUTES])
     super(EmergencyTest, self).setUp(wsgi_app=app)
 
     self.PatchValidateXSRFToken()
@@ -38,7 +37,7 @@ class EmergencyTest(basetest.UpvoteTestCase):
       with mock.patch.object(emergency.big_red, 'BigRedButton',
                              return_value=mock_brb):
         mock_brb.get_button_status.return_value = {'it_worked': True}
-        response = self.testapp.get('')
+        response = self.testapp.get('/emergency')
 
     self.assertIn('application/json', response.headers['Content-type'])
     self.assertIsInstance(response.json, dict)
@@ -50,7 +49,8 @@ class EmergencyTest(basetest.UpvoteTestCase):
       with mock.patch.object(emergency.big_red, 'BigRedButton',
                              return_value=mock_brb):
         mock_brb.get_button_status.return_value = {'it_worked': True}
-        response = self.testapp.post('', params={button_name: button_value})
+        response = self.testapp.post(
+            '/emergency', params={button_name: button_value})
 
     mock_brb.assert_has_calls([test_call])
     self.assertIn('application/json', response.headers['Content-type'])

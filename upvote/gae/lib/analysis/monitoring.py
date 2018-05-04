@@ -12,18 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Unit tests for main.py."""
+"""Monitoring metrics for the binary_health services."""
 
-from upvote.gae.shared.common import basetest
-
-
-class RouteTest(basetest.UpvoteTestCase):
-
-  def testImport(self):
-    # pylint: disable=g-import-not-at-top, unused-variable
-    from upvote.gae.modules.upvote_app.cron import main
-    # pylint: enable=g-import-not-at-top, unused-variable
+from upvote.gae.shared.common import monitoring
+from upvote.monitoring import metrics
 
 
-if __name__ == '__main__':
-  basetest.main()
+virustotal_requests = monitoring.SuccessFailureCounter(
+    metrics.ANALYSIS.VIRUSTOTAL_REQUESTS)
+
+virustotal_new_lookups = monitoring.Counter(
+    metrics.ANALYSIS.VIRUSTOTAL_NEW_LOOKUPS, fields=[(u'state', str)])

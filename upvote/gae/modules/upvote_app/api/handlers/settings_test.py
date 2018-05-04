@@ -26,9 +26,10 @@ from upvote.gae.shared.common import basetest
 class SettingsTest(basetest.UpvoteTestCase):
   """Test Settings Handler Class."""
 
+  ROUTE = '/settings/%s'
+
   def setUp(self):
-    app = webapp2.WSGIApplication(
-        [webapp2.Route(r'/<setting>', handler=settings.Settings)])
+    app = webapp2.WSGIApplication(routes=[settings.ROUTES])
     super(SettingsTest, self).setUp(wsgi_app=app)
 
     settings.settings.READY_TO_MOVE_OUT = 'Ready'
@@ -39,7 +40,7 @@ class SettingsTest(basetest.UpvoteTestCase):
     """Admin getting a value."""
 
     with self.LoggedInUser():
-      response = self.testapp.get('/ready_to_move_out')
+      response = self.testapp.get(self.ROUTE % 'ready_to_move_out')
 
     output = response.json
 
@@ -51,15 +52,16 @@ class SettingsTest(basetest.UpvoteTestCase):
 
     with self.LoggedInUser():
       self.testapp.get(
-          '/spidey_sense_tingling', status=httplib.NOT_FOUND)
+          self.ROUTE % 'spidey_sense_tingling', status=httplib.NOT_FOUND)
 
 
 class ApiKeysTest(basetest.UpvoteTestCase):
   """Test Settings Handler Class."""
 
+  ROUTE = '/settings/api-keys/%s'
+
   def setUp(self):
-    app = webapp2.WSGIApplication(
-        [webapp2.Route(r'/<key_name>', handler=settings.ApiKeys)])
+    app = webapp2.WSGIApplication(routes=[settings.ROUTES])
     super(ApiKeysTest, self).setUp(wsgi_app=app)
 
     self.PatchValidateXSRFToken()
@@ -68,28 +70,31 @@ class ApiKeysTest(basetest.UpvoteTestCase):
     with mock.patch.object(
         settings.virustotal.VirusTotalApiAuth, 'SetInstance') as mock_set:
       with self.LoggedInUser(admin=True):
-        self.testapp.post('/virustotal', {'value': 'abc'})
+        self.testapp.post(self.ROUTE % 'virustotal', {'value': 'abc'})
       mock_set.assert_called_once_with(api_key='abc')
 
   def testUpdateBit9Key(self):
     with mock.patch.object(
         settings.bit9.Bit9ApiAuth, 'SetInstance') as mock_set:
       with self.LoggedInUser(admin=True):
-        self.testapp.post('/bit9', {'value': 'abc'})
+        self.testapp.post(self.ROUTE % 'bit9', {'value': 'abc'})
       mock_set.assert_called_once_with(api_key='abc')
 
   def testBadValue(self):
     with self.LoggedInUser(admin=True):
-      self.testapp.post('/virustotal', {}, status=httplib.BAD_REQUEST)
+      self.testapp.post(
+          self.ROUTE % 'virustotal', {}, status=httplib.BAD_REQUEST)
 
   def testBadKeyName(self):
     with self.LoggedInUser(admin=True):
       self.testapp.post(
-          '/not-a-key', {'value': 'good-value'}, status=httplib.BAD_REQUEST)
+          self.ROUTE % 'not-a-key', {'value': 'good-value'},
+          status=httplib.BAD_REQUEST)
 
   def testInsufficientPermissions(self):
     with self.LoggedInUser():
-      self.testapp.post('/bit9', {'value': 'abc'}, status=httplib.FORBIDDEN)
+      self.testapp.post(
+          self.ROUTE % 'bit9', {'value': 'abc'}, status=httplib.FORBIDDEN)
 
 
 if __name__ == '__main__':

@@ -35,16 +35,16 @@ class MetricNamespaceTest(absltest.TestCase):
     self.assertEqual(1, len(metrics.BIT9_ARBITER.ALL))
 
   def testBit9Api(self):
-    self.assertEqual(5, len(metrics.BIT9_API.ALL))
+    self.assertEqual(9, len(metrics.BIT9_API.ALL))
 
   def testBit9RestApi(self):
     self.assertEqual(3, len(metrics.BIT9_REST_API.ALL))
 
   def testUpvoteApp(self):
-    self.assertEqual(11, len(metrics.UPVOTE_APP.ALL))
+    self.assertEqual(10, len(metrics.UPVOTE_APP.ALL))
 
   def testBinaryHealth(self):
-    self.assertEqual(2, len(metrics.BINARY_HEALTH.ALL))
+    self.assertEqual(2, len(metrics.ANALYSIS.ALL))
 
   def testBigQuery(self):
     self.assertEqual(4, len(metrics.BIGQUERY.ALL))

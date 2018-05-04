@@ -73,7 +73,7 @@ upvote.admin.blockables.prettifyVotingProhibitedReason = (inputString) => {
     case 'FLAGGED_BINARY':
       return 'This application contains a binary that\'s under review.';
     case 'FLAGGED_CERT':
-      return 'This application is signed by a certificate that\'s under review.';
+      return 'This application is signed by a certificate that has been banned for security reasons.';
     default:
       return inputString;
   }

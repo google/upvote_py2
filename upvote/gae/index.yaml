@@ -14,16 +14,11 @@
 
 indexes:
 
-- kind: AuditLog
+- kind: Alert
   properties:
-  - name: target_object_key
-  - name: recorded_dt
-
-- kind: AuditLog
-  properties:
-  - name: target_object_key
-  - name: recorded_dt
-    direction: desc
+  - name: platform
+  - name: scope
+  - name: start_date
 
 - kind: BigQueryRow
   properties:

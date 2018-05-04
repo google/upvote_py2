@@ -16,8 +16,8 @@
 
 import logging
 
-from upvote.gae.shared.binary_health import monitoring
-from upvote.gae.shared.binary_health.virustotal import virustotal_client
+from upvote.gae.lib.analysis import monitoring
+from upvote.gae.lib.analysis.virustotal import virustotal_client
 
 
 class Error(Exception):

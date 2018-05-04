@@ -496,7 +496,8 @@ upvote.detailpage.BlockableDetailsController = class {
    */
   disableFlagButton() {
     return this.localVoteCast || (this.hasCastVote() && !this.wasYesVote()) ||
-        !this.isVotingAllowed() || !!this.contents;
+        !this.isVotingAllowed() ||
+        (!!this.contents && this.contents.length > 0);
   }
 
   /**
