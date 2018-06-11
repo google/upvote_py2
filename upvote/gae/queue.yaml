@@ -133,3 +133,9 @@ queue:
   max_concurrent_requests: 1
   retry_parameters:
     task_retry_limit: 0
+
+- name: bigquery-streaming
+  rate: 500/s
+  bucket_size: 500
+  retry_parameters:
+    task_retry_limit: 0

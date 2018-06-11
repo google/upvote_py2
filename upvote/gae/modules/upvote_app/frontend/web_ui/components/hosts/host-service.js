@@ -13,7 +13,6 @@
 // limitations under the License.
 
 goog.provide('upvote.hosts.ClientMode');
-goog.provide('upvote.hosts.EventRateResponse');
 goog.provide('upvote.hosts.ExceptionReason');
 goog.provide('upvote.hosts.ExceptionRequestData');
 goog.provide('upvote.hosts.HostService');
@@ -94,16 +93,6 @@ upvote.hosts.ExceptionReason = {
  * @export
  */
 upvote.hosts.ExceptionRequestData;
-
-
-/**
- * @typedef {{
- *   avgRate: number,
- *   atMax: boolean,
- * }}
- * @export
- */
-upvote.hosts.EventRateResponse;
 
 
 upvote.hosts.HostService = class {
@@ -195,17 +184,6 @@ upvote.hosts.HostService = class {
   }
 
   /**
-   * Retrieve the average event rate for the given hosts.
-   * @param {!string} hostId
-   * @return {!angular.$http.HttpPromise}
-   * @export
-   */
-  getEventRate(hostId) {
-    let url = HostService.BASE_URL_ + '/' + hostId + HostService.RATE_SUFFIX_;
-    return this.http_.get(url);
-  }
-
-  /**
    * Sets the hidden state of a host
    * @param {!string} hostId
    * @param {!boolean} hidden hides if set to true, otherwise shows host
@@ -222,8 +200,6 @@ let HostService = upvote.hosts.HostService;
 
 /** @private {string} */
 HostService.BASE_URL_ = upvote.app.constants.WEB_PREFIX + 'hosts';
-/** @private {string} */
-HostService.RATE_SUFFIX_ = '/event-rate';
 /** @private {string} */
 HostService.EXCEPTION_SUFFIX_ = '/request-exception';
 /** @private {string} */

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-goog.provide('upvote.hostrequestpage.HostRequestController');
+goog.provide('upvote.exemptionrequestpage.ExemptionRequestController');
 
 goog.require('upvote.errornotifier.ErrorService');
 goog.require('upvote.hosts.ExceptionReason');
@@ -26,7 +26,7 @@ const ExceptionReason = upvote.hosts.ExceptionReason;
 
 
 /** Controller for host request page. */
-upvote.hostrequestpage.HostRequestController = class {
+upvote.exemptionrequestpage.ExemptionRequestController = class {
   /**
    * @param {!upvote.hosts.HostService} hostService
    * @param {!upvote.errornotifier.ErrorService} errorService
@@ -50,7 +50,7 @@ upvote.hostrequestpage.HostRequestController = class {
     this.requested = false;
 
     /** @export {!Object<string, string>} */
-    this.reasonDescriptions = HostRequestCtrl.REASON_DESCRIPTIONS;
+    this.reasonDescriptions = ExemRequestCtrl.REASON_DESCRIPTIONS;
 
     /** @export {!upvote.hosts.ExceptionRequestData} */
     this.requestData = {
@@ -114,24 +114,24 @@ upvote.hostrequestpage.HostRequestController = class {
     }
   }
 };
-let HostRequestCtrl = upvote.hostrequestpage.HostRequestController;
+let ExemRequestCtrl = upvote.exemptionrequestpage.ExemptionRequestController;
 
 /** @export {!Object<string, string>} */
-HostRequestCtrl.REASON_DESCRIPTIONS = {};
-HostRequestCtrl.REASON_DESCRIPTIONS[ExceptionReason['OSX_DEVELOPER']] =
+ExemRequestCtrl.REASON_DESCRIPTIONS = {};
+ExemRequestCtrl.REASON_DESCRIPTIONS[ExceptionReason['OSX_DEVELOPER']] =
     'As part of my job role, I develop macOS software on this machine.';
-HostRequestCtrl.REASON_DESCRIPTIONS[ExceptionReason['IOS_DEVELOPER']] =
+ExemRequestCtrl.REASON_DESCRIPTIONS[ExceptionReason['IOS_DEVELOPER']] =
     'As part of my job role, I develop iOS software on this machine.';
-HostRequestCtrl.REASON_DESCRIPTIONS[ExceptionReason['DEVTOOLS_DEVELOPER']] =
+ExemRequestCtrl.REASON_DESCRIPTIONS[ExceptionReason['DEVTOOLS_DEVELOPER']] =
     'As part of my job role, I develop and/or test developer tools ' +
     '(e.g. compilers) on this machine.';
-HostRequestCtrl.REASON_DESCRIPTIONS[ExceptionReason['DEVELOPER_PERSONAL']] =
+ExemRequestCtrl.REASON_DESCRIPTIONS[ExceptionReason['DEVELOPER_PERSONAL']] =
     'I develop on this machine for personal projects/use.';
-HostRequestCtrl.REASON_DESCRIPTIONS[ExceptionReason['PACKAGE_MANAGER']] =
+ExemRequestCtrl.REASON_DESCRIPTIONS[ExceptionReason['PACKAGE_MANAGER']] =
     'I use a package manager (e.g. Homebrew) on this machine.';
-HostRequestCtrl.REASON_DESCRIPTIONS[ExceptionReason['IM_A_BABY']] =
+ExemRequestCtrl.REASON_DESCRIPTIONS[ExceptionReason['IM_A_BABY']] =
     'I\'m afraid Santa will have a negative impact on my work but I\'m ' +
     'not sure why.';
-HostRequestCtrl.REASON_DESCRIPTIONS[ExceptionReason['OTHER']] =
+ExemRequestCtrl.REASON_DESCRIPTIONS[ExceptionReason['OTHER']] =
     'Other, please explain';
 });  // goog.scope

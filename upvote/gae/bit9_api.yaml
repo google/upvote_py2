@@ -27,6 +27,10 @@ automatic_scaling:
     max_concurrent_requests: 25
 builtins:
 - deferred: on
+libraries:
+- name: ssl
+  version: latest
+
 
 # Per the AppEngine documentation: The first mapping whose pattern matches the
 # URL is the one used to handle the request.

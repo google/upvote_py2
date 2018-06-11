@@ -14,7 +14,6 @@
 
 goog.provide('upvote.hosts.prettifyEnforcementLevel');
 goog.provide('upvote.hosts.prettifyMode');
-goog.provide('upvote.hosts.rateToImpactString');
 
 goog.require('upvote.hosts.ClientMode');
 goog.require('upvote.hosts.PolicyLevel');
@@ -61,22 +60,3 @@ upvote.hosts.prettifyEnforcementLevel = (enforcementLevel) => {
   }
 };
 
-
-/**
- * Convert an event rate to a string representing Santa's impact on that host.
- * @param {?number} eventRate
- * @return {!string}
- */
-upvote.hosts.rateToImpactString = (eventRate) => {
-  if (eventRate === null) {
-    return 'ERROR';
-  } else if (eventRate == 0) {
-    return 'NONE';
-  } else if (eventRate <= .2) {
-    return 'LOW';
-  } else if (eventRate <= 1) {
-    return 'MEDIUM';
-  } else {
-    return 'HIGH';
-  }
-};

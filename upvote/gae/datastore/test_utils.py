@@ -24,7 +24,6 @@ import mock
 from google.appengine.api import users
 from google.appengine.ext import ndb
 
-from upvote.gae.datastore.models import alert
 from upvote.gae.datastore.models import base
 from upvote.gae.datastore.models import bit9
 from upvote.gae.datastore.models import santa
@@ -588,25 +587,3 @@ def CreateBit9Policy(**kwargs):
   new_policy.put()
 
   return new_policy
-
-
-def CreateAlert(**kwargs):
-  """Creates an Alert.
-
-  Args:
-    **kwargs: Dictionary of any Alert properties to customize.
-
-  Returns:
-    The newly-created Alert.
-  """
-  now = datetime.datetime.utcnow()
-  defaults = {
-      'message': 'This is an example alert.',
-      'details': 'These are example details.',
-      'start_date': now - datetime.timedelta(days=1),
-      'end_date': now + datetime.timedelta(days=1),
-      'platform': constants.SITE_ALERT_PLATFORM.ALL,
-      'scope': constants.SITE_ALERT_SCOPE.EVERYWHERE,
-      'severity': constants.SITE_ALERT_SEVERITY.INFO}
-  defaults.update(kwargs.copy())
-  return RandomDatastoreEntity(alert.Alert, **defaults)

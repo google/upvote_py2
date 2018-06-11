@@ -23,9 +23,9 @@ from google.appengine.api import modules
 from google.appengine.api import urlfetch
 
 from upvote.gae.shared.common import basetest
-from upvote.gae.shared.common import intermodule
 from upvote.gae.shared.common import settings
 from upvote.gae.shared.common import settings_utils
+from upvote.gae.utils import intermodule_utils
 
 _TEST_DOMAIN = 'somemodule.appspot.com'
 
@@ -38,7 +38,7 @@ class SubmitIntermoduleRequestTest(basetest.UpvoteTestCase):
       urlfetch, 'fetch',
       return_value=mock.Mock(status_code=httplib.OK, content='{}'))
   def testSuccess_WithoutData(self, mock_fetch, _):
-    response = intermodule.SubmitIntermoduleRequest(
+    response = intermodule_utils.SubmitIntermoduleRequest(
         'some-module', '/api/path/whatever')
 
     self.assertEqual(httplib.OK, response.status_code)
@@ -56,7 +56,7 @@ class SubmitIntermoduleRequestTest(basetest.UpvoteTestCase):
       urlfetch, 'fetch',
       return_value=mock.Mock(status_code=httplib.OK, content='{}'))
   def testSuccess_WithData(self, mock_fetch, _):
-    response = intermodule.SubmitIntermoduleRequest(
+    response = intermodule_utils.SubmitIntermoduleRequest(
         'some-module', '/api/path/whatever', data={'foo': 'bar'})
 
     self.assertEqual(httplib.OK, response.status_code)
@@ -74,7 +74,7 @@ class SubmitIntermoduleRequestTest(basetest.UpvoteTestCase):
       urlfetch, 'fetch',
       return_value=mock.Mock(status_code=httplib.OK, content=''))
   def testSuccess_NoReturnedData(self, mock_fetch, _):
-    response = intermodule.SubmitIntermoduleRequest(
+    response = intermodule_utils.SubmitIntermoduleRequest(
         'some-module', '/api/path/whatever', data={'foo': 'bar'})
 
     self.assertEqual(httplib.OK, response.status_code)
@@ -91,7 +91,7 @@ class SubmitIntermoduleRequestTest(basetest.UpvoteTestCase):
     mock_fetch.side_effect = [
         GenRedirect(url) for url in redirect_urls] + [success]
 
-    response = intermodule.SubmitIntermoduleRequest(
+    response = intermodule_utils.SubmitIntermoduleRequest(
         'some-module', '/api/path/whatever')
 
     self.assertEqual(httplib.OK, response.status_code)
@@ -109,7 +109,7 @@ class SubmitIntermoduleRequestTest(basetest.UpvoteTestCase):
         status_code=httplib.FOUND, headers={'Location': 'https://foo.com'})
     mock_fetch.side_effect = (redirect,) * 5
     with self.assertRaises(urlfetch.Error):
-      intermodule.SubmitIntermoduleRequest(
+      intermodule_utils.SubmitIntermoduleRequest(
           'some-module', '/api/path/whatever')
 
     self.assertEqual(5, mock_fetch.call_count)
@@ -117,7 +117,8 @@ class SubmitIntermoduleRequestTest(basetest.UpvoteTestCase):
   @mock.patch.object(urlfetch, 'fetch', side_effect=urlfetch.Error)
   def testError(self, *_):
     with self.assertRaises(urlfetch.Error):
-      intermodule.SubmitIntermoduleRequest('some-module', '/api/path/whatever')
+      intermodule_utils.SubmitIntermoduleRequest(
+          'some-module', '/api/path/whatever')
 
 
 if __name__ == '__main__':

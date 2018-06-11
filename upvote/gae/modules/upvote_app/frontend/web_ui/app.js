@@ -25,9 +25,9 @@ goog.require('upvote.common.module');
 goog.require('upvote.detailpage.BlockableDetailsController');
 goog.require('upvote.errornotifier.module');
 goog.require('upvote.events.module');
+goog.require('upvote.exemptionrequestpage.ExemptionRequestController');
 goog.require('upvote.hostblockablespage.HostBlockableListController');
 goog.require('upvote.hostlistpage.HostListController');
-goog.require('upvote.hostrequestpage.HostRequestController');
 goog.require('upvote.hosts.module');
 goog.require('upvote.listing.module');
 goog.require('upvote.listpage.BlockableListController');
@@ -148,7 +148,8 @@ upvote.app.start = function(username) {
   module.controller(
       'HostListController', upvote.hostlistpage.HostListController);
   module.controller(
-      'HostRequestController', upvote.hostrequestpage.HostRequestController);
+      'ExemptionRequestController',
+      upvote.exemptionrequestpage.ExemptionRequestController);
   module.controller(
       'HostBlockableListController',
       upvote.hostblockablespage.HostBlockableListController);

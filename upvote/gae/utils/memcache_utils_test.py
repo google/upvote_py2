@@ -18,7 +18,7 @@ import mock
 
 from common.testing import basetest
 
-from upvote.gae.shared.common import memcache_utils
+from upvote.gae.utils import memcache_utils
 
 
 class MemcacheUtilsTest(basetest.AppEngineTestCase):
@@ -29,6 +29,7 @@ class MemcacheUtilsTest(basetest.AppEngineTestCase):
     self.call_mock = mock.Mock(return_value=1)
 
   def testNoPredicate(self):
+
     @memcache_utils.ConditionallyCached()
     def foo():
       return self.call_mock()
@@ -41,6 +42,7 @@ class MemcacheUtilsTest(basetest.AppEngineTestCase):
 
   def testPredicate(self):
     cache_truthy_args = lambda a, k, r: a[0]
+
     @memcache_utils.ConditionallyCached(cache_predicate=cache_truthy_args)
     def foo(a):
       return self.call_mock(a)
@@ -55,6 +57,7 @@ class MemcacheUtilsTest(basetest.AppEngineTestCase):
     self.assertEqual(3, self.call_mock.call_count)
 
   def testDeleteCache(self):
+
     @memcache_utils.ConditionallyCached()
     def foo():
       return self.call_mock()

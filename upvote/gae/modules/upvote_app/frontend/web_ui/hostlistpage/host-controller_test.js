@@ -46,7 +46,6 @@ describe('Host List Controller', () => {
           // Create spies.
           hostService.getAssociatedHosts =
               jasmine.createSpy('getAssociatedHosts');
-          hostService.getEventRate = jasmine.createSpy('getEventRate');
           hostService.requestLockdown = jasmine.createSpy('requestLockdown');
           errorService.createDialogFromError =
               jasmine.createSpy('createDialogFromError');
@@ -67,8 +66,6 @@ describe('Host List Controller', () => {
   // Set the default initialization to be one without results
   beforeEach(() => {
     setHosts([]);
-    hostService.getEventRate['and']['returnValue'](
-        q.resolve({'data': {'avgRate': 0.1}}));
   });
 
   let buildController = () => new HostListController(
@@ -97,17 +94,6 @@ describe('Host List Controller', () => {
 
       expect(errorService.createDialogFromError).toHaveBeenCalled();
     });
-
-    it('when event rate initialization fails', () => {
-      setHosts([{'id': 'foo'}]);
-      hostService.getEventRate['and']['returnValue'](q.reject({}));
-
-      ctrl = buildController();
-      rootScope.$apply();
-      rootScope.$apply();
-
-      expect(errorService.createToastFromError).toHaveBeenCalled();
-    });
   });
 
   describe('should initialize the host list', () => {
@@ -117,24 +103,18 @@ describe('Host List Controller', () => {
       rootScope.$apply();
 
       expect(hostService.getAssociatedHosts['calls'].count()).toEqual(1);
-      expect(hostService.getEventRate['calls'].count()).toEqual(0);
       expect(ctrl.hosts).toEqual([]);
     });
 
     it('when there are results', () => {
       let hosts = [getSantaHost({'id': 'foo'}), getSantaHost({'id': 'bar'})];
       setHosts(hosts);
-      hostService.getEventRate['and']['returnValue'](
-          q.resolve({'data': {'avgRate': 0.1}}));
       ctrl = buildController();
       rootScope.$apply();
       rootScope.$apply();
 
       expect(hostService.getAssociatedHosts['calls'].count()).toEqual(1);
-      expect(hostService.getEventRate['calls'].count()).toEqual(2);
       expect(ctrl.hosts).toEqual(hosts);
-      expect(ctrl.eventRates['foo']['avgRate']).toEqual(.1);
-      expect(ctrl.eventRates['bar']['avgRate']).toEqual(.1);
     });
   });
 

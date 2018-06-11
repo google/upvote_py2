@@ -49,6 +49,7 @@ py_appengine_library(
         "//upvote/gae/shared/common:monitoring",
         "//upvote/gae/shared/common:settings",
         "//upvote/gae/shared/common:utils",
+        "//upvote/gae/utils:json_utils",
         "//upvote/monitoring:metrics",
         "//upvote/shared:constants",
     ],
@@ -109,6 +110,17 @@ py_appengine_library(
 
 # AppEngine Unit Tests
 # ==============================================================================
+
+upvote_appengine_test(
+    name = "alert_test",
+    size = "small",
+    srcs = ["alert_test.py"],
+    deps = [
+        ":alert",
+        "//upvote/gae/shared/common:basetest",
+        "@absl_git//absl/testing:absltest",
+    ],
+)
 
 upvote_appengine_test(
     name = "base_test",

@@ -60,13 +60,12 @@ class CommitAllChangeSetsTest(CronTest):
             '/', handler=cron.CommitAllChangeSets)])
     super(CommitAllChangeSetsTest, self).setUp(wsgi_app=app)
 
-    self.binary = test_utils.CreateBit9Binary()
-    self.change = test_utils.CreateRuleChangeSet(self.binary.key)
-
   @mock.patch.object(cron.monitoring, 'pending_changes')
   def testAll(self, mock_metric):
+    binary = test_utils.CreateBit9Binary()
+    change = test_utils.CreateRuleChangeSet(binary.key)
     other_binary = test_utils.CreateBit9Binary()
-    # Create two changeset so we're sure we're doing only 1 task per blockable.
+    # Create two changesets so we're sure we're doing only 1 task per blockable.
     real_change = test_utils.CreateRuleChangeSet(other_binary.key)
     unused_change = test_utils.CreateRuleChangeSet(other_binary.key)
     self.assertTrue(real_change.recorded_dt < unused_change.recorded_dt)
@@ -78,8 +77,9 @@ class CommitAllChangeSetsTest(CronTest):
     with mock.patch.object(change_set, 'CommitChangeSet') as mock_commit:
       self.RunDeferredTasks(constants.TASK_QUEUE.BIT9_COMMIT_CHANGE)
 
-      expected_calls = [mock.call(self.change.key), mock.call(real_change.key)]
+      expected_calls = [mock.call(change.key), mock.call(real_change.key)]
       self.assertSameElements(expected_calls, mock_commit.mock_calls)
+
 
 
 class UpdateBit9PoliciesTest(CronTest):

@@ -22,7 +22,7 @@ from google.appengine.api import urlfetch
 
 from upvote.gae.datastore.models import virustotal
 from upvote.gae.lib.analysis.virustotal import constants
-from upvote.gae.shared.common import memcache_utils
+from upvote.gae.utils import memcache_utils
 
 _RESULT_CACHE_TIMEOUT = 4. * 60 * 60  # 4 hours
 
@@ -55,8 +55,10 @@ def _OnlyCacheAnalyzed(unused_call_args, unused_call_kwargs, call_return):
 
 
 @memcache_utils.ConditionallyCached(
-    key_name='VirusTotalLookup', create_key_func=_CreateLookupCacheKey,
-    expire_time=_RESULT_CACHE_TIMEOUT, cache_predicate=_OnlyCacheAnalyzed)
+    key_name='VirusTotalLookup',
+    create_key_func=_CreateLookupCacheKey,
+    expire_time=_RESULT_CACHE_TIMEOUT,
+    cache_predicate=_OnlyCacheAnalyzed)
 def Lookup(binary_hash):
   """Queries VirusTotal for the given binary hash.
 

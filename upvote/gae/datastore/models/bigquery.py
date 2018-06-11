@@ -21,6 +21,7 @@ from google.appengine.ext.ndb import polymodel
 from upvote.gae.datastore import utils as model_utils
 from upvote.gae.shared.common import settings
 from upvote.gae.shared.common import monitoring
+from upvote.gae.utils import json_utils
 from upvote.monitoring import metrics
 from upvote.shared import constants
 
@@ -188,3 +189,8 @@ class FailedInsertion(ndb.Model):
   table = ndb.StringProperty()
   values = ndb.JsonProperty()
   created = ndb.DateTimeProperty(auto_now_add=True)
+
+  @classmethod
+  def Create(cls, row_id, table, **kwargs):
+    json_str = json_utils.JSONEncoder().encode(kwargs)
+    cls(id=row_id, table=table, values=json_str).put()

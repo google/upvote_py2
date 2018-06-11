@@ -27,8 +27,8 @@ from upvote.gae.modules.upvote_app.api.handlers import base
 from upvote.gae.shared.common import handlers
 from upvote.gae.shared.common import settings
 from upvote.gae.shared.common import xsrf_utils
+from upvote.gae.utils import string_utils
 from upvote.shared import constants
-from upvote.shared import utils
 
 
 class Settings(base.BaseHandler):
@@ -43,7 +43,7 @@ class Settings(base.BaseHandler):
     """Get handler for settings."""
     logging.debug('Setting requested: %s', setting)
     try:
-      formatted_setting = utils.CamelToSnakeCase(setting)
+      formatted_setting = string_utils.CamelToSnakeCase(setting)
       value = getattr(settings, formatted_setting.upper())
     except AttributeError as e:
       logging.debug('Unable to retrieve setting.')

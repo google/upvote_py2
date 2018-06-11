@@ -25,10 +25,10 @@ from upvote.gae.datastore.models import base
 from upvote.gae.datastore.models import bigquery
 from upvote.gae.datastore.models import bit9
 from upvote.gae.datastore.models import santa
-from upvote.gae.modules.upvote_app.lib import voting
+from upvote.gae.lib.voting import api
 from upvote.gae.shared.common import basetest
-from upvote.gae.shared.common import intermodule
 from upvote.gae.shared.common import settings
+from upvote.gae.utils import intermodule_utils
 from upvote.shared import constants
 
 
@@ -60,29 +60,29 @@ class VotingTest(basetest.UpvoteTestCase):
     self.PatchEnv(settings.ProdEnv, ENABLE_BIGQUERY_STREAMING=True)
 
   def testGetBallotBox(self):
-    ballot_box = voting.GetBallotBox(self.santa_blockable1.key.id())
-    self.assertIsInstance(ballot_box, voting.SantaBallotBox)
+    ballot_box = api.GetBallotBox(self.santa_blockable1.key.id())
+    self.assertIsInstance(ballot_box, api.SantaBallotBox)
 
     bit9_binary = test_utils.CreateBit9Binary()
-    ballot_box = voting.GetBallotBox(bit9_binary.key.id())
-    self.assertIsInstance(ballot_box, voting.Bit9BallotBox)
+    ballot_box = api.GetBallotBox(bit9_binary.key.id())
+    self.assertIsInstance(ballot_box, api.Bit9BallotBox)
 
   def testGetBallotBox_BadBlockable(self):
-    with self.assertRaises(voting.BlockableNotFound):
-      voting.GetBallotBox('doesnt_exist')
+    with self.assertRaises(api.BlockableNotFound):
+      api.GetBallotBox('doesnt_exist')
 
   def testGetBallotBox_UnknownBlockableType(self):
     blockable = test_utils.CreateBlockable()
-    with self.assertRaises(voting.UnsupportedBlockableType):
-      voting.GetBallotBox(blockable.key.id())
+    with self.assertRaises(api.UnsupportedBlockableType):
+      api.GetBallotBox(blockable.key.id())
 
-  @mock.patch.object(intermodule, 'SubmitIntermoduleRequest')
+  @mock.patch.object(intermodule_utils, 'SubmitIntermoduleRequest')
   def testResolveVote_RowPersistence_Bit9(self, mock_intermodule):
     binary = test_utils.CreateBit9Binary()
 
     mock_intermodule.return_value.status_code = httplib.OK
 
-    ballot_box = voting.Bit9BallotBox(binary.key.id())
+    ballot_box = api.Bit9BallotBox(binary.key.id())
     with self.LoggedInUser() as user:
       ballot_box.ResolveVote(True, user, vote_weight=self.local_threshold)
 
@@ -94,7 +94,7 @@ class VotingTest(basetest.UpvoteTestCase):
     self.assertEntityCount(bigquery.BinaryRow, 2)
 
   def testResolveVote_RowPersistence_Santa(self):
-    ballot_box = voting.SantaBallotBox(self.santa_blockable1.key.id())
+    ballot_box = api.SantaBallotBox(self.santa_blockable1.key.id())
     with self.LoggedInUser() as user:
       ballot_box.ResolveVote(True, user, vote_weight=self.local_threshold)
 
@@ -105,7 +105,7 @@ class VotingTest(basetest.UpvoteTestCase):
     self.assertEntityCount(bigquery.VoteRow, 1)
     self.assertEntityCount(bigquery.BinaryRow, 2)
 
-  @mock.patch.object(intermodule, 'SubmitIntermoduleRequest')
+  @mock.patch.object(intermodule_utils, 'SubmitIntermoduleRequest')
   def testResolveVote_Bit9(self, mock_intermodule):
     binary = test_utils.CreateBit9Binary()
     user = test_utils.CreateUser()
@@ -113,7 +113,7 @@ class VotingTest(basetest.UpvoteTestCase):
 
     mock_intermodule.return_value.status_code = httplib.OK
 
-    ballot_box = voting.Bit9BallotBox(binary.key.id())
+    ballot_box = api.Bit9BallotBox(binary.key.id())
     with self.LoggedInUser(user=user):
       ballot_box.ResolveVote(True, user, vote_weight=self.local_threshold)
 
@@ -134,13 +134,13 @@ class VotingTest(basetest.UpvoteTestCase):
 
     self.assertTrue(mock_intermodule.called)
 
-  @mock.patch.object(intermodule, 'SubmitIntermoduleRequest')
+  @mock.patch.object(intermodule_utils, 'SubmitIntermoduleRequest')
   def testResolveVote_Bit9_NoRules(self, mock_intermodule):
     binary = test_utils.CreateBit9Binary()
 
     mock_intermodule.return_value.status_code = httplib.OK
 
-    ballot_box = voting.Bit9BallotBox(binary.key.id())
+    ballot_box = api.Bit9BallotBox(binary.key.id())
     with self.LoggedInUser() as user:
       ballot_box.ResolveVote(True, user, vote_weight=self.local_threshold)
 
@@ -151,8 +151,9 @@ class VotingTest(basetest.UpvoteTestCase):
     self.assertFalse(mock_intermodule.called)
 
   @mock.patch.object(
-      intermodule, 'SubmitIntermoduleRequest',
-      side_effect=intermodule.urlfetch.Error)
+      intermodule_utils,
+      'SubmitIntermoduleRequest',
+      side_effect=intermodule_utils.urlfetch.Error)
   def testResolveVote_Bit9_IntermoduleFail(self, mock_intermodule):
     binary = test_utils.CreateBit9Binary()
     user = test_utils.CreateUser()
@@ -160,7 +161,7 @@ class VotingTest(basetest.UpvoteTestCase):
 
     mock_intermodule.return_value.status_code = httplib.OK
 
-    ballot_box = voting.Bit9BallotBox(binary.key.id())
+    ballot_box = api.Bit9BallotBox(binary.key.id())
     with self.LoggedInUser(user=user):
       ballot_box.ResolveVote(True, user, vote_weight=self.local_threshold)
 
@@ -171,15 +172,15 @@ class VotingTest(basetest.UpvoteTestCase):
     self.assertTrue(mock_intermodule.called)
 
   def testResolveVote_Bit9_WrongBlockableType(self):
-    ballot_box = voting.Bit9BallotBox(self.santa_blockable1.key.id())
-    with self.assertRaises(voting.UnsupportedBlockableType):
+    ballot_box = api.Bit9BallotBox(self.santa_blockable1.key.id())
+    with self.assertRaises(api.UnsupportedBlockableType):
       with self.LoggedInUser() as user:
         ballot_box.ResolveVote(True, user)
 
   def testResolveVote_YesVote_FromUser(self):
     """Normal vote on normal blockable."""
 
-    ballot_box = voting.SantaBallotBox(self.santa_blockable1.key.id())
+    ballot_box = api.SantaBallotBox(self.santa_blockable1.key.id())
     with self.LoggedInUser() as user:
       ballot_box.ResolveVote(True, user)
 
@@ -190,7 +191,7 @@ class VotingTest(basetest.UpvoteTestCase):
   def testResolveVote_NoVote_FromUser(self):
     """Normal no vote on normal blockable."""
 
-    ballot_box = voting.SantaBallotBox(self.santa_blockable1.key.id())
+    ballot_box = api.SantaBallotBox(self.santa_blockable1.key.id())
     with self.LoggedInUser() as user:
       ballot_box.ResolveVote(False, user)
 
@@ -204,8 +205,8 @@ class VotingTest(basetest.UpvoteTestCase):
   def testResolve_NoVote_SantaBundle(self):
     """Restrict no vote for bundles."""
 
-    ballot_box = voting.SantaBallotBox(self.santa_bundle.key.id())
-    with self.assertRaises(voting.OperationNotAllowed):
+    ballot_box = api.SantaBallotBox(self.santa_bundle.key.id())
+    with self.assertRaises(api.OperationNotAllowed):
       with self.LoggedInUser() as user:
         ballot_box.ResolveVote(False, user)
 
@@ -217,7 +218,7 @@ class VotingTest(basetest.UpvoteTestCase):
     self.santa_blockable1.put()
     user = test_utils.CreateUser()
 
-    ballot_box = voting.SantaBallotBox(self.santa_blockable1.key.id())
+    ballot_box = api.SantaBallotBox(self.santa_blockable1.key.id())
     with self.LoggedInUser(user=user):
       ballot_box.ResolveVote(True, user)
 
@@ -230,7 +231,7 @@ class VotingTest(basetest.UpvoteTestCase):
 
     user = test_utils.CreateUser()
     new_weight = user.vote_weight + 1
-    ballot_box = voting.SantaBallotBox(self.santa_blockable1.key.id())
+    ballot_box = api.SantaBallotBox(self.santa_blockable1.key.id())
     with self.LoggedInUser(user=user):
       ballot_box.ResolveVote(True, user, vote_weight=new_weight)
 
@@ -241,7 +242,7 @@ class VotingTest(basetest.UpvoteTestCase):
   def testResolveVote_FromUser_VoteWeight_Invalid(self):
     """Normal vote on normal blockable with bad vote weight."""
 
-    ballot_box = voting.SantaBallotBox(self.santa_blockable1.key.id())
+    ballot_box = api.SantaBallotBox(self.santa_blockable1.key.id())
     with self.assertRaises(ValueError):
       with self.LoggedInUser() as user:
         ballot_box.ResolveVote(False, user, vote_weight=-1)
@@ -250,7 +251,7 @@ class VotingTest(basetest.UpvoteTestCase):
     """Normal vote on normal blockable with 0 vote weight."""
 
     new_weight = 0
-    ballot_box = voting.SantaBallotBox(self.santa_blockable1.key.id())
+    ballot_box = api.SantaBallotBox(self.santa_blockable1.key.id())
     with self.LoggedInUser() as user:
       ballot_box.ResolveVote(True, user, vote_weight=new_weight)
 
@@ -261,7 +262,7 @@ class VotingTest(basetest.UpvoteTestCase):
   def testResolveVote_ChangingVotes(self):
     """Normal vote on normal blockable."""
 
-    ballot_box = voting.SantaBallotBox(self.santa_blockable1.key.id())
+    ballot_box = api.SantaBallotBox(self.santa_blockable1.key.id())
     with self.LoggedInUser() as user:
       ballot_box.ResolveVote(True, user)
       ballot_box.ResolveVote(False, user)
@@ -289,7 +290,7 @@ class VotingTest(basetest.UpvoteTestCase):
       vote.put()
 
     # Attempt to change in effect vote to yes.
-    ballot_box = voting.SantaBallotBox(self.santa_blockable1.key.id())
+    ballot_box = api.SantaBallotBox(self.santa_blockable1.key.id())
     with self.LoggedInUser(user=user):
       ballot_box.ResolveVote(True, user)
 
@@ -308,7 +309,7 @@ class VotingTest(basetest.UpvoteTestCase):
 
     # Attempt to change in effect vote to yes.
     new_weight = user.vote_weight + 1
-    ballot_box = voting.SantaBallotBox(self.santa_blockable1.key.id())
+    ballot_box = api.SantaBallotBox(self.santa_blockable1.key.id())
     with self.LoggedInUser(user=user):
       ballot_box.ResolveVote(True, user, vote_weight=new_weight)
 
@@ -327,8 +328,8 @@ class VotingTest(basetest.UpvoteTestCase):
 
   def testResolveVote_NonexistentBlockable(self):
     """Voting on a blockable that doesn't exist in the datastore."""
-    ballot_box = voting.SantaBallotBox('bbbbllllfffftttt')
-    with self.assertRaises(voting.BlockableNotFound):
+    ballot_box = api.SantaBallotBox('bbbbllllfffftttt')
+    with self.assertRaises(api.BlockableNotFound):
       with self.LoggedInUser() as user:
         ballot_box.ResolveVote(True, user)
 
@@ -339,7 +340,7 @@ class VotingTest(basetest.UpvoteTestCase):
     admin = test_utils.CreateUser(admin=True)
 
     self.santa_blockable1 = test_utils.CreateSantaBlockable()
-    ballot_box = voting.SantaBallotBox(self.santa_blockable1.key.id())
+    ballot_box = api.SantaBallotBox(self.santa_blockable1.key.id())
     with self.LoggedInUser(user=user):
       ballot_box.ResolveVote(False, user)
     self.assertTrue(self.santa_blockable1.key.get().flagged)
@@ -358,7 +359,7 @@ class VotingTest(basetest.UpvoteTestCase):
 
     with self.LoggedInUser() as user:
       self.santa_blockable1 = test_utils.CreateSantaBlockable()
-      ballot_box = voting.SantaBallotBox(self.santa_blockable1.key.id())
+      ballot_box = api.SantaBallotBox(self.santa_blockable1.key.id())
       ballot_box.ResolveVote(False, user)
       self.assertTrue(self.santa_blockable1.key.get().flagged)
       ballot_box.ResolveVote(True, user)
@@ -375,7 +376,7 @@ class VotingTest(basetest.UpvoteTestCase):
     suspect_blockable = test_utils.CreateSantaBlockable(
         state=constants.STATE.SUSPECT)
 
-    ballot_box = voting.SantaBallotBox(suspect_blockable.key.id())
+    ballot_box = api.SantaBallotBox(suspect_blockable.key.id())
     with self.LoggedInUser(admin=True) as admin:
       ballot_box.ResolveVote(False, admin)
 
@@ -392,7 +393,7 @@ class VotingTest(basetest.UpvoteTestCase):
         state=constants.STATE.SUSPECT)
     with self.LoggedInUser(admin=True) as admin:
 
-      ballot_box = voting.SantaBallotBox(suspect_blockable.key.id())
+      ballot_box = api.SantaBallotBox(suspect_blockable.key.id())
       ballot_box.ResolveVote(True, admin)
 
       expectations = {
@@ -404,7 +405,7 @@ class VotingTest(basetest.UpvoteTestCase):
   def testResolveVote_GlobalWhitelist(self):
     """2 admins' votes make a blockable globally whitelisted."""
 
-    ballot_box = voting.SantaBallotBox(self.santa_blockable1.key.id())
+    ballot_box = api.SantaBallotBox(self.santa_blockable1.key.id())
     ballot_box.blockable = self.santa_blockable1
 
     for admin_user in test_utils.CreateUsers(2, admin=True):
@@ -417,7 +418,7 @@ class VotingTest(basetest.UpvoteTestCase):
   def testResolveVote_GlobalWhitelist_Bundle(self):
     """2 admins' votes make a bundle globally whitelisted."""
 
-    ballot_box = voting.SantaBallotBox(self.santa_bundle.key.id())
+    ballot_box = api.SantaBallotBox(self.santa_bundle.key.id())
 
     for admin_user in test_utils.CreateUsers(2, admin=True):
       ballot_box.ResolveVote(True, admin_user)
@@ -433,7 +434,7 @@ class VotingTest(basetest.UpvoteTestCase):
         constants.STATE.GLOBALLY_WHITELISTED)
 
   def testResolveVote_LocalWhitelist(self):
-    ballot_box = voting.SantaBallotBox(self.santa_blockable1.key.id())
+    ballot_box = api.SantaBallotBox(self.santa_blockable1.key.id())
 
     for user in test_utils.CreateUsers(self.local_threshold):
       test_utils.CreateSantaHost(primary_user=user.nickname)
@@ -444,7 +445,7 @@ class VotingTest(basetest.UpvoteTestCase):
         constants.STATE.APPROVED_FOR_LOCAL_WHITELISTING)
 
   def testResolveVote_LocalWhitelist_Bundle(self):
-    ballot_box = voting.SantaBallotBox(self.santa_bundle.key.id())
+    ballot_box = api.SantaBallotBox(self.santa_bundle.key.id())
 
     with mock.patch.object(
         ballot_box, '_GetHostsToWhitelist', return_value={'a_host'}):
@@ -502,7 +503,7 @@ class VotingTest(basetest.UpvoteTestCase):
     self.assertTrue(blockable.score + users[-1].vote_weight < 50)
 
     # The new voter casts a yes vote.
-    ballot_box = voting.SantaBallotBox(sha)
+    ballot_box = api.SantaBallotBox(sha)
     ballot_box.ResolveVote(True, users[-1])
 
     # Verify the Blockable, Votes, and Rules.
@@ -518,7 +519,7 @@ class VotingTest(basetest.UpvoteTestCase):
     blockable = test_utils.CreateSantaBlockable(
         state=constants.STATE.APPROVED_FOR_LOCAL_WHITELISTING)
 
-    ballot_box = voting.SantaBallotBox(blockable.key.id())
+    ballot_box = api.SantaBallotBox(blockable.key.id())
     with self.LoggedInUser(admin=True) as admin:
       ballot_box.ResolveVote(False, admin)
 
@@ -546,7 +547,7 @@ class VotingTest(basetest.UpvoteTestCase):
     test_utils.CreateVote(blockable)
     test_utils.CreateVote(blockable)
 
-    ballot_box = voting.SantaBallotBox(blockable.key.id())
+    ballot_box = api.SantaBallotBox(blockable.key.id())
     ballot_box.blockable = blockable
 
     ballot_box._GloballyWhitelist().get_result()
@@ -575,7 +576,7 @@ class VotingTest(basetest.UpvoteTestCase):
     blockable = test_utils.CreateSantaBlockable()
     test_utils.CreateSantaHost(primary_user=user.nickname)
 
-    ballot_box = voting.SantaBallotBox(blockable.key.id())
+    ballot_box = api.SantaBallotBox(blockable.key.id())
     for other_user in other_users:
       with self.LoggedInUser(user=other_user):
         test_utils.CreateSantaHost(primary_user=other_user.nickname)
@@ -605,7 +606,7 @@ class VotingTest(basetest.UpvoteTestCase):
     blockable = test_utils.CreateSantaBlockable()
     test_utils.CreateSantaHost(primary_user=user.nickname)
 
-    ballot_box = voting.SantaBallotBox(blockable.key.id())
+    ballot_box = api.SantaBallotBox(blockable.key.id())
     for other_user in other_users:
       with self.LoggedInUser(user=other_user):
         test_utils.CreateSantaHost(primary_user=other_user.nickname)
@@ -652,7 +653,7 @@ class VotingTest(basetest.UpvoteTestCase):
     # Create users not associated with any host.
     other_users = test_utils.CreateUsers(self.local_threshold - 1)
 
-    ballot_box = voting.SantaBallotBox(blockable.key.id())
+    ballot_box = api.SantaBallotBox(blockable.key.id())
     for other_user in other_users:
       with self.LoggedInUser(user=other_user):
         ballot_box.ResolveVote(True, other_user)
@@ -674,7 +675,7 @@ class VotingTest(basetest.UpvoteTestCase):
         [rule.host_id for rule in rules])
 
   def testResolveVote_KeyStructure(self):
-    ballot_box = voting.SantaBallotBox(self.santa_blockable1.key.id())
+    ballot_box = api.SantaBallotBox(self.santa_blockable1.key.id())
 
     self.assertEqual(0, len(self.santa_blockable1.GetVotes()))
 
@@ -696,16 +697,16 @@ class VotingTest(basetest.UpvoteTestCase):
   def testResolveVote_DuplicateVote(self):
     user = test_utils.CreateUser()
 
-    ballot_box = voting.SantaBallotBox(self.santa_blockable1.key.id())
+    ballot_box = api.SantaBallotBox(self.santa_blockable1.key.id())
     ballot_box.ResolveVote(True, user)
 
-    with self.assertRaises(voting.DuplicateVoteError):
+    with self.assertRaises(api.DuplicateVoteError):
       ballot_box.ResolveVote(True, user)
 
   def testResolveVote_ChangeVote(self):
     user = test_utils.CreateUser()
 
-    ballot_box = voting.SantaBallotBox(self.santa_blockable1.key.id())
+    ballot_box = api.SantaBallotBox(self.santa_blockable1.key.id())
 
     # The user upvotes the blockable.
     ballot_box.ResolveVote(True, user)
@@ -733,7 +734,7 @@ class VotingTest(basetest.UpvoteTestCase):
   def testResolveVote_ArchiveAllVote(self):
     user = test_utils.CreateUser()
 
-    ballot_box = voting.SantaBallotBox(self.santa_blockable1.key.id())
+    ballot_box = api.SantaBallotBox(self.santa_blockable1.key.id())
 
     existing_count = base.Vote.query().count()
 
@@ -758,7 +759,7 @@ class VotingTest(basetest.UpvoteTestCase):
 
     user = test_utils.CreateUser()
 
-    ballot_box = voting.SantaBallotBox(self.santa_blockable1.key.id())
+    ballot_box = api.SantaBallotBox(self.santa_blockable1.key.id())
     ballot_box.ResolveVote(False, user)
 
     self.assertTaskCount(constants.TASK_QUEUE.METRICS, 1)
@@ -768,7 +769,7 @@ class VotingTest(basetest.UpvoteTestCase):
 
     user = test_utils.CreateUser()
 
-    ballot_box = voting.SantaBallotBox(self.santa_bundle.key.id())
+    ballot_box = api.SantaBallotBox(self.santa_bundle.key.id())
     ballot_box.ResolveVote(True, user)
 
     self.assertTaskCount(constants.TASK_QUEUE.METRICS, 0)
@@ -780,7 +781,7 @@ class VotingTest(basetest.UpvoteTestCase):
     user = test_utils.CreateUser()
     test_utils.CreateVote(
         santa_blockable, user_email=user.email, was_yes_vote=True)
-    ballot_box = voting.SantaBallotBox(santa_blockable.key.id())
+    ballot_box = api.SantaBallotBox(santa_blockable.key.id())
     ballot_box.Recount()
     santa_blockable = santa_blockable.key.get()
     self.assertEqual(santa_blockable.score, 1)
@@ -795,7 +796,7 @@ class VotingTest(basetest.UpvoteTestCase):
       original_blockable_dict = santa_blockable.to_dict()
       test_utils.CreateVote(
           santa_blockable, user_email=user.email, was_yes_vote=False)
-      ballot_box = voting.SantaBallotBox(santa_blockable.key.id())
+      ballot_box = api.SantaBallotBox(santa_blockable.key.id())
       ballot_box.blockable = santa_blockable
 
       change_made = ballot_box._CheckBlockableFlagStatus()
@@ -816,7 +817,7 @@ class VotingTest(basetest.UpvoteTestCase):
     user = test_utils.CreateUser()
     test_utils.CreateVote(
         santa_blockable, user_email=user.email, was_yes_vote=False)
-    ballot_box = voting.SantaBallotBox(santa_blockable.key.id())
+    ballot_box = api.SantaBallotBox(santa_blockable.key.id())
     ballot_box.blockable = santa_blockable
 
     change_made = ballot_box._CheckBlockableFlagStatus()
@@ -832,7 +833,7 @@ class VotingTest(basetest.UpvoteTestCase):
     user = test_utils.CreateUser()
     test_utils.CreateVote(
         santa_blockable, user_email=user.email, was_yes_vote=True)
-    ballot_box = voting.SantaBallotBox(santa_blockable.key.id())
+    ballot_box = api.SantaBallotBox(santa_blockable.key.id())
     ballot_box.blockable = santa_blockable
 
     change_made = ballot_box._CheckBlockableFlagStatus()
@@ -858,7 +859,7 @@ class VotingTest(basetest.UpvoteTestCase):
           santa_blockable.key, user.key, in_effect=False)
       archived_vote.put()
 
-    ballot_box = voting.SantaBallotBox(santa_blockable.key.id())
+    ballot_box = api.SantaBallotBox(santa_blockable.key.id())
     ballot_box.blockable = santa_blockable
 
     change_made = ballot_box._CheckBlockableFlagStatus()
@@ -877,7 +878,7 @@ class VotingTest(basetest.UpvoteTestCase):
     test_utils.CreateVote(
         santa_blockable, user_email=admin.email, was_yes_vote=False)
 
-    ballot_box = voting.SantaBallotBox(santa_blockable.key.id())
+    ballot_box = api.SantaBallotBox(santa_blockable.key.id())
     ballot_box.blockable = santa_blockable
 
     change_made = ballot_box._AuditBlockableState()
@@ -900,7 +901,7 @@ class VotingTest(basetest.UpvoteTestCase):
     test_utils.CreateVote(
         santa_blockable, user_email=admin2.email, was_yes_vote=True)
 
-    ballot_box = voting.SantaBallotBox(santa_blockable.key.id())
+    ballot_box = api.SantaBallotBox(santa_blockable.key.id())
     ballot_box.blockable = santa_blockable
 
     with mock.patch.object(ballot_box, '_CheckAndSetBlockableState',
@@ -921,7 +922,7 @@ class VotingTest(basetest.UpvoteTestCase):
     santa_blockable.state = constants.STATE.SUSPECT
     santa_blockable.put()
 
-    ballot_box = voting.SantaBallotBox(santa_blockable.key.id())
+    ballot_box = api.SantaBallotBox(santa_blockable.key.id())
     ballot_box.blockable = santa_blockable
 
     with mock.patch.object(ballot_box, '_CheckAndSetBlockableState',
@@ -960,7 +961,7 @@ class VotingTest(basetest.UpvoteTestCase):
     test_rule2.put()
     test_rule3.put()
 
-    ballot_box = voting.SantaBallotBox(santa_blockable.key.id())
+    ballot_box = api.SantaBallotBox(santa_blockable.key.id())
     ballot_box.blockable = santa_blockable
 
     ballot_box._CheckRules()
@@ -1003,7 +1004,7 @@ class VotingTest(basetest.UpvoteTestCase):
     test_rule2.put()
     test_rule3.put()
 
-    ballot_box = voting.SantaBallotBox(santa_blockable.key.id())
+    ballot_box = api.SantaBallotBox(santa_blockable.key.id())
     ballot_box.blockable = santa_blockable
 
     ballot_box._CheckRules()
@@ -1031,7 +1032,7 @@ class VotingTest(basetest.UpvoteTestCase):
         in_effect=True)
     test_rule.put()
 
-    ballot_box = voting.SantaBallotBox(santa_blockable.key.id())
+    ballot_box = api.SantaBallotBox(santa_blockable.key.id())
     ballot_box.blockable = santa_blockable
 
     ballot_box._CheckRules()
@@ -1057,7 +1058,7 @@ class VotingTest(basetest.UpvoteTestCase):
         in_effect=True)
     test_rule.put()
 
-    ballot_box = voting.SantaBallotBox(santa_blockable.key.id())
+    ballot_box = api.SantaBallotBox(santa_blockable.key.id())
     ballot_box.blockable = santa_blockable
 
     ballot_box._CheckRules()
@@ -1083,7 +1084,7 @@ class VotingTest(basetest.UpvoteTestCase):
         in_effect=True)
     test_rule.put()
 
-    ballot_box = voting.SantaBallotBox(santa_blockable.key.id())
+    ballot_box = api.SantaBallotBox(santa_blockable.key.id())
     ballot_box.blockable = santa_blockable
 
     ballot_box._CheckRules()
@@ -1124,7 +1125,7 @@ class VotingTest(basetest.UpvoteTestCase):
     test_rule2.put()
     test_rule3.put()
 
-    ballot_box = voting.SantaBallotBox(santa_blockable.key.id())
+    ballot_box = api.SantaBallotBox(santa_blockable.key.id())
     ballot_box.blockable = santa_blockable
 
     ballot_box._CheckRules()
@@ -1147,7 +1148,7 @@ class VotingTest(basetest.UpvoteTestCase):
         in_effect=True)
     test_rule.put()
 
-    ballot_box = voting.SantaBallotBox(santa_blockable.key.id())
+    ballot_box = api.SantaBallotBox(santa_blockable.key.id())
     ballot_box.blockable = santa_blockable
 
     ballot_box._CheckRules()
@@ -1173,7 +1174,7 @@ class VotingTest(basetest.UpvoteTestCase):
         in_effect=True)
     test_rule.put()
 
-    ballot_box = voting.SantaBallotBox(santa_blockable.key.id())
+    ballot_box = api.SantaBallotBox(santa_blockable.key.id())
     ballot_box.blockable = santa_blockable
 
     ballot_box._CheckRules()
@@ -1192,7 +1193,7 @@ class VotingTest(basetest.UpvoteTestCase):
     test_utils.CreateSantaRule(blockable.key)
     test_utils.CreateVotes(blockable, 11)
 
-    ballot_box = voting.SantaBallotBox(blockable.key.id())
+    ballot_box = api.SantaBallotBox(blockable.key.id())
     ballot_box.Reset()
 
     self.assertEqual(constants.STATE.UNTRUSTED, blockable.key.get().state)
@@ -1212,11 +1213,11 @@ class VotingTest(basetest.UpvoteTestCase):
   def testResetBlockable_Bundles_NotAllowed(self):
     """Test resetting a blockable with some votes."""
 
-    ballot_box = voting.SantaBallotBox(self.santa_bundle.key.id())
-    with self.assertRaises(voting.OperationNotAllowed):
+    ballot_box = api.SantaBallotBox(self.santa_bundle.key.id())
+    with self.assertRaises(api.OperationNotAllowed):
       ballot_box.Reset()
 
-  @mock.patch.object(intermodule, 'SubmitIntermoduleRequest')
+  @mock.patch.object(intermodule_utils, 'SubmitIntermoduleRequest')
   def testResetBlockable_Bit9(self, mock_intermodule):
     binary = test_utils.CreateBit9Binary()
     user = test_utils.CreateUser()
@@ -1224,7 +1225,7 @@ class VotingTest(basetest.UpvoteTestCase):
 
     mock_intermodule.return_value.status_code = httplib.OK
 
-    ballot_box = voting.Bit9BallotBox(binary.key.id())
+    ballot_box = api.Bit9BallotBox(binary.key.id())
     with self.LoggedInUser(user=user):
       ballot_box.ResolveVote(True, user, vote_weight=self.local_threshold)
 

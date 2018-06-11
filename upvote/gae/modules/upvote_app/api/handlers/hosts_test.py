@@ -577,44 +577,6 @@ class LockdownHandlerTest(HostsTest):
           self.ROUTE % self.santa_host_2.key.id(), status=httplib.FORBIDDEN)
 
 
-class HostEventRateHandlerTest(HostsTest):
-
-  ROUTE = '/hosts/%s/event-rate'
-
-  def setUp(self):
-    super(HostEventRateHandlerTest, self).setUp()
-
-    self.user = test_utils.CreateUser()
-
-    self.santa_blockable = test_utils.CreateSantaBlockable()
-    self.santa_event = test_utils.CreateSantaEvent(
-        self.santa_blockable,
-        host_id=self.santa_host_1.key.id(),
-        last_blocked_dt=datetime.datetime.utcnow(),
-        parent=utils.ConcatenateKeys(
-            self.user.key, self.santa_host_1.key, self.santa_blockable.key))
-
-  def testNonMax(self):
-    with self.LoggedInUser(user=self.user):
-      response = self.testapp.get(self.ROUTE % self.santa_host_1.key.id())
-    output = response.json
-
-    self.assertIn('application/json', response.headers['Content-type'])
-    self.assertIsInstance(output, dict)
-
-    self.assertFalse(output['atMax'])
-    self.assertTrue(output['avgRate'] > 0)
-
-  def testUnknownHost(self):
-    with self.LoggedInUser(user=self.user):
-      self.testapp.get(self.ROUTE % '/NotARealHost', status=httplib.NOT_FOUND)
-
-  def testUnassociatedUser(self):
-    with self.LoggedInUser():
-      self.testapp.get(
-          self.ROUTE % self.santa_host_1.key.id(), status=httplib.FORBIDDEN)
-
-
 class VisibilityHandlerTest(HostsTest):
 
   ROUTE = '/hosts/%s/hidden/%s'

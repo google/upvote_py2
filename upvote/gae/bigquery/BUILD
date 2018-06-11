@@ -1,21 +1,32 @@
+package(default_visibility = ["//upvote"])
+
 load(
     "//upvote:builddefs.bzl",
     "py_appengine_library",
     "upvote_appengine_test",
 )
 
-package(default_visibility = ["//upvote"])
-
-# Libraries
+# AppEngine Libraries
 # ==============================================================================
 
 py_appengine_library(
-    name = "bigquery_schema",
-    srcs = ["bigquery_schema.py"],
+    name = "tables",
+    srcs = ["tables.py"],
     deps = [
+        ":monitoring",
         "//external:gcloud_bigquery",
+        "//upvote/gae/datastore/models:bigquery",
         "//upvote/gae/shared/common:google_cloud_lib_fixer",
         "//upvote/shared:constants",
+    ],
+)
+
+py_appengine_library(
+    name = "monitoring",
+    srcs = ["monitoring.py"],
+    deps = [
+        "//upvote/gae/shared/common:monitoring",
+        "//upvote/monitoring:metrics",
     ],
 )
 
@@ -23,13 +34,15 @@ py_appengine_library(
 # ==============================================================================
 
 upvote_appengine_test(
-    name = "bigquery_schema_test",
-    size = "medium",
-    srcs = ["bigquery_schema_test.py"],
+    name = "tables_test",
+    size = "small",
+    srcs = ["tables_test.py"],
     deps = [
-        ":bigquery_schema",
+        ":tables",
+        "//external:mock",
         "//upvote/gae/datastore/models:bigquery",
         "//upvote/gae/shared/common:basetest",
         "//upvote/shared:constants",
+        "@absl_git//absl/testing:absltest",
     ],
 )

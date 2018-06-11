@@ -59,19 +59,3 @@ class FileFlags(object):
   MARKED_INSTALLER = 0x00004
   DETECTED_INSTALLER = 0x00010
   MARKED_NOT_INSTALLER = 0x10000
-
-
-class UpvoteHostHealthProperties(object):
-  """Host health properties."""
-
-  AGENT_CACHE_SIZE = 'agent_cache_size'
-  AGENT_VERSION = 'agent_version'
-  CONNECTED = 'connected'
-  HAS_HEALTH_CHECK_ERRORS = 'has_health_check_errors'
-  IS_INITIALIZING = 'is_initializing'
-  LAST_REGISTER_DATE = 'last_register_date'
-  NAME = 'name'
-  POLICY_NAME = 'policy_name'
-  POLICY_STATUS = 'policy_status'
-  POLICY_STATUS_DETAILS = 'policy_status_details'
-  UPGRADE_STATUS = 'upgrade_status'

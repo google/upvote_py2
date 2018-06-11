@@ -13,10 +13,10 @@ py_library(
     name = "all",
     deps = [
         ":big_red",
-        ":json_utils",
         ":model_mapping",
         ":query_utils",
         ":settings",
+        "//upvote/gae/utils:json_utils",
     ],
 )
 
@@ -63,19 +63,6 @@ py_appengine_library(
 )
 
 py_appengine_library(
-    name = "memcache_utils",
-    srcs = ["memcache_utils.py"],
-    deps = [
-        "//common:memcache_decorator",
-    ],
-)
-
-py_appengine_library(
-    name = "json_utils",
-    srcs = ["json_utils.py"],
-)
-
-py_appengine_library(
     name = "query_utils",
     srcs = ["query_utils.py"],
     deps = [
@@ -87,17 +74,8 @@ py_appengine_library(
     name = "handlers",
     srcs = ["handlers.py"],
     deps = [
-        ":json_utils",
         ":utils",
-    ],
-)
-
-py_appengine_library(
-    name = "intermodule",
-    srcs = ["intermodule.py"],
-    deps = [
-        ":settings",
-        "//upvote/shared:constants",
+        "//upvote/gae/utils:json_utils",
     ],
 )
 
@@ -197,29 +175,6 @@ upvote_appengine_test(
 )
 
 upvote_appengine_test(
-    name = "memcache_utils_test",
-    size = "small",
-    srcs = ["memcache_utils_test.py"],
-    deps = [
-        ":memcache_utils",
-        "//common/testing:basetest",
-        "//external:mock",
-    ],
-)
-
-upvote_appengine_test(
-    name = "json_utils_test",
-    size = "small",
-    srcs = ["json_utils_test.py"],
-    deps = [
-        ":json_utils",
-        "//common/testing:basetest",
-        "//upvote/gae/datastore/models:santa",
-        "//upvote/shared:constants",
-    ],
-)
-
-upvote_appengine_test(
     name = "settings_utils_test",
     size = "small",
     srcs = ["settings_utils_test.py"],
@@ -263,19 +218,6 @@ upvote_appengine_test(
         ":query_utils",
         "//external:mock",
         "//upvote/shared:constants",
-    ],
-)
-
-upvote_appengine_test(
-    name = "intermodule_test",
-    size = "small",
-    srcs = ["intermodule_test.py"],
-    deps = [
-        ":basetest",
-        ":intermodule",
-        ":settings",
-        ":settings_utils",
-        "//external:mock",
     ],
 )
 

@@ -3,6 +3,11 @@
   margin: 16px 8px 16px 8px;
 }
 
+#unknown-card {
+  margin: 16px 8px 16px 8px;
+  width: 640px;
+}
+
 .next-button.ng-leave {
   transition: 0.1s ease all;
   opacity: 1;
@@ -89,4 +94,19 @@ md-list.uv-info-list md-list-item .md-avatar {
 
 #fake-butterbar-title {
   font-weight: bold;
+}
+
+.platform-header {
+  margin-top: 30px;
+}
+
+.platform-logo {
+  height: 22px;
+  margin: 0px 4px 3px 0px;
+  vertical-align: middle;
+}
+
+.platform-span {
+  font-weight: bold;
+  font-size: 1.17em;
 }

@@ -21,7 +21,6 @@ py_appengine_library(
     srcs = ["test_utils.py"],
     deps = [
         "//external:mock",
-        "//upvote/gae/datastore/models:alert",
         "//upvote/gae/datastore/models:base",
         "//upvote/gae/datastore/models:bit9",
         "//upvote/gae/datastore/models:santa",

@@ -1,4 +1,7 @@
-exports_files(["builddefs"])
+exports_files([
+    "builddefs",
+    "upvote.blueprint",
+])
 
 package(default_visibility = ["//upvote"])
 

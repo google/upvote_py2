@@ -1,10 +1,10 @@
-<div layout="column" layout-padding layout-align="start center"
-                     ng-show="ctrl.blockable" style="padding: 0px;">
+<div layout="column" layout-padding layout-align="start center" style="padding: 0px;">
 
-  <md-card id="blockable-card" layout="column" layout-align="start center">
+  <md-card id="blockable-card" layout="column" layout-align="start center"
+           ng-if="ctrl.blockableLoaded">
+
     <md-card-content>
-      <div ng-if="!ctrl.blockable.id">Blockable not found :(</div>
-      <md-stepper id="voting-stepper" md-vertical="true" md-linear="true" ng-if="ctrl.blockable.id">
+      <md-stepper id="voting-stepper" md-vertical="true" md-linear="true">
         <md-step md-label="Verify that this is the application you intended to run">
           <div layout-padding>
             <md-list class="uv-info-list">
@@ -307,4 +307,51 @@
     </md-button>
 
   </md-card>
+
+  <md-card id="unknown-card" layout="column" layout-align="start center"
+           ng-if="ctrl.blockableUnknown">
+    <md-card-title>
+      <md-card-title-text>
+        <span class="md-headline">Application Not Found</span>
+      </md-card-title-text>
+    </md-card-title>
+    <md-card-content>
+
+      <p>
+        Upvote does not currently have any information about the specified
+        application. This is likely due to a brief delay in the syncing process
+        between your machine and Upvote. Check back in 5-10 minutes, as the
+        issue will likely resolve itself by then.
+      </p>
+
+      <div class="platform-header">
+        <span>
+          <img class="platform-logo" alt="For Windows Users"
+               ng-src="/static/images/windows_logo.svg"
+               src="/static/images/windows_logo.svg">
+          <span class="platform-span">For Windows Users:</span>
+        </span>
+      </div>
+      <p>
+        It can often take several minutes for information to propagate from a
+        Windows machine to Upvote. If the syncing process is currently degraded
+        in any way, an alert banner will appear above with more details.
+      </p>
+
+      <div class="platform-header">
+        <span>
+          <img class="platform-logo" alt="For macOS Users"
+               ng-src="/static/images/apple_logo.svg"
+               src="/static/images/apple_logo.svg">
+          <span class="platform-span">For macOS Users:</span>
+        </span>
+      </div><p>
+        It can often take several minutes for information to propagate from a
+        macOS machine to Upvote. If you're experiencing a delay, you can
+        manually trigger a sync by opening the Terminal application and running
+        <code>santactl sync</code>.
+      </p>
+    </md-card-content>
+  </md-card>
+
 </div>

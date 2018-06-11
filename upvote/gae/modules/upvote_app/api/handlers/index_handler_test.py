@@ -14,6 +14,7 @@
 
 """Tests for the index_handler module."""
 
+import httplib
 import mock
 import webapp2
 
@@ -32,7 +33,7 @@ class IndexHandlerTest(basetest.UpvoteTestCase):
     handler.GetAdmin()
     mock_get_template.assert_called_once_with(
         index_handler.IndexHandler.IndexPageVersion.ADMIN)
-    self.assertEqual(200, handler.response.status_int)
+    self.assertEqual(httplib.OK, handler.response.status_int)
     self.assertEqual('content', handler.response.body)
 
   @mock.patch.object(template_utils, 'GetTemplate')
@@ -43,7 +44,7 @@ class IndexHandlerTest(basetest.UpvoteTestCase):
     handler.GetUser()
     mock_get_template.assert_called_once_with(
         index_handler.IndexHandler.IndexPageVersion.USER)
-    self.assertEqual(200, handler.response.status_int)
+    self.assertEqual(httplib.OK, handler.response.status_int)
     self.assertEqual('content', handler.response.body)
 
 

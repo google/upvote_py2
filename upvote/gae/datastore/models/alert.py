@@ -41,3 +41,13 @@ class Alert(ndb.Model):
       required=True, choices=constants.SITE_ALERT_SCOPE.SET_ALL)
   severity = ndb.StringProperty(
       required=True, choices=constants.SITE_ALERT_SEVERITY.SET_ALL)
+
+  @classmethod
+  def New(cls, scope=None, platform=None, **kwargs):
+    parent_id = ('%s_%s' % (scope, platform)).lower()
+    parent_key = ndb.Key(cls, parent_id)
+    return cls(parent=parent_key, scope=scope, platform=platform, **kwargs)
+
+  @classmethod
+  def Insert(cls, **kwargs):
+    return cls.New(**kwargs).put()

@@ -104,11 +104,6 @@ describe('Host Service', () => {
       });
     });
 
-    it('when requesting event rate', () => {
-      httpBackend.expectGET('/api/web/hosts/abc/event-rate').respond(200);
-      hostService.getEventRate('abc');
-    });
-
     describe('when querying for hosts', () => {
       it('related to Santa', () => {
         let qParams = {

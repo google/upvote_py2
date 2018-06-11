@@ -26,9 +26,12 @@ from google.appengine.ext import ndb
 
 from upvote.gae.datastore.models import alert as alert_db
 from upvote.gae.modules.upvote_app.api.handlers import base
+from upvote.gae.shared.common import xsrf_utils
 from upvote.shared import constants
 
+
 _DEFAULT_MEMCACHE_TIMEOUT = datetime.timedelta(days=7).total_seconds()
+_DATETIME_FORMAT_STRING = '%Y-%m-%dT%H:%M:%SZ'
 
 
 def _CreateMemcacheKey(scope, platform):
@@ -39,7 +42,7 @@ def _CreateMemcacheKey(scope, platform):
 class AlertHandler(base.BaseHandler):
   """Handler for interacting with user-facing alert messages."""
 
-  def get(self, scope, platform):
+  def _ValidateRouteParams(self, scope, platform):
 
     if not constants.SITE_ALERT_SCOPE.Contains(scope, ignore_case=True):
       self.abort(httplib.BAD_REQUEST, 'Invalid scope: %s' % scope)
@@ -49,6 +52,12 @@ class AlertHandler(base.BaseHandler):
 
     scope = constants.SITE_ALERT_SCOPE.Get(scope)
     platform = constants.SITE_ALERT_PLATFORM.Get(platform)
+
+    return scope, platform
+
+  def get(self, scope, platform):
+
+    scope, platform = self._ValidateRouteParams(scope, platform)
 
     # Check Memcache first.
     memcache_key = _CreateMemcacheKey(scope, platform)
@@ -117,13 +126,42 @@ class AlertHandler(base.BaseHandler):
 
       self.respond_json(alert_dict)
 
+  def _ParseRequestDate(self, request_arg):
+    date_str = self.request.get(request_arg).strip()
+    return (
+        datetime.datetime.strptime(date_str, _DATETIME_FORMAT_STRING)
+        if date_str else None)
+
+  @xsrf_utils.RequireToken
   @base.RequireCapability(constants.PERMISSIONS.EDIT_ALERTS)
-  def post(self):
-    pass
+  def post(self, scope, platform):
+
+    scope, platform = self._ValidateRouteParams(scope, platform)
+
+    # Verify that the alert payload has the minimum requirements before going
+    # any further.
+    for request_arg in ('message', 'start_date', 'severity'):
+      if not self.request.get(request_arg).strip():
+        self.abort(
+            httplib.BAD_REQUEST, 'Missing request argument: %s' % request_arg)
+
+    alert_db.Alert.Insert(
+        message=self.request.get('message'),
+        details=self.request.get('details'),
+        start_date=self._ParseRequestDate('start_date'),
+        end_date=self._ParseRequestDate('end_date'),
+        platform=platform,
+        scope=scope,
+        severity=self.request.get('severity'))
+
+    # Expire the memcache key in case the newly-created Alert which should take
+    # priority over a current one. We don't need to reset the key, the next
+    # relevant GET request should take care of it automatically.
+    memcache.delete(_CreateMemcacheKey(scope, platform))
 
 
 # The Webapp2 routes defined for these handlers.
-ROUTES = routes.PathPrefixRoute('/alert', [
+ROUTES = routes.PathPrefixRoute('/alerts', [
     webapp2.Route(
         '/<scope>/<platform>',
         handler=AlertHandler),

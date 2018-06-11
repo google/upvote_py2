@@ -301,14 +301,16 @@ describe('Detail Controller', () => {
     return element.controller();
   };
 
-  describe('should create an error notification', () => {
-    it('if the blockable retrieval fails', () => {
-      setBlockable(null);
+  describe('should load a custom 404 message', () => {
+    it('if the blockable does not exist', () => {
+      blockableResource['get']['and']['returnValue'](
+          {'$promise': q.reject({'status': 404})});
 
       ctrl = buildController();
       scope.$apply();
 
-      expect(errorService.createToastFromError).toHaveBeenCalled();
+      expect(ctrl.blockableLoaded).toBe(false);
+      expect(ctrl.blockableUnknown).toBe(true);
     });
 
     it('if the package content retrieval fails', () => {

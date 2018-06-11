@@ -26,7 +26,7 @@ from upvote.shared import constants
 
 @mock.patch.object(metrics.monitoring, 'virustotal_new_lookups')
 @mock.patch.object(
-    metrics.analysis, 'VirusTotalLookup',
+    metrics.analysis_api, 'VirusTotalLookup',
     return_value={'response_code': 0})
 class MetricsTest(basetest.UpvoteTestCase):
 

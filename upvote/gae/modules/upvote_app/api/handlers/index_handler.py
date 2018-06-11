@@ -13,6 +13,9 @@
 # limitations under the License.
 
 """A module for the index handler."""
+
+import httplib
+
 from google.appengine.api import users
 
 from upvote.gae.shared.common import handlers
@@ -39,7 +42,7 @@ class IndexHandler(handlers.UpvoteRequestHandler):
     # Write the jinja2 template rendering to the handler's repsonse.
     response_string = template_utils.GetTemplate(
         template_name).render(template_context)
-    self.response.set_status(200)
+    self.response.set_status(httplib.OK)
 
     self.response.write(response_string)
 

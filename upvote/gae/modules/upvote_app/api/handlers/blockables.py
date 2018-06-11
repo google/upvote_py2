@@ -26,10 +26,10 @@ from upvote.gae.datastore.models import base as base_db
 from upvote.gae.datastore.models import bigquery
 from upvote.gae.datastore.models import bit9 as bit9_db
 from upvote.gae.datastore.models import santa as santa_db
+from upvote.gae.lib.voting import api as voting_api
 from upvote.gae.modules.bit9_api import change_set
 from upvote.gae.modules.upvote_app.api import monitoring
 from upvote.gae.modules.upvote_app.api.handlers import base
-from upvote.gae.modules.upvote_app.lib import voting
 from upvote.gae.shared.common import handlers
 from upvote.gae.shared.common import model_mapping
 from upvote.gae.shared.common import xsrf_utils
@@ -184,11 +184,11 @@ class BlockableHandler(base.BaseHandler):
     logging.debug('Blockable handler POST input: %s', self.request.arguments())
     if self.request.get('recount').lower() == 'recount':
       try:
-        ballot_box = voting.GetBallotBox(blockable_id)
+        ballot_box = voting_api.GetBallotBox(blockable_id)
         ballot_box.Recount()
-      except voting.BlockableNotFound:
+      except voting_api.BlockableNotFound:
         self.abort(httplib.NOT_FOUND, explanation='Blockable not found')
-      except voting.UnsupportedBlockableType as e:
+      except voting_api.UnsupportedBlockableType as e:
         self.abort(httplib.BAD_REQUEST, explanation=e.message)
       else:
         self.respond_json(ballot_box.blockable)
@@ -232,11 +232,11 @@ class BlockableHandler(base.BaseHandler):
   def _reset_blockable(self, blockable_id):
     logging.info('Blockable reset: %s', blockable_id)
     try:
-      ballot_box = voting.GetBallotBox(blockable_id)
+      ballot_box = voting_api.GetBallotBox(blockable_id)
       ballot_box.Reset()
-    except voting.BlockableNotFound:
+    except voting_api.BlockableNotFound:
       self.abort(httplib.NOT_FOUND)
-    except voting.UnsupportedBlockableType as e:
+    except voting_api.UnsupportedBlockableType as e:
       self.abort(httplib.BAD_REQUEST, explanation=e.message)
     else:
       self.respond_json(ballot_box.blockable)

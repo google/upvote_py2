@@ -18,13 +18,12 @@ import datetime
 import httplib
 import logging
 import re
-import sys
 import time
 
-from google.appengine.api import memcache
 from google.appengine.ext import deferred
 from google.appengine.ext import ndb
 
+from common import memcache_decorator
 from common import datastore_locks
 
 from upvote.gae.datastore import utils as model_utils
@@ -41,8 +40,8 @@ from upvote.gae.modules.bit9_api.api import api
 from upvote.gae.shared.common import query_utils
 from upvote.gae.shared.common import user_map
 from upvote.gae.taskqueue import utils as taskqueue_utils
+from upvote.gae.utils import time_utils
 from upvote.shared import constants
-from upvote.shared import time_utils
 
 # Automatic scaling sets a 10 minute deadline for tasks queues. We specify a
 # task duration slightly less than that in order to allow enough time for
@@ -67,6 +66,10 @@ _PROCESS_LOCK_MAX_ACQUIRE_ATTEMPTS = 1
 
 _CERT_MEMCACHE_KEY = 'bit9_cert_%s'
 _CERT_MEMCACHE_TIMEOUT = datetime.timedelta(days=7).total_seconds()
+
+_LOCAL_RULE_COPY_LIMIT = 250
+
+_GET_CERT_ATTEMPTS = 3
 
 
 class Error(Exception):
@@ -129,34 +132,28 @@ def BuildEventSubtypeFilter():
   return filter_expr
 
 
+@memcache_decorator.Cached(
+    expire_time=_CERT_MEMCACHE_TIMEOUT,
+    create_key_func=lambda f, key, args, kwargs: _CERT_MEMCACHE_KEY % args[0],
+    namespace=None)
 def _GetCertificate(cert_id):
   """Gets a certificate entity."""
-  logging.info('Retrieving certificate (ID=%s)', cert_id)
+  for _ in xrange(_GET_CERT_ATTEMPTS):
+    cert = api.Certificate.get(cert_id, utils.CONTEXT)
 
-  # Check memcache first.
-  memcache_key = _CERT_MEMCACHE_KEY % cert_id
-  cert = memcache.get(memcache_key)
-  if cert:
-    return cert
+    # Attempt to parse the cert before caching it, in case the related
+    # fileCatalog contains an "embedded signer". In such cases, the fileCatalog
+    # contains a certificateId, but the actual cert data comes back empty,
+    # causing breakage here.
+    try:
+      cert.to_raw_dict()
+    except Exception:  # pylint: disable=broad-except
+      message = 'Unable to parse Certificate %s' % cert_id
+      logging.exception(message)
+    else:
+      return cert
 
-  # If it's not cached then query Bit9.
-  cert = api.Certificate.get(cert_id, utils.CONTEXT)
-
-  # Attempt to parse the cert before caching it, in case Bit9 returns malformed
-  # cert data again.
-  try:
-    cert.to_raw_dict()
-
-  # If anything is amiss, log the error and re-raise as a MalformedCertificate.
-  except:
-    message = 'Unable to parse Certificate %s' % cert_id
-    logging.exception(message)
-    _, _, exc_traceback = sys.exc_info()
-    raise MalformedCertificate, MalformedCertificate(message), exc_traceback
-
-  # Otherwise, add the cert to memcache.
-  memcache.set(memcache_key, cert, time=_CERT_MEMCACHE_TIMEOUT)
-  return cert
+  raise MalformedCertificate(message)
 
 
 def _GetSigningChain(cert_id):
@@ -209,32 +206,47 @@ def GetEvents(last_synced_id, limit=_PULL_BATCH_SIZE):
 
   event_cert_tuples = []
   for event in events:
-    logging.info('Constructing event (ID=%s)', event.id)
+    logging.info('Constructing event %s', event.id)
+    logging.info('Retrieving fileCatalog %s', event.file_catalog_id)
 
-    logging.info('Retrieving fileCatalog (ID=%s)', event.file_catalog_id)
     file_catalog = event.get_expand(api.Event.file_catalog_id)
     if file_catalog is None:
-      logging.warning('Skipping malformed event (No fileCatalog found)')
+      logging.warning('Skipping event %s (No fileCatalog found)', event.id)
+      monitoring.events_skipped.Increment()
       continue
 
     # At bare minimum we need a SHA256 out of the fileCatalog, so if it's not
     # there we have to skip this event.
     if not file_catalog.sha256:
-      logging.warning('Skipping malformed event (Incomplete fileCatalog)')
+      logging.warning('Skipping event %s (Incomplete fileCatalog)', event.id)
+      monitoring.events_skipped.Increment()
       continue
 
-    logging.info('Retrieving computer (ID=%s)', event.computer_id)
+    logging.info('Retrieving computer %s', event.computer_id)
     computer = event.get_expand(api.Event.computer_id)
     if computer is None:
-      logging.warning('Skipping malformed event (No computer found)')
+      logging.warning('Skipping event %s (No computer found)', event.id)
+      monitoring.events_skipped.Increment()
       continue
 
-    # Retrieving the signing chain may result in extra API calls but if any of
-    # them fail, just return the events constructed so far.
     try:
       signing_chain = _GetSigningChain(file_catalog.certificate_id)
+
+    # If a MalformedCertificate makes it all the way out here, we've already
+    # retried the retrieval a number of times, and have likely hit another
+    # fileCatalog containing an "embedded signer". We have to skip this
+    # particular event, otherwise event syncing will halt.
+    except MalformedCertificate:
+      logging.error(
+          ('Failed to retrieve signing chain for fileCatalog %s. '
+           'Skipping event %s.'), event.file_catalog_id, event.id)
+      monitoring.events_skipped.Increment()
+      continue
+
+    # If signing chain retrieval fails for any other reason, just return the
+    # events constructed so far.
     except Exception as e:  # pylint: disable=broad-except
-      logging.warning('Error while retrieving signing chain: %s', e)
+      logging.exception('Signing chain retrieval failed: %s', e)
       return event_cert_tuples
 
     event_cert_tuples.append((event, signing_chain))
@@ -614,29 +626,34 @@ def _CopyLocalRules(user_key, dest_host_id):
   src_host = yield host_query.get_async()
   if src_host is None:
     raise ndb.Return()
-  assert src_host.key.id() != dest_host_id, (
+  src_host_id = src_host.key.id()
+  assert src_host_id != dest_host_id, (
       'User already associated with target host')
 
-  # Get all local rules from that host.
+  # Get all local rules from that host, up to a limit. Otherwise, we run the
+  # risk of accumulating more and more rules for shared machines that have
+  # frequent user turnover. Granted, this isn't a bulletproof fix, but should
+  # suffice until a more long-term fix can be completed.
   rules_query = bit9.Bit9Rule.query(
-      bit9.Bit9Rule.host_id == src_host.key.id(),
+      bit9.Bit9Rule.host_id == src_host_id,
       bit9.Bit9Rule.in_effect == True)  # pylint: disable=g-explicit-bool-comparison
-
-  # Get a rough idea of how many rules we're in for. Since this is a
-  # non-critical query, we limit the max number to a fairly low bound.
-  rule_count = yield rules_query.count_async(limit=250)
-  logging.info(
-      'Retrieved %s%s rules to copy',
-      '>' if rule_count == 250 else '', rule_count)
+  src_rules = yield rules_query.fetch_async(limit=_LOCAL_RULE_COPY_LIMIT)
+  if len(src_rules) < _LOCAL_RULE_COPY_LIMIT:
+    logging.info(
+        'Copying %d rules from %s to %s', len(src_rules), src_host_id,
+        dest_host_id)
+  else:
+    logging.warning(
+        'Copying maximum of %d rules from %s to %s. More likely exist.',
+        len(src_rules), src_host_id, dest_host_id)
 
   # Copy the local rules to the new host.
   new_rules = []
-  for batch in query_utils.Paginate(rules_query):
-    for rule in batch:
-      new_rule = model_utils.CopyEntity(
-          rule, new_parent=rule.key.parent(), host_id=dest_host_id,
-          user_key=user_key)
-      new_rules.append(new_rule)
+  for src_rule in src_rules:
+    new_rule = model_utils.CopyEntity(
+        src_rule, new_parent=src_rule.key.parent(), host_id=dest_host_id,
+        user_key=user_key)
+    new_rules.append(new_rule)
   logging.info('Copying %s rules to new host', len(new_rules))
   yield ndb.put_multi_async(new_rules)
 

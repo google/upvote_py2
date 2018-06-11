@@ -24,9 +24,9 @@ from google.appengine.ext import ndb
 
 from upvote.gae.datastore import utils
 from upvote.gae.datastore.models import base as base_db
+from upvote.gae.lib.voting import api as voting_api
 from upvote.gae.modules.upvote_app.api import monitoring
 from upvote.gae.modules.upvote_app.api.handlers import base
-from upvote.gae.modules.upvote_app.lib import voting
 from upvote.gae.shared.common import handlers
 from upvote.gae.shared.common import settings
 from upvote.gae.shared.common import xsrf_utils
@@ -125,15 +125,15 @@ class VoteCastHandler(base.BaseHandler):
     vote_weight = self._GetVoteWeight(role)
 
     try:
-      ballot_box = voting.GetBallotBox(blockable_id)
+      ballot_box = voting_api.GetBallotBox(blockable_id)
       ballot_box.ResolveVote(was_yes_vote, self.user, vote_weight)
-    except voting.DuplicateVoteError:
+    except voting_api.DuplicateVoteError:
       self.abort(httplib.CONFLICT, explanation='Vote already exists')
-    except voting.OperationNotAllowed as e:
+    except voting_api.OperationNotAllowed as e:
       self.abort(httplib.FORBIDDEN, explanation=e.message)
-    except voting.BlockableNotFound:
+    except voting_api.BlockableNotFound:
       self.abort(httplib.NOT_FOUND, explanation='Blockable not found')
-    except voting.UnsupportedBlockableType as e:
+    except voting_api.UnsupportedBlockableType as e:
       self.abort(httplib.BAD_REQUEST, explanation=e.message)
     else:
       self.respond_json({
@@ -164,4 +164,3 @@ ROUTES = routes.PathPrefixRoute('/votes', [
         '/<vote_key>',
         handler=VoteHandler),
 ])
-

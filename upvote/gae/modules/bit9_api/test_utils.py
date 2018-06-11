@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Common test utilities for bit9_arbiter."""
+"""Common test utilities for bit9_api."""
 
 from upvote.gae.modules.bit9_api import constants as bit9_constants
 from upvote.gae.modules.bit9_api.api import api

@@ -12,18 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Unit tests for monitoring.py."""
+"""Monitoring metrics for BigQuery streaming."""
 
-from common.testing import basetest
-from upvote.gae.lib.analysis import api  # pylint: disable=unused-import
-
-
-class PlaceholderTest(basetest.AppEngineTestCase):
-  """Protects against errors encountered upon import. Replace when prudent."""
-
-  def testTrue(self):
-    self.assertTrue(True)
+from upvote.gae.shared.common import monitoring
+from upvote.monitoring import metrics
 
 
-if __name__ == '__main__':
-  basetest.main()
+row_insertions = monitoring.SuccessFailureCounter(metrics.BIGQUERY.ROW_INSERTIONS)

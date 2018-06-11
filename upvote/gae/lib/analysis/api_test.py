@@ -16,7 +16,7 @@
 
 import mock
 
-from upvote.gae.lib.analysis import analysis
+from upvote.gae.lib.analysis import api
 from upvote.gae.shared.common import basetest
 
 
@@ -30,7 +30,7 @@ class PerformLookupTest(basetest.UpvoteTestCase):
     mock_lookup_func.side_effect = [expected_response_dict]
     mock_metric = mock.Mock()
 
-    actual_response_dict = analysis._PerformLookup(
+    actual_response_dict = api._PerformLookup(
         'some_service', mock_lookup_func, mock_metric, 'some_hash')
 
     self.assertDictEqual(expected_response_dict, actual_response_dict)
@@ -46,7 +46,7 @@ class PerformLookupTest(basetest.UpvoteTestCase):
     mock_lookup_func.side_effect = Exception(expected_error_message)
     mock_metric = mock.Mock()
 
-    self.assertRaises(analysis.LookupFailure, analysis._PerformLookup,
+    self.assertRaises(api.LookupFailure, api._PerformLookup,
                       'some_service', mock_lookup_func, mock_metric,
                       'some_hash')
 
@@ -64,7 +64,7 @@ class PerformLookupTest(basetest.UpvoteTestCase):
     mock_lookup_func.side_effect = bare_exception
     mock_metric = mock.Mock()
 
-    self.assertRaises(analysis.LookupFailure, analysis._PerformLookup,
+    self.assertRaises(api.LookupFailure, api._PerformLookup,
                       'some_service', mock_lookup_func, mock_metric,
                       'some_hash')
 

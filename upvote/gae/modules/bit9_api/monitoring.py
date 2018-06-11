@@ -23,6 +23,7 @@ events_pulled = monitoring.Counter(metrics.BIT9_API.EVENTS_PULLED)
 events_to_process = monitoring.Metric(
     metrics.BIT9_API.EVENTS_TO_PROCESS, long)
 events_processed = monitoring.Counter(metrics.BIT9_API.EVENTS_PROCESSED)
+events_skipped = monitoring.Counter(metrics.BIT9_API.EVENTS_SKIPPED)
 pending_changes = monitoring.Metric(metrics.BIT9_API.PENDING_CHANGES, long)
 
 # Bit9 integration metrics
@@ -34,3 +35,5 @@ bit9_requests = monitoring.Counter(
 bit9_latency = monitoring.LatencyMetric(
     metrics.BIT9_API.BIT9_LATENCY,
     fields=[('http_method', str), ('api_object', str)])
+local_whitelisting_latency = monitoring.LatencyMetric(
+    metrics.BIT9_API.LOCAL_WHITELISTING_LATENCY)

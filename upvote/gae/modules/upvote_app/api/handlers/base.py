@@ -22,10 +22,10 @@ from google.appengine.ext import ndb
 from upvote.gae.datastore import utils as model_utils
 from upvote.gae.datastore.models import base
 from upvote.gae.shared.common import handlers
-from upvote.gae.shared.common import json_utils
 from upvote.gae.shared.common import utils
 from upvote.gae.shared.common import xsrf_utils
-from upvote.shared import utils as upvote_utils
+from upvote.gae.utils import json_utils
+from upvote.gae.utils import string_utils
 
 
 class Error(Exception):
@@ -294,7 +294,7 @@ class BaseQueryHandler(BaseHandler):
     """
     filter_nodes = []
     for search_base, search_term in search_dict.items():
-      field_name = upvote_utils.CamelToSnakeCase(search_base)
+      field_name = string_utils.CamelToSnakeCase(search_base)
 
       # If the model class offers a translation function for property queries,
       # invoke it and set the field and search term to the result.

@@ -27,10 +27,10 @@ from upvote.gae.datastore.models import bigquery
 from upvote.gae.datastore.models import bit9
 from upvote.gae.datastore.models import santa
 from upvote.gae.lib.analysis import metrics
-from upvote.gae.shared.common import intermodule
 from upvote.gae.shared.common import settings
 from upvote.gae.shared.common import user_map
 from upvote.gae.taskqueue import utils as taskqueue_utils
+from upvote.gae.utils import intermodule_utils
 from upvote.shared import constants
 
 
@@ -837,7 +837,7 @@ class Bit9BallotBox(BallotBox):
     # If any errors occur in the process of the attempted commit, just log an
     # error. The RuleChangeSet commit should be retried by the cron.
     try:
-      response = intermodule.SubmitIntermoduleRequest(
+      response = intermodule_utils.SubmitIntermoduleRequest(
           'bit9-api',
           '/api/bit9/commit-change-set/%s' % self.blockable.key.id())
     except urlfetch.Error as e:

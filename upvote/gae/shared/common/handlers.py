@@ -25,8 +25,8 @@ import webapp2
 
 from google.appengine.api import modules
 
-from upvote.gae.shared.common import json_utils
 from upvote.gae.shared.common import utils
+from upvote.gae.utils import json_utils
 
 
 _COMMON_ERROR_CODES = [

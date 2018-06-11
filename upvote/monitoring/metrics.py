@@ -62,20 +62,18 @@ SANTA_API = UpvoteNamespace('santa_api/', [
     ('postflight_requests', 'Postflight Requests')])
 
 
-BIT9_ARBITER = UpvoteNamespace('bit9_arbiter/', [
-    ('block_events_pending', 'Block Events Pending')])
-
-
 BIT9_API = UpvoteNamespace('bit9_api/', [
     ('events_to_pull', 'Events To Pull'),
     ('events_pulled', 'Events Pulled'),
     ('events_to_process', 'Events To Process'),
     ('events_processed', 'Events Processed'),
+    ('events_skipped', 'Events Skipped'),
     ('pending_changes', 'Pending Changes'),
     ('bit9_logins', 'Bit9 Logins'),
     ('bit9_qps', 'Bit9 QPS'),
     ('bit9_requests', 'Bit9 Requests'),
-    ('bit9_latency', 'Bit9 Latency')])
+    ('bit9_latency', 'Bit9 Latency'),
+    ('local_whitelisting_latency', 'Local Whitelisting Latency')])
 
 
 BIT9_REST_API = UpvoteNamespace('bit9_rest_api/', [
@@ -106,7 +104,8 @@ BIGQUERY = UpvoteNamespace('bigquery/', [
     ('rows_to_persist', 'Rows To Persist'),
     ('rows_persisted', 'Rows Persisted'),
     ('rows_to_stream', 'Rows To Stream'),
-    ('rows_streamed', 'Rows Streamed')])
+    ('rows_streamed', 'Rows Streamed'),
+    ('row_insertions', 'Row Insertions')])
 
 
 RPC_SERVER = Namespace('/rpc/server/', [

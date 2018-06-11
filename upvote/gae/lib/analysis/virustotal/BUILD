@@ -20,7 +20,7 @@ py_appengine_library(
     deps = [
         ":constants",
         "//upvote/gae/datastore/models:virustotal",
-        "//upvote/gae/shared/common:memcache_utils",
+        "//upvote/gae/utils:memcache_utils",
     ],
 )
 

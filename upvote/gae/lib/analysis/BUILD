@@ -6,8 +6,8 @@ package(default_visibility = ["//upvote"])
 # ==============================================================================
 
 py_appengine_library(
-    name = "analysis",
-    srcs = ["analysis.py"],
+    name = "api",
+    srcs = ["api.py"],
     deps = [
         ":monitoring",
         "//upvote/gae/lib/analysis/virustotal:virustotal_client",
@@ -18,7 +18,7 @@ py_appengine_library(
     name = "metrics",
     srcs = ["metrics.py"],
     deps = [
-        ":analysis",
+        ":api",
         ":monitoring",
         "//upvote/gae/datastore/models:base",
         "//upvote/gae/datastore/models:metrics",
@@ -41,11 +41,11 @@ py_appengine_library(
 # ==============================================================================
 
 upvote_appengine_test(
-    name = "analysis_test",
+    name = "api_test",
     size = "small",
-    srcs = ["analysis_test.py"],
+    srcs = ["api_test.py"],
     deps = [
-        ":analysis",
+        ":api",
         "//external:mock",
         "//external:webtest",
         "//upvote/gae/shared/common:basetest",
@@ -71,7 +71,7 @@ upvote_appengine_test(
     size = "small",
     srcs = ["monitoring_test.py"],
     deps = [
-        ":analysis",
+        ":api",
         ":monitoring",
         "//common/testing:basetest",
     ],

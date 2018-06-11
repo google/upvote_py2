@@ -12,20 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Handlers for interacting with the bit9_arbiter RPC service."""
+"""Handlers for interacting with Bit9."""
 
-import datetime
 import httplib
 
 from upvote.gae.datastore.models import base as base_db
 from upvote.gae.modules.bit9_api import change_set
-from upvote.gae.modules.bit9_api import constants as bit9_constants
 from upvote.gae.shared.common import handlers
 from upvote.shared import constants
-
-_HOST_HEALTH_PROPS = bit9_constants.UpvoteHostHealthProperties
-_HOST_HEALTH_TIMEOUT = datetime.timedelta(minutes=5).total_seconds()
-_ASSOCIATED_HOSTS_TIMEOUT = datetime.timedelta(minutes=15).total_seconds()
 
 
 class CommitBlockableChangeSet(handlers.UpvoteRequestHandler):

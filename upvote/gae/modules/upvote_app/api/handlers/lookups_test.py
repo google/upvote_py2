@@ -20,7 +20,7 @@ import mock
 import webapp2
 
 from upvote.gae.datastore import test_utils
-from upvote.gae.lib.analysis import analysis
+from upvote.gae.lib.analysis import api as analysis_api
 from upvote.gae.modules.upvote_app.api.handlers import lookups
 from upvote.gae.shared.common import basetest
 from upvote.gae.shared.common import settings
@@ -70,7 +70,7 @@ class LookupsTest(basetest.UpvoteTestCase):
 
 
   @mock.patch.object(
-      analysis, 'VirusTotalLookup', return_value={'response_code': 1})
+      analysis_api, 'VirusTotalLookup', return_value={'response_code': 1})
   def testCheckVirusTotal_SuccessFound(self, mock_vt_lookup):
     with self.LoggedInUser():
       response = self.testapp.get(
@@ -80,7 +80,7 @@ class LookupsTest(basetest.UpvoteTestCase):
     self.assertEqual(1, response.json['responseCode'])
 
   @mock.patch.object(
-      analysis, 'VirusTotalLookup', return_value={'response_code': 1})
+      analysis_api, 'VirusTotalLookup', return_value={'response_code': 1})
   def testCheckVirusTotal_NotBit9Binary(self, mock_vt_lookup):
     with self.LoggedInUser():
       response = self.testapp.get(
@@ -89,7 +89,7 @@ class LookupsTest(basetest.UpvoteTestCase):
     self.assertIn('application/json', response.headers['Content-type'])
     self.assertEqual(1, response.json['responseCode'])
 
-  @mock.patch.object(analysis, 'VirusTotalLookup')
+  @mock.patch.object(analysis_api, 'VirusTotalLookup')
   def testCheckVirusTotal_SantaBundle_AllKnown(self, mock_vt_lookup):
     mock_vt_lookup.side_effect = [
         {'response_code': 1, 'positives': 5, 'total': 40, 'scans': []},
@@ -107,7 +107,7 @@ class LookupsTest(basetest.UpvoteTestCase):
     self.assertEqual(1, blockable_report['responseCode'])
     self.assertNotIn('scans', blockable_report)
 
-  @mock.patch.object(analysis, 'VirusTotalLookup')
+  @mock.patch.object(analysis_api, 'VirusTotalLookup')
   def testCheckVirusTotal_SantaBundle_PartialKnown(self, mock_vt_lookup):
     mock_vt_lookup.side_effect = [
         {'response_code': 1, 'positives': 0, 'total': 40, 'scans': []},
@@ -121,10 +121,10 @@ class LookupsTest(basetest.UpvoteTestCase):
     self.assertEqual(0, response.json['responseCode'])
     self.assertEqual(0, response.json['positives'])
 
-  @mock.patch.object(analysis, 'VirusTotalLookup')
+  @mock.patch.object(analysis_api, 'VirusTotalLookup')
   def testCheckVirusTotal_SantaBundle_PartialError(self, mock_vt_lookup):
     mock_vt_lookup.side_effect = [
-        analysis.LookupFailure,
+        analysis_api.LookupFailure,
         {
             'response_code': 1,
             'positives': 0,

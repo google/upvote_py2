@@ -19,7 +19,7 @@ import mock
 
 from absl.testing import absltest
 
-from upvote.shared import time_utils
+from upvote.gae.utils import time_utils
 
 
 class TimeUtilsTest(absltest.TestCase):

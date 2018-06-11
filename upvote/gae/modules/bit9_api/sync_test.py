@@ -40,8 +40,8 @@ from upvote.gae.modules.bit9_api.api import api
 from upvote.gae.shared.common import basetest
 from upvote.gae.shared.common import settings
 from upvote.gae.shared.common import user_map
+from upvote.gae.utils import time_utils
 from upvote.shared import constants
-from upvote.shared import time_utils
 
 
 def _CreateEventTuple(
@@ -144,7 +144,7 @@ class BuildEventSubtypeFilterTest(basetest.UpvoteTestCase):
 class GetCertificateTest(basetest.UpvoteTestCase):
 
   @mock.patch.object(sync.api.Certificate, 'get', side_effect=Exception)
-  def testMissing(self, mock_get):
+  def testApiError(self, mock_get):
 
     cert_id = 12345
     memcache_key = sync._CERT_MEMCACHE_KEY % cert_id
@@ -156,11 +156,32 @@ class GetCertificateTest(basetest.UpvoteTestCase):
     self.assertIsNone(memcache.get(memcache_key))
 
   @mock.patch.object(sync.api.Certificate, 'get')
-  def testMalformed(self, mock_get):
+  def testMalformed_SuccessfulRetry(self, mock_get):
 
-    malformed_cert = bit9_test_utils.CreateCertificate(
+    bad_cert = bit9_test_utils.CreateCertificate(
         thumbprint=None, valid_to=None)
-    mock_get.return_value = malformed_cert
+    good_cert = bit9_test_utils.CreateCertificate()
+    mock_get.side_effect = [bad_cert, good_cert]
+
+    cert_id = 12345
+    memcache_key = sync._CERT_MEMCACHE_KEY % cert_id
+    self.assertIsNone(memcache.get(memcache_key))
+
+    actual_cert = sync._GetCertificate(cert_id)
+
+    self.assertEqual(good_cert, actual_cert)
+    self.assertEqual(2, mock_get.call_count)
+
+    # Verify that the cert is present in memcache.
+    cached_cert = memcache.get(memcache_key)
+    self.assertEqual(good_cert, cached_cert)
+
+  @mock.patch.object(sync.api.Certificate, 'get')
+  def testMalformed_UnsuccessfulRetries(self, mock_get):
+
+    bad_cert = bit9_test_utils.CreateCertificate(
+        thumbprint=None, valid_to=None)
+    mock_get.side_effect = [bad_cert] * sync._GET_CERT_ATTEMPTS
 
     cert_id = 12345
     memcache_key = sync._CERT_MEMCACHE_KEY % cert_id
@@ -219,6 +240,10 @@ class GetSigningChainTest(basetest.UpvoteTestCase):
 
 class GetEventsTest(SyncTestCase):
 
+  def setUp(self):
+    super(GetEventsTest, self).setUp()
+    self.Patch(sync.monitoring, 'events_skipped')
+
   def testFileCatalogMissing(self):
 
     # Simulate an event with a missing fileCatalog.
@@ -232,6 +257,7 @@ class GetEventsTest(SyncTestCase):
 
     results = sync.GetEvents(0)
     self.assertEqual(0, len(results))
+    self.assertTrue(sync.monitoring.events_skipped.Increment.called)
 
   def testFileCatalogMalformed(self):
 
@@ -250,6 +276,7 @@ class GetEventsTest(SyncTestCase):
 
     results = sync.GetEvents(0)
     self.assertEqual(0, len(results))
+    self.assertTrue(sync.monitoring.events_skipped.Increment.called)
 
   def testComputerMissing(self):
 
@@ -266,6 +293,7 @@ class GetEventsTest(SyncTestCase):
 
     results = sync.GetEvents(0)
     self.assertEqual(0, len(results))
+    self.assertTrue(sync.monitoring.events_skipped.Increment.called)
 
   @mock.patch.object(sync, '_GetSigningChain')
   def testSigningChainException(self, mock_get_signing_chain):
@@ -281,7 +309,7 @@ class GetEventsTest(SyncTestCase):
         event_1, api.Event.file_catalog_id, file_catalog_1)
     event_1 = bit9_test_utils.Expand(event_1, api.Event.computer_id, computer_1)
 
-    # Create a second event for the signing chain exception.
+    # Create a second event that will be skipped.
     file_catalog_2 = bit9_test_utils.CreateFileCatalog(
         id=200, certificate_id=201)
     computer_2 = bit9_test_utils.CreateComputer(id=202)
@@ -291,15 +319,88 @@ class GetEventsTest(SyncTestCase):
         event_2, api.Event.file_catalog_id, file_catalog_2)
     event_2 = bit9_test_utils.Expand(event_2, api.Event.computer_id, computer_2)
 
-    self._PatchGetEvents([(event_1, signing_chain_1), (event_2, None)])
-    mock_get_signing_chain.side_effect = [signing_chain_1, Exception]
+    # Create another properly-formed event that will also be returned.
+    file_catalog_3 = bit9_test_utils.CreateFileCatalog(
+        id=300, certificate_id=301)
+    computer_3 = bit9_test_utils.CreateComputer(id=302)
+    signing_chain_3 = [bit9_test_utils.CreateCertificate(id=301)]
+    event_3 = bit9_test_utils.CreateEvent(
+        id=303, file_catalog_id=300, computer_id=302)
+    event_3 = bit9_test_utils.Expand(
+        event_3, api.Event.file_catalog_id, file_catalog_3)
+    event_3 = bit9_test_utils.Expand(event_3, api.Event.computer_id, computer_3)
+
+    self._PatchGetEvents([
+        (event_1, signing_chain_1),
+        (event_2, None),
+        (event_3, signing_chain_3)])
+    mock_get_signing_chain.side_effect = [
+        signing_chain_1, sync.MalformedCertificate, signing_chain_3]
+
+    results = sync.GetEvents(0)
+    self.assertEqual(2, len(results))
+    self.assertTrue(sync.monitoring.events_skipped.Increment.called)
+
+    actual_event_1, actual_signing_chain_1 = results[0]
+    self.assertEqual(1, len(actual_signing_chain_1))
+    self.assertEqual(103, actual_event_1.id)
+    self.assertEqual(101, actual_signing_chain_1[0].id)
+
+    actual_event_3, actual_signing_chain_3 = results[1]
+    self.assertEqual(1, len(actual_signing_chain_3))
+    self.assertEqual(303, actual_event_3.id)
+    self.assertEqual(301, actual_signing_chain_3[0].id)
+
+  @mock.patch.object(sync, '_GetSigningChain')
+  def testOtherException(self, mock_get_signing_chain):
+
+    # Create a properly-formed event that will be returned.
+    file_catalog_1 = bit9_test_utils.CreateFileCatalog(
+        id=100, certificate_id=101)
+    computer_1 = bit9_test_utils.CreateComputer(id=102)
+    signing_chain_1 = [bit9_test_utils.CreateCertificate(id=101)]
+    event_1 = bit9_test_utils.CreateEvent(
+        id=103, file_catalog_id=100, computer_id=102)
+    event_1 = bit9_test_utils.Expand(
+        event_1, api.Event.file_catalog_id, file_catalog_1)
+    event_1 = bit9_test_utils.Expand(event_1, api.Event.computer_id, computer_1)
+
+    # Create a second event that will hit an exception.
+    file_catalog_2 = bit9_test_utils.CreateFileCatalog(
+        id=200, certificate_id=201)
+    computer_2 = bit9_test_utils.CreateComputer(id=202)
+    event_2 = bit9_test_utils.CreateEvent(
+        id=203, file_catalog_id=200, computer_id=202)
+    event_2 = bit9_test_utils.Expand(
+        event_2, api.Event.file_catalog_id, file_catalog_2)
+    event_2 = bit9_test_utils.Expand(event_2, api.Event.computer_id, computer_2)
+
+    # Create another properly-formed event won't be returned.
+    file_catalog_3 = bit9_test_utils.CreateFileCatalog(
+        id=300, certificate_id=301)
+    computer_3 = bit9_test_utils.CreateComputer(id=302)
+    signing_chain_3 = [bit9_test_utils.CreateCertificate(id=301)]
+    event_3 = bit9_test_utils.CreateEvent(
+        id=303, file_catalog_id=300, computer_id=302)
+    event_3 = bit9_test_utils.Expand(
+        event_3, api.Event.file_catalog_id, file_catalog_3)
+    event_3 = bit9_test_utils.Expand(event_3, api.Event.computer_id, computer_3)
+
+    self._PatchGetEvents([
+        (event_1, signing_chain_1),
+        (event_2, None),
+        (event_3, signing_chain_3)])
+    mock_get_signing_chain.side_effect = [
+        signing_chain_1, Exception, signing_chain_3]
 
     results = sync.GetEvents(0)
     self.assertEqual(1, len(results))
-    actual_event, actual_signing_chain = results[0]
-    self.assertEqual(1, len(actual_signing_chain))
-    self.assertEqual(103, actual_event.id)
-    self.assertEqual(101, actual_signing_chain[0].id)
+    self.assertFalse(sync.monitoring.events_skipped.Increment.called)
+
+    actual_event_1, actual_signing_chain_1 = results[0]
+    self.assertEqual(1, len(actual_signing_chain_1))
+    self.assertEqual(103, actual_event_1.id)
+    self.assertEqual(101, actual_signing_chain_1[0].id)
 
   def testSuccess(self):
 
@@ -812,6 +913,111 @@ class PersistBanNoteTest(basetest.UpvoteTestCase):
     self.assertEntityCount(base_db.Note, 1)
 
 
+class CopyLocalRulesTest(basetest.UpvoteTestCase):
+
+  def testSuccess(self):
+    old_user = test_utils.CreateUser(email=user_map.UsernameToEmail('foo'))
+    new_user = test_utils.CreateUser(email=user_map.UsernameToEmail('bar'))
+    policy_key = ndb.Key(bit9_db.Bit9Policy, '22222')
+
+    host1 = test_utils.CreateBit9Host(
+        id='12345', users=[old_user.nickname], policy_key=policy_key)
+    test_utils.CreateBit9Host(
+        id='67890', users=[new_user.nickname], policy_key=policy_key)
+
+    blockable1 = test_utils.CreateBit9Binary()
+    test_utils.CreateBit9Rule(
+        blockable1.key, host_id=host1.key.id(), user_key=old_user.key)
+    blockable2 = test_utils.CreateBit9Binary()
+    test_utils.CreateBit9Rule(
+        blockable2.key, host_id=host1.key.id(), user_key=old_user.key)
+
+    computer = bit9_test_utils.CreateComputer(
+        id=67890,
+        policy_id=22222,
+        users='{0}\\{1},{0}\\{2}'.format(
+            settings.AD_DOMAIN, old_user.nickname, new_user.nickname))
+    occurred_dt = datetime.datetime.utcnow()
+
+    sync._PersistBit9Host(computer, occurred_dt).wait()
+
+    self.assertEntityCount(bit9_db.Bit9Rule, 4)  # 2 New + 2 Old
+    self.assertEntityCount(bit9_db.RuleChangeSet, 2)
+    rules_for_host1 = bit9_db.Bit9Rule.query(
+        bit9_db.Bit9Rule.host_id == host1.key.id()).fetch()
+    self.assertEqual(2, len(rules_for_host1))
+    self.assertSameElements(
+        [blockable1.key, blockable2.key],
+        [rule.key.parent() for rule in rules_for_host1])
+    self.assertTaskCount(constants.TASK_QUEUE.BQ_PERSISTENCE, 1)
+    self.DrainTaskQueue(constants.TASK_QUEUE.BQ_PERSISTENCE)
+    self.assertEntityCount(bigquery_db.HostRow, 1)
+
+  def testNoPreviousHosts(self):
+    old_user = test_utils.CreateUser(email=user_map.UsernameToEmail('foo'))
+    new_user = test_utils.CreateUser(email=user_map.UsernameToEmail('bar'))
+
+    test_utils.CreateBit9Host(
+        id='12345', users=[old_user.nickname],
+        policy_key=ndb.Key(bit9_db.Bit9Policy, '22222'))
+
+    computer = bit9_test_utils.CreateComputer(
+        id=12345,
+        policy_id=22222,
+        users='{0}\\{1},{0}\\{2}'.format(
+            settings.AD_DOMAIN, old_user.nickname, new_user.nickname))
+    occurred_dt = datetime.datetime.utcnow()
+
+    sync._PersistBit9Host(computer, occurred_dt).wait()
+
+    self.assertEntityCount(bit9_db.Bit9Rule, 0)
+    self.assertEntityCount(bit9_db.RuleChangeSet, 0)
+    self.assertTaskCount(constants.TASK_QUEUE.BQ_PERSISTENCE, 1)
+    self.DrainTaskQueue(constants.TASK_QUEUE.BQ_PERSISTENCE)
+    self.assertEntityCount(bigquery_db.HostRow, 1)
+
+  def testMaximumRules(self):
+    user_1 = test_utils.CreateUser(email=user_map.UsernameToEmail('one'))
+    user_2 = test_utils.CreateUser(email=user_map.UsernameToEmail('two'))
+    policy_key = ndb.Key(bit9_db.Bit9Policy, '22222')
+
+    host_1 = test_utils.CreateBit9Host(
+        id='12345', users=[user_1.nickname], policy_key=policy_key)
+    host_2 = test_utils.CreateBit9Host(
+        id='67890', users=[user_2.nickname], policy_key=policy_key)
+
+    blockable_1 = test_utils.CreateBit9Binary()
+    test_utils.CreateBit9Rules(
+        blockable_1.key, sync._LOCAL_RULE_COPY_LIMIT + 1,
+        host_id=host_1.key.id(), user_key=user_1.key)
+
+    computer = bit9_test_utils.CreateComputer(
+        id=67890,
+        policy_id=22222,
+        users='{0}\\{1},{0}\\{2}'.format(
+            settings.AD_DOMAIN, user_1.nickname, user_2.nickname))
+    occurred_dt = datetime.datetime.utcnow()
+
+    sync._PersistBit9Host(computer, occurred_dt).wait()
+
+    expected_rule_count_1 = sync._LOCAL_RULE_COPY_LIMIT + 1
+    expected_rule_count_2 = sync._LOCAL_RULE_COPY_LIMIT
+    actual_rule_count_1 = bit9_db.Bit9Rule.query(
+        bit9_db.Bit9Rule.host_id == host_1.key.id()).count()
+    actual_rule_count_2 = bit9_db.Bit9Rule.query(
+        bit9_db.Bit9Rule.host_id == host_2.key.id()).count()
+
+    self.assertEntityCount(
+        bit9_db.Bit9Rule, expected_rule_count_1 + expected_rule_count_2)
+    self.assertEqual(expected_rule_count_1, actual_rule_count_1)
+    self.assertEqual(expected_rule_count_2, actual_rule_count_2)
+    self.assertEntityCount(bit9_db.RuleChangeSet, sync._LOCAL_RULE_COPY_LIMIT)
+
+    self.assertTaskCount(constants.TASK_QUEUE.BQ_PERSISTENCE, 1)
+    self.DrainTaskQueue(constants.TASK_QUEUE.BQ_PERSISTENCE)
+    self.assertEntityCount(bigquery_db.HostRow, 1)
+
+
 class PersistBit9HostTest(basetest.UpvoteTestCase):
 
   def setUp(self):
@@ -922,67 +1128,6 @@ class PersistBit9HostTest(basetest.UpvoteTestCase):
     self.DrainTaskQueue(constants.TASK_QUEUE.BQ_PERSISTENCE)
     self.assertEntityCount(bigquery_db.HostRow, 1)
     self.assertEntityCount(bigquery_db.UserRow, 2)
-
-  def testCopyLocalRules_Success(self):
-    old_user = test_utils.CreateUser(email=user_map.UsernameToEmail('foo'))
-    new_user = test_utils.CreateUser(email=user_map.UsernameToEmail('bar'))
-    policy_key = ndb.Key(bit9_db.Bit9Policy, '22222')
-
-    host1 = test_utils.CreateBit9Host(
-        id='12345', users=[old_user.nickname], policy_key=policy_key)
-    test_utils.CreateBit9Host(
-        id='67890', users=[new_user.nickname], policy_key=policy_key)
-
-    blockable1 = test_utils.CreateBit9Binary()
-    test_utils.CreateBit9Rule(
-        blockable1.key, host_id=host1.key.id(), user_key=old_user.key)
-    blockable2 = test_utils.CreateBit9Binary()
-    test_utils.CreateBit9Rule(
-        blockable2.key, host_id=host1.key.id(), user_key=old_user.key)
-
-    host = bit9_test_utils.CreateComputer(
-        id=67890,
-        policy_id=22222,
-        users='{0}\\{1},{0}\\{2}'.format(
-            settings.AD_DOMAIN, old_user.nickname, new_user.nickname))
-    occurred_dt = datetime.datetime.utcnow()
-
-    sync._PersistBit9Host(host, occurred_dt).wait()
-
-    self.assertEntityCount(bit9_db.Bit9Rule, 4)  # 2 New + 2 Old
-    self.assertEntityCount(bit9_db.RuleChangeSet, 2)
-    rules_for_host1 = bit9_db.Bit9Rule.query(
-        bit9_db.Bit9Rule.host_id == host1.key.id()).fetch()
-    self.assertEqual(2, len(rules_for_host1))
-    self.assertSameElements(
-        [blockable1.key, blockable2.key],
-        [rule.key.parent() for rule in rules_for_host1])
-    self.assertTaskCount(constants.TASK_QUEUE.BQ_PERSISTENCE, 1)
-    self.DrainTaskQueue(constants.TASK_QUEUE.BQ_PERSISTENCE)
-    self.assertEntityCount(bigquery_db.HostRow, 1)
-
-  def testCopyLocalRules_NoPreviousHosts(self):
-    old_user = test_utils.CreateUser(email=user_map.UsernameToEmail('foo'))
-    new_user = test_utils.CreateUser(email=user_map.UsernameToEmail('bar'))
-
-    test_utils.CreateBit9Host(
-        id='12345', users=[old_user.nickname],
-        policy_key=ndb.Key(bit9_db.Bit9Policy, '22222'))
-
-    host = bit9_test_utils.CreateComputer(
-        id=12345,
-        policy_id=22222,
-        users='{0}\\{1},{0}\\{2}'.format(
-            settings.AD_DOMAIN, old_user.nickname, new_user.nickname))
-    occurred_dt = datetime.datetime.utcnow()
-
-    sync._PersistBit9Host(host, occurred_dt).wait()
-
-    self.assertEntityCount(bit9_db.Bit9Rule, 0)
-    self.assertEntityCount(bit9_db.RuleChangeSet, 0)
-    self.assertTaskCount(constants.TASK_QUEUE.BQ_PERSISTENCE, 1)
-    self.DrainTaskQueue(constants.TASK_QUEUE.BQ_PERSISTENCE)
-    self.assertEntityCount(bigquery_db.HostRow, 1)
 
 
 class CheckAndResolveAnomalousBlockTest(basetest.UpvoteTestCase):

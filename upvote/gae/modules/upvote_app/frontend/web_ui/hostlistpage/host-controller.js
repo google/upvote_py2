@@ -15,7 +15,6 @@
 goog.provide('upvote.hostlistpage.HostListController');
 
 goog.require('upvote.errornotifier.ErrorService');
-goog.require('upvote.hosts.EventRateResponse');
 goog.require('upvote.hosts.HostService');
 goog.require('upvote.hosts.HostUtilsService');
 goog.require('upvote.shared.Page');
@@ -45,8 +44,6 @@ upvote.hostlistpage.HostListController = class {
     this.hostUtils = hostUtilsService;
     /** @export {?Array<upvote.shared.models.AnyHost>} */
     this.hosts = null;
-    /** @export {!Object<string, !upvote.hosts.EventRateResponse>} */
-    this.eventRates = {};
 
     page.title = 'Hosts';
 
@@ -61,30 +58,9 @@ upvote.hostlistpage.HostListController = class {
     this.hostService_.getAssociatedHosts()
         .then((response) => {
           this.hosts = response['data'];
-          // If there are hosts, request the event rates for each of them.
-          if (!!this.hosts) {
-            this.hosts.forEach((host) => {
-              this.retrieveEventRate_(host);
-            });
-          }
         })
         .catch((response) => {
           this.errorService_.createDialogFromError(response);
-        });
-  }
-
-  /**
-   * Retrieve the event rate for a given host.
-   * @param {!upvote.shared.models.AnyHost} host
-   * @private
-   */
-  retrieveEventRate_(host) {
-    this.hostService_.getEventRate(host['id'])
-        .then((response) => {
-          this.eventRates[host['id']] = response['data'];
-        })
-        .catch((response) => {
-          this.errorService_.createToastFromError(response);
         });
   }
 
@@ -96,30 +72,6 @@ upvote.hostlistpage.HostListController = class {
    */
   isModeLocked(host) {
     return !!host['clientModeLock'];
-  }
-
-  /**
-   * Return whether a host's rate has been loaded.
-   * @param {!upvote.shared.models.AnyHost} host
-   * @return {boolean}
-   * @export
-   */
-  isRateLoaded(host) {
-    return !!this.eventRates[host['id']];
-  }
-
-  /**
-   * Return a host's block rate or null if it hasn't loaded.
-   * @param {!upvote.shared.models.AnyHost} host
-   * @return {?number}
-   * @export
-   */
-  getRate(host) {
-    if (this.isRateLoaded(host)) {
-      return this.eventRates[host['id']]['avgRate'];
-    } else {
-      return null;
-    }
   }
 
   /**

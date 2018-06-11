@@ -268,26 +268,6 @@ class LockdownHandler(base.BaseHandler):
     self.respond_json(host)
 
 
-class HostEventRateHandler(base.BaseHandler):
-  """Handler for calculating the rate of events a given host encounters."""
-
-  def get(self, host_id):  # pylint: disable=g-bad-name
-    host_id = base_db.Host.NormalizeId(host_id)
-    host = base_db.Host.get_by_id(host_id)
-    if host is None:
-      self.abort(httplib.NOT_FOUND, explanation='Host not found')
-    elif not host.IsAssociatedWithUser(self.user):
-      self.RequireCapability(constants.PERMISSIONS.VIEW_OTHER_HOSTS)
-
-    # We choose 70 days so that there are exactly 50.0 workdays.
-    duration_to_fetch = datetime.timedelta(days=70)
-    was_max, block_rate = host.GetUserBlockRate(
-        self.user, duration_to_fetch=duration_to_fetch)
-    self.respond_json({
-        'at_max': was_max,
-        'avg_rate': block_rate})
-
-
 class VisibilityHandler(base.BaseHandler):
   """Handler for changing the hidden attribute of a host."""
 
@@ -333,9 +313,6 @@ ROUTES = routes.PathPrefixRoute('/hosts', [
     webapp2.Route(
         '/query',
         handler=HostQueryHandler),
-    webapp2.Route(
-        '/<host_id>/event-rate',
-        handler=HostEventRateHandler),
     webapp2.Route(
         '/<host_id>/request-exception',
         handler=HostExceptionHandler),

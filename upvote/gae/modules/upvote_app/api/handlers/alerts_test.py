@@ -22,25 +22,30 @@ import webapp2
 from google.appengine.api import memcache
 from google.appengine.ext import ndb
 
-from upvote.gae.datastore import test_utils
 from upvote.gae.datastore.models import alert
 from upvote.gae.modules.upvote_app.api.handlers import alerts
 from upvote.gae.shared.common import basetest
-from upvote.gae.shared.common import json_utils
+from upvote.gae.utils import json_utils
 from upvote.shared import constants
 
 
-def _CreateAlert(
-    start_hours, end_hours=None, scope=constants.SITE_ALERT_SCOPE.APPDETAIL,
-    platform=constants.SITE_ALERT_PLATFORM.WINDOWS, **kwargs):
+def _CreateAlert(start_hours, end_hours=None, **kwargs):
 
   now = datetime.datetime.utcnow()
   start_date = now + datetime.timedelta(hours=start_hours)
   end_date = now + datetime.timedelta(hours=end_hours) if end_hours else None
 
-  return test_utils.CreateAlert(
-      start_date=start_date, end_date=end_date, scope=scope, platform=platform,
-      **kwargs)
+  defaults = {
+      'message': 'This is an example alert.',
+      'details': 'These are example details.',
+      'start_date': start_date,
+      'end_date': end_date,
+      'platform': constants.SITE_ALERT_PLATFORM.WINDOWS,
+      'scope': constants.SITE_ALERT_SCOPE.APPDETAIL,
+      'severity': constants.SITE_ALERT_SEVERITY.INFO}
+  defaults.update(kwargs.copy())
+
+  return alert.Alert.New(**defaults)
 
 
 class CreateMemcacheKeyTest(basetest.UpvoteTestCase):
@@ -55,7 +60,7 @@ class CreateMemcacheKeyTest(basetest.UpvoteTestCase):
 
 class AlertHandlerTest(basetest.UpvoteTestCase):
 
-  ROUTE = '/alert/appdetail/windows'
+  ROUTE = '/alerts/appdetail/windows'
 
   def assertResponseContains(self, response, alert_dict):
     encoder = json_utils.JSONEncoderJavaScript()
@@ -66,18 +71,19 @@ class AlertHandlerTest(basetest.UpvoteTestCase):
   def setUp(self):
     app = webapp2.WSGIApplication(routes=[alerts.ROUTES])
     super(AlertHandlerTest, self).setUp(wsgi_app=app)
+    self.PatchValidateXSRFToken()
 
   def testGet_InvalidScope(self):
     with self.LoggedInUser():
       response = self.testapp.get(
-          '/alert/blah/macos', expect_errors=True)
+          '/alerts/blah/macos', expect_errors=True)
 
     self.assertEqual(httplib.BAD_REQUEST, response.status_int)
     self.assertMemcacheLacks(alerts._CreateMemcacheKey('blah', 'macos'))
 
   def testGet_InvalidPlatform(self):
     with self.LoggedInUser():
-      response = self.testapp.get('/alert/appdetail/xbox', expect_errors=True)
+      response = self.testapp.get('/alerts/appdetail/xbox', expect_errors=True)
 
     self.assertEqual(httplib.BAD_REQUEST, response.status_int)
     self.assertMemcacheLacks(alerts._CreateMemcacheKey('appdetail', 'xbox'))
@@ -188,7 +194,7 @@ class AlertHandlerTest(basetest.UpvoteTestCase):
     alert_dict = alert_entity.to_dict()
 
     for scope in constants.SITE_ALERT_SCOPE.SET_ALL:
-      route = '/alert/%s/windows' % scope
+      route = '/alerts/%s/windows' % scope
       with self.LoggedInUser():
         response = self.testapp.get(route)
 
@@ -206,7 +212,7 @@ class AlertHandlerTest(basetest.UpvoteTestCase):
     alert_dict = alert_entity.to_dict()
 
     for platform in constants.SITE_ALERT_PLATFORM.SET_ALL:
-      route = '/alert/appdetail/%s' % platform
+      route = '/alerts/appdetail/%s' % platform
       with self.LoggedInUser():
         response = self.testapp.get(route)
 
@@ -214,6 +220,92 @@ class AlertHandlerTest(basetest.UpvoteTestCase):
           alerts._CreateMemcacheKey('appdetail', platform), alert_dict)
       self.assertEqual(httplib.OK, response.status_int)
       self.assertResponseContains(response, alert_dict)
+
+  def testPost_NotAdmin(self):
+    with self.LoggedInUser(admin=False):
+      response = self.testapp.post('/alerts/macos/hosts', expect_errors=True)
+
+    self.assertEqual(httplib.FORBIDDEN, response.status_int)
+
+  def testPost_InvalidScope(self):
+    with self.LoggedInUser(admin=True):
+      response = self.testapp.post('/alerts/macos/blah', expect_errors=True)
+
+    self.assertEqual(httplib.BAD_REQUEST, response.status_int)
+
+  def testPost_InvalidPlatform(self):
+    with self.LoggedInUser(admin=True):
+      response = self.testapp.post(
+          '/alerts/xbox/applications', expect_errors=True)
+
+    self.assertEqual(httplib.BAD_REQUEST, response.status_int)
+
+  def testPost_MissingRequestArgument(self):
+    params = {
+        'message': 'this is the message',
+        'severity': 'ERROR'}
+
+    with self.LoggedInUser(admin=True):
+      response = self.testapp.post(self.ROUTE, params, expect_errors=True)
+
+    self.assertEqual(httplib.BAD_REQUEST, response.status_int)
+
+  def testPost_NewAlert(self):
+    params = {
+        'message': 'this is the message',
+        'severity': 'ERROR',
+        'start_date': '2018-05-21T15:15:15Z'}
+
+    self.assertEntityCount(alert.Alert, 0)
+
+    with self.LoggedInUser(admin=True):
+      response = self.testapp.post(self.ROUTE, params)
+
+    self.assertEqual(httplib.OK, response.status_int)
+    self.assertEntityCount(alert.Alert, 1)
+
+  def testPost_ExistingAlert(self):
+
+    now = datetime.datetime.utcnow()
+    start_date_1 = (now - datetime.timedelta(hours=2)).strftime(
+        alerts._DATETIME_FORMAT_STRING)
+    start_date_2 = (now - datetime.timedelta(hours=1)).strftime(
+        alerts._DATETIME_FORMAT_STRING)
+
+    params = {
+        'message': 'this is a calm message',
+        'severity': 'INFO',
+        'start_date': start_date_1}
+
+    self.assertEntityCount(alert.Alert, 0)
+
+    # Create an initial Alert via POST.
+    with self.LoggedInUser(admin=True):
+      response = self.testapp.post(self.ROUTE, params)
+
+    self.assertEqual(httplib.OK, response.status_int)
+    self.assertEntityCount(alert.Alert, 1)
+
+    # Populate memcache with a subsequent GET.
+    with self.LoggedInUser(admin=True):
+      response = self.testapp.get(self.ROUTE)
+
+    alert_dict = alert.Alert.query().get().to_dict()
+    self.assertMemcacheContains(
+        alerts._CreateMemcacheKey('appdetail', 'windows'), alert_dict)
+
+    params = {
+        'message': 'THIS IS A SERIOUS MESSAGE',
+        'severity': 'ERROR',
+        'start_date': start_date_2}
+
+    # Ensure that a later POST resets the memcache key.
+    with self.LoggedInUser(admin=True):
+      response = self.testapp.post(self.ROUTE, params)
+
+    self.assertEqual(httplib.OK, response.status_int)
+    self.assertEntityCount(alert.Alert, 2)
+    self.assertMemcacheLacks(alerts._CreateMemcacheKey('appdetail', 'windows'))
 
 
 if __name__ == '__main__':

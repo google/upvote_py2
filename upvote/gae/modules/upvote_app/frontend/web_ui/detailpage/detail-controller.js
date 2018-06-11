@@ -97,6 +97,10 @@ upvote.detailpage.BlockableDetailsController = class {
     this.id = '';
     /** @export {?upvote.shared.models.AnyBlockable} */
     this.blockable = null;
+    /** @export {boolean} */
+    this.blockableLoaded = false;
+    /** @export {boolean} */
+    this.blockableUnknown = false;
     /** @export {?upvote.events.AnyEventWithContext} */
     this.recentEventCtx = null;
     /** @export {?upvote.shared.models.User} */
@@ -156,33 +160,37 @@ upvote.detailpage.BlockableDetailsController = class {
     this.stepperLoadedPromise_ =
         this.mdComponentRegistry_.when(BlockableDetailsCtrl.STEPPER_ID_);
 
-    this.recentEventResource_
-        .get({'id': this.id, 'withContext': true})['$promise']
-        .then((event_) => {
-          this.recentEventCtx = event_;
-        })
-        .catch((response) => {
-          this.errorService_.createToastFromError(response);
-        });
-
-    this.refreshPending_();
-
-    this.blockableService_.getInstallerPending(this.id)
-        .then((result) => {
-          this.isInstallerPending = result['data'];
-        })
-        .catch((response) => {
-          this.errorService_.createToastFromError(response);
-        });
-
     this.blockableResource_.get({'id': this.id})['$promise']
         .then((blockable) => {
           this.blockable = blockable;
-          // NOTE: Even empty Angular Resource response objects will
-          // be truthy as they'll have '$promise' and '$resolved' properties.
+
+          // NOTE: Even empty Angular Resource response objects will be truthy
+          // as they'll have '$promise' and '$resolved' properties.
           if (!this.blockable['id']) {
+            this.blockableUnknown = true;
             return;
           }
+
+          this.blockableLoaded = true;
+
+          this.recentEventResource_
+              .get({'id': this.id, 'withContext': true})['$promise']
+              .then((event_) => {
+                this.recentEventCtx = event_;
+              })
+              .catch((response) => {
+                this.errorService_.createToastFromError(response);
+              });
+
+          this.refreshPending_();
+
+          this.blockableService_.getInstallerPending(this.id)
+              .then((result) => {
+                this.isInstallerPending = result['data'];
+              })
+              .catch((response) => {
+                this.errorService_.createToastFromError(response);
+              });
 
           this.isBit9 = this.blockable['class_']
                             .map((val) => val.startsWith('Bit9'))
@@ -233,7 +241,13 @@ upvote.detailpage.BlockableDetailsController = class {
           });
         })
         .catch((response) => {
-          this.errorService_.createToastFromError(response);
+          // 404s are expected from time to time when retrieving blockables
+          // (e.g. slow Santa syncing). Anything else is an error.
+          if (!!response && response['status'] == 404) {
+            this.blockableUnknown = true;
+          } else {
+            this.errorService_.createToastFromError(response);
+          }
         });
 
     // Determine whether the user needs to be put through each voting step.

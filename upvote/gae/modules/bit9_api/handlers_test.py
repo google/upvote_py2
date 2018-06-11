@@ -20,13 +20,10 @@ import webapp2
 
 from upvote.gae.datastore import test_utils
 from upvote.gae.modules.bit9_api import change_set
-from upvote.gae.modules.bit9_api import constants as bit9_constants
 from upvote.gae.modules.bit9_api import handlers
 from upvote.gae.modules.bit9_api import utils
 from upvote.gae.shared.common import basetest
 from upvote.shared import constants
-
-_HOST_HEALTH_PROPS = bit9_constants.UpvoteHostHealthProperties
 
 
 class HandlerTest(basetest.UpvoteTestCase):

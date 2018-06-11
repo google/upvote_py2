@@ -19,7 +19,7 @@ from __future__ import division
 from __future__ import print_function
 
 from absl.testing import absltest
-from upvote.shared import utils
+from upvote.gae.utils import string_utils
 
 
 class UtilsTest(absltest.TestCase):
@@ -30,7 +30,7 @@ class UtilsTest(absltest.TestCase):
         ('this_isPartiallyCamelCase', 'this_is_partially_camel_case'),
         ('this_is_snake_case', 'this_is_snake_case'))
     for test, expected in tests:
-      self.assertEqual(expected, utils.CamelToSnakeCase(test))
+      self.assertEqual(expected, string_utils.CamelToSnakeCase(test))
 
 
 if __name__ == '__main__':

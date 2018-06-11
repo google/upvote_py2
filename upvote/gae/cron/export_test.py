@@ -257,12 +257,12 @@ class DispatchTest(basetest.UpvoteTestCase):
     self._CreateBigQueryRows(bq_models.VoteRow, export._MAX_PAGE_SIZE * 2)
     self._CreateBigQueryRows(bq_models.UserRow, export._MAX_PAGE_SIZE)
 
-    self.assertTaskCount(constants.TASK_QUEUE.BQ_STREAMING, 0)
+    self.assertTaskCount(constants.TASK_QUEUE.BQ_ROW_STREAMING, 0)
 
     export._Dispatch()
 
     self.assertEqual(29, mock_time_remains.call_count)
-    self.assertTaskCount(constants.TASK_QUEUE.BQ_STREAMING, 10)
+    self.assertTaskCount(constants.TASK_QUEUE.BQ_ROW_STREAMING, 10)
 
     expected_defers = [
         (constants.GAE_STREAMING_TABLES.BINARY, export._MAX_PAGE_SIZE - 1),
@@ -275,7 +275,7 @@ class DispatchTest(basetest.UpvoteTestCase):
         (constants.GAE_STREAMING_TABLES.HOST, 1),
         (constants.GAE_STREAMING_TABLES.VOTE, export._MAX_PAGE_SIZE),
         (constants.GAE_STREAMING_TABLES.EXECUTION, export._MAX_PAGE_SIZE)]
-    tasks = self.UnpackTaskQueue(constants.TASK_QUEUE.BQ_STREAMING)
+    tasks = self.UnpackTaskQueue(constants.TASK_QUEUE.BQ_ROW_STREAMING)
     actual_defers = [(t[1][0], len(t[1][1])) for t in tasks]
     self.assertEqual(expected_defers, actual_defers)
 

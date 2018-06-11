@@ -73,6 +73,52 @@ class WithRetriesTest(basetest.UpvoteTestCase):
     self.assertEqual(4, decorated.__wrapped__.call_count)
 
 
+class ChangeLocalStatesTest(basetest.UpvoteTestCase):
+
+  @mock.patch.object(change_set.monitoring, 'local_whitelisting_latency')
+  @mock.patch.object(change_set, '_ChangeLocalState', return_value=True)
+  def testLatencyRecorded_Whitelist_Fulfilled(
+      self, mock_change_local_state, mock_metric):
+
+    binary = test_utils.CreateBit9Binary(file_catalog_id='1234')
+    local_rule = test_utils.CreateBit9Rule(
+        binary.key, host_id='12345', policy=constants.RULE_POLICY.WHITELIST)
+
+    change_set._ChangeLocalStates(
+        binary, [local_rule], bit9_constants.APPROVAL_STATE.APPROVED)
+
+    self.assertTrue(mock_metric.Record.called)
+
+  @mock.patch.object(change_set.monitoring, 'local_whitelisting_latency')
+  @mock.patch.object(change_set, '_ChangeLocalState', return_value=False)
+  def testLatencyRecorded_Whitelist_NotFulfilled(
+      self, mock_change_local_state, mock_metric):
+
+    binary = test_utils.CreateBit9Binary(file_catalog_id='1234')
+    local_rule = test_utils.CreateBit9Rule(
+        binary.key, host_id='12345', policy=constants.RULE_POLICY.WHITELIST)
+
+    change_set._ChangeLocalStates(
+        binary, [local_rule], bit9_constants.APPROVAL_STATE.APPROVED)
+
+    self.assertFalse(mock_metric.Record.called)
+
+  @mock.patch.object(change_set.monitoring, 'local_whitelisting_latency')
+  @mock.patch.object(change_set, '_ChangeLocalState', return_value=True)
+  def testLatencyRecorded_NonWhitelist(
+      self, mock_change_local_state, mock_metric):
+
+    binary = test_utils.CreateBit9Binary(file_catalog_id='1234')
+    local_rule = test_utils.CreateBit9Rule(
+        binary.key, host_id='12345',
+        policy=constants.RULE_POLICY.FORCE_INSTALLER)
+
+    change_set._ChangeLocalStates(
+        binary, [local_rule], bit9_constants.APPROVAL_STATE.APPROVED)
+
+    self.assertFalse(mock_metric.Record.called)
+
+
 class CommitBlockableChangeSetTest(basetest.UpvoteTestCase):
 
   def setUp(self):

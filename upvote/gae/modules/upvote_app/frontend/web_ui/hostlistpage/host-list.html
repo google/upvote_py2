@@ -4,7 +4,10 @@
     <md-progress-circular id="page-load-spinner" md-mode="indeterminate" md-diameter="96"></md-progress-circular>
   </div>
 
-  <div flex layout="column" ng-show="hostListCtrl.hosts" id="host-card-list">
+  <div flex
+       layout="column"
+       ng-show="hostListCtrl.hosts != null && hostListCtrl.hosts.length > 0"
+       id="host-card-list">
     <md-card ng-repeat="host in hostListCtrl.hosts"
              md-theme="default" md-theme-watch
              class="md-card-medium _md md-default-theme host-card"

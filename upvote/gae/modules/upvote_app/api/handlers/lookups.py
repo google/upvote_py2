@@ -22,7 +22,7 @@ from webapp2_extras import routes
 
 from upvote.gae.datastore.models import base as base_db
 from upvote.gae.datastore.models import santa as santa_db
-from upvote.gae.lib.analysis import analysis
+from upvote.gae.lib.analysis import api as analysis_api
 from upvote.gae.lib.analysis.virustotal import constants as vt_constants
 from upvote.gae.modules.upvote_app.api import monitoring
 from upvote.gae.modules.upvote_app.api.handlers import base
@@ -50,8 +50,8 @@ class Lookup(base.BaseHandler):
           'reports': {}}
       for key in keys:
         try:
-          results = analysis.VirusTotalLookup(key.id())
-        except analysis.LookupFailure as e:  # pylint: disable=broad-except
+          results = analysis_api.VirusTotalLookup(key.id())
+        except analysis_api.LookupFailure as e:  # pylint: disable=broad-except
           # NOTE: We suppress all errors here because an omitted entry will be
           # considered an error and prevent the response from being considered
           # fully analyzed.
@@ -70,8 +70,8 @@ class Lookup(base.BaseHandler):
       self.respond_json(all_results)
     else:
       try:
-        results = analysis.VirusTotalLookup(blockable_id)
-      except analysis.LookupFailure as e:  # pylint: disable=broad-except
+        results = analysis_api.VirusTotalLookup(blockable_id)
+      except analysis_api.LookupFailure as e:  # pylint: disable=broad-except
         logging.exception(str(e))
         self.abort(httplib.NOT_FOUND)
       else:

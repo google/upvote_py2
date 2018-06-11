@@ -37,7 +37,7 @@ from upvote.gae.shared.common import utils
 from upvote.gae.datastore.models import base
 from upvote.gae.datastore.models import bigquery as bigquery_models
 from upvote.shared import constants
-from upvote.shared import time_utils
+from upvote.gae.utils import time_utils
 
 
 _BACKUP_PREFIX = 'datastore_backup'
@@ -240,7 +240,7 @@ def _Dispatch():
       # corresponding rows to BigQuery.
       deferred.defer(
           _StreamPage, entry.name, key_page,
-          _queue=constants.TASK_QUEUE.BQ_STREAMING)
+          _queue=constants.TASK_QUEUE.BQ_ROW_STREAMING)
 
     # If this TableDispatchEntry is finished, pop the next one and start over.
     if finished:

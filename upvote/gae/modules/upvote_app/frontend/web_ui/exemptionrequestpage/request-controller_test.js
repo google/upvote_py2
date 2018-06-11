@@ -15,13 +15,13 @@
 goog.setTestOnly();
 
 goog.require('upvote.errornotifier.module');
-goog.require('upvote.hostrequestpage.HostRequestController');
+goog.require('upvote.exemptionrequestpage.ExemptionRequestController');
 goog.require('upvote.hosts.ExceptionReason');
 goog.require('upvote.hosts.module');
 goog.require('upvote.shared.Page');
 
 goog.scope(() => {
-const HostRequestController = upvote.hostrequestpage.HostRequestController;
+const ExemptionRequestController = upvote.exemptionrequestpage.ExemptionRequestController;
 
 
 describe('Host Request Controller', () => {
@@ -66,7 +66,7 @@ describe('Host Request Controller', () => {
   });
 
   let buildController = () =>
-      new HostRequestController(hostService, errorService, routeParams, page);
+      new ExemptionRequestController(hostService, errorService, routeParams, page);
 
   describe('should display an error notifiction', () => {
     it('when initialization fails', () => {

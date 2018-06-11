@@ -44,8 +44,8 @@ py_appengine_library(
         "//upvote/gae/shared/common:settings",
         "//upvote/gae/shared/common:utils",
         "//upvote/gae/taskqueue:utils",
+        "//upvote/gae/utils:time_utils",
         "//upvote/shared:constants",
-        "//upvote/shared:time_utils",
     ],
 )
 

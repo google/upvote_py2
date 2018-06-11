@@ -55,6 +55,7 @@ class CommitAllChangeSets(handlers.UpvoteRequestHandler):
     # real fast with duplicate tasks in the event of a large backlog.
     queue_size = taskqueue_utils.QueueSize(
         queue=constants.TASK_QUEUE.BIT9_COMMIT_CHANGE, deadline=30)
+    logging.info('Bit9 commit queue currently contains %d task(s)', queue_size)
     available = max(20 - queue_size, 0)
     logging.info('Deferring %d Bit9 change(s)', available)
 
@@ -64,6 +65,7 @@ class CommitAllChangeSets(handlers.UpvoteRequestHandler):
     selected_changes = random.sample(changes, sample_size)
 
     blockable_keys = [change.blockable_key for change in selected_changes]
+    logging.info('Deferring %d blockable change(s)', len(blockable_keys))
     for blockable_key in blockable_keys:
       change_set.DeferCommitBlockableChangeSet(blockable_key)
 

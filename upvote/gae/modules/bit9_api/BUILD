@@ -36,13 +36,13 @@ py_appengine_library(
         "//upvote/gae/lib/analysis:metrics",
         "//upvote/gae/modules/bit9_api/api",
         "//upvote/gae/shared/common:handlers",
-        "//upvote/gae/shared/common:intermodule",
         "//upvote/gae/shared/common:query_utils",
         "//upvote/gae/shared/common:settings",
         "//upvote/gae/shared/common:user_map",
         "//upvote/gae/taskqueue:utils",
+        "//upvote/gae/utils:intermodule_utils",
+        "//upvote/gae/utils:time_utils",
         "//upvote/shared:constants",
-        "//upvote/shared:time_utils",
     ],
 )
 
@@ -59,11 +59,11 @@ py_appengine_library(
         "//upvote/gae/datastore/models:base",
         "//upvote/gae/datastore/models:bit9",
         "//upvote/gae/shared/common:handlers",
-        "//upvote/gae/shared/common:intermodule",
         "//upvote/gae/shared/common:settings",
         "//upvote/gae/shared/common:utils",
+        "//upvote/gae/utils:intermodule_utils",
+        "//upvote/gae/utils:time_utils",
         "//upvote/shared:constants",
-        "//upvote/shared:time_utils",
     ],
 )
 
@@ -72,6 +72,7 @@ py_appengine_library(
     srcs = ["change_set.py"],
     deps = [
         ":constants",
+        ":monitoring",
         ":utils",
         "//upvote/gae/datastore/models:bit9",
         "//upvote/gae/modules/bit9_api/api",

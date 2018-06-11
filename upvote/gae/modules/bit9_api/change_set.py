@@ -23,6 +23,7 @@ from google.appengine.ext import ndb
 
 from upvote.gae.datastore.models import bit9
 from upvote.gae.modules.bit9_api import constants as bit9_constants
+from upvote.gae.modules.bit9_api import monitoring
 from upvote.gae.modules.bit9_api import utils
 from upvote.gae.modules.bit9_api.api import api
 from upvote.shared import constants
@@ -133,6 +134,13 @@ def _ChangeLocalStates(blockable, local_rules, new_state):
         'Local rule %s fulfilled', 'was' if was_fulfilled else 'was not')
     local_rule.is_fulfilled = was_fulfilled
 
+    # If this is a local whitelisting rule, record the latency between the time
+    # the Bit9Rule was created and now.
+    if local_rule.policy == constants.RULE_POLICY.WHITELIST and was_fulfilled:
+      now = datetime.datetime.utcnow()
+      latency_secs = int((now - local_rule.recorded_dt).total_seconds())
+      monitoring.local_whitelisting_latency.Record(latency_secs)
+
 
 def _ChangeGlobalState(blockable, new_state):
   logging.debug(
@@ -228,7 +236,8 @@ def _ChangeInstallerState(blockable, rules):
 
 
 @ndb.transactional
-def CommitBlockableChangeSet(blockable_key, tail_defer=True):
+def CommitBlockableChangeSet(
+    blockable_key, tail_defer=True, tail_defer_count=0):
   """Attempts to commit and delete the next RuleChangeSet for a blockable.
 
   NOTE: If tail_defer is True, another commit attempt will only be queued if
@@ -239,6 +248,8 @@ def CommitBlockableChangeSet(blockable_key, tail_defer=True):
         should be attempted to commit.
     tail_defer: bool, Whether to defer another commit attempt upon the
         successful completion of this commit **IF** there is another change set.
+    tail_defer_count: int, The number of tail defers that have preceded this
+        defer.
   """
   change_query = bit9.RuleChangeSet.query(
       ancestor=blockable_key).order(bit9.RuleChangeSet.recorded_dt)
@@ -252,7 +263,12 @@ def CommitBlockableChangeSet(blockable_key, tail_defer=True):
   # attempt for the current blockable.
   CommitChangeSet(changes[0].key)
   if tail_defer and len(changes) > 1:
-    DeferCommitBlockableChangeSet(blockable_key)
+    tail_defer_count += 1
+    logging.info(
+        'Performing tail defer #%d for %s', tail_defer_count,
+        blockable_key.id())
+    DeferCommitBlockableChangeSet(
+        blockable_key, tail_defer=True, tail_defer_count=tail_defer_count)
 
 
 @ndb.transactional
@@ -297,7 +313,9 @@ def CommitChangeSet(change_key):
     change.key.delete()
 
 
-def DeferCommitBlockableChangeSet(blockable_key, tail_defer=True):
+def DeferCommitBlockableChangeSet(
+    blockable_key, tail_defer=True, tail_defer_count=0):
   deferred.defer(
       CommitBlockableChangeSet, blockable_key, tail_defer=tail_defer,
+      tail_defer_count=tail_defer_count,
       _queue=constants.TASK_QUEUE.BIT9_COMMIT_CHANGE)

@@ -401,10 +401,13 @@ TASK_QUEUE = Namespace(tuples=[
     ('BQ_PERSISTENCE', 'bigquery-row-persistence'),
 
     # Used for deferring BigQueryRow streaming.
-    ('BQ_STREAMING', 'bigquery-row-streaming'),
+    ('BQ_ROW_STREAMING', 'bigquery-row-streaming'),
 
     # Used for dispatching BigQueryRow streaming.
     ('BQ_DISPATCH', 'bigquery-row-dispatch'),
 
     # Used for deferring BigQueryRow counting.
-    ('BQ_COUNTING', 'bigquery-row-counting')])
+    ('BQ_COUNTING', 'bigquery-row-counting'),
+
+    # Used for performing BigQueryRow streaming inserts.
+    ('BIGQUERY_STREAMING', 'bigquery-streaming')])
