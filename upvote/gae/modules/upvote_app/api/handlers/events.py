@@ -22,9 +22,10 @@ from webapp2_extras import routes
 from google.appengine.ext import ndb
 
 from upvote.gae.datastore import utils as model_utils
-from upvote.gae.datastore.models import base as base_db
-from upvote.gae.datastore.models import bit9 as bit9_db
-from upvote.gae.datastore.models import santa as santa_db
+from upvote.gae.datastore.models import base as base_models
+from upvote.gae.datastore.models import bit9 as bit9_models
+from upvote.gae.datastore.models import santa as santa_models
+from upvote.gae.datastore.models import user as user_models
 from upvote.gae.modules.upvote_app.api import monitoring
 from upvote.gae.modules.upvote_app.api.handlers import base
 from upvote.gae.shared.common import handlers
@@ -50,24 +51,24 @@ def _GetEventContext(events):
     Blockable), that dict entry is present but set to None.
   """
   host_futures = ndb.get_multi_async(
-      ndb.Key(base_db.Host, event.host_id) for event in events)
+      ndb.Key(base_models.Host, event.host_id) for event in events)
 
   # Fetch the entities associated with Event.blockable_key.
   blockable_futures = ndb.get_multi_async(
       event.blockable_key for event in events)
   vote_futures = ndb.get_multi_async(
-      base_db.Vote.GetKey(event.blockable_key, event.user_key)
+      base_models.Vote.GetKey(event.blockable_key, event.user_key)
       for event in events)
 
   # Fetch the entities associated with SantaEvent.bundle_key.
   has_bundle = (
-      lambda event: isinstance(event, santa_db.SantaEvent) and event.bundle_key)
+      lambda e: isinstance(e, santa_models.SantaEvent) and e.bundle_key)
   bundle_futures = [
       (event.bundle_key.get_async()
        if has_bundle(event) else model_utils.GetNoOpFuture())
       for event in events]
   bundle_vote_futures = [
-      (base_db.Vote.GetKey(event.bundle_key, event.user_key).get_async()
+      (base_models.Vote.GetKey(event.bundle_key, event.user_key).get_async()
        if has_bundle(event) else model_utils.GetNoOpFuture())
       for event in events]
 
@@ -76,9 +77,9 @@ def _GetEventContext(events):
   for event in events:
     if event.cert_key:
       cert_future = event.cert_key.get_async()
-    elif isinstance(event, santa_db.SantaEvent) and event.cert_sha256:
+    elif isinstance(event, santa_models.SantaEvent) and event.cert_sha256:
       cert_future = ndb.Key(
-          santa_db.SantaCertificate, event.cert_sha256).get_async()
+          santa_models.SantaCertificate, event.cert_sha256).get_async()
     else:
       cert_future = model_utils.GetNoOpFuture()
     cert_futures.append(cert_future)
@@ -111,7 +112,7 @@ def _GetEventContext(events):
 class EventQueryHandler(base.BaseQueryHandler):
   """Handler for querying events."""
 
-  MODEL_CLASS = base_db.Event
+  MODEL_CLASS = base_models.Event
 
   @property
   def RequestCounter(self):
@@ -137,11 +138,11 @@ class EventQueryHandler(base.BaseQueryHandler):
 
     # Determine scope of query and enforce ACL if queried as admin.
     if self.request.get('asAdmin').lower() == 'true':
-      logging.debug('Getting all events as Admin.')
+      logging.info('Getting all events as Admin.')
       self.RequireCapability(constants.PERMISSIONS.VIEW_OTHER_EVENTS)
       ancestor = None
     else:
-      logging.debug('Getting events for user: %s', self.user.nickname)
+      logging.info('Getting events for user: %s', self.user.nickname)
       ancestor = self.user.key
 
     query = super(EventQueryHandler, self)._QueryModel(
@@ -152,12 +153,12 @@ class EventQueryHandler(base.BaseQueryHandler):
 
 class Bit9EventQueryHandler(EventQueryHandler):
 
-  MODEL_CLASS = bit9_db.Bit9Event
+  MODEL_CLASS = bit9_models.Bit9Event
 
 
 class SantaEventQueryHandler(EventQueryHandler):
 
-  MODEL_CLASS = santa_db.SantaEvent
+  MODEL_CLASS = santa_models.SantaEvent
 
 
 class EventHandler(base.BaseHandler):
@@ -189,28 +190,28 @@ class RecentEventHandler(base.BaseHandler):
   """Handler for getting the most recent Event for a blockable, for a user."""
 
   def get(self, blockable_id):  # pylint: disable=g-bad-name
-    blockable = base_db.Blockable.get_by_id(blockable_id)
+    blockable = base_models.Blockable.get_by_id(blockable_id)
     if not blockable:
       self.abort(httplib.NOT_FOUND, explanation='Blockable not found')
 
     username = self.request.get('asUser')
     if username:
       self.RequireCapability(constants.PERMISSIONS.VIEW_OTHER_EVENTS)
-      user = base_db.User.GetById(user_map.UsernameToEmail(username))
+      user = user_models.User.GetById(user_map.UsernameToEmail(username))
     else:
       user = self.user
 
     # If the blockable is a bundle, search by the 'bundle_key' property instead
     # of 'blockable_key'.
     blockable_filter = (
-        santa_db.SantaEvent.bundle_key == blockable.key
-        if isinstance(blockable, santa_db.SantaBundle) else
-        base_db.Event.blockable_key == blockable.key)
+        santa_models.SantaEvent.bundle_key == blockable.key
+        if isinstance(blockable, santa_models.SantaBundle) else
+        base_models.Event.blockable_key == blockable.key)
 
-    event_query = (base_db.Event
+    event_query = (base_models.Event
                    .query(ancestor=user.key)
                    .filter(blockable_filter)
-                   .order(-base_db.Event.last_blocked_dt))
+                   .order(-base_models.Event.last_blocked_dt))
 
     event = event_query.get()
 

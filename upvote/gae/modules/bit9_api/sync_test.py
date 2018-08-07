@@ -15,6 +15,7 @@
 """Tests for Bit9 syncing."""
 
 import datetime
+import itertools
 import random
 
 import mock
@@ -27,102 +28,142 @@ from common import datastore_locks
 from absl.testing import absltest
 from upvote.gae.datastore import test_utils
 from upvote.gae.datastore import utils as model_utils
-from upvote.gae.datastore.models import base as base_db
-from upvote.gae.datastore.models import bigquery as bigquery_db
-from upvote.gae.datastore.models import bit9 as bit9_db
-from upvote.gae.modules.bit9_api import change_set
-from upvote.gae.modules.bit9_api import constants as bit9_constants
-from upvote.gae.modules.bit9_api import monitoring
+from upvote.gae.datastore.models import base as base_models
+from upvote.gae.datastore.models import bit9 as bit9_models
+from upvote.gae.lib.bit9 import api
+from upvote.gae.lib.bit9 import change_set
+from upvote.gae.lib.bit9 import constants as bit9_constants
+from upvote.gae.lib.bit9 import monitoring
+from upvote.gae.lib.bit9 import utils as bit9_utils
+from upvote.gae.lib.testing import basetest
 from upvote.gae.modules.bit9_api import sync
 from upvote.gae.modules.bit9_api import test_utils as bit9_test_utils
-from upvote.gae.modules.bit9_api import utils
-from upvote.gae.modules.bit9_api.api import api
-from upvote.gae.shared.common import basetest
 from upvote.gae.shared.common import settings
-from upvote.gae.shared.common import user_map
 from upvote.gae.utils import time_utils
 from upvote.shared import constants
 
 
-def _CreateEventTuple(
-    computer=None, file_catalog=None, signing_chain=None, **event_kwargs):
-  if computer is None:
-    computer = bit9_test_utils.CreateComputer()
-  if file_catalog is None:
-    file_catalog = bit9_test_utils.CreateFileCatalog()
-  if signing_chain is None:
-    signing_chain = [bit9_test_utils.CreateCertificate()]
+def _CreateEventsAndCerts(
+    count=1, event_kwargs=None, file_catalog_kwargs=None, computer_kwargs=None):
 
-  event = bit9_test_utils.CreateEvent(
-      computer_id=computer.id, file_catalog_id=file_catalog.id, **event_kwargs)
+  event_kwargs = event_kwargs or {}
+  file_catalog_kwargs = file_catalog_kwargs or {}
+  computer_kwargs = computer_kwargs or {}
 
-  event = bit9_test_utils.Expand(event, api.Event.file_catalog_id, file_catalog)
-  event = bit9_test_utils.Expand(event, api.Event.computer_id, computer)
+  # Create a generator for each type of ID, with each range starting where the
+  # previous one left off.
+  id_gens = itertools.izip(
+      xrange(100 + (count * 0), 100 + (count * 1)),
+      xrange(100 + (count * 1), 100 + (count * 2)),
+      xrange(100 + (count * 2), 100 + (count * 3)),
+      xrange(100 + (count * 3), 100 + (count * 4)))
 
-  return event, signing_chain
+  events = []
+  certs = []
+
+  for event_id, file_catalog_id, computer_id, certificate_id in id_gens:
+
+    # Construct the Certificate.
+    cert = bit9_test_utils.CreateCertificate(id=certificate_id)
+
+    # Construct the Computer.
+    computer_id = computer_kwargs.get('id', computer_id)
+    computer_defaults = {'id': computer_id}
+    computer_defaults.update(computer_kwargs.copy())
+    computer = bit9_test_utils.CreateComputer(**computer_defaults)
+
+    # Construct the FileCatalog.
+    file_catalog_id = file_catalog_kwargs.get('id', file_catalog_id)
+    file_catalog_defaults = {
+        'id': file_catalog_id,
+        'certificate_id': certificate_id}
+    file_catalog_defaults.update(file_catalog_kwargs.copy())
+    file_catalog = bit9_test_utils.CreateFileCatalog(**file_catalog_defaults)
+
+    # Construct the Event.
+    event_defaults = {
+        'id': event_id,
+        'file_catalog_id': file_catalog_id,
+        'computer_id': computer_id}
+    event_defaults.update(event_kwargs.copy())
+    event = bit9_test_utils.CreateEvent(**event_defaults)
+    event = bit9_test_utils.Expand(
+        event, api.Event.file_catalog_id, file_catalog)
+    event = bit9_test_utils.Expand(event, api.Event.computer_id, computer)
+
+    events.append(event)
+    # Stuff the certs in backwards due to the reverse sorting in GetEvents().
+    certs.insert(0, cert)
+
+  return events, certs
+
+
+def _CreateEventAndCert(
+    file_catalog_kwargs=None, computer_kwargs=None, event_kwargs=None):
+
+  events, certs = _CreateEventsAndCerts(
+      count=1, file_catalog_kwargs=file_catalog_kwargs,
+      computer_kwargs=computer_kwargs, event_kwargs=event_kwargs)
+
+  return (events[0], certs[0])
+
+
+def _CreateUnsyncedEvents(host_count=1, events_per_host=-1):
+  """Creates a bunch of _UnsycnedEvents across a number of Windows hosts.
+
+  Args:
+    host_count: The number of hosts to create _UnsyncedEvents for.
+    events_per_host: The number of _UnsyncedEvents to create per host. If set
+        to -1 (default), creates a random number of _UnsyncedEvents.
+
+  Returns:
+    A sorted list of the randomly generated host IDs.
+  """
+  computer_ids = range(host_count)
+
+  for computer_id in computer_ids:
+    event_count = (
+        random.randint(1, 5) if events_per_host == -1 else events_per_host)
+    for _ in xrange(event_count):
+      event, _ = _CreateEventAndCert(computer_kwargs={'id': computer_id})
+      sync._UnsyncedEvent.Generate(event, []).put()
+
+  return computer_ids
 
 
 class SyncTestCase(basetest.UpvoteTestCase):
 
-  def _PatchApiRequests(self, *results):
-    requests = []
-    for batch in results:
-      if isinstance(batch, list):
-        requests.append([obj._obj_dict for obj in batch])
-      else:
-        requests.append(batch._obj_dict)
-    utils.CONTEXT.ExecuteRequest.side_effect = requests
+  def _AppendMockApiResults(self, *args):
+    for arg in args:
 
-  def _PatchGetEvents(self, *event_tuple_batches):
-    requests = []
-    retrieved_certs = set()
-    for batch in event_tuple_batches:
-      requests.append([event for event, _ in batch])
-      for _, certs in batch:
-        if certs is None:
-          continue
-        # Account for the caching on _GetCertificate.
-        for cert in certs:
-          if cert.id not in retrieved_certs:
-            requests.append(cert)
-            retrieved_certs.add(cert.id)
-    self._PatchApiRequests(*requests)
+      # Mock out the api.Event.query() in GetEvents().
+      if isinstance(arg, list):
+        new_side_effect = [item._obj_dict for item in arg]
+        self._api_side_effects.append(new_side_effect)
 
-  def _CreateUnsyncedEvents(self, host_count=1, events_per_host=-1):
-    """Creates a bunch of _UnsycnedEvents across a number of Windows hosts.
+      # Mock out the api.Certificate.get() in _GetCertificate().
+      elif isinstance(arg, api.Certificate):
+        # Don't mock the same Certificate more than once because of the caching.
+        if arg.id not in self._api_cert_ids:
+          self._api_cert_ids.add(arg.id)
+          self._api_side_effects.append(arg._obj_dict)
 
-    Args:
-      host_count: The number of hosts to create _UnsyncedEvents for.
-      events_per_host: The number of _UnsyncedEvents to create per host. If set
-          to -1 (default), creates a random number of _UnsyncedEvents.
-
-    Returns:
-      A sorted list of the randomly generated host IDs.
-    """
-    hosts = [
-        bit9_test_utils.CreateComputer(id=host_id)
-        for host_id in xrange(host_count)]
-    for host in hosts:
-      if events_per_host == -1:
-        events_per_host = random.randint(1, 5)
-      for _ in xrange(events_per_host):
-        event, _ = _CreateEventTuple(computer=host)
-        sync._UnsyncedEvent.Generate(event, []).put()
-
-    return sorted(host.id for host in hosts)
+      bit9_utils.CONTEXT.ExecuteRequest.side_effect = self._api_side_effects
 
   def setUp(self, wsgi_app=None):
     super(SyncTestCase, self).setUp(wsgi_app=wsgi_app)
-    self.Patch(utils, 'CONTEXT')
+    self.Patch(bit9_utils, 'CONTEXT')
+    self._api_side_effects = []
+    self._api_cert_ids = set()
 
 
 class UnsyncedEventTest(basetest.UpvoteTestCase):
 
   def testPutAndGet(self):
-    event, signing_chain = _CreateEventTuple()
+    event, cert = _CreateEventAndCert()
     file_catalog = event.get_expand(api.Event.file_catalog_id)
 
-    key = sync._UnsyncedEvent.Generate(event, signing_chain).put()
+    key = sync._UnsyncedEvent.Generate(event, [cert]).put()
     entity = key.get()
 
     self.assertEqual(1, len(entity.signing_chain))
@@ -253,7 +294,7 @@ class GetEventsTest(SyncTestCase):
         id=102, computer_id=100, file_catalog_id=103)
     event = bit9_test_utils.Expand(event, api.Event.computer_id, computer)
 
-    self._PatchGetEvents([(event, signing_chain)])
+    self._AppendMockApiResults(event, signing_chain)
 
     results = sync.GetEvents(0)
     self.assertEqual(0, len(results))
@@ -272,7 +313,7 @@ class GetEventsTest(SyncTestCase):
         event, api.Event.file_catalog_id, file_catalog)
     event = bit9_test_utils.Expand(event, api.Event.computer_id, computer)
 
-    self._PatchGetEvents([(event, signing_chain)])
+    self._AppendMockApiResults(event, signing_chain)
 
     results = sync.GetEvents(0)
     self.assertEqual(0, len(results))
@@ -289,11 +330,30 @@ class GetEventsTest(SyncTestCase):
     event = bit9_test_utils.Expand(
         event, api.Event.file_catalog_id, file_catalog)
 
-    self._PatchGetEvents([(event, signing_chain)])
+    self._AppendMockApiResults(event, signing_chain)
 
     results = sync.GetEvents(0)
     self.assertEqual(0, len(results))
     self.assertTrue(sync.monitoring.events_skipped.Increment.called)
+
+  @mock.patch.object(sync.monitoring, 'events_skipped')
+  def testDuplicateEventsFromHost(self, mock_events_skipped):
+
+    events, certs = _CreateEventsAndCerts(
+        count=100, computer_kwargs={'id': 999},
+        file_catalog_kwargs={'sha256': test_utils.RandomSHA256()})
+
+    expected_event_id = events[-1].id
+    expected_cert_id = certs[0].id
+
+    self._AppendMockApiResults(events, *certs)
+
+    results = sync.GetEvents(0)
+    self.assertEqual(1, len(results))
+    self.assertEqual(expected_event_id, results[0][0].id)
+    self.assertEqual(expected_cert_id, results[0][1][0].id)
+
+    self.assertEqual(99, mock_events_skipped.Increment.call_count)
 
   @mock.patch.object(sync, '_GetSigningChain')
   def testSigningChainException(self, mock_get_signing_chain):
@@ -302,12 +362,14 @@ class GetEventsTest(SyncTestCase):
     file_catalog_1 = bit9_test_utils.CreateFileCatalog(
         id=100, certificate_id=101)
     computer_1 = bit9_test_utils.CreateComputer(id=102)
-    signing_chain_1 = [bit9_test_utils.CreateCertificate(id=101)]
+    cert_1 = bit9_test_utils.CreateCertificate(id=101)
+    signing_chain_1 = [cert_1]
     event_1 = bit9_test_utils.CreateEvent(
         id=103, file_catalog_id=100, computer_id=102)
     event_1 = bit9_test_utils.Expand(
         event_1, api.Event.file_catalog_id, file_catalog_1)
-    event_1 = bit9_test_utils.Expand(event_1, api.Event.computer_id, computer_1)
+    event_1 = bit9_test_utils.Expand(
+        event_1, api.Event.computer_id, computer_1)
 
     # Create a second event that will be skipped.
     file_catalog_2 = bit9_test_utils.CreateFileCatalog(
@@ -317,25 +379,25 @@ class GetEventsTest(SyncTestCase):
         id=203, file_catalog_id=200, computer_id=202)
     event_2 = bit9_test_utils.Expand(
         event_2, api.Event.file_catalog_id, file_catalog_2)
-    event_2 = bit9_test_utils.Expand(event_2, api.Event.computer_id, computer_2)
+    event_2 = bit9_test_utils.Expand(
+        event_2, api.Event.computer_id, computer_2)
 
     # Create another properly-formed event that will also be returned.
     file_catalog_3 = bit9_test_utils.CreateFileCatalog(
         id=300, certificate_id=301)
     computer_3 = bit9_test_utils.CreateComputer(id=302)
-    signing_chain_3 = [bit9_test_utils.CreateCertificate(id=301)]
+    cert_3 = bit9_test_utils.CreateCertificate(id=301)
+    signing_chain_3 = [cert_3]
     event_3 = bit9_test_utils.CreateEvent(
         id=303, file_catalog_id=300, computer_id=302)
     event_3 = bit9_test_utils.Expand(
         event_3, api.Event.file_catalog_id, file_catalog_3)
-    event_3 = bit9_test_utils.Expand(event_3, api.Event.computer_id, computer_3)
+    event_3 = bit9_test_utils.Expand(
+        event_3, api.Event.computer_id, computer_3)
 
-    self._PatchGetEvents([
-        (event_1, signing_chain_1),
-        (event_2, None),
-        (event_3, signing_chain_3)])
+    self._AppendMockApiResults([event_1, event_2, event_3], cert_3, cert_1)
     mock_get_signing_chain.side_effect = [
-        signing_chain_1, sync.MalformedCertificate, signing_chain_3]
+        signing_chain_3, sync.MalformedCertificate, signing_chain_1]
 
     results = sync.GetEvents(0)
     self.assertEqual(2, len(results))
@@ -358,12 +420,14 @@ class GetEventsTest(SyncTestCase):
     file_catalog_1 = bit9_test_utils.CreateFileCatalog(
         id=100, certificate_id=101)
     computer_1 = bit9_test_utils.CreateComputer(id=102)
-    signing_chain_1 = [bit9_test_utils.CreateCertificate(id=101)]
+    cert_1 = bit9_test_utils.CreateCertificate(id=101)
+    signing_chain_1 = [cert_1]
     event_1 = bit9_test_utils.CreateEvent(
         id=103, file_catalog_id=100, computer_id=102)
     event_1 = bit9_test_utils.Expand(
         event_1, api.Event.file_catalog_id, file_catalog_1)
-    event_1 = bit9_test_utils.Expand(event_1, api.Event.computer_id, computer_1)
+    event_1 = bit9_test_utils.Expand(
+        event_1, api.Event.computer_id, computer_1)
 
     # Create a second event that will hit an exception.
     file_catalog_2 = bit9_test_utils.CreateFileCatalog(
@@ -373,34 +437,39 @@ class GetEventsTest(SyncTestCase):
         id=203, file_catalog_id=200, computer_id=202)
     event_2 = bit9_test_utils.Expand(
         event_2, api.Event.file_catalog_id, file_catalog_2)
-    event_2 = bit9_test_utils.Expand(event_2, api.Event.computer_id, computer_2)
+    event_2 = bit9_test_utils.Expand(
+        event_2, api.Event.computer_id, computer_2)
 
     # Create another properly-formed event won't be returned.
     file_catalog_3 = bit9_test_utils.CreateFileCatalog(
         id=300, certificate_id=301)
     computer_3 = bit9_test_utils.CreateComputer(id=302)
-    signing_chain_3 = [bit9_test_utils.CreateCertificate(id=301)]
+    cert_3 = bit9_test_utils.CreateCertificate(id=301)
+    signing_chain_3 = [cert_3]
     event_3 = bit9_test_utils.CreateEvent(
         id=303, file_catalog_id=300, computer_id=302)
     event_3 = bit9_test_utils.Expand(
         event_3, api.Event.file_catalog_id, file_catalog_3)
-    event_3 = bit9_test_utils.Expand(event_3, api.Event.computer_id, computer_3)
+    event_3 = bit9_test_utils.Expand(
+        event_3, api.Event.computer_id, computer_3)
 
-    self._PatchGetEvents([
-        (event_1, signing_chain_1),
-        (event_2, None),
-        (event_3, signing_chain_3)])
+    self._AppendMockApiResults([event_1, event_2, event_3], cert_3, cert_1)
     mock_get_signing_chain.side_effect = [
-        signing_chain_1, Exception, signing_chain_3]
+        signing_chain_3, Exception, signing_chain_1]
 
     results = sync.GetEvents(0)
-    self.assertEqual(1, len(results))
-    self.assertFalse(sync.monitoring.events_skipped.Increment.called)
+    self.assertEqual(2, len(results))
+    self.assertTrue(sync.monitoring.events_skipped.Increment.called)
 
     actual_event_1, actual_signing_chain_1 = results[0]
     self.assertEqual(1, len(actual_signing_chain_1))
     self.assertEqual(103, actual_event_1.id)
     self.assertEqual(101, actual_signing_chain_1[0].id)
+
+    actual_event_3, actual_signing_chain_3 = results[1]
+    self.assertEqual(1, len(actual_signing_chain_3))
+    self.assertEqual(303, actual_event_3.id)
+    self.assertEqual(301, actual_signing_chain_3[0].id)
 
   def testSuccess(self):
 
@@ -408,25 +477,26 @@ class GetEventsTest(SyncTestCase):
     file_catalog_1 = bit9_test_utils.CreateFileCatalog(
         id=100, certificate_id=101)
     computer_1 = bit9_test_utils.CreateComputer(id=102)
-    signing_chain_1 = [bit9_test_utils.CreateCertificate(id=101)]
+    cert_1 = bit9_test_utils.CreateCertificate(id=101)
     event_1 = bit9_test_utils.CreateEvent(
         id=103, file_catalog_id=100, computer_id=102)
     event_1 = bit9_test_utils.Expand(
         event_1, api.Event.file_catalog_id, file_catalog_1)
-    event_1 = bit9_test_utils.Expand(event_1, api.Event.computer_id, computer_1)
+    event_1 = bit9_test_utils.Expand(
+        event_1, api.Event.computer_id, computer_1)
 
     file_catalog_2 = bit9_test_utils.CreateFileCatalog(
         id=200, certificate_id=201)
     computer_2 = bit9_test_utils.CreateComputer(id=202)
-    signing_chain_2 = [bit9_test_utils.CreateCertificate(id=201)]
+    cert_2 = bit9_test_utils.CreateCertificate(id=201)
     event_2 = bit9_test_utils.CreateEvent(
         id=203, file_catalog_id=200, computer_id=202)
     event_2 = bit9_test_utils.Expand(
         event_2, api.Event.file_catalog_id, file_catalog_2)
-    event_2 = bit9_test_utils.Expand(event_2, api.Event.computer_id, computer_2)
+    event_2 = bit9_test_utils.Expand(
+        event_2, api.Event.computer_id, computer_2)
 
-    self._PatchGetEvents(
-        [(event_1, signing_chain_1), (event_2, signing_chain_2)])
+    self._AppendMockApiResults([event_1, event_2], cert_2, cert_1)
 
     results = sync.GetEvents(0)
     self.assertEqual(2, len(results))
@@ -442,10 +512,10 @@ class PullTest(SyncTestCase):
     self.mock_events_pulled = self.Patch(monitoring, 'events_pulled')
 
   def testOrder(self):
-    event1, signing_chain1 = _CreateEventTuple(id=100)
-    event2, signing_chain2 = _CreateEventTuple(id=200)
+    event_1, cert_1 = _CreateEventAndCert()
+    event_2, cert_2 = _CreateEventAndCert()
 
-    self._PatchGetEvents([(event1, signing_chain1)], [(event2, signing_chain2)])
+    self._AppendMockApiResults([event_1], cert_1, [event_2], cert_2)
     self.Patch(time_utils, 'TimeRemains', side_effect=[True, True, False])
 
     sync.Pull(batch_size=1)
@@ -454,22 +524,19 @@ class PullTest(SyncTestCase):
               .order(sync._UnsyncedEvent.bit9_id)
               .fetch())
     self.assertEqual(2, len(events))
-    self.assertEqual(event1._obj_dict, events[0].event)
-    self.assertEqual(event2._obj_dict, events[1].event)
+    self.assertEqual(event_1._obj_dict, events[0].event)
+    self.assertEqual(event_2._obj_dict, events[1].event)
     self.assertEqual(2, self.mock_events_pulled.IncrementBy.call_count)
 
   def testMultiple(self):
 
     batch_count = 3
     events_per_batch = 5
-    batches = []
 
-    for batch_num in xrange(batch_count):
-      batches.append([
-          _CreateEventTuple(id=batch_num * events_per_batch + event_num)
-          for event_num in xrange(events_per_batch)])
+    for _ in xrange(batch_count):
+      events, certs = _CreateEventsAndCerts(count=events_per_batch)
+      self._AppendMockApiResults(events, *certs)
 
-    self._PatchGetEvents(*batches)
     self.Patch(time_utils, 'TimeRemains', side_effect=[True, True, True, False])
 
     sync.Pull(batch_size=events_per_batch)
@@ -481,11 +548,11 @@ class PullTest(SyncTestCase):
     self.assertTaskCount(constants.TASK_QUEUE.BIT9_PULL, 0)
 
   def testBadEvent(self):
-    event, signing_chain = _CreateEventTuple(id=100)
+    event, cert = _CreateEventAndCert()
     # Create an event with no expands.
     broken_event = bit9_test_utils.CreateEvent()
 
-    self._PatchGetEvents([(event, signing_chain), (broken_event, None)])
+    self._AppendMockApiResults([event, broken_event], cert)
     self.Patch(time_utils, 'TimeRemains', side_effect=[True, True, False])
 
     sync.Pull()
@@ -501,8 +568,7 @@ class DispatchTest(SyncTestCase):
 
   def testDispatch(self):
     expected_host_count = 5
-    expected_host_ids = self._CreateUnsyncedEvents(
-        host_count=expected_host_count)
+    expected_host_ids = _CreateUnsyncedEvents(host_count=expected_host_count)
 
     sync.Dispatch()
 
@@ -529,9 +595,9 @@ class ProcessTest(SyncTestCase):
 
     self.PatchEnv(settings.ProdEnv, ENABLE_BIGQUERY_STREAMING=True)
 
-  def testPersistsCertificateRow(self):
-    event, signing_chain = _CreateEventTuple()
-    sync._UnsyncedEvent.Generate(event, signing_chain).put()
+  def testInsertsCertificateRow(self):
+    event, cert = _CreateEventAndCert()
+    sync._UnsyncedEvent.Generate(event, [cert]).put()
 
     # Patch out the all methods except _PersistBit9Certificates.
     methods = [
@@ -543,13 +609,11 @@ class ProcessTest(SyncTestCase):
     sync.Process(event.computer_id)
 
     # Should be 1 Task for the CertificateRow caused by the event.
-    self.assertTaskCount(constants.TASK_QUEUE.BQ_PERSISTENCE, 1)
-    self.RunDeferredTasks(constants.TASK_QUEUE.BQ_PERSISTENCE)
-    self.assertEntityCount(bigquery_db.CertificateRow, 1)
+    self.assertBigQueryInsertions([constants.BIGQUERY_TABLE.CERTIFICATE])
 
-  def testPersistsExecutionRow(self):
+  def testInsertsExecutionRow(self):
     event_count = 3
-    host_id = self._CreateUnsyncedEvents(events_per_host=event_count)[0]
+    host_id = _CreateUnsyncedEvents(events_per_host=event_count)[0]
 
     # Patch out the all methods except _PersistBit9Events.
     methods = [
@@ -561,13 +625,12 @@ class ProcessTest(SyncTestCase):
     sync.Process(host_id)
 
     # Should be 3 ExecutionRows since 3 Unsynced Events were created.
-    self.assertTaskCount(constants.TASK_QUEUE.BQ_PERSISTENCE, event_count)
-    self.RunDeferredTasks(constants.TASK_QUEUE.BQ_PERSISTENCE)
-    self.assertEntityCount(bigquery_db.ExecutionRow, event_count)
+    self.assertBigQueryInsertions(
+        [constants.BIGQUERY_TABLE.EXECUTION] * event_count)
 
   def testEventsExist(self):
     event_count = 5
-    host_id = self._CreateUnsyncedEvents(events_per_host=event_count)[0]
+    host_id = _CreateUnsyncedEvents(events_per_host=event_count)[0]
 
     # Patch out the various _Persist methods since they're tested below.
     methods = [
@@ -633,9 +696,9 @@ class ProcessTest(SyncTestCase):
 class PersistBit9CertificatesTest(basetest.UpvoteTestCase):
 
   def testNoSigningChain(self):
-    self.assertEntityCount(bit9_db.Bit9Certificate, 0)
+    self.assertEntityCount(bit9_models.Bit9Certificate, 0)
     sync._PersistBit9Certificates([]).wait()
-    self.assertEntityCount(bit9_db.Bit9Certificate, 0)
+    self.assertEntityCount(bit9_models.Bit9Certificate, 0)
 
   def testDupeCerts(self):
 
@@ -646,9 +709,9 @@ class PersistBit9CertificatesTest(basetest.UpvoteTestCase):
         bit9_test_utils.CreateCertificate(thumbprint=t) for t in thumbprints]
     bit9_test_utils.LinkSigningChain(*signing_chain)
 
-    self.assertEntityCount(bit9_db.Bit9Certificate, 3)
+    self.assertEntityCount(bit9_models.Bit9Certificate, 3)
     sync._PersistBit9Certificates(signing_chain).wait()
-    self.assertEntityCount(bit9_db.Bit9Certificate, 3)
+    self.assertEntityCount(bit9_models.Bit9Certificate, 3)
 
   def testNewCerts(self):
 
@@ -659,9 +722,12 @@ class PersistBit9CertificatesTest(basetest.UpvoteTestCase):
         for _ in xrange(4)]
     bit9_test_utils.LinkSigningChain(*signing_chain)
 
-    self.assertEntityCount(bit9_db.Bit9Certificate, 3)
+    self.assertEntityCount(bit9_models.Bit9Certificate, 3)
     sync._PersistBit9Certificates(signing_chain).wait()
-    self.assertEntityCount(bit9_db.Bit9Certificate, 7)
+    self.assertEntityCount(bit9_models.Bit9Certificate, 7)
+
+    self.assertBigQueryInsertions(
+        [constants.BIGQUERY_TABLE.CERTIFICATE] * len(signing_chain))
 
 
 class GetCertKeyTest(basetest.UpvoteTestCase):
@@ -673,7 +739,7 @@ class GetCertKeyTest(basetest.UpvoteTestCase):
     bit9_test_utils.LinkSigningChain(*signing_chain)
 
     expected_key = ndb.Key(
-        bit9_db.Bit9Certificate, signing_chain[0].thumbprint)
+        bit9_models.Bit9Certificate, signing_chain[0].thumbprint)
     self.assertEqual(expected_key, sync._GetCertKey(signing_chain))
 
   def testWithoutSigningChain(self):
@@ -684,119 +750,110 @@ class PersistBit9BinaryTest(basetest.UpvoteTestCase):
 
   def setUp(self):
     super(PersistBit9BinaryTest, self).setUp()
-
     self.PatchEnv(settings.ProdEnv, ENABLE_BIGQUERY_STREAMING=True)
 
   def testNewBit9Binary(self):
-    event, signing_chain = _CreateEventTuple(
-        subtype=bit9_constants.SUBTYPE.BANNED)
+    event, cert = _CreateEventAndCert(
+        event_kwargs={'subtype': bit9_constants.SUBTYPE.BANNED})
     file_catalog = event.get_expand(api.Event.file_catalog_id)
 
-    self.assertEntityCount(bit9_db.Bit9Binary, 0)
+    self.assertEntityCount(bit9_models.Bit9Binary, 0)
 
     changed = sync._PersistBit9Binary(
-        event, file_catalog, signing_chain).get_result()
+        event, file_catalog, [cert]).get_result()
 
     self.assertTrue(changed)
-    self.assertEntityCount(bit9_db.Bit9Binary, 1)
+    self.assertEntityCount(bit9_models.Bit9Binary, 1)
 
     # Should be 2: 1 for new Binary, 1 For the BANNED State.
-    self.DrainTaskQueue(constants.TASK_QUEUE.BQ_PERSISTENCE)
-    self.assertEntityCount(bigquery_db.BinaryRow, 2)
+    self.assertBigQueryInsertions([constants.BIGQUERY_TABLE.BINARY] * 2)
 
   def testNewBit9Binary_ForcedInstaller(self):
     self.PatchSetting('ENABLE_BINARY_ANALYSIS_PRECACHING', True)
 
-    event, signing_chain = _CreateEventTuple(
-        file_catalog=bit9_test_utils.CreateFileCatalog(
-            file_flags=bit9_constants.FileFlags.MARKED_INSTALLER))
+    file_catalog_kwargs = {
+        'file_flags': bit9_constants.FileFlags.MARKED_INSTALLER}
+    event, cert = _CreateEventAndCert(
+        file_catalog_kwargs=file_catalog_kwargs)
     file_catalog = event.get_expand(api.Event.file_catalog_id)
 
-    self.assertEntityCount(bit9_db.Bit9Binary, 0)
-    self.assertEntityCount(bit9_db.Bit9Rule, 0)
+    self.assertEntityCount(bit9_models.Bit9Binary, 0)
+    self.assertEntityCount(bit9_models.Bit9Rule, 0)
 
-    changed = sync._PersistBit9Binary(
-        event, file_catalog, signing_chain).get_result()
+    changed = sync._PersistBit9Binary(event, file_catalog, [cert]).get_result()
 
     self.assertTrue(changed)
-    self.assertEntityCount(bit9_db.Bit9Binary, 1)
-    self.assertEntityCount(bit9_db.Bit9Rule, 1)
+    self.assertEntityCount(bit9_models.Bit9Binary, 1)
+    self.assertEntityCount(bit9_models.Bit9Rule, 1)
 
-    binary = bit9_db.Bit9Binary.query().get()
+    binary = bit9_models.Bit9Binary.query().get()
     self.assertTrue(binary.is_installer)
     self.assertFalse(binary.detected_installer)
 
-    rule = bit9_db.Bit9Rule.query().get()
+    rule = bit9_models.Bit9Rule.query().get()
     self.assertTrue(constants.RULE_POLICY.FORCE_INSTALLER, rule.policy)
 
     self.assertTaskCount(constants.TASK_QUEUE.METRICS, 1)
 
     # Should be 1 for the new Binary
-    self.DrainTaskQueue(constants.TASK_QUEUE.BQ_PERSISTENCE)
-    self.assertEntityCount(bigquery_db.BinaryRow, 1)
+    self.assertBigQueryInsertions([constants.BIGQUERY_TABLE.BINARY])
 
   def testFileCatalogIdChanged(self):
 
     bit9_binary = test_utils.CreateBit9Binary(file_catalog_id='12345')
     sha256 = bit9_binary.key.id()
 
-    event, signing_chain = _CreateEventTuple(
-        file_catalog=bit9_test_utils.CreateFileCatalog(
-            id='67890',
-            sha256=sha256))
+    file_catalog_kwargs = {'id': '67890', 'sha256': sha256}
+    event, cert = _CreateEventAndCert(file_catalog_kwargs=file_catalog_kwargs)
     file_catalog = event.get_expand(api.Event.file_catalog_id)
 
     changed = sync._PersistBit9Binary(
-        event, file_catalog, signing_chain).get_result()
+        event, file_catalog, [cert]).get_result()
 
     self.assertTrue(changed)
-    bit9_binary = bit9_db.Bit9Binary.get_by_id(sha256)
+    bit9_binary = bit9_models.Bit9Binary.get_by_id(sha256)
     self.assertEqual('67890', bit9_binary.file_catalog_id)
 
     # Should be Empty: No new Binary or BANNED State.
-    self.assertTaskCount(constants.TASK_QUEUE.BQ_PERSISTENCE, 0)
+    self.assertNoBigQueryInsertions()
 
   def testFileCatalogIdInitiallyMissing(self):
     bit9_binary = test_utils.CreateBit9Binary(file_catalog_id=None)
     sha256 = bit9_binary.key.id()
 
-    event, signing_chain = _CreateEventTuple(
-        file_catalog=bit9_test_utils.CreateFileCatalog(
-            id='12345',
-            sha256=sha256))
+    file_catalog_kwargs = {'id': '12345', 'sha256': sha256}
+    event, cert = _CreateEventAndCert(file_catalog_kwargs=file_catalog_kwargs)
     file_catalog = event.get_expand(api.Event.file_catalog_id)
 
     changed = sync._PersistBit9Binary(
-        event, file_catalog, signing_chain).get_result()
+        event, file_catalog, [cert]).get_result()
 
     self.assertTrue(changed)
-    bit9_binary = bit9_db.Bit9Binary.get_by_id(sha256)
+    bit9_binary = bit9_models.Bit9Binary.get_by_id(sha256)
     self.assertEqual('12345', bit9_binary.file_catalog_id)
 
     # Should be Empty: No new Binary or BANNED State.
-    self.assertTaskCount(constants.TASK_QUEUE.BQ_PERSISTENCE, 0)
+    self.assertNoBigQueryInsertions()
 
   def testStateChangedToBanned(self):
     bit9_binary = test_utils.CreateBit9Binary(state=constants.STATE.UNTRUSTED)
     sha256 = bit9_binary.key.id()
 
-    event, signing_chain = _CreateEventTuple(
-        subtype=bit9_constants.SUBTYPE.BANNED,
-        file_catalog=bit9_test_utils.CreateFileCatalog(
-            id='12345',
-            sha256=sha256))
+    event_kwargs = {'subtype': bit9_constants.SUBTYPE.BANNED}
+    file_catalog_kwargs = {'id': '12345', 'sha256': sha256}
+    event, cert = _CreateEventAndCert(
+        event_kwargs=event_kwargs, file_catalog_kwargs=file_catalog_kwargs)
     file_catalog = event.get_expand(api.Event.file_catalog_id)
 
     changed = sync._PersistBit9Binary(
-        event, file_catalog, signing_chain).get_result()
+        event, file_catalog, [cert]).get_result()
 
     self.assertTrue(changed)
-    bit9_binary = bit9_db.Bit9Binary.get_by_id(sha256)
+    bit9_binary = bit9_models.Bit9Binary.get_by_id(sha256)
     self.assertEqual(constants.STATE.BANNED, bit9_binary.state)
 
     # Should be 1 for the BANNED State.
-    self.DrainTaskQueue(constants.TASK_QUEUE.BQ_PERSISTENCE)
-    self.assertEntityCount(bigquery_db.BinaryRow, 1)
+    self.assertBigQueryInsertions([constants.BIGQUERY_TABLE.BINARY])
 
   def testForcedInstaller_PreexistingRule_SamePolicy(self):
     bit9_binary = test_utils.CreateBit9Binary(detected_installer=False)
@@ -807,21 +864,21 @@ class PersistBit9BinaryTest(basetest.UpvoteTestCase):
     bit9_binary.put()
     self.assertFalse(bit9_binary.is_installer)
 
-    event, signing_chain = _CreateEventTuple(
-        file_catalog=bit9_test_utils.CreateFileCatalog(
-            id=bit9_binary.file_catalog_id,
-            sha256=bit9_binary.key.id(),
-            file_flags=bit9_constants.FileFlags.MARKED_NOT_INSTALLER))
+    file_catalog_kwargs = {
+        'id': bit9_binary.file_catalog_id,
+        'sha256': bit9_binary.key.id(),
+        'file_flags': bit9_constants.FileFlags.MARKED_NOT_INSTALLER}
+    event, cert = _CreateEventAndCert(file_catalog_kwargs=file_catalog_kwargs)
     file_catalog = event.get_expand(api.Event.file_catalog_id)
 
     changed = sync._PersistBit9Binary(
-        event, file_catalog, signing_chain).get_result()
+        event, file_catalog, [cert]).get_result()
 
     self.assertFalse(changed)
     self.assertFalse(bit9_binary.key.get().is_installer)
 
     # Empty because Binary is not new and State is not BANNED.
-    self.assertTaskCount(constants.TASK_QUEUE.BQ_PERSISTENCE, 0)
+    self.assertNoBigQueryInsertions()
 
   def testForcedInstaller_PreexistingRule_ConflictingPolicy(self):
     bit9_binary = test_utils.CreateBit9Binary(
@@ -831,38 +888,38 @@ class PersistBit9BinaryTest(basetest.UpvoteTestCase):
         is_committed=True,
         policy=constants.RULE_POLICY.FORCE_NOT_INSTALLER)
 
-    event, signing_chain = _CreateEventTuple(
-        file_catalog=bit9_test_utils.CreateFileCatalog(
-            id=bit9_binary.file_catalog_id,
-            sha256=bit9_binary.key.id(),
-            file_flags=bit9_constants.FileFlags.MARKED_INSTALLER))
+    file_catalog_kwargs = {
+        'id': bit9_binary.file_catalog_id,
+        'sha256': bit9_binary.key.id(),
+        'file_flags': bit9_constants.FileFlags.MARKED_INSTALLER}
+    event, cert = _CreateEventAndCert(file_catalog_kwargs=file_catalog_kwargs)
     file_catalog = event.get_expand(api.Event.file_catalog_id)
 
     changed = sync._PersistBit9Binary(
-        event, file_catalog, signing_chain).get_result()
+        event, file_catalog, [cert]).get_result()
 
     self.assertTrue(changed)
     self.assertTrue(bit9_binary.key.get().is_installer)
 
     # Empty because Binary is not new and State is not BANNED.
-    self.assertTaskCount(constants.TASK_QUEUE.BQ_PERSISTENCE, 0)
+    self.assertNoBigQueryInsertions()
 
   def testNoChanges(self):
     bit9_binary = test_utils.CreateBit9Binary(detected_installer=False)
 
-    event, signing_chain = _CreateEventTuple(
-        file_catalog=bit9_test_utils.CreateFileCatalog(
-            id=bit9_binary.file_catalog_id,
-            sha256=bit9_binary.key.id(),
-            file_flags=0x0))
+    file_catalog_kwargs = {
+        'id': bit9_binary.file_catalog_id,
+        'sha256': bit9_binary.key.id(),
+        'file_flags': 0x0}
+    event, cert = _CreateEventAndCert(file_catalog_kwargs=file_catalog_kwargs)
     file_catalog = event.get_expand(api.Event.file_catalog_id)
 
     changed = sync._PersistBit9Binary(
-        event, file_catalog, signing_chain).get_result()
+        event, file_catalog, [cert]).get_result()
 
     self.assertFalse(changed)
     # Empty because Binary is not new and State is not BANNED.
-    self.assertTaskCount(constants.TASK_QUEUE.BQ_PERSISTENCE, 0)
+    self.assertNoBigQueryInsertions()
 
 
 class PersistBanNoteTest(basetest.UpvoteTestCase):
@@ -877,9 +934,9 @@ class PersistBanNoteTest(basetest.UpvoteTestCase):
         file_state=bit9_constants.APPROVAL_STATE.APPROVED,
         publisher_state=bit9_constants.APPROVAL_STATE.APPROVED)
 
-    self.assertEntityCount(base_db.Note, 0)
+    self.assertEntityCount(base_models.Note, 0)
     sync._PersistBanNote(file_catalog).wait()
-    self.assertEntityCount(base_db.Note, 0)
+    self.assertEntityCount(base_models.Note, 0)
 
   def testNewBan(self):
     bit9_binary = test_utils.CreateBit9Binary()
@@ -892,9 +949,9 @@ class PersistBanNoteTest(basetest.UpvoteTestCase):
         file_state=bit9_constants.APPROVAL_STATE.APPROVED,
         publisher_state=bit9_constants.APPROVAL_STATE.APPROVED)
 
-    self.assertEntityCount(base_db.Note, 0)
+    self.assertEntityCount(base_models.Note, 0)
     sync._PersistBanNote(file_catalog).wait()
-    self.assertEntityCount(base_db.Note, 1)
+    self.assertEntityCount(base_models.Note, 1)
 
   def testDupeBan(self):
     bit9_binary = test_utils.CreateBit9Binary()
@@ -906,116 +963,60 @@ class PersistBanNoteTest(basetest.UpvoteTestCase):
         file_state=bit9_constants.APPROVAL_STATE.APPROVED,
         publisher_state=bit9_constants.APPROVAL_STATE.APPROVED)
 
-    self.assertEntityCount(base_db.Note, 0)
+    self.assertEntityCount(base_models.Note, 0)
     sync._PersistBanNote(file_catalog).wait()
-    self.assertEntityCount(base_db.Note, 1)
+    self.assertEntityCount(base_models.Note, 1)
     sync._PersistBanNote(file_catalog).wait()
-    self.assertEntityCount(base_db.Note, 1)
+    self.assertEntityCount(base_models.Note, 1)
 
 
 class CopyLocalRulesTest(basetest.UpvoteTestCase):
 
   def testSuccess(self):
-    old_user = test_utils.CreateUser(email=user_map.UsernameToEmail('foo'))
-    new_user = test_utils.CreateUser(email=user_map.UsernameToEmail('bar'))
-    policy_key = ndb.Key(bit9_db.Bit9Policy, '22222')
 
-    host1 = test_utils.CreateBit9Host(
-        id='12345', users=[old_user.nickname], policy_key=policy_key)
-    test_utils.CreateBit9Host(
-        id='67890', users=[new_user.nickname], policy_key=policy_key)
+    binary_count = 10
 
-    blockable1 = test_utils.CreateBit9Binary()
-    test_utils.CreateBit9Rule(
-        blockable1.key, host_id=host1.key.id(), user_key=old_user.key)
-    blockable2 = test_utils.CreateBit9Binary()
-    test_utils.CreateBit9Rule(
-        blockable2.key, host_id=host1.key.id(), user_key=old_user.key)
+    # Create a user and some corresponding Bit9Hosts.
+    user = test_utils.CreateUser()
+    host_1 = test_utils.CreateBit9Host(id='1111', users=[user.nickname])
+    host_2 = test_utils.CreateBit9Host(id='2222', users=[user.nickname])
+    host_3 = test_utils.CreateBit9Host(id='3333', users=[user.nickname])
 
-    computer = bit9_test_utils.CreateComputer(
-        id=67890,
-        policy_id=22222,
-        users='{0}\\{1},{0}\\{2}'.format(
-            settings.AD_DOMAIN, old_user.nickname, new_user.nickname))
-    occurred_dt = datetime.datetime.utcnow()
+    # Create some Bit9Binaries, each with a Bit9Rule for host_1 and host_2.
+    binaries = test_utils.CreateBit9Binaries(binary_count)
+    for binary in binaries:
+      test_utils.CreateBit9Rule(
+          binary.key, host_id=host_1.key.id(), user_key=user.key,
+          in_effect=True)
+      test_utils.CreateBit9Rule(
+          binary.key, host_id=host_2.key.id(), user_key=user.key,
+          in_effect=True)
 
-    sync._PersistBit9Host(computer, occurred_dt).wait()
+    # Verify all the rule counts.
+    self.assertEntityCount(bit9_models.Bit9Rule, binary_count * 2)
+    host_1_rules = bit9_models.Bit9Rule.query(
+        bit9_models.Bit9Rule.host_id == host_1.key.id()).fetch()
+    self.assertEqual(binary_count, len(host_1_rules))
+    host_2_rules = bit9_models.Bit9Rule.query(
+        bit9_models.Bit9Rule.host_id == host_2.key.id()).fetch()
+    self.assertEqual(binary_count, len(host_2_rules))
+    host_3_rules = bit9_models.Bit9Rule.query(
+        bit9_models.Bit9Rule.host_id == host_3.key.id()).fetch()
+    self.assertEqual(0, len(host_3_rules))
 
-    self.assertEntityCount(bit9_db.Bit9Rule, 4)  # 2 New + 2 Old
-    self.assertEntityCount(bit9_db.RuleChangeSet, 2)
-    rules_for_host1 = bit9_db.Bit9Rule.query(
-        bit9_db.Bit9Rule.host_id == host1.key.id()).fetch()
-    self.assertEqual(2, len(rules_for_host1))
-    self.assertSameElements(
-        [blockable1.key, blockable2.key],
-        [rule.key.parent() for rule in rules_for_host1])
-    self.assertTaskCount(constants.TASK_QUEUE.BQ_PERSISTENCE, 1)
-    self.DrainTaskQueue(constants.TASK_QUEUE.BQ_PERSISTENCE)
-    self.assertEntityCount(bigquery_db.HostRow, 1)
+    sync._CopyLocalRules(user.key, host_3.key.id()).get_result()
 
-  def testNoPreviousHosts(self):
-    old_user = test_utils.CreateUser(email=user_map.UsernameToEmail('foo'))
-    new_user = test_utils.CreateUser(email=user_map.UsernameToEmail('bar'))
-
-    test_utils.CreateBit9Host(
-        id='12345', users=[old_user.nickname],
-        policy_key=ndb.Key(bit9_db.Bit9Policy, '22222'))
-
-    computer = bit9_test_utils.CreateComputer(
-        id=12345,
-        policy_id=22222,
-        users='{0}\\{1},{0}\\{2}'.format(
-            settings.AD_DOMAIN, old_user.nickname, new_user.nickname))
-    occurred_dt = datetime.datetime.utcnow()
-
-    sync._PersistBit9Host(computer, occurred_dt).wait()
-
-    self.assertEntityCount(bit9_db.Bit9Rule, 0)
-    self.assertEntityCount(bit9_db.RuleChangeSet, 0)
-    self.assertTaskCount(constants.TASK_QUEUE.BQ_PERSISTENCE, 1)
-    self.DrainTaskQueue(constants.TASK_QUEUE.BQ_PERSISTENCE)
-    self.assertEntityCount(bigquery_db.HostRow, 1)
-
-  def testMaximumRules(self):
-    user_1 = test_utils.CreateUser(email=user_map.UsernameToEmail('one'))
-    user_2 = test_utils.CreateUser(email=user_map.UsernameToEmail('two'))
-    policy_key = ndb.Key(bit9_db.Bit9Policy, '22222')
-
-    host_1 = test_utils.CreateBit9Host(
-        id='12345', users=[user_1.nickname], policy_key=policy_key)
-    host_2 = test_utils.CreateBit9Host(
-        id='67890', users=[user_2.nickname], policy_key=policy_key)
-
-    blockable_1 = test_utils.CreateBit9Binary()
-    test_utils.CreateBit9Rules(
-        blockable_1.key, sync._LOCAL_RULE_COPY_LIMIT + 1,
-        host_id=host_1.key.id(), user_key=user_1.key)
-
-    computer = bit9_test_utils.CreateComputer(
-        id=67890,
-        policy_id=22222,
-        users='{0}\\{1},{0}\\{2}'.format(
-            settings.AD_DOMAIN, user_1.nickname, user_2.nickname))
-    occurred_dt = datetime.datetime.utcnow()
-
-    sync._PersistBit9Host(computer, occurred_dt).wait()
-
-    expected_rule_count_1 = sync._LOCAL_RULE_COPY_LIMIT + 1
-    expected_rule_count_2 = sync._LOCAL_RULE_COPY_LIMIT
-    actual_rule_count_1 = bit9_db.Bit9Rule.query(
-        bit9_db.Bit9Rule.host_id == host_1.key.id()).count()
-    actual_rule_count_2 = bit9_db.Bit9Rule.query(
-        bit9_db.Bit9Rule.host_id == host_2.key.id()).count()
-
-    self.assertEntityCount(
-        bit9_db.Bit9Rule, expected_rule_count_1 + expected_rule_count_2)
-    self.assertEqual(expected_rule_count_1, actual_rule_count_1)
-    self.assertEqual(expected_rule_count_2, actual_rule_count_2)
-    self.assertEntityCount(bit9_db.RuleChangeSet, sync._LOCAL_RULE_COPY_LIMIT)
-
-    self.assertTaskCount(constants.TASK_QUEUE.BQ_PERSISTENCE, 1)
-    self.DrainTaskQueue(constants.TASK_QUEUE.BQ_PERSISTENCE)
-    self.assertEntityCount(bigquery_db.HostRow, 1)
+    # Verify all the rule counts again.
+    self.assertEntityCount(bit9_models.Bit9Rule, binary_count * 3)
+    host_1_rules = bit9_models.Bit9Rule.query(
+        bit9_models.Bit9Rule.host_id == host_1.key.id()).fetch()
+    self.assertEqual(binary_count, len(host_1_rules))
+    host_2_rules = bit9_models.Bit9Rule.query(
+        bit9_models.Bit9Rule.host_id == host_2.key.id()).fetch()
+    self.assertEqual(binary_count, len(host_2_rules))
+    host_3_rules = bit9_models.Bit9Rule.query(
+        bit9_models.Bit9Rule.host_id == host_3.key.id()).fetch()
+    self.assertEqual(binary_count, len(host_3_rules))
 
 
 class PersistBit9HostTest(basetest.UpvoteTestCase):
@@ -1031,23 +1032,19 @@ class PersistBit9HostTest(basetest.UpvoteTestCase):
         users='{0}\\{1},{0}\\{2}'.format(settings.AD_DOMAIN, *users))
     occurred_dt = datetime.datetime.utcnow()
 
-    self.assertEntityCount(bit9_db.Bit9Host, 0)
-    self.assertEntityCount(bigquery_db.HostRow, 0)
-    self.assertEntityCount(bigquery_db.UserRow, 0)
+    self.assertEntityCount(bit9_models.Bit9Host, 0)
 
     sync._PersistBit9Host(host, occurred_dt).wait()
 
-    self.assertEntityCount(bit9_db.Bit9Host, 1)
-    self.assertTaskCount(constants.TASK_QUEUE.BQ_PERSISTENCE, 3)
-    self.DrainTaskQueue(constants.TASK_QUEUE.BQ_PERSISTENCE)
-    self.assertEntityCount(bigquery_db.HostRow, 1)
-    self.assertEntityCount(bigquery_db.UserRow, 2)
+    self.assertEntityCount(bit9_models.Bit9Host, 1)
+    self.assertBigQueryInsertions(
+        [constants.BIGQUERY_TABLE.HOST] + [constants.BIGQUERY_TABLE.USER] * 2)
 
   def testUpdateLastEventDt(self):
     now_dt = datetime.datetime.utcnow()
     earlier_dt = now_dt - datetime.timedelta(days=7)
     users = test_utils.RandomStrings(2)
-    policy_key = ndb.Key(bit9_db.Bit9Policy, '100')
+    policy_key = ndb.Key(bit9_models.Bit9Policy, '100')
 
     test_utils.CreateBit9Host(
         id='12345', last_event_dt=earlier_dt, users=users,
@@ -1060,17 +1057,17 @@ class PersistBit9HostTest(basetest.UpvoteTestCase):
 
     sync._PersistBit9Host(host, now_dt).wait()
 
-    bit9_host = bit9_db.Bit9Host.get_by_id('12345')
+    bit9_host = bit9_models.Bit9Host.get_by_id('12345')
     self.assertEqual(now_dt, bit9_host.last_event_dt)
-    self.assertTaskCount(constants.TASK_QUEUE.BQ_PERSISTENCE, 0)
+    self.assertNoBigQueryInsertions()
 
   def testUpdateHostname(self):
     users = test_utils.RandomStrings(2)
-    policy_key = ndb.Key(bit9_db.Bit9Policy, '100')
+    policy_key = ndb.Key(bit9_models.Bit9Policy, '100')
 
     test_utils.CreateBit9Host(
-        id='12345', hostname=utils.ExpandHostname('hostname1'), users=users,
-        policy_key=policy_key)
+        id='12345', hostname=bit9_utils.ExpandHostname('hostname1'),
+        users=users, policy_key=policy_key)
 
     host = bit9_test_utils.CreateComputer(
         id=12345,
@@ -1081,13 +1078,13 @@ class PersistBit9HostTest(basetest.UpvoteTestCase):
 
     sync._PersistBit9Host(host, occurred_dt).wait()
 
-    bit9_host = bit9_db.Bit9Host.get_by_id('12345')
-    self.assertEqual(utils.ExpandHostname('hostname2'), bit9_host.hostname)
-    self.assertTaskCount(constants.TASK_QUEUE.BQ_PERSISTENCE, 0)
+    bit9_host = bit9_models.Bit9Host.get_by_id('12345')
+    self.assertEqual(bit9_utils.ExpandHostname('hostname2'), bit9_host.hostname)
+    self.assertNoBigQueryInsertions()
 
   def testUpdatePolicyKey(self):
     users = test_utils.RandomStrings(2)
-    old_policy_key = ndb.Key(bit9_db.Bit9Policy, '22222')
+    old_policy_key = ndb.Key(bit9_models.Bit9Policy, '22222')
 
     test_utils.CreateBit9Host(
         id='11111', policy_key=old_policy_key, users=users)
@@ -1100,17 +1097,15 @@ class PersistBit9HostTest(basetest.UpvoteTestCase):
 
     sync._PersistBit9Host(host, occurred_dt).wait()
 
-    bit9_host = bit9_db.Bit9Host.get_by_id('11111')
-    new_policy_key = ndb.Key(bit9_db.Bit9Policy, '33333')
+    bit9_host = bit9_models.Bit9Host.get_by_id('11111')
+    new_policy_key = ndb.Key(bit9_models.Bit9Policy, '33333')
     self.assertEqual(new_policy_key, bit9_host.policy_key)
-    self.assertTaskCount(constants.TASK_QUEUE.BQ_PERSISTENCE, 1)
-    self.RunDeferredTasks(constants.TASK_QUEUE.BQ_PERSISTENCE)
-    self.assertEntityCount(bigquery_db.HostRow, 1)
+    self.assertBigQueryInsertions([constants.BIGQUERY_TABLE.HOST])
 
-  def testUpdateHostUsers(self):
+  def testUpdateHostUsers_People(self):
     old_users = test_utils.RandomStrings(2)
     new_users = test_utils.RandomStrings(2)
-    policy_key = ndb.Key(bit9_db.Bit9Policy, '22222')
+    policy_key = ndb.Key(bit9_models.Bit9Policy, '22222')
 
     test_utils.CreateBit9Host(
         id='12345', users=old_users, policy_key=policy_key)
@@ -1123,11 +1118,53 @@ class PersistBit9HostTest(basetest.UpvoteTestCase):
 
     sync._PersistBit9Host(host, occurred_dt).wait()
 
-    bit9_db.Bit9Host.get_by_id('12345')
-    self.assertTaskCount(constants.TASK_QUEUE.BQ_PERSISTENCE, 3)
-    self.DrainTaskQueue(constants.TASK_QUEUE.BQ_PERSISTENCE)
-    self.assertEntityCount(bigquery_db.HostRow, 1)
-    self.assertEntityCount(bigquery_db.UserRow, 2)
+    # Verify that the users were updated in Datastore.
+    host = bit9_models.Bit9Host.get_by_id('12345')
+    self.assertSameElements(new_users, host.users)
+
+    # Verify all BigQuery row persistence.
+    self.assertBigQueryInsertions(
+        [constants.BIGQUERY_TABLE.HOST] + [constants.BIGQUERY_TABLE.USER] * 2)
+
+  def testUpdateHostUsers_WindowManager(self):
+
+    test_utils.CreateBit9Host(
+        id='12345',
+        users=['a_real_person'],
+        policy_key=ndb.Key(bit9_models.Bit9Policy, '22222'))
+
+    host = bit9_test_utils.CreateComputer(
+        id=12345,
+        policy_id=22222,
+        users=r'Window Manager\DWM-999')
+    occurred_dt = datetime.datetime.utcnow()
+
+    sync._PersistBit9Host(host, occurred_dt).wait()
+
+    # Verify that the user didn't get updated.
+    host = bit9_models.Bit9Host.get_by_id('12345')
+    self.assertSameElements(['a_real_person'], host.users)
+
+    # Verify no BigQuery row persistence.
+    self.assertNoBigQueryInsertions()
+
+  def testUpdateHostUsers_NoIncomingUsers(self):
+
+    old_users = test_utils.RandomStrings(2)
+    policy_key = ndb.Key(bit9_models.Bit9Policy, '22222')
+
+    test_utils.CreateBit9Host(
+        id='12345', users=old_users, policy_key=policy_key)
+
+    host = bit9_test_utils.CreateComputer(
+        id=12345, policy_id=22222, users='')
+    occurred_dt = datetime.datetime.utcnow()
+
+    sync._PersistBit9Host(host, occurred_dt).wait()
+
+    # Verify that the users weren't updated in Datastore.
+    host = bit9_models.Bit9Host.get_by_id('12345')
+    self.assertSameElements(old_users, host.users)
 
 
 class CheckAndResolveAnomalousBlockTest(basetest.UpvoteTestCase):
@@ -1179,7 +1216,7 @@ class CheckAndResolveAnomalousBlockTest(basetest.UpvoteTestCase):
         policy=constants.RULE_POLICY.BLACKLIST)
 
     # Verify a RuleChangeSet doesn't yet exist.
-    self.assertEntityCount(bit9_db.RuleChangeSet, 0)
+    self.assertEntityCount(bit9_models.RuleChangeSet, 0)
 
     result = sync._CheckAndResolveAnomalousBlock(bit9_binary.key, '12345')
     self.assertTrue(result)
@@ -1195,7 +1232,7 @@ class CheckAndResolveAnomalousBlockTest(basetest.UpvoteTestCase):
     self.assertFalse(rule3.key.get().is_committed)
 
     # Verify the creation of a RuleChangeSet.
-    self.assertEntityCount(bit9_db.RuleChangeSet, 1)
+    self.assertEntityCount(bit9_models.RuleChangeSet, 1)
 
     # Verify the deferred commit to Bit9.
     self.assertTrue(change_set.DeferCommitBlockableChangeSet.called)
@@ -1208,26 +1245,32 @@ class PersistBit9EventsTest(basetest.UpvoteTestCase):
     self.Patch(sync, '_CheckAndResolveAnomalousBlock', return_value=False)
 
   def testSuccess_ExecutingUser(self):
-    event, signing_chain = _CreateEventTuple()
+    event, cert = _CreateEventAndCert()
     file_catalog = event.get_expand(api.Event.file_catalog_id)
     computer = event.get_expand(api.Event.computer_id)
 
-    self.assertEntityCount(bit9_db.Bit9Event, 0)
+    self.assertEntityCount(bit9_models.Bit9Event, 0)
     sync._PersistBit9Events(
-        event, file_catalog, computer, signing_chain).wait()
-    self.assertEntityCount(bit9_db.Bit9Event, 1)
+        event, file_catalog, computer, [cert]).wait()
+    self.assertEntityCount(bit9_models.Bit9Event, 1)
+
+    self.assertBigQueryInsertions([constants.BIGQUERY_TABLE.EXECUTION])
 
   def testSuccess_LocalAdmin(self):
-    computer = bit9_test_utils.CreateComputer(
-        users='{0}\\foobar,{0}\\bazqux'.format(settings.AD_DOMAIN))
-    event, signing_chain = _CreateEventTuple(
-        user_name=constants.LOCAL_ADMIN.WINDOWS, computer=computer)
+    users = '{0}\\foobar,{0}\\bazqux'.format(settings.AD_DOMAIN)
+    computer = bit9_test_utils.CreateComputer(users=users)
+    event_kwargs = {'user_name': constants.LOCAL_ADMIN.WINDOWS}
+    computer_kwargs = {'users': users}
+    event, cert = _CreateEventAndCert(
+        event_kwargs=event_kwargs, computer_kwargs=computer_kwargs)
     file_catalog = event.get_expand(api.Event.file_catalog_id)
 
-    self.assertEntityCount(bit9_db.Bit9Event, 0)
+    self.assertEntityCount(bit9_models.Bit9Event, 0)
     sync._PersistBit9Events(
-        event, file_catalog, computer, signing_chain).wait()
-    self.assertEntityCount(bit9_db.Bit9Event, 2)
+        event, file_catalog, computer, [cert]).wait()
+    self.assertEntityCount(bit9_models.Bit9Event, 2)
+
+    self.assertBigQueryInsertions([constants.BIGQUERY_TABLE.EXECUTION])
 
 
 if __name__ == '__main__':

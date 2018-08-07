@@ -26,20 +26,18 @@ from google.appengine.ext import ndb
 from common import memcache_decorator
 from common import datastore_locks
 
-from upvote.gae.datastore import utils as model_utils
+from upvote.gae.bigquery import tables
+from upvote.gae.datastore import utils as datastore_utils
 from upvote.gae.datastore.models import base
-from upvote.gae.datastore.models import bigquery
 from upvote.gae.datastore.models import bit9
+from upvote.gae.datastore.models import user as user_models
 from upvote.gae.lib.analysis import metrics
-from upvote.gae.modules.bit9_api import change_set
-from upvote.gae.modules.bit9_api import constants as bit9_constants
-from upvote.gae.modules.bit9_api import rest_utils
-from upvote.gae.modules.bit9_api import monitoring
-from upvote.gae.modules.bit9_api import utils
-from upvote.gae.modules.bit9_api.api import api
-from upvote.gae.shared.common import query_utils
+from upvote.gae.lib.bit9 import api
+from upvote.gae.lib.bit9 import change_set
+from upvote.gae.lib.bit9 import constants as bit9_constants
+from upvote.gae.lib.bit9 import monitoring
+from upvote.gae.lib.bit9 import utils as bit9_utils
 from upvote.gae.shared.common import user_map
-from upvote.gae.taskqueue import utils as taskqueue_utils
 from upvote.gae.utils import time_utils
 from upvote.shared import constants
 
@@ -66,8 +64,6 @@ _PROCESS_LOCK_MAX_ACQUIRE_ATTEMPTS = 1
 
 _CERT_MEMCACHE_KEY = 'bit9_cert_%s'
 _CERT_MEMCACHE_TIMEOUT = datetime.timedelta(days=7).total_seconds()
-
-_LOCAL_RULE_COPY_LIMIT = 250
 
 _GET_CERT_ATTEMPTS = 3
 
@@ -139,7 +135,7 @@ def BuildEventSubtypeFilter():
 def _GetCertificate(cert_id):
   """Gets a certificate entity."""
   for _ in xrange(_GET_CERT_ATTEMPTS):
-    cert = api.Certificate.get(cert_id, utils.CONTEXT)
+    cert = api.Certificate.get(cert_id, bit9_utils.CONTEXT)
 
     # Attempt to parse the cert before caching it, in case the related
     # fileCatalog contains an "embedded signer". In such cases, the fileCatalog
@@ -193,19 +189,25 @@ def GetEvents(last_synced_id, limit=_PULL_BATCH_SIZE):
     A list of events not yet pushed to Upvote.
   """
   logging.info('Retrieving events after ID=%s (Max %s)', last_synced_id, limit)
-  events = (api.Event.query()
-            .filter(api.Event.id > last_synced_id)
-            .filter(api.Event.file_catalog_id > 0)
-            .filter(BuildEventSubtypeFilter())
-            .expand(api.Event.file_catalog_id)
-            .expand(api.Event.computer_id)
-            .limit(limit)
-            .order(api.Event.id)
-            .execute(utils.CONTEXT))
+  events = (
+      api.Event.query().filter(api.Event.id > last_synced_id)
+      .filter(api.Event.file_catalog_id > 0).filter(BuildEventSubtypeFilter())
+      .expand(api.Event.file_catalog_id).expand(api.Event.computer_id)
+      .limit(limit).execute(bit9_utils.CONTEXT))
   logging.info('Retrieved %d event(s)', len(events))
 
   event_cert_tuples = []
-  for event in events:
+
+  # Maintain a set of (host_id, sha256) tuples for deduping purposes, in case
+  # a host gets into a bad state and keeps hammering Bit9 with executions of the
+  # same binary.
+  deduping_tuples = set()
+
+  # Reverse-sort the events by Bit9 ID. This is done so that if we filter out
+  # repeat events during a later iteration, we're still left with the event that
+  # has numerically largest ID.
+  for event in sorted(events, key=lambda e: e.id, reverse=True):
+
     logging.info('Constructing event %s', event.id)
     logging.info('Retrieving fileCatalog %s', event.file_catalog_id)
 
@@ -229,7 +231,18 @@ def GetEvents(last_synced_id, limit=_PULL_BATCH_SIZE):
       monitoring.events_skipped.Increment()
       continue
 
+    # If we've already encountered an event with this host_id and sha256, then
+    # drop it and move on.
+    deduping_tuple = (str(computer.id), file_catalog.sha256)
+    if deduping_tuple in deduping_tuples:
+      logging.warning('Skipping event %s (Duplicate)', event.id)
+      monitoring.events_skipped.Increment()
+      continue
+    else:
+      deduping_tuples.add(deduping_tuple)
+
     try:
+      logging.info('Retrieving signing chain %s', file_catalog.certificate_id)
       signing_chain = _GetSigningChain(file_catalog.certificate_id)
 
     # If a MalformedCertificate makes it all the way out here, we've already
@@ -237,21 +250,23 @@ def GetEvents(last_synced_id, limit=_PULL_BATCH_SIZE):
     # fileCatalog containing an "embedded signer". We have to skip this
     # particular event, otherwise event syncing will halt.
     except MalformedCertificate:
-      logging.error(
-          ('Failed to retrieve signing chain for fileCatalog %s. '
-           'Skipping event %s.'), event.file_catalog_id, event.id)
+      logging.warning('Skipping event %s (MalformedCertificate)', event.id)
       monitoring.events_skipped.Increment()
       continue
 
     # If signing chain retrieval fails for any other reason, just return the
     # events constructed so far.
     except Exception as e:  # pylint: disable=broad-except
-      logging.exception('Signing chain retrieval failed: %s', e)
-      return event_cert_tuples
+      logging.exception('Error encountered while retrieving signing chain')
+      logging.warning('Skipping event %s (%s)', event.id, e.__class__.__name__)
+      monitoring.events_skipped.Increment()
+      continue
 
     event_cert_tuples.append((event, signing_chain))
 
-  return event_cert_tuples
+  # Flip the event tuples back into order of increasing event ID before
+  # returning.
+  return sorted(event_cert_tuples, key=lambda t: t[0].id, reverse=False)
 
 
 def Pull(batch_size=_PULL_BATCH_SIZE):
@@ -308,7 +323,7 @@ def Dispatch():
   # either until we run out, or the task nears its deadline.
   query = _UnsyncedEvent.query(
       projection=[_UnsyncedEvent.host_id], distinct=True)
-  for event_page in query_utils.Paginate(query, page_size=25):
+  for event_page in datastore_utils.Paginate(query, page_size=25):
     host_ids = [event.host_id for event in event_page]
     for host_id in host_ids:
       deferred.defer(Process, host_id, _queue=constants.TASK_QUEUE.BIT9_PROCESS)
@@ -337,14 +352,15 @@ def Process(host_id):
       # and process them until we run out, or the task nears its deadline.
       query = (_UnsyncedEvent.query(_UnsyncedEvent.host_id == host_id)
                .order(_UnsyncedEvent.bit9_id))
-      event_pages = query_utils.Paginate(query, page_size=25)
+      event_pages = datastore_utils.Paginate(query, page_size=25)
       event_page = next(event_pages, None)
       while time_utils.TimeRemains(start_time, _TASK_DURATION) and event_page:
         for unsynced_event in event_page:
           event = api.Event.from_dict(unsynced_event.event)
           signing_chain = [
               api.Certificate.from_dict(cert)
-              for cert in unsynced_event.signing_chain]
+              for cert in unsynced_event.signing_chain
+          ]
           file_catalog = event.get_expand(api.Event.file_catalog_id)
           computer = event.get_expand(api.Event.computer_id)
 
@@ -385,7 +401,7 @@ def _PersistBit9Certificates(signing_chain):
     An ndb.Future that resolves when all certs are created.
   """
   if not signing_chain:
-    return model_utils.GetNoOpFuture()
+    return datastore_utils.GetNoOpFuture()
 
   to_create = []
   for cert in signing_chain:
@@ -398,12 +414,13 @@ def _PersistBit9Certificates(signing_chain):
           valid_from_dt=cert.valid_from,
           valid_to_dt=cert.valid_to)
 
-      cert.PersistRow(constants.BLOCK_ACTION.FIRST_SEEN, cert.recorded_dt)
+      cert.PersistRow(
+          constants.BLOCK_ACTION.FIRST_SEEN, timestamp=cert.recorded_dt)
 
       to_create.append(cert)
 
   futures = ndb.put_multi_async(to_create)
-  return model_utils.GetMultiFuture(futures)
+  return datastore_utils.GetMultiFuture(futures)
 
 
 def _GetCertKey(signing_chain):
@@ -476,7 +493,6 @@ def _CheckAndResolveInstallerState(blockable_key, bit9_policy):
 
 
 @ndb.transactional_tasklet
-@taskqueue_utils.GroupTransactionalTaskletDefers
 def _PersistBit9Binary(event, file_catalog, signing_chain):
   """Creates or updates a Bit9Binary from the given Event protobuf."""
   changed = False
@@ -488,7 +504,7 @@ def _PersistBit9Binary(event, file_catalog, signing_chain):
       file_catalog.file_flags &
       bit9_constants.FileFlags.DETECTED_INSTALLER)
   is_installer = (
-      rest_utils.GetEffectiveInstallerState(file_catalog.file_flags))
+      bit9_utils.GetEffectiveInstallerState(file_catalog.file_flags))
 
   # Doesn't exist? Guess we better fix that.
   if bit9_binary is None:
@@ -520,8 +536,7 @@ def _PersistBit9Binary(event, file_catalog, signing_chain):
         file_catalog_id=str(file_catalog.id))
 
     bit9_binary.PersistRow(
-        constants.BLOCK_ACTION.FIRST_SEEN,
-        bit9_binary.recorded_dt)
+        constants.BLOCK_ACTION.FIRST_SEEN, timestamp=bit9_binary.recorded_dt)
     metrics.DeferLookupMetric(
         file_catalog.sha256, constants.ANALYSIS_REASON.NEW_BLOCKABLE)
     changed = True
@@ -543,7 +558,7 @@ def _PersistBit9Binary(event, file_catalog, signing_chain):
     bit9_binary.state = constants.STATE.BANNED
 
     bit9_binary.PersistRow(
-        constants.BLOCK_ACTION.STATE_CHANGE, event.timestamp)
+        constants.BLOCK_ACTION.STATE_CHANGE, timestamp=event.timestamp)
     changed = True
 
   if bit9_binary.detected_installer != detected_installer:
@@ -603,7 +618,7 @@ def _PersistBanNote(file_catalog):
       note = base.Note(key=note_key, message=full_message)
       return note.put_async()
 
-  return model_utils.GetNoOpFuture()
+  return datastore_utils.GetNoOpFuture()
 
 
 @ndb.tasklet
@@ -619,42 +634,35 @@ def _CopyLocalRules(user_key, dest_host_id):
     dest_host_id: str, The ID of the host for which the new rules will be
         created.
   """
-  logging.info('Copying rules for %s to host %s', user_key.id(), dest_host_id)
+  logging.info(
+      'Copying rules for user %s to host %s', user_key.id(), dest_host_id)
 
+  # Query for a host belonging to the user.
   username = user_map.EmailToUsername(user_key.id())
-  host_query = bit9.Bit9Host.query(bit9.Bit9Host.users == username)
-  src_host = yield host_query.get_async()
+  query = bit9.Bit9Host.query(bit9.Bit9Host.users == username)
+  src_host = yield query.get_async()
   if src_host is None:
+    logging.warning('User %s has no hosts to copy from', username)
     raise ndb.Return()
   src_host_id = src_host.key.id()
-  assert src_host_id != dest_host_id, (
-      'User already associated with target host')
 
-  # Get all local rules from that host, up to a limit. Otherwise, we run the
-  # risk of accumulating more and more rules for shared machines that have
-  # frequent user turnover. Granted, this isn't a bulletproof fix, but should
-  # suffice until a more long-term fix can be completed.
-  rules_query = bit9.Bit9Rule.query(
+  # Query for all the Bit9Rules in effect for the given user on the chosen host.
+  query = bit9.Bit9Rule.query(
       bit9.Bit9Rule.host_id == src_host_id,
+      bit9.Bit9Rule.user_key == user_key,
       bit9.Bit9Rule.in_effect == True)  # pylint: disable=g-explicit-bool-comparison
-  src_rules = yield rules_query.fetch_async(limit=_LOCAL_RULE_COPY_LIMIT)
-  if len(src_rules) < _LOCAL_RULE_COPY_LIMIT:
-    logging.info(
-        'Copying %d rules from %s to %s', len(src_rules), src_host_id,
-        dest_host_id)
-  else:
-    logging.warning(
-        'Copying maximum of %d rules from %s to %s. More likely exist.',
-        len(src_rules), src_host_id, dest_host_id)
+  src_rules = yield query.fetch_async()
+  logging.info(
+      'Found a total of %d rule(s) for user %s', len(src_rules), user_key.id())
 
   # Copy the local rules to the new host.
+  logging.info('Copying %d rule(s) to host %s', len(src_rules), dest_host_id)
   new_rules = []
   for src_rule in src_rules:
-    new_rule = model_utils.CopyEntity(
+    new_rule = datastore_utils.CopyEntity(
         src_rule, new_parent=src_rule.key.parent(), host_id=dest_host_id,
         user_key=user_key)
     new_rules.append(new_rule)
-  logging.info('Copying %s rules to new host', len(new_rules))
   yield ndb.put_multi_async(new_rules)
 
   # Create the change sets necessary to submit the new rules to Bit9.
@@ -664,7 +672,7 @@ def _CopyLocalRules(user_key, dest_host_id):
         rule_keys=[new_rule.key], change_type=new_rule.policy,
         parent=new_rule.key.parent())
     changes.append(change)
-  logging.info('Creating %s RuleChangeSet', len(changes))
+  logging.info('Creating %d RuleChangeSet(s)', len(changes))
   yield ndb.put_multi_async(changes)
 
 
@@ -688,8 +696,8 @@ def _PersistBit9Host(computer, occurred_dt):
   policy = computer.policy_id
   policy_key = (
       ndb.Key(bit9.Bit9Policy, str(policy)) if policy is not None else None)
-  hostname = utils.ExpandHostname(
-      rest_utils.StripDownLevelDomain(computer.name))
+  hostname = bit9_utils.ExpandHostname(
+      bit9_utils.StripDownLevelDomain(computer.name))
   policy_entity = policy_key.get()
   mode = (policy_entity.enforcement_level
           if policy_entity is not None else constants.HOST_MODE.UNKNOWN)
@@ -697,15 +705,33 @@ def _PersistBit9Host(computer, occurred_dt):
   # Grab the corresponding Bit9Host.
   bit9_host = yield bit9.Bit9Host.get_by_id_async(host_id)
 
-  host_users = list(rest_utils.ExtractHostUsers(computer.users))
+  existing_users = set(bit9_host.users if bit9_host is not None else [])
+  extracted_users = list(bit9_utils.ExtractHostUsers(computer.users))
+
+  # Ignore any 'Desktop Window Manager' users, otherwise a user can temporarily
+  # become disassociated with their machine. If they vote for something to be
+  # locally whitelisted during such a period, they won't get a rule for it.
+  incoming_users = set()
+  for extracted_user in extracted_users:
+    if r'Window Manager\DWM-' in extracted_user:
+      logging.warning('Ignoring user "%s"', extracted_user)
+    else:
+      incoming_users.add(extracted_user)
+
+  # If there are incoming users, either because it was only all 'Desktop Window
+  # Manager' entries, or because Bit9 didn't report any users for whatever
+  # reason, then just stick with the existing users, otherwise we'll
+  # disassociate the machine from the user.
+  if not incoming_users:
+    incoming_users = existing_users
 
   # Perform initialization for users new to this host.
-  existing_users = set(bit9_host.users if bit9_host is not None else [])
-  new_host_users = set(host_users) - existing_users
-  for username in new_host_users:
+  new_users = incoming_users - existing_users
+  for new_user in new_users:
+
     # Create User if we haven't seen this user before.
-    email = user_map.UsernameToEmail(username)
-    user = base.User.GetOrInsert(email_addr=email)
+    email = user_map.UsernameToEmail(new_user)
+    user = user_models.User.GetOrInsert(email_addr=email)
 
     # Copy the user's local rules over from a pre-existing host.
     yield _CopyLocalRules(user.key, host_id)
@@ -718,24 +744,36 @@ def _PersistBit9Host(computer, occurred_dt):
     logging.info('Creating new Bit9Host')
     bit9_host = bit9.Bit9Host(
         id=host_id, hostname=hostname, last_event_dt=occurred_dt,
-        policy_key=policy_key, users=host_users)
+        policy_key=policy_key, users=sorted(list(incoming_users)))
 
     row_actions.append(constants.HOST_ACTION.FIRST_SEEN)
 
   else:
     changed = False
+
     if not bit9_host.last_event_dt or bit9_host.last_event_dt < occurred_dt:
       bit9_host.last_event_dt = occurred_dt
       changed = True
+
     if bit9_host.hostname != hostname:
+      logging.info(
+          'Hostname for %s changed from %s to %s', host_id, bit9_host.hostname,
+          hostname)
       bit9_host.hostname = hostname
       changed = True
+
     if bit9_host.policy_key != policy_key:
       bit9_host.policy_key = policy_key
       changed = True
       row_actions.append(constants.HOST_ACTION.MODE_CHANGE)
-    if set(bit9_host.users) != set(host_users):
-      bit9_host.users = host_users
+
+    if existing_users != incoming_users:
+      existing_users_list = sorted(list(existing_users))
+      incoming_users_list = sorted(list(incoming_users))
+      logging.info(
+          'Users for %s changed from %s to %s', host_id, existing_users_list,
+          incoming_users_list)
+      bit9_host.users = incoming_users_list
       changed = True
       row_actions.append(constants.HOST_ACTION.USERS_CHANGE)
 
@@ -746,7 +784,7 @@ def _PersistBit9Host(computer, occurred_dt):
   yield bit9_host.put_async()
 
   for action in row_actions:
-    bigquery.HostRow.DeferCreate(
+    tables.HOST.InsertRow(
         device_id=host_id,
         timestamp=(
             bit9_host.recorded_dt
@@ -755,7 +793,7 @@ def _PersistBit9Host(computer, occurred_dt):
         action=action,
         hostname=hostname,
         platform=constants.PLATFORM.WINDOWS,
-        users=host_users,
+        users=sorted(list(incoming_users)),
         mode=mode)
 
 
@@ -832,7 +870,7 @@ def _PersistBit9Events(event, file_catalog, computer, signing_chain):
 
   host_id = str(computer.id)
   blockable_key = ndb.Key(bit9.Bit9Binary, file_catalog.sha256)
-  host_users = list(rest_utils.ExtractHostUsers(computer.users))
+  host_users = list(bit9_utils.ExtractHostUsers(computer.users))
   occurred_dt = event.timestamp
 
   is_anomalous = _CheckAndResolveAnomalousBlock(blockable_key, host_id)
@@ -849,11 +887,11 @@ def _PersistBit9Events(event, file_catalog, computer, signing_chain):
       publisher=file_catalog.publisher,
       version=file_catalog.product_version,
       description=event.description,
-      executing_user=rest_utils.ExtractHostUser(event.user_name),
+      executing_user=bit9_utils.ExtractHostUser(event.user_name),
       is_anomalous=is_anomalous,
       bit9_id=event.id)
 
-  bigquery.ExecutionRow.DeferCreate(
+  tables.EXECUTION.InsertRow(
       sha256=new_event.blockable_key.id(),
       device_id=host_id,
       timestamp=occurred_dt,
@@ -868,12 +906,12 @@ def _PersistBit9Events(event, file_catalog, computer, signing_chain):
   keys_to_insert = new_event.GetKeysToInsert(host_users, host_users)
 
   futures = [_PersistBit9Event(new_event, key) for key in keys_to_insert]
-  return model_utils.GetMultiFuture(futures)
+  return datastore_utils.GetMultiFuture(futures)
 
 
 @ndb.transactional_tasklet
 def _PersistBit9Event(event, key):
-  event_copy = model_utils.CopyEntity(event, new_key=key)
+  event_copy = datastore_utils.CopyEntity(event, new_key=key)
   existing_event = yield key.get_async()
   if existing_event:
     event_copy.Dedupe(existing_event)

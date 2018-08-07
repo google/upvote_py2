@@ -20,12 +20,12 @@ from google.appengine.datastore.datastore_query import Cursor
 from google.appengine.ext import ndb
 
 from upvote.gae.datastore import utils as model_utils
-from upvote.gae.datastore.models import base
+from upvote.gae.datastore.models import user as user_models
 from upvote.gae.shared.common import handlers
-from upvote.gae.shared.common import utils
-from upvote.gae.shared.common import xsrf_utils
+from upvote.gae.utils import env_utils
 from upvote.gae.utils import json_utils
 from upvote.gae.utils import string_utils
+from upvote.gae.utils import xsrf_utils
 
 
 class Error(Exception):
@@ -111,11 +111,11 @@ class BaseHandler(handlers.UpvoteRequestHandler):
     super(BaseHandler, self).initialize(request, response)
     # Ensure there is an User associated with the AppEngine user making
     # this request.
-    self.user = base.User.GetOrInsert()
+    self.user = user_models.User.GetOrInsert()
 
     # Set the XSRF cookie.
     if self.request and self.response:
-      running_locally = utils.RunningLocally()
+      running_locally = env_utils.RunningLocally()
       domain = self.request.host
       if ':' in domain:
         domain = domain.split(':')[0]
@@ -168,6 +168,7 @@ class BaseHandler(handlers.UpvoteRequestHandler):
         'cursor': safe_cursor,
         'more': has_more,
         'per_page': self.per_page}
+    logging.info('Responding with a page of %d item(s)', len(content))
     self.respond_json(response_dict)
 
   def respond_with_query_page(self, query, callback=None):
@@ -183,6 +184,7 @@ class BaseHandler(handlers.UpvoteRequestHandler):
     # NOTE: AFAICT, ndb has no notion of a "Null Query" so we need an
     # extra code path for when we don't want to return any results.
     if not query:
+      logging.info('No query results are being returned')
       self.respond_with_page([], None, False)
       return
 

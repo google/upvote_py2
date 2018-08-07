@@ -20,9 +20,9 @@ import json
 import webapp2
 
 from upvote.gae.datastore import test_utils
-from upvote.gae.datastore.models import base
+from upvote.gae.datastore.models import user as user_models
+from upvote.gae.lib.testing import basetest
 from upvote.gae.modules.upvote_app.api.handlers import users
-from upvote.gae.shared.common import basetest
 from upvote.gae.shared.common import user_map
 from upvote.shared import constants
 
@@ -152,7 +152,8 @@ class UserHandlerTest(UsersTest):
 
     expected_dict = {'roles': [constants.USER_ROLE.TRUSTED_USER]}
 
-    datastore_user_dict = (base.User.get_by_id(user.email).to_dict())
+    datastore_user_dict = (
+        user_models.User.get_by_id(user.email).to_dict())
 
     output = response.json
 
@@ -161,10 +162,12 @@ class UserHandlerTest(UsersTest):
     self.assertDictContainsSubset(expected_dict, output)
     self.assertDictContainsSubset(expected_dict, datastore_user_dict)
 
+    self.assertBigQueryInsertions([constants.BIGQUERY_TABLE.USER])
+
   def testAdminAddingUser(self):
     """Admin adding a user through a post request."""
     id_ = user_map.UsernameToEmail('user4')
-    pre_post_user = base.User.get_by_id(id_)
+    pre_post_user = user_models.User.get_by_id(id_)
 
     pre_post_user_existed = (pre_post_user is not None)
 
@@ -175,7 +178,7 @@ class UserHandlerTest(UsersTest):
 
     expected_dict = {'id': id_, 'roles': [constants.USER_ROLE.TRUSTED_USER]}
 
-    datastore_user = base.User.get_by_id(id_)
+    datastore_user = user_models.User.get_by_id(id_)
 
     output = response.json
 
@@ -184,6 +187,8 @@ class UserHandlerTest(UsersTest):
     self.assertDictContainsSubset(expected_dict, output)
     self.assertDictContainsSubset(expected_dict, datastore_user.to_dict())
     self.assertFalse(pre_post_user_existed)
+
+    self.assertBigQueryInsertions([constants.BIGQUERY_TABLE.USER] * 2)
 
   def testNormalUserEditUserAttempt(self):
     """Normal user tries to edit an existing user."""

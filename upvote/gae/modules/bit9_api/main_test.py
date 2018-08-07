@@ -14,8 +14,8 @@
 
 """Unit tests for routes.py."""
 
+from upvote.gae.lib.testing import basetest
 from upvote.gae.modules.bit9_api import main
-from upvote.gae.shared.common import basetest
 
 
 class MainTest(basetest.UpvoteTestCase):
@@ -34,9 +34,7 @@ class MainTest(basetest.UpvoteTestCase):
         '/api/bit9/cron/count-events-to-pull',
         '/api/bit9/cron/pull-events',
         '/api/bit9/cron/count-events-to-process',
-        '/api/bit9/cron/process-events',
-
-        '/api/bit9/commit-change-set/asdf')
+        '/api/bit9/cron/process-events')
 
 
 if __name__ == '__main__':

@@ -17,8 +17,8 @@
 import httplib
 import webapp2
 
+from upvote.gae.lib.testing import basetest
 from upvote.gae.modules.upvote_app.api.handlers import constants
-from upvote.gae.shared.common import basetest
 from upvote.shared import constants as common_constants
 
 

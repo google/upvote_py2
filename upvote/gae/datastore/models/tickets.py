@@ -17,11 +17,11 @@
 from google.appengine.ext import ndb
 from google.appengine.ext.ndb import polymodel
 
-from upvote.gae.datastore.models import base
+from upvote.gae.datastore.models import mixin
 from upvote.shared import constants
 
 
-class Ticket(base.BaseModelMixin, polymodel.PolyModel):
+class Ticket(mixin.Base, polymodel.PolyModel):
   """An Upvote ticket.
 
   Attributes:

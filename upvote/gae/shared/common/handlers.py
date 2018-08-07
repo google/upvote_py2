@@ -25,7 +25,7 @@ import webapp2
 
 from google.appengine.api import modules
 
-from upvote.gae.shared.common import utils
+from upvote.gae.utils import env_utils
 from upvote.gae.utils import json_utils
 
 
@@ -120,7 +120,7 @@ class UpvoteRequestHandler(webapp2.RequestHandler):
 
     # If the exception occurs within a unit test, make sure the stacktrace is
     # easily discerned from the console.
-    if not utils.RunningInProd():
+    if not env_utils.RunningInProd():
       exc_type, exc_value, exc_traceback = sys.exc_info()
       traceback.print_exception(exc_type, exc_value, exc_traceback)
 

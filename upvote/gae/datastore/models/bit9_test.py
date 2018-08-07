@@ -18,9 +18,8 @@ import datetime
 
 from upvote.gae.datastore import test_utils
 from upvote.gae.datastore import utils
-from upvote.gae.datastore.models import bigquery
 from upvote.gae.datastore.models import bit9
-from upvote.gae.shared.common import basetest
+from upvote.gae.lib.testing import basetest
 from upvote.gae.shared.common import settings
 from upvote.shared import constants
 
@@ -177,17 +176,11 @@ class Bit9BinaryTest(basetest.UpvoteTestCase):
 
   def testPersistsStateChange(self):
     self.bit9_binary.ChangeState(constants.STATE.SUSPECT)
-
-    self.assertTaskCount(constants.TASK_QUEUE.BQ_PERSISTENCE, 1)
-    self.RunDeferredTasks(constants.TASK_QUEUE.BQ_PERSISTENCE)
-    self.assertEntityCount(bigquery.BinaryRow, 1)
+    self.assertBigQueryInsertions([constants.BIGQUERY_TABLE.BINARY])
 
   def testResetsState(self):
     self.bit9_binary.ResetState()
-
-    self.assertTaskCount(constants.TASK_QUEUE.BQ_PERSISTENCE, 1)
-    self.RunDeferredTasks(constants.TASK_QUEUE.BQ_PERSISTENCE)
-    self.assertEntityCount(bigquery.BinaryRow, 1)
+    self.assertBigQueryInsertions([constants.BIGQUERY_TABLE.BINARY])
 
 
 class Bit9CertificateTest(basetest.UpvoteTestCase):
@@ -200,17 +193,11 @@ class Bit9CertificateTest(basetest.UpvoteTestCase):
 
   def testPersistsStateChange(self):
     self.bit9_certificate.ChangeState(constants.STATE.SUSPECT)
-
-    self.assertTaskCount(constants.TASK_QUEUE.BQ_PERSISTENCE, 1)
-    self.RunDeferredTasks(constants.TASK_QUEUE.BQ_PERSISTENCE)
-    self.assertEntityCount(bigquery.CertificateRow, 1)
+    self.assertBigQueryInsertions([constants.BIGQUERY_TABLE.CERTIFICATE])
 
   def testResetsState(self):
     self.bit9_certificate.ResetState()
-
-    self.assertTaskCount(constants.TASK_QUEUE.BQ_PERSISTENCE, 1)
-    self.RunDeferredTasks(constants.TASK_QUEUE.BQ_PERSISTENCE)
-    self.assertEntityCount(bigquery.CertificateRow, 1)
+    self.assertBigQueryInsertions([constants.BIGQUERY_TABLE.CERTIFICATE])
 
 
 class RuleChangeSetTest(basetest.UpvoteTestCase):

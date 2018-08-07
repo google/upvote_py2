@@ -15,22 +15,20 @@
 """Logic associated with voting."""
 
 import abc
-import httplib
 import logging
 
-from google.appengine.api import urlfetch
 from google.appengine.ext import ndb
 
+from upvote.gae.bigquery import tables
 from upvote.gae.datastore import utils as model_utils
 from upvote.gae.datastore.models import base
-from upvote.gae.datastore.models import bigquery
 from upvote.gae.datastore.models import bit9
 from upvote.gae.datastore.models import santa
+from upvote.gae.datastore.models import user as user_models
 from upvote.gae.lib.analysis import metrics
+from upvote.gae.lib.bit9 import change_set
 from upvote.gae.shared.common import settings
 from upvote.gae.shared.common import user_map
-from upvote.gae.taskqueue import utils as taskqueue_utils
-from upvote.gae.utils import intermodule_utils
 from upvote.shared import constants
 
 
@@ -39,7 +37,15 @@ class Error(Exception):
 
 
 class BlockableNotFound(Error):
-  """The blockable ID provided does not correspond to a Blockable entity."""
+  """The SHA256 provided does not correspond to a Blockable entity."""
+
+
+class UnsupportedPlatform(Error):
+  """The specified Blockable has an unsupported platform."""
+
+
+class InvalidVoteWeight(Error):
+  """The provided vote weight is invalid."""
 
 
 class DuplicateVoteError(Error):
@@ -50,38 +56,81 @@ class OperationNotAllowed(Error):
   """Error raised when operation not permitted on the given blockable."""
 
 
-class UnsupportedBlockableType(Error):
-  """Error raised when BallotBox does not support the blockable type."""
+def _GetBlockable(sha256):
+  blockable = base.Blockable.get_by_id(sha256)
+  if blockable is None:
+    raise BlockableNotFound('SHA256: %s' % sha256)
+  return blockable
 
 
-def GetBallotBox(blockable_id):
-  """Instantiates a BallotBox object corresponding to the blockable type.
+def _GetPlatform(blockable):
+  platform = blockable.GetPlatformName()
+  if platform not in constants.PLATFORM.SET_ALL:
+    raise UnsupportedPlatform(platform)
+  return platform
 
-  This allows users who don't know/care about the type of blockable they're
-  operating on to instantiate the correct BallotBox subclass.
+
+def Vote(user, sha256, upvote, weight):
+  """Casts a vote for the specified Blockable.
 
   Args:
-    blockable_id: str, The ID of the blockable to modify the voting state.
+    user: User entity representing the person casting the vote.
+    sha256: The SHA256 of the Blockable being voted on.
+    upvote: bool, whether the vote was a 'yes' vote.
+    weight: int, The weight with which the vote will be cast. The weight must
+        be >= 0 (UNTRUSTED_USERs have vote weight 0).
 
   Returns:
-    A BallotBox subclass instance that supports voting on the given Blockable.
+    The newly-created Vote entity.
 
   Raises:
-    BlockableNotFound: No blockable was found with the provided ID.
-    UnsupportedBlockableType: There is no BallotBox type that supports the
-        provided Blockable's type.
+    BlockableNotFound: if the target blockable ID is not a known Blockable.
+    UnsupportedPlatform: if the specified Blockable has an unsupported platform.
+    InvalidVoteWeight: if the vote weight is less than zero.
   """
-  blockable = base.Blockable.get_by_id(blockable_id)
-  if blockable is None:
-    raise BlockableNotFound('Blockable does not exist: %s' % blockable_id)
-  elif isinstance(blockable, SantaBallotBox.BLOCKABLE_CLASSES):
-    return SantaBallotBox(blockable_id)
-  elif isinstance(blockable, Bit9BallotBox.BLOCKABLE_CLASSES):
-    return Bit9BallotBox(blockable_id)
-  else:
-    raise UnsupportedBlockableType(
-        'No BallotBox class associated with Blockable type: %s' % (
-            blockable.__class__))
+  blockable = _GetBlockable(sha256)
+  platform = _GetPlatform(blockable)
+  if weight < 0:
+    raise InvalidVoteWeight(weight)
+
+  ballot_box = _BALLOT_BOX_MAP[platform](sha256)
+  ballot_box.Vote(upvote, user, weight)
+  return ballot_box.new_vote
+
+
+def Recount(sha256):
+  """Checks votes, state, and rules for the specified Blockable.
+
+  Args:
+    sha256: The SHA256 of the Blockable to recount.
+
+  Raises:
+    BlockableNotFound: if the target blockable ID is not a known Blockable.
+    UnsupportedPlatform: if the specified Blockable has an unsupported platform.
+  """
+  blockable = _GetBlockable(sha256)
+  platform = _GetPlatform(blockable)
+
+  ballot_box = _BALLOT_BOX_MAP[platform](sha256)
+  ballot_box.Recount()
+
+
+def Reset(sha256):
+  """Resets all policy (i.e. votes, rules, score) for the specified Blockable.
+
+  Args:
+    sha256: The SHA256 of the Blockable to recount.
+
+  Raises:
+    BlockableNotFound: if the target blockable ID is not a known Blockable.
+    UnsupportedPlatform: if the specified Blockable has an unsupported platform.
+    OperationNotAllowed: if a reset is not allowed for some reason.
+  """
+  blockable = _GetBlockable(sha256)
+  platform = _GetPlatform(blockable)
+
+  ballot_box = _BALLOT_BOX_MAP[platform](sha256)
+  ballot_box.Reset()
 
 
 class BallotBox(object):
@@ -94,8 +143,6 @@ class BallotBox(object):
 
   __metaclass__ = abc.ABCMeta
 
-  BLOCKABLE_CLASSES = (base.Blockable,)
-
   def __init__(self, blockable_id):
     self.blockable_id = blockable_id
 
@@ -105,15 +152,6 @@ class BallotBox(object):
     self.blockable = None
     self.old_vote = None
     self.new_vote = None
-
-  def _ValidateBlockable(self):
-    if self.blockable is None:
-      raise BlockableNotFound(
-          'Blockable with hash {} not found'.format(self.blockable_id))
-    elif not isinstance(self.blockable, self.BLOCKABLE_CLASSES):
-      raise UnsupportedBlockableType(
-          '{} may not operate on blockables of type {}'.format(
-              self.__class__.__name__, self.blockable.__class__.__name__))
 
   def _CheckVotingAllowed(self):
     """Check whether the voting on the blockable is permitted.
@@ -134,7 +172,7 @@ class BallotBox(object):
       logging.warning(message)
       raise OperationNotAllowed(message)
 
-  def ResolveVote(self, was_yes_vote, user, vote_weight=None):
+  def Vote(self, was_yes_vote, user, vote_weight=None):
     """Resolve votes for or against the target blockable.
 
     Upon successful return, the following attributes on the BallotBox will be
@@ -160,16 +198,14 @@ class BallotBox(object):
           insufficient permissions) or of the blockable (e.g. globally
           whitelisted). The possible causes are enumerated in
           VOTING_PROHIBITED_REASONS.
-      ValueError: vote_weight is negative.
     """
     self.user = user
 
-    if vote_weight is None: vote_weight = self.user.vote_weight
-    if vote_weight < 0:
-      raise ValueError('Invalid vote_weight: %d' % vote_weight)
+    if vote_weight is None:
+      vote_weight = self.user.vote_weight
 
-    logging.debug(
-        'BallotBox.ResolveVote called with '
+    logging.info(
+        'BallotBox.Vote called with '
         '(blockable=%s, was_yes_vote=%s, user=%s, weight=%s',
         self.blockable_id, was_yes_vote, self.user.email, vote_weight)
 
@@ -179,21 +215,35 @@ class BallotBox(object):
     # or certs (this check can't be run from the transaction).
     self._CheckVotingAllowed()
 
-    # Perform the vote.
-    initial_state = self._TransactionalVoting(
-        self.blockable_id, was_yes_vote, vote_weight)
-    assert self.blockable is not None
+    self.blockable = _GetBlockable(self.blockable_id)
+    initial_score = self.blockable.score
+    initial_state = self.blockable.state
 
-    if initial_state != self.blockable.state:
+    # Perform the vote.
+    self._TransactionalVoting(self.blockable_id, was_yes_vote, vote_weight)
+
+    self.blockable = _GetBlockable(self.blockable_id)
+    new_score = self.blockable.score
+    new_state = self.blockable.state
+
+    if initial_score != new_score:
+      logging.info(
+          'Blockable %s changed score from %d to %d',
+          self.blockable.key.id(), initial_score, new_score)
+      self.blockable.PersistRow(
+          constants.BLOCK_ACTION.SCORE_CHANGE,
+          timestamp=self.blockable.updated_dt)
+
+    if initial_state != new_state:
       logging.info(
           'Blockable %s changed state from %s to %s', self.blockable.key.id(),
-          initial_state, self.blockable.state)
+          initial_state, new_state)
 
     # Perform local whitelisting procedures.
     # NOTE: Local whitelisting has to be handled outside the
     # transaction because of its non-ancestor queries on Host entities.
-    if self.blockable.state == constants.STATE.APPROVED_FOR_LOCAL_WHITELISTING:
-      if initial_state != self.blockable.state:
+    if new_state == constants.STATE.APPROVED_FOR_LOCAL_WHITELISTING:
+      if initial_state != new_state:
         self._LocallyWhitelistForAllVoters().get_result()
       elif was_yes_vote:
         self._LocallyWhitelistForCurrentVoter().get_result()
@@ -214,38 +264,26 @@ class BallotBox(object):
       metrics.DeferLookupMetric(self.blockable.key.id(), reason)
 
   @ndb.transactional(xg=True)
-  @taskqueue_utils.GroupTransactionalDefers
   def _TransactionalVoting(self, blockable_id, was_yes_vote, vote_weight):
     """Performs part of the voting that should be handled in a transaction."""
 
     # To accommodate transaction retries, re-get the Blockable entity at the
     # start of each transaction. This ensures up-to-date state+score values.
-    self.blockable = base.Blockable.get_by_id(blockable_id)
-    self._ValidateBlockable()
+    self.blockable = _GetBlockable(blockable_id)
     self._CheckVotingAllowed()
 
     if isinstance(self.blockable, santa.SantaBundle) and not was_yes_vote:
       raise OperationNotAllowed('Downvoting not supported for Bundles')
 
     initial_state = self.blockable.state
-    logging.debug('Initial blockable state: %s', initial_state)
+    logging.info('Initial blockable state: %s', initial_state)
 
     initial_score = self.blockable.score
     self._CreateOrUpdateVote(was_yes_vote, vote_weight)
     assert self.new_vote is not None
 
     new_score = self._GetNewScore(initial_score)
-
-    logging.debug(
-        'Score for Blockable %s changing from %d to %d',
-        self.blockable.key.id(), initial_score, new_score)
-
     self._UpdateBlockable(new_score)
-
-    # Persist the new score change.
-    self.blockable.PersistRow(
-        constants.BLOCK_ACTION.SCORE_CHANGE,
-        self.blockable.updated_dt)
 
     return initial_state
 
@@ -274,7 +312,7 @@ class BallotBox(object):
         candidate_type=self.blockable.rule_type)
     self.new_vote.put()
 
-    bigquery.VoteRow.DeferCreate(
+    tables.VOTE.InsertRow(
         sha256=self.blockable.key.id(),
         timestamp=self.new_vote.recorded_dt,
         upvote=self.new_vote.was_yes_vote,
@@ -339,14 +377,11 @@ class BallotBox(object):
     """
 
   @ndb.transactional(xg=True)
-  @taskqueue_utils.GroupTransactionalDefers
   def Recount(self):
     """Checks votes, state, and rules for the target blockable."""
-    logging.debug('Recount for blockable: %s', self.blockable_id)
+    logging.info('Recount for blockable: %s', self.blockable_id)
 
     self.blockable = base.Blockable.get_by_id(self.blockable_id)
-    if self.blockable is None:
-      self._ValidateBlockable()
 
     # Then check to see if the blockable should be flagged and if it is.
     change_made = self._CheckBlockableFlagStatus()
@@ -372,7 +407,6 @@ class BallotBox(object):
     """Creates removal rules to undo all policy for the target blockable."""
 
   @ndb.transactional
-  @taskqueue_utils.GroupTransactionalDefers
   def Reset(self):
     """Resets all policy (i.e. votes, rules, score) for the target blockable.
 
@@ -382,8 +416,6 @@ class BallotBox(object):
     logging.info('Resetting blockable: %s', self.blockable_id)
 
     self.blockable = base.Blockable.get_by_id(self.blockable_id)
-    if self.blockable is None:
-      self._ValidateBlockable()
 
     votes = self.blockable.GetVotes()
 
@@ -488,7 +520,7 @@ class BallotBox(object):
     Returns:
       The list of rules that were created.
     """
-    logging.debug(
+    logging.info(
         'Locally whitelisting %s for %s, on the following hosts: %s',
         self.blockable.key.id(), user_key.id(), host_ids)
     new_rules = []
@@ -506,16 +538,16 @@ class BallotBox(object):
       # If there isn't one, make one, increment count and put rule.
       rule_exists = yield existing_rule_query.count_async(limit=1)
       if rule_exists:
-        logging.debug('Rule already exists for host %s, skipping...', host_id)
+        logging.info('Rule already exists for host %s, skipping...', host_id)
       else:
-        logging.debug('Creating Rule for host %s', host_id)
+        logging.info('Creating Rule for host %s', host_id)
         rule = self._GenerateRule(
             policy=constants.RULE_POLICY.WHITELIST,
             in_effect=True,
             host_id=host_id,
             user_key=user_key)
         new_rules.append(rule)
-    logging.debug('Creating %d new Rules for %s', len(new_rules), user_key.id())
+    logging.info('Creating %d new Rules for %s', len(new_rules), user_key.id())
     yield ndb.put_multi_async(new_rules)
     raise ndb.Return(new_rules)
 
@@ -538,7 +570,7 @@ class BallotBox(object):
         projection=[base.Vote.user_email],
         ancestor=self.blockable.key)
     # pylint: enable=g-explicit-bool-comparison
-    return {ndb.Key(base.User, vote.user_email)
+    return {ndb.Key(user_models.User, vote.user_email)
             for vote in upvotes_query.fetch()}
 
   def _LocallyWhitelistForVoter(self, user_key):
@@ -549,7 +581,7 @@ class BallotBox(object):
 
   def _LocallyWhitelistForAllVoters(self):
     upvoter_keys = self._GetUpvoters()
-    logging.debug(
+    logging.info(
         'Locally whitelisting %s for all voters: %s', self.blockable.key.id(),
         sorted(key.id() for key in upvoter_keys))
     return model_utils.GetChainingMultiFuture(
@@ -610,7 +642,7 @@ class BallotBox(object):
       # pylint: enable=g-explicit-bool-comparison
       for vote in all_votes:
         if vote.was_yes_vote:
-          user = base.User.GetById(vote.user_email)
+          user = user_models.User.GetById(vote.user_email)
           if user.HasPermissionTo(constants.PERMISSIONS.UNFLAG):
             break
         else:
@@ -638,7 +670,7 @@ class BallotBox(object):
       sorted_votes = reversed(sorted(
           self.blockable.GetVotes(), key=lambda vote: vote.recorded_dt))
       for vote in sorted_votes:
-        user = base.User.GetById(vote.user_email)
+        user = user_models.User.GetById(vote.user_email)
         if user.HasPermissionTo(constants.PERMISSIONS.MARK_MALWARE):
           if vote.was_yes_vote:
             logging.info(
@@ -721,8 +753,6 @@ class BallotBox(object):
 class SantaBallotBox(BallotBox):
   """Class that modifies the voting state of a SantaBlockable."""
 
-  BLOCKABLE_CLASSES = (
-      santa.SantaBlockable, santa.SantaCertificate, santa.SantaBundle)
 
   def _CheckVotingAllowed(self):
     """Check whether the voting on the blockable is permitted.
@@ -750,15 +780,6 @@ class SantaBallotBox(BallotBox):
         raise OperationNotAllowed(message)
     else:
       super(SantaBallotBox, self)._CheckVotingAllowed()
-
-  def _GetPackageBinaryKeys(self):
-    """Lazy load the keys for the binaries associated with current blockable."""
-    assert isinstance(self.blockable, base.Package)
-
-    if self._package_binary_keys is None:
-      child_binary_query = base.Binary.query(ancestor=self.blockable.key)
-      self._package_binary_keys = child_binary_query.fetch(keys_only=True)
-    return self._package_binary_keys
 
   def _GenerateRule(self, **kwargs):
     """Generate the rule for the blockable being voted on.
@@ -812,8 +833,6 @@ class SantaBallotBox(BallotBox):
 class Bit9BallotBox(BallotBox):
   """Class that modifies the voting state of a Bit9Blockable."""
 
-  BLOCKABLE_CLASSES = (bit9.Bit9Binary, bit9.Bit9Certificate)
-
   def _CreateRuleChangeSet(self, rules_future, new_policy):
     """Creates a RuleChangeSet and trigger an attempted commit."""
     rules = rules_future.get_result()
@@ -834,19 +853,7 @@ class Bit9BallotBox(BallotBox):
     ndb.get_context().call_on_commit(self._TriggerCommit)
 
   def _TriggerCommit(self):
-    # If any errors occur in the process of the attempted commit, just log an
-    # error. The RuleChangeSet commit should be retried by the cron.
-    try:
-      response = intermodule_utils.SubmitIntermoduleRequest(
-          'bit9-api',
-          '/api/bit9/commit-change-set/%s' % self.blockable.key.id())
-    except urlfetch.Error as e:
-      logging.warning(
-          'Failed to commit RuleChangeSet: URLFetch error (%s)', e)
-    else:
-      if response.status_code != httplib.OK:
-        logging.warning(
-            'Failed to commit RuleChangeSet: HTTP %s', response.status_code)
+    change_set.DeferCommitBlockableChangeSet(self.blockable.key)
 
   def _GenerateRule(self, **kwargs):
     """Generate the rule for the blockable being voted on.
@@ -916,3 +923,9 @@ class Bit9BallotBox(BallotBox):
     future.add_callback(
         self._CreateRuleChangeSet, model_utils.GetNoOpFuture(removal_rules),
         constants.RULE_POLICY.REMOVE)
+
+
+_BALLOT_BOX_MAP = {
+    constants.PLATFORM.MACOS: SantaBallotBox,
+    constants.PLATFORM.WINDOWS: Bit9BallotBox,
+}

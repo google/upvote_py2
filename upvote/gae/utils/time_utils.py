@@ -16,7 +16,7 @@
 
 import datetime
 
-from upvote.gae.modules.bit9_api import constants as bit9_constants
+from upvote.gae.lib.bit9 import constants as bit9_constants
 
 
 def Now():

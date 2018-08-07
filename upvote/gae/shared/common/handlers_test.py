@@ -20,9 +20,7 @@ import mock
 import webapp2
 from webob import exc
 
-from common.testing import basetest
-
-from upvote.gae.shared.common import basetest
+from upvote.gae.lib.testing import basetest
 from upvote.gae.shared.common import handlers
 
 

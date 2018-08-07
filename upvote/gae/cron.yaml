@@ -26,30 +26,6 @@ cron:
   timezone: US/Pacific
 
 #### END:daily_backup ####
-#### BEGIN:bigquery ####
-- description: periodic BigQuery stream
-  url: /cron/export/stream-to-bigquery
-  schedule: every 30 mins
-  retry_parameters:
-    job_retry_limit: 0
-    min_backoff_seconds: 300
-  target: upvote-app
-
-- description: Counts the number of tasks in the bigquery-row-persistence queue.
-  url: /cron/export/count-rows-to-persist
-  schedule: every 2 hours
-  retry_parameters:
-    job_retry_limit: 0
-  target: upvote-app
-
-- description: Counts the number of pending BigQuery rows to stream.
-  url: /cron/export/count-rows-to-stream
-  schedule: every 2 hours
-  retry_parameters:
-    job_retry_limit: 0
-  target: upvote-app
-
-#### END:bigquery ####
 #### BEGIN:groups ####
 - description: Sync members of external groups to roles in Upvote.
   url: /cron/roles/sync
@@ -83,7 +59,7 @@ cron:
 
 - description: Attempt to commit any uncommitted/failing change sets.
   url: /api/bit9/cron/commit-pending-change-sets
-  schedule: every 1 minutes
+  schedule: every 5 minutes
   target: bit9-api
 
 - description: Counts the number of Bit9 events to be pulled.

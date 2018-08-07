@@ -22,22 +22,23 @@ from webapp2_extras import routes
 
 from google.appengine.ext import ndb
 
-from upvote.gae.datastore.models import base as base_db
-from upvote.gae.datastore.models import bigquery as bigquery_db
-from upvote.gae.datastore.models import bit9 as bit9_db
-from upvote.gae.datastore.models import santa as santa_db
-from upvote.gae.datastore.models import tickets as tickets_db
+from upvote.gae.bigquery import tables
+from upvote.gae.datastore.models import base as base_models
+from upvote.gae.datastore.models import bit9 as bit9_models
+from upvote.gae.datastore.models import santa as santa_models
+from upvote.gae.datastore.models import tickets as tickets_models
+from upvote.gae.datastore.models import user as user_models
 from upvote.gae.modules.upvote_app.api import monitoring
 from upvote.gae.modules.upvote_app.api.handlers import base
 from upvote.gae.shared.common import handlers
-from upvote.gae.shared.common import xsrf_utils
+from upvote.gae.utils import xsrf_utils
 from upvote.shared import constants
 
 
 class HostQueryHandler(base.BaseQueryHandler):
   """Handler for querying hosts."""
 
-  MODEL_CLASS = base_db.Host
+  MODEL_CLASS = base_models.Host
 
   @property
   def RequestCounter(self):
@@ -52,16 +53,16 @@ class HostQueryHandler(base.BaseQueryHandler):
 class SantaHostQueryHandler(HostQueryHandler):
   """Handler for querying santa hosts."""
 
-  MODEL_CLASS = santa_db.SantaHost
+  MODEL_CLASS = santa_models.SantaHost
 
 
 class HostHandler(base.BaseHandler):
   """Handler for interacting with specific hosts."""
 
   def get(self, host_id):
-    host_id = base_db.Host.NormalizeId(host_id)
+    host_id = base_models.Host.NormalizeId(host_id)
     logging.debug('Host handler get method called with ID=%s.', host_id)
-    host = base_db.Host.get_by_id(host_id)
+    host = base_models.Host.get_by_id(host_id)
     if host is None:
       self.abort(httplib.NOT_FOUND, explanation='Host not found')
     elif not host.IsAssociatedWithUser(self.user):
@@ -71,10 +72,10 @@ class HostHandler(base.BaseHandler):
   @base.RequireCapability(constants.PERMISSIONS.EDIT_HOSTS)
   @xsrf_utils.RequireToken
   def post(self, host_id):
-    host_id = base_db.Host.NormalizeId(host_id)
+    host_id = base_models.Host.NormalizeId(host_id)
     logging.debug('Host handler post method called with ID=%s.', host_id)
 
-    host = base_db.Host.get_by_id(host_id)
+    host = base_models.Host.get_by_id(host_id)
     if host is None:
       self.abort(httplib.NOT_FOUND, explanation='Host not found')
 
@@ -95,11 +96,11 @@ class AssociatedHostHandler(base.BaseHandler):
   """Handler for interacting with specific hosts."""
 
   def _GetAssociatedHosts(self, user):
-    bit9_ids = bit9_db.Bit9Host.GetAssociatedHostIds(user)
-    santa_ids = santa_db.SantaHost.GetAssociatedHostIds(user)
+    bit9_ids = bit9_models.Bit9Host.GetAssociatedHostIds(user)
+    santa_ids = santa_models.SantaHost.GetAssociatedHostIds(user)
     host_ids = bit9_ids + santa_ids
     hosts = ndb.get_multi(
-        ndb.Key(base_db.Host, host_id) for host_id in host_ids)
+        ndb.Key(base_models.Host, host_id) for host_id in host_ids)
     hosts = filter(None, hosts)
 
     # If Santa hosts have never synced rules or Bit9 hosts never reported an
@@ -107,9 +108,9 @@ class AssociatedHostHandler(base.BaseHandler):
     epoch = datetime.datetime.utcfromtimestamp(0)
 
     def ByFreshness(host):
-      if isinstance(host, bit9_db.Bit9Host):
+      if isinstance(host, bit9_models.Bit9Host):
         return host.last_event_dt or epoch
-      elif isinstance(host, santa_db.SantaHost):
+      elif isinstance(host, santa_models.SantaHost):
         return host.rule_sync_dt or epoch
 
     return sorted(hosts, key=ByFreshness, reverse=True)
@@ -117,7 +118,7 @@ class AssociatedHostHandler(base.BaseHandler):
   @base.RequireCapability(constants.PERMISSIONS.VIEW_OTHER_HOSTS)
   def GetByUserId(self, user_id):
     logging.debug('Getting associated Hosts for user_id=%s', user_id)
-    user = base_db.User.GetById(user_id)
+    user = user_models.User.GetById(user_id)
     if user is None:
       self.abort(httplib.NOT_FOUND, explanation='User not found')
 
@@ -134,10 +135,10 @@ class HostExceptionHandler(base.BaseHandler):
   """Handler for interacting with host exceptions."""
 
   def get(self, host_id):
-    host_id = base_db.Host.NormalizeId(host_id)
+    host_id = base_models.Host.NormalizeId(host_id)
     logging.debug('Host exception handler GET called with ID=%s.', host_id)
 
-    host = base_db.Host.get_by_id(host_id)
+    host = base_models.Host.get_by_id(host_id)
     if host is None:
       self.abort(httplib.NOT_FOUND, explanation='Host not found')
 
@@ -156,8 +157,9 @@ class HostExceptionHandler(base.BaseHandler):
     # are associated.
     user_id = self.request.get('user_id').lower() or self.user.email
 
-    parent_key = tickets_db.HostExceptionTicket.GetParentKey(user_id, host_id)
-    ticket = tickets_db.HostExceptionTicket.query(ancestor=parent_key).get()
+    parent_key = tickets_models.HostExceptionTicket.GetParentKey(
+        user_id, host_id)
+    ticket = tickets_models.HostExceptionTicket.query(ancestor=parent_key).get()
     if not ticket:
       logging.error(
           'Host exception not found for ID=%s filed by user=%s.', host_id,
@@ -170,10 +172,10 @@ class HostExceptionHandler(base.BaseHandler):
   @base.RequireCapability(constants.PERMISSIONS.REQUEST_HOST_EXEMPTION)
   @xsrf_utils.RequireToken
   def post(self, host_id):
-    host_id = base_db.Host.NormalizeId(host_id)
+    host_id = base_models.Host.NormalizeId(host_id)
     logging.debug('Host exception handler POST called with ID=%s.', host_id)
 
-    host = base_db.Host.get_by_id(host_id)
+    host = base_models.Host.get_by_id(host_id)
     if host is None:
       self.abort(httplib.NOT_FOUND, explanation='Host not found')
 
@@ -203,7 +205,7 @@ class HostExceptionHandler(base.BaseHandler):
 
     # Check if an outstanding request exists. If not, create one.
     ticket_model, inserted = (
-        tickets_db.HostExceptionTicket.get_open_or_insert_did_insert(
+        tickets_models.HostExceptionTicket.get_open_or_insert_did_insert(
             self.user.email, host_id, reason=reason, other_text=other_text,
             is_open=False))
     if not inserted:
@@ -218,13 +220,13 @@ class HostExceptionHandler(base.BaseHandler):
     host.client_mode = constants.SANTA_CLIENT_MODE.MONITOR
     host.put()
 
-    bigquery_db.HostRow.DeferCreate(
+    tables.HOST.InsertRow(
         device_id=host_id,
         timestamp=host.last_postflight_dt,
         action=constants.HOST_ACTION.MODE_CHANGE,
         hostname=host.hostname,
         platform=constants.PLATFORM.MACOS,
-        users=santa_db.SantaHost.GetAssociatedUsers(host_id),
+        users=santa_models.SantaHost.GetAssociatedUsers(host_id),
         mode=host.client_mode)
 
     self.respond_json(host)
@@ -235,10 +237,10 @@ class LockdownHandler(base.BaseHandler):
 
   @xsrf_utils.RequireToken
   def post(self, host_id):
-    host_id = base_db.Host.NormalizeId(host_id)
+    host_id = base_models.Host.NormalizeId(host_id)
     logging.debug('Lockdown handler POST called with ID=%s.', host_id)
 
-    host = base_db.Host.get_by_id(host_id)
+    host = base_models.Host.get_by_id(host_id)
     if host is None:
       self.abort(httplib.NOT_FOUND, explanation='Host not found')
 
@@ -256,13 +258,13 @@ class LockdownHandler(base.BaseHandler):
     host.client_mode = constants.SANTA_CLIENT_MODE.LOCKDOWN
     host.put()
 
-    bigquery_db.HostRow.DeferCreate(
+    tables.HOST.InsertRow(
         device_id=host_id,
         timestamp=host.last_postflight_dt,
         action=constants.HOST_ACTION.MODE_CHANGE,
         hostname=host.hostname,
         platform=constants.PLATFORM.MACOS,
-        users=santa_db.SantaHost.GetAssociatedUsers(host_id),
+        users=santa_models.SantaHost.GetAssociatedUsers(host_id),
         mode=host.client_mode)
 
     self.respond_json(host)
@@ -273,9 +275,9 @@ class VisibilityHandler(base.BaseHandler):
 
   @xsrf_utils.RequireToken
   def put(self, host_id, hidden):
-    host_id = base_db.Host.NormalizeId(host_id)
+    host_id = base_models.Host.NormalizeId(host_id)
 
-    host = base_db.Host.get_by_id(host_id)
+    host = base_models.Host.get_by_id(host_id)
     if not host:
       self.abort(httplib.NOT_FOUND, explanation='Host %s not found' % host_id)
 

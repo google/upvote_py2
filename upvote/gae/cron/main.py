@@ -18,32 +18,15 @@ import webapp2
 
 from webapp2_extras import routes
 
-from upvote.gae.cron import export
+from upvote.gae.cron import datastore_backup
 from upvote.gae.cron import roles
 
 
-app = webapp2.WSGIApplication([
-    # Handlers
+_ALL_ROUTES = [
     routes.PathPrefixRoute('/cron', [
+        datastore_backup.ROUTES,
+        roles.ROUTES
+    ]),
+]
 
-        # Backup
-        routes.PathPrefixRoute('/export', [
-            webapp2.Route(
-                '/datastore-to-gcs', handler=export.DatastoreToGCS),
-            webapp2.Route(
-                '/stream-to-bigquery', handler=export.StreamToBigQuery),
-            webapp2.Route(
-                '/count-rows-to-persist', handler=export.CountRowsToPersist),
-            webapp2.Route(
-                '/count-rows-to-stream', handler=export.CountRowsToStream)
-        ]),
-
-        # Roles
-        routes.PathPrefixRoute('/roles', [
-            webapp2.Route('/sync', handler=roles.SyncRoles),
-            webapp2.Route('/lock-it-down', handler=roles.LockItDown),
-            webapp2.Route('/monitor-it', handler=roles.MonitorIt),
-            webapp2.Route('/lock-spider', handler=roles.LockSpider),
-        ]),
-    ])
-])
+app = webapp2.WSGIApplication(routes=_ALL_ROUTES)

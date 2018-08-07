@@ -6,12 +6,27 @@ package(default_visibility = ["//upvote"])
 # ==============================================================================
 
 py_appengine_library(
+    name = "env_utils",
+    srcs = ["env_utils.py"],
+    deps = [
+        "//upvote/gae/shared/common:settings",
+        "//upvote/gae/shared/common:settings_utils",
+        "//upvote/shared:constants",
+    ],
+)
+
+py_appengine_library(
     name = "intermodule_utils",
     srcs = ["intermodule_utils.py"],
     deps = [
         "//upvote/gae/shared/common:settings",
         "//upvote/shared:constants",
     ],
+)
+
+py_appengine_library(
+    name = "iter_utils",
+    srcs = ["iter_utils.py"],
 )
 
 py_appengine_library(
@@ -36,12 +51,31 @@ py_appengine_library(
     name = "time_utils",
     srcs = ["time_utils.py"],
     deps = [
-        "//upvote/gae/modules/bit9_api:constants",
+        "//upvote/gae/lib/bit9:constants",
+    ],
+)
+
+py_appengine_library(
+    name = "xsrf_utils",
+    srcs = ["xsrf_utils.py"],
+    deps = [
+        "//external:oauth2client",
     ],
 )
 
 # AppEngine Unit Tests
 # ==============================================================================
+
+upvote_appengine_test(
+    name = "env_utils_test",
+    size = "small",
+    srcs = ["env_utils_test.py"],
+    deps = [
+        ":env_utils",
+        "//common/testing:basetest",
+        "//upvote/shared:constants",
+    ],
+)
 
 upvote_appengine_test(
     name = "intermodule_utils_test",
@@ -50,9 +84,20 @@ upvote_appengine_test(
     deps = [
         ":intermodule_utils",
         "//external:mock",
-        "//upvote/gae/shared/common:basetest",
+        "//upvote/gae/lib/testing:basetest",
         "//upvote/gae/shared/common:settings",
         "//upvote/gae/shared/common:settings_utils",
+    ],
+)
+
+upvote_appengine_test(
+    name = "iter_utils_test",
+    size = "small",
+    srcs = ["iter_utils_test.py"],
+    deps = [
+        ":iter_utils",
+        "//common/testing:basetest",
+        "//upvote/shared:constants",
     ],
 )
 
@@ -96,6 +141,19 @@ upvote_appengine_test(
     deps = [
         ":time_utils",
         "//external:mock",
+        "@absl_git//absl/testing:absltest",
+    ],
+)
+
+upvote_appengine_test(
+    name = "xsrf_utils_test",
+    size = "small",
+    srcs = ["xsrf_utils_test.py"],
+    deps = [
+        ":xsrf_utils",
+        "//external:mock",
+        "//external:oauth2client",
+        "//upvote/gae/lib/testing:basetest",
         "@absl_git//absl/testing:absltest",
     ],
 )

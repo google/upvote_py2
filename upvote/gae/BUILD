@@ -20,7 +20,6 @@ py_appengine_binary(
         "//upvote/gae/shared/templates",
     ],
     deps = [
-        ":appengine_config_utils",
         "//upvote/gae/datastore:all",
         "//upvote/gae/modules/bit9_api:bit9_api_library",
         "//upvote/gae/modules/santa_api:santa_api_library",
@@ -36,15 +35,11 @@ py_appengine_binary(
 # ==============================================================================
 
 py_appengine_library(
-    name = "appengine_config_utils",
-    srcs = ["appengine_config_utils.py"],
+    name = "appengine_config",
+    srcs = ["appengine_config.py"],
     deps = [
-        "//upvote/gae/datastore:test_utils",
-        "//upvote/gae/datastore:utils",
-        "//upvote/gae/datastore/models:all",
-        "//upvote/gae/shared/common:user_map",
-        "//upvote/gae/shared/common:utils",
-        "//upvote/shared:constants",
+        "//upvote/gae/datastore/models:rule",
+        "//upvote/gae/shared/common:settings",
     ],
 )
 
@@ -52,12 +47,11 @@ py_appengine_library(
 # ==============================================================================
 
 upvote_appengine_test(
-    name = "appengine_config_utils_test",
+    name = "appengine_config_test",
     size = "small",
-    srcs = ["appengine_config_utils_test.py"],
+    srcs = ["appengine_config_test.py"],
     deps = [
-        ":appengine_config_utils",
-        "//upvote/gae/datastore/models:all",
-        "//upvote/gae/shared/common:basetest",
+        ":appengine_config",
+        "//upvote/gae/lib/testing:basetest",
     ],
 )

@@ -23,9 +23,8 @@ from google.appengine.ext import ndb
 
 from upvote.gae.datastore import test_utils
 from upvote.gae.datastore import utils
-from upvote.gae.datastore.models import bigquery
 from upvote.gae.datastore.models import santa
-from upvote.gae.shared.common import basetest
+from upvote.gae.lib.testing import basetest
 from upvote.gae.shared.common import settings
 from upvote.shared import constants
 
@@ -136,10 +135,7 @@ class SantaBlockableTest(SantaModelTest):
 
   def testChangeState_Persists(self):
     self.santa_blockable.ChangeState(constants.STATE.SUSPECT)
-
-    self.assertTaskCount(constants.TASK_QUEUE.BQ_PERSISTENCE, 1)
-    self.RunDeferredTasks(constants.TASK_QUEUE.BQ_PERSISTENCE)
-    self.assertEntityCount(bigquery.BinaryRow, 1)
+    self.assertBigQueryInsertions([constants.BIGQUERY_TABLE.BINARY])
 
   def testChangeState_BinaryRowCreation_NoBlockableHash(self):
 
@@ -149,37 +145,22 @@ class SantaBlockableTest(SantaModelTest):
         file_name='Whatever.app')
     hashless_santa_blockable.ChangeState(constants.STATE.SUSPECT)
 
-    self.assertTaskCount(constants.TASK_QUEUE.BQ_PERSISTENCE, 1)
-    self.RunDeferredTasks(constants.TASK_QUEUE.BQ_PERSISTENCE)
-    self.assertEntityCount(bigquery.BinaryRow, 1)
-
-    binary_row = bigquery.BinaryRow.query().get()
-    self.assertIsNotNone(binary_row)
-    self.assertIsNotNone(binary_row.sha256)
+    self.assertBigQueryInsertions([constants.BIGQUERY_TABLE.BINARY])
 
   def testResetState(self):
     self.santa_blockable.ResetState()
-
-    self.assertTaskCount(constants.TASK_QUEUE.BQ_PERSISTENCE, 1)
-    self.RunDeferredTasks(constants.TASK_QUEUE.BQ_PERSISTENCE)
-    self.assertEntityCount(bigquery.BinaryRow, 1)
+    self.assertBigQueryInsertions([constants.BIGQUERY_TABLE.BINARY])
 
 
 class SantaCertificateTest(SantaModelTest):
 
   def testPersistsStateChange(self):
     self.santa_certificate.ChangeState(constants.STATE.SUSPECT)
-
-    self.assertTaskCount(constants.TASK_QUEUE.BQ_PERSISTENCE, 1)
-    self.RunDeferredTasks(constants.TASK_QUEUE.BQ_PERSISTENCE)
-    self.assertEntityCount(bigquery.CertificateRow, 1)
+    self.assertBigQueryInsertions([constants.BIGQUERY_TABLE.CERTIFICATE])
 
   def testResetsState(self):
     self.santa_certificate.ResetState()
-
-    self.assertTaskCount(constants.TASK_QUEUE.BQ_PERSISTENCE, 1)
-    self.RunDeferredTasks(constants.TASK_QUEUE.BQ_PERSISTENCE)
-    self.assertEntityCount(bigquery.CertificateRow, 1)
+    self.assertBigQueryInsertions([constants.BIGQUERY_TABLE.CERTIFICATE])
 
 
 class SantaEventTest(SantaModelTest):
@@ -379,18 +360,12 @@ class SantaBundleTest(SantaModelTest):
   def testPersistsStateChange(self):
     bundle = test_utils.CreateSantaBundle(uploaded_dt=None)
     bundle.ChangeState(constants.STATE.SUSPECT)
-
-    self.assertTaskCount(constants.TASK_QUEUE.BQ_PERSISTENCE, 1)
-    self.RunDeferredTasks(constants.TASK_QUEUE.BQ_PERSISTENCE)
-    self.assertEntityCount(bigquery.BundleRow, 1)
+    self.assertBigQueryInsertions([constants.BIGQUERY_TABLE.BUNDLE])
 
   def testResetsState(self):
     bundle = test_utils.CreateSantaBundle(uploaded_dt=None)
     bundle.ResetState()
-
-    self.assertTaskCount(constants.TASK_QUEUE.BQ_PERSISTENCE, 1)
-    self.RunDeferredTasks(constants.TASK_QUEUE.BQ_PERSISTENCE)
-    self.assertEntityCount(bigquery.BundleRow, 1)
+    self.assertBigQueryInsertions([constants.BIGQUERY_TABLE.BUNDLE])
 
 
 class SantaHostTest(SantaModelTest):

@@ -17,7 +17,8 @@
 import datetime
 import logging
 
-from upvote.gae import appengine_config_utils
+from upvote.gae.datastore.models import rule
+from upvote.gae.shared.common import settings
 
 
-appengine_config_utils.EnsureCritialRules()
+rule.EnsureCriticalRules(settings.CRITICAL_MAC_OS_CERT_HASHES)

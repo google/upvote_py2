@@ -23,7 +23,6 @@ from upvote.gae.modules.upvote_app.api.handlers import blockables
 from upvote.gae.modules.upvote_app.api.handlers import constants
 from upvote.gae.modules.upvote_app.api.handlers import emergency
 from upvote.gae.modules.upvote_app.api.handlers import events
-from upvote.gae.modules.upvote_app.api.handlers import export
 from upvote.gae.modules.upvote_app.api.handlers import hosts
 from upvote.gae.modules.upvote_app.api.handlers import index_handler
 from upvote.gae.modules.upvote_app.api.handlers import lookups
@@ -49,7 +48,6 @@ _ALL_ROUTES = [
         constants.ROUTES,
         emergency.ROUTES,
         events.ROUTES,
-        export.ROUTES,
         hosts.ROUTES,
         lookups.ROUTES,
         rules.ROUTES,

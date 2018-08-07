@@ -36,10 +36,9 @@ closure_js_library(
     deps = [
         ":admin_templates",
         ":ui_templates",
-        "@com_google_javascript_closure_library//:array",
-        "@com_google_javascript_closure_library//:asserts",
-        "@com_google_javascript_closure_library//:base",
-        "@com_google_javascript_closure_library//:uri",
+        "@io_bazel_rules_closure//closure/library/array",
+        "@io_bazel_rules_closure//closure/library/asserts",
+        "@io_bazel_rules_closure//closure/library/uri",
         "@material_steppers",
     ],
 )

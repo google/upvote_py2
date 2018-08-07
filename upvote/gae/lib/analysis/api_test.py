@@ -17,7 +17,7 @@
 import mock
 
 from upvote.gae.lib.analysis import api
-from upvote.gae.shared.common import basetest
+from upvote.gae.lib.testing import basetest
 
 
 class PerformLookupTest(basetest.UpvoteTestCase):

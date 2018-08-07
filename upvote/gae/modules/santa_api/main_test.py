@@ -14,7 +14,7 @@
 
 """Unit tests for main.py."""
 
-from upvote.gae.shared.common import basetest
+from upvote.gae.lib.testing import basetest
 
 
 class RouteTest(basetest.UpvoteTestCase):

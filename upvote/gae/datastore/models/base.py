@@ -17,24 +17,20 @@ import abc
 import datetime
 import hashlib
 import logging
-import random
 import re
 
 from google.appengine.api import memcache
-from google.appengine.api import users
 from google.appengine.ext import ndb
 from google.appengine.ext.ndb import polymodel
 
 from upvote.gae.datastore import utils as model_utils
-from upvote.gae.datastore.models import bigquery
+from upvote.gae.datastore.models import mixin
+from upvote.gae.datastore.models import user as user_models
 from upvote.gae.shared.common import settings
 from upvote.gae.shared.common import user_map
-from upvote.gae.taskqueue import utils as taskqueue_utils
 from upvote.shared import constants
 
 
-_ROLLOUT_GROUP_COUNT = 1000
-_UNASSIGNED_ROLLOUT_GROUP = -1
 _BLACKLIST_MEMCACHE_KEY = '_blacklist'
 _BLACKLIST_MEMCACHE_EXPIRATION = 3600  # in seconds
 
@@ -43,47 +39,11 @@ class Error(Exception):
   """Base error for models."""
 
 
-class UnknownUserError(Error):
-  """The current user cannot be accurately determined for some reason."""
-
-
 class InvalidArgumentError(Error):
   """The called function received an invalid argument."""
 
 
-class InvalidUserRoleError(Error):
-  """The called function received an invalid user role."""
-
-
-class BaseModelMixin(object):
-  """Mix-in for base model common code."""
-
-  def GetPlatformName(self):
-    return None
-
-  def GetClientName(self):
-    return None
-
-  def to_dict(self, include=None, exclude=None):  # pylint: disable=g-bad-name
-    """Convert the model to a dict."""
-    result = super(BaseModelMixin, self).to_dict(
-        include=include, exclude=exclude)
-
-    if exclude is None or 'id' not in exclude:
-      # Check for the key just in case put() hasn't been called yet.
-      if hasattr(self, 'key') and self.key is not None:
-        result['id'] = self.key.id()
-        result['key'] = self.key.urlsafe()
-
-    if exclude is None or 'operating_system_family' not in exclude:
-      platform_name = self.GetPlatformName()
-      if platform_name:
-        result['operating_system_family'] = platform_name
-
-    return result
-
-
-class Event(BaseModelMixin, polymodel.PolyModel):
+class Event(mixin.Base, polymodel.PolyModel):
   """Blockable Event.
 
   key = Key(User, user_email) -> Key(Host, host_id) ->
@@ -180,7 +140,8 @@ class Event(BaseModelMixin, polymodel.PolyModel):
 
     keys = []
     for email in emails:
-      key_pairs = [(User, email.lower()), (Host, self.host_id)]
+      key_pairs = [
+          (user_models.User, email.lower()), (Host, self.host_id)]
       key_pairs += self.blockable_key.pairs()
       key_pairs += [(Event, '1')]
       keys.append(ndb.Key(pairs=key_pairs))
@@ -234,7 +195,7 @@ class Note(polymodel.PolyModel):
     return ndb.Key(Note, key_hash, parent=parent)
 
 
-class Blockable(BaseModelMixin, polymodel.PolyModel):
+class Blockable(mixin.Base, polymodel.PolyModel):
   """An entity that has been blocked.
 
   key = id of blockable file
@@ -319,7 +280,8 @@ class Blockable(BaseModelMixin, polymodel.PolyModel):
     self.state_change_dt = datetime.datetime.utcnow()
     self.put()
 
-    self.PersistRow(constants.BLOCK_ACTION.STATE_CHANGE, self.state_change_dt)
+    self.PersistRow(
+        constants.BLOCK_ACTION.STATE_CHANGE, timestamp=self.state_change_dt)
 
   def GetRules(self, in_effect=True):
     """Queries for all Rules associated with blockable.
@@ -389,7 +351,7 @@ class Blockable(BaseModelMixin, polymodel.PolyModel):
     if self.state in constants.VOTING_PROHIBITED_REASONS.PROHIBITED_STATES:
       return (False, self.state)
 
-    current_user = current_user or User.GetOrInsert()
+    current_user = current_user or user_models.User.GetOrInsert()
 
     if self.state in constants.STATE.SET_VOTING_ALLOWED_ADMIN_ONLY:
       if current_user.is_admin:
@@ -415,7 +377,8 @@ class Blockable(BaseModelMixin, polymodel.PolyModel):
     self.flagged = False
     self.put()
 
-    self.PersistRow(constants.BLOCK_ACTION.RESET, self.state_change_dt)
+    self.PersistRow(
+        constants.BLOCK_ACTION.RESET, timestamp=self.state_change_dt)
 
   def to_dict(self, include=None, exclude=None):  # pylint: disable=g-bad-name
     if exclude is None: exclude = []
@@ -482,7 +445,7 @@ class Package(Blockable):
     return constants.RULE_TYPE.PACKAGE
 
 
-class Host(BaseModelMixin, polymodel.PolyModel):
+class Host(mixin.Base, polymodel.PolyModel):
   """A device running client software and has interacted with Upvote.
 
   key = Device UUID reported by client.
@@ -580,7 +543,7 @@ class Host(BaseModelMixin, polymodel.PolyModel):
     return host_id.upper()
 
 
-class Vote(BaseModelMixin, ndb.Model):
+class Vote(mixin.Base, ndb.Model):
   """An individual vote on a blockable cast by a user.
 
   key = Key(Blockable, hash) -> Key(User, email) -> Key(Vote, 'InEffect')
@@ -629,10 +592,10 @@ class Vote(BaseModelMixin, ndb.Model):
 
   @property
   def user_key(self):
-    return ndb.Key(User, self.user_email.lower())
+    return ndb.Key(user_models.User, self.user_email.lower())
 
 
-class Rule(BaseModelMixin, polymodel.PolyModel):
+class Rule(mixin.Base, polymodel.PolyModel):
   """A rule generated from voting or manually inserted by an authorized user.
 
   Attributes:
@@ -657,230 +620,6 @@ class Rule(BaseModelMixin, polymodel.PolyModel):
 
   def MarkDisabled(self):
     self.in_effect = False
-
-
-def _ValidateRolloutGroup(unused_prop, value):
-  if ((value < 0 or value >= _ROLLOUT_GROUP_COUNT) and
-      value != _UNASSIGNED_ROLLOUT_GROUP):
-    raise ValueError('Invalid rollout group: %d' % value)
-
-
-class User(BaseModelMixin, ndb.Model):
-  """Represents a user in Upvote for voting purposes.
-
-  Tracks the reputation of a single user to determine how much weight their
-  votes are worth. Endorsing malware reduces a user's reputation and as a
-  result the value of their votes.
-
-  key = user email
-
-  Attributes:
-    recorded_dt: datetime, time of insertion.
-    vote_weight: int, the weight of their votes.
-    roles: string, all roles for current user, i.e. TRUSTED_USER, SECURITY, etc.
-    last_vote_dt: datetime, last time this user voted.
-    rollout_group: int, a random integer in the range [0, _ROLLOUT_GROUP_COUNT)
-        assigned at creation-time.
-  """
-  _PERMISSION_PROPERTIES = {
-      constants.SYSTEM.BIT9: 'bit9_perms',
-      constants.SYSTEM.SANTA: 'santa_perms',
-  }
-
-  recorded_dt = ndb.DateTimeProperty(auto_now_add=True)
-  vote_weight = ndb.IntegerProperty(default=1)
-  roles = ndb.StringProperty(repeated=True, choices=constants.USER_ROLE.SET_ALL)
-  last_vote_dt = ndb.DateTimeProperty(default=None)
-  rollout_group = ndb.IntegerProperty(
-      required=True, validator=_ValidateRolloutGroup,
-      default=_UNASSIGNED_ROLLOUT_GROUP)
-
-  @classmethod
-  @ndb.transactional
-  @taskqueue_utils.GroupTransactionalDefers
-  def _InnerGetOrInsert(cls, email_addr):
-    email_addr = email_addr.lower()
-    user = cls.get_by_id(email_addr)
-    if user is None:
-      initial_roles = [constants.USER_ROLE.USER]
-      user = cls(id=email_addr, roles=initial_roles)
-      user.AssignRolloutGroup()
-      user.put()
-
-      bigquery.UserRow.DeferCreate(
-          email=email_addr,
-          timestamp=datetime.datetime.utcnow(),
-          action=constants.USER_ACTION.FIRST_SEEN,
-          roles=initial_roles)
-    return user
-
-  @classmethod
-  def GetOrInsert(cls, email_addr=None, appengine_user=None):
-    """Creates a new User, or retrieves an existing one.
-
-    NOTE: Use this anywhere you would otherwise do an __init__() and put(). We
-    need to ensure that the roles Property gets initialized for new users, but
-    can't specify a default value.
-
-    Args:
-      email_addr: Optional email address string to create the User from.
-      appengine_user: Optional AppEngine User to create the User from.
-
-    Returns:
-      The User instance.
-
-    Raises:
-      UnknownUserError: The current user cannot be determined via either email
-          address or AppEngine user.
-    """
-    # Ultimately, we need an email address. If one isn't specified, fall back
-    # to the logged in AppEngine user.
-    if email_addr is None:
-      appengine_user = appengine_user or users.get_current_user()
-
-      # If we can't fall back to an AppEngine user for some reason, bail.
-      if appengine_user is None:
-        raise UnknownUserError
-
-      email_addr = appengine_user.email()
-
-    # Do a simple get to see if an User entity already exists for this
-    # user. Otherwise, incur a transaction in order to create a new one.
-    return cls.GetById(email_addr) or cls._InnerGetOrInsert(email_addr)
-
-  @classmethod
-  def GetById(cls, email_addr):
-    """Retrieves an existing User.
-
-    NOTE: Use this anywhere you would otherwise do a get_by_id(). We
-    need to ensure that the email address is properly tranlated to the internal
-    form.
-
-    Args:
-      email_addr: The email address string associated with the desired
-          User.
-
-    Returns:
-      The User instance or None.
-    """
-    return cls.get_by_id(email_addr.lower())
-
-  @classmethod
-  @ndb.transactional(xg=True)  # User and KeyValueCache
-  @taskqueue_utils.GroupTransactionalDefers
-  def SetRoles(cls, email_addr, new_roles):
-
-    user = User.GetOrInsert(email_addr)
-    old_roles = set(user.roles)
-    new_roles = set(new_roles)
-    all_roles = constants.USER_ROLE.SET_ALL
-
-    # Removing all roles would put this user into a bad state, so don't.
-    if not new_roles:
-      logging.warning('Cannot remove all roles from user %s', user.nickname)
-      return
-
-    # Verify that all the roles provided are valid.
-    invalid_roles = new_roles - all_roles
-    if invalid_roles:
-      raise InvalidUserRoleError(', '.join(invalid_roles))
-
-    # If no role changes are necessary, bail.
-    if old_roles == new_roles:
-      logging.info('No roles changes necessary for %s', user.nickname)
-      return
-
-    # Log the roles changes.
-    for role in old_roles - new_roles:
-      logging.info('Removing the %s role from %s', role, user.nickname)
-    for role in new_roles - old_roles:
-      logging.info('Adding the %s role to %s', role, user.nickname)
-
-    # Recalculate the voting weight.
-    voting_weights = settings.VOTING_WEIGHTS
-    new_vote_weight = max(voting_weights[role] for role in new_roles)
-    if user.vote_weight != new_vote_weight:
-      logging.info(
-          'Vote weight changing from %d to %d for %s', user.vote_weight,
-          new_vote_weight, user.nickname)
-
-    new_roles = sorted(list(new_roles))
-    user.roles = new_roles
-    user.vote_weight = new_vote_weight
-    user.put()
-
-    bigquery.UserRow.DeferCreate(
-        email=user.email,
-        timestamp=datetime.datetime.utcnow(),
-        action=constants.USER_ACTION.ROLE_CHANGE,
-        roles=new_roles)
-
-  @classmethod
-  @ndb.transactional(xg=True)  # User and KeyValueCache
-  def UpdateRoles(cls, email_addr, add=None, remove=None):
-    user = User.GetOrInsert(email_addr)
-    new_roles = set(user.roles).union(add or set()).difference(remove or set())
-    cls.SetRoles(email_addr, new_roles)
-
-  def _pre_put_hook(self):
-    # Ensure that the email address was properly converted to lowercase.
-    assert self.key.id().lower() == self.key.id()
-
-    self.roles = sorted(list(set(self.roles)))
-
-  def _GetAllPermissions(self):
-    permissions = set()
-    for role in self.roles:
-      role_permissions = getattr(constants.PERMISSIONS, 'SET_%s' % role, ())
-      permissions = permissions.union(role_permissions)
-    return permissions
-
-  @property
-  def permissions(self):
-    if not hasattr(self, '_permissions'):
-      self._permissions = self._GetAllPermissions()
-    return self._permissions
-
-  @property
-  def email(self):
-    return self.key.string_id()
-
-  @property
-  def nickname(self):
-    return user_map.EmailToUsername(self.key.string_id())
-
-  @property
-  def is_admin(self):
-    has_admin_role = bool(set(self.roles) & constants.USER_ROLE.SET_ADMIN_ROLES)
-    is_failsafe = self.email in settings.FAILSAFE_ADMINISTRATORS
-    return has_admin_role or is_failsafe
-
-  def HasRolloutGroup(self):
-    """Indicates if this User has a rollout_group assigned."""
-    return self.rollout_group != _UNASSIGNED_ROLLOUT_GROUP
-
-  def AssignRolloutGroup(self):
-    """Assigns a rollout_group value to this User.
-
-
-    Returns:
-      True if a rollout_group was assigned, False otherwise.
-    """
-    if not self.HasRolloutGroup():
-      self.rollout_group = random.randrange(0, _ROLLOUT_GROUP_COUNT)
-      return True
-    return False
-
-  def HasPermissionTo(self, task):
-    """Verifies the User has permission to complete a task.
-
-    Args:
-      task: str, task being gated by permissions. One of constants.PERMISSIONS.*
-
-    Returns:
-      Boolean. True if user has the requested permission.
-    """
-    return self.is_admin or task in self.permissions
 
 
 class Blacklist(ndb.Model):

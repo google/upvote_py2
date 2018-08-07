@@ -23,8 +23,8 @@ from google.appengine.api import memcache
 from google.appengine.ext import ndb
 
 from upvote.gae.datastore.models import alert
+from upvote.gae.lib.testing import basetest
 from upvote.gae.modules.upvote_app.api.handlers import alerts
-from upvote.gae.shared.common import basetest
 from upvote.gae.utils import json_utils
 from upvote.shared import constants
 

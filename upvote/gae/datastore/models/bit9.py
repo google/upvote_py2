@@ -20,9 +20,10 @@ import logging
 from google.appengine.ext import ndb
 
 from common.cloud_kms import kms_ndb
-from upvote.gae.datastore import utils
+from upvote.gae.bigquery import tables
 from upvote.gae.datastore.models import base
-from upvote.gae.datastore.models import bigquery
+from upvote.gae.datastore.models import mixin
+from upvote.gae.datastore.models import singleton
 from upvote.shared import constants
 
 _KEY_LOC = 'global'
@@ -30,7 +31,7 @@ _KEY_RING = 'ring'
 _KEY_NAME = 'bit9'
 
 
-class Bit9ApiAuth(utils.Singleton):
+class Bit9ApiAuth(singleton.Singleton):
   """The Bit9 API key.
 
   This class is intended to be a singleton as there should only be a single
@@ -39,17 +40,7 @@ class Bit9ApiAuth(utils.Singleton):
   api_key = kms_ndb.EncryptedBlobProperty(_KEY_NAME, _KEY_RING, _KEY_LOC)
 
 
-class Bit9ModelMixin(base.BaseModelMixin):
-  """Mix-in for Bit9 model common code."""
-
-  def GetPlatformName(self):
-    return constants.PLATFORM.WINDOWS
-
-  def GetClientName(self):
-    return constants.CLIENT.BIT9
-
-
-class Bit9Policy(Bit9ModelMixin, ndb.Model):
+class Bit9Policy(mixin.Bit9, ndb.Model):
   """A Host policy in Bit9.
 
   Corresponds to Bit9's "policy" object.
@@ -69,7 +60,7 @@ class Bit9Policy(Bit9ModelMixin, ndb.Model):
   updated_dt = ndb.DateTimeProperty(auto_now=True)
 
 
-class Bit9Host(Bit9ModelMixin, base.Host):
+class Bit9Host(mixin.Bit9, base.Host):
   """A Host in Bit9.
 
   Corresponds to Bit9's "computer" object.
@@ -105,7 +96,7 @@ class Bit9Host(Bit9ModelMixin, base.Host):
     return result
 
 
-class Bit9Event(Bit9ModelMixin, base.Event):
+class Bit9Event(mixin.Bit9, base.Event):
   """An event from Bit9.
 
   Attributes:
@@ -144,7 +135,7 @@ class Bit9Event(Bit9ModelMixin, base.Event):
     self.bit9_id = max(self.bit9_id, related_event.bit9_id)
 
 
-class Bit9Binary(Bit9ModelMixin, base.Binary):
+class Bit9Binary(mixin.Bit9, base.Binary):
   """A file that has been blocked by Bit9.
 
   key = hash of blockable
@@ -188,7 +179,7 @@ class Bit9Binary(Bit9ModelMixin, base.Binary):
   def PersistRow(self, action, timestamp=None):
     if timestamp is None:
       timestamp = datetime.datetime.now()
-    bigquery.BinaryRow.DeferCreate(
+    tables.BINARY.InsertRow(
         sha256=self.key.id(),
         timestamp=timestamp,
         action=action,
@@ -225,7 +216,7 @@ class Bit9Binary(Bit9ModelMixin, base.Binary):
       return installer_rule.policy == constants.RULE_POLICY.FORCE_INSTALLER
 
 
-class Bit9Certificate(Bit9ModelMixin, base.Certificate):
+class Bit9Certificate(mixin.Bit9, base.Certificate):
   """A certificate used to codesign at least one SantaBlockable.
 
   key = SHA-256 hash of certificate
@@ -242,17 +233,20 @@ class Bit9Certificate(Bit9ModelMixin, base.Certificate):
   def PersistRow(self, action, timestamp=None):
     if timestamp is None:
       timestamp = datetime.datetime.now()
-    bigquery.CertificateRow.DeferCreate(
+    tables.CERTIFICATE.InsertRow(
         fingerprint=self.key.id(),
         timestamp=timestamp,
         action=action,
         not_before=self.valid_from_dt,
         not_after=self.valid_to_dt,
         state=self.state,
-        score=self.score)
+        score=self.score,
+        common_name='Unknown',
+        organization='Unknown',
+        organizational_unit='Unknown')
 
 
-class Bit9Rule(Bit9ModelMixin, base.Rule):
+class Bit9Rule(mixin.Bit9, base.Rule):
   """A rule dictating a certain policy should be applied to a blockable.
 
   Attributes:

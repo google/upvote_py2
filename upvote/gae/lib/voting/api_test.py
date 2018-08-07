@@ -14,7 +14,6 @@
 
 """Tests for voting logic."""
 
-import httplib
 import mock
 
 from google.appengine.ext import ndb
@@ -22,14 +21,16 @@ from google.appengine.ext import ndb
 from upvote.gae.datastore import test_utils
 from upvote.gae.datastore import utils
 from upvote.gae.datastore.models import base
-from upvote.gae.datastore.models import bigquery
 from upvote.gae.datastore.models import bit9
 from upvote.gae.datastore.models import santa
+from upvote.gae.datastore.models import user as user_models
+from upvote.gae.lib.testing import basetest
 from upvote.gae.lib.voting import api
-from upvote.gae.shared.common import basetest
 from upvote.gae.shared.common import settings
-from upvote.gae.utils import intermodule_utils
 from upvote.shared import constants
+
+
+TABLE = constants.BIGQUERY_TABLE  # Done for the sake of brevity.
 
 
 def CreateEvent(blockable, host, user):
@@ -38,11 +39,47 @@ def CreateEvent(blockable, host, user):
       parent=utils.ConcatenateKeys(user.key, host.key, blockable.key))
 
 
-class VotingTest(basetest.UpvoteTestCase):
-  """Test BallotBox ResolveVote and private functions."""
+class GetBlockableTest(basetest.UpvoteTestCase):
+
+  def testFound(self):
+    sha256 = test_utils.RandomSHA256()
+    test_utils.CreateSantaBlockable(id=sha256)
+    self.assertIsNotNone(api._GetBlockable(sha256))
+
+  def testNotFound(self):
+    sha256 = test_utils.RandomSHA256()
+    test_utils.CreateSantaBlockable(id=sha256)
+    with self.assertRaises(api.BlockableNotFound):
+      api._GetBlockable('abcdef')
+
+
+class GetPlatformTest(basetest.UpvoteTestCase):
+
+  def testSupported(self):
+    blockable = test_utils.CreateSantaBlockable()
+    platform = api._GetPlatform(blockable)
+    self.assertEqual(constants.PLATFORM.MACOS, platform)
+
+  def testUnsupported(self):
+    blockable = test_utils.CreateBlockable()
+    with self.assertRaises(api.UnsupportedPlatform):
+      api._GetPlatform(blockable)
+
+
+class VoteTest(basetest.UpvoteTestCase):
+
+  def testInvalidVoteWeight(self):
+    sha256 = test_utils.RandomSHA256()
+    test_utils.CreateSantaBlockable(id=sha256)
+    with self.assertRaises(api.InvalidVoteWeight):
+      with self.LoggedInUser() as user:
+        api.Vote(user, sha256, True, -1)
+
+
+class BallotBoxTest(basetest.UpvoteTestCase):
 
   def setUp(self):
-    super(VotingTest, self).setUp()
+    super(BallotBoxTest, self).setUp()
 
     self.santa_blockable1 = test_utils.CreateSantaBlockable(
         id='aaaabbbbccccddddeeeeffffgggg')
@@ -59,63 +96,51 @@ class VotingTest(basetest.UpvoteTestCase):
 
     self.PatchEnv(settings.ProdEnv, ENABLE_BIGQUERY_STREAMING=True)
 
-  def testGetBallotBox(self):
-    ballot_box = api.GetBallotBox(self.santa_blockable1.key.id())
-    self.assertIsInstance(ballot_box, api.SantaBallotBox)
-
-    bit9_binary = test_utils.CreateBit9Binary()
-    ballot_box = api.GetBallotBox(bit9_binary.key.id())
-    self.assertIsInstance(ballot_box, api.Bit9BallotBox)
-
-  def testGetBallotBox_BadBlockable(self):
-    with self.assertRaises(api.BlockableNotFound):
-      api.GetBallotBox('doesnt_exist')
-
-  def testGetBallotBox_UnknownBlockableType(self):
-    blockable = test_utils.CreateBlockable()
-    with self.assertRaises(api.UnsupportedBlockableType):
-      api.GetBallotBox(blockable.key.id())
-
-  @mock.patch.object(intermodule_utils, 'SubmitIntermoduleRequest')
-  def testResolveVote_RowPersistence_Bit9(self, mock_intermodule):
+  def testRowPersistence_Bit9(self):
     binary = test_utils.CreateBit9Binary()
-
-    mock_intermodule.return_value.status_code = httplib.OK
+    user = test_utils.CreateUser()
+    test_utils.CreateBit9Host(users=[user.nickname])
 
     ballot_box = api.Bit9BallotBox(binary.key.id())
-    with self.LoggedInUser() as user:
-      ballot_box.ResolveVote(True, user, vote_weight=self.local_threshold)
+    with self.LoggedInUser(user=user):
+      ballot_box.Vote(True, user, vote_weight=self.local_threshold)
+
+    self.assertTaskCount(constants.TASK_QUEUE.BIT9_COMMIT_CHANGE, 1)
 
     # 1 VoteRow, 1 Binary Row for Score Change, 1 Binary Row for State Change
-    self.assertTaskCount(constants.TASK_QUEUE.BQ_PERSISTENCE, 1)
-    self.DrainTaskQueue(constants.TASK_QUEUE.BQ_PERSISTENCE)
-    self.assertTaskCount(constants.TASK_QUEUE.BQ_PERSISTENCE, 0)
-    self.assertEntityCount(bigquery.VoteRow, 1)
-    self.assertEntityCount(bigquery.BinaryRow, 2)
+    self.assertBigQueryInsertions([
+        TABLE.BINARY, TABLE.BINARY,
+        TABLE.VOTE], reset_mock=False)
 
-  def testResolveVote_RowPersistence_Santa(self):
+    # Verify the score change in BigQuery.
+    predicate = lambda c: c[1].get('action') == 'SCORE_CHANGE'
+    calls = self.GetBigQueryCalls(predicate=predicate)
+    self.assertEqual(1, len(calls))
+    self.assertEqual(self.local_threshold, calls[0][1].get('score'))
+
+  def testRowPersistence_Santa(self):
     ballot_box = api.SantaBallotBox(self.santa_blockable1.key.id())
     with self.LoggedInUser() as user:
-      ballot_box.ResolveVote(True, user, vote_weight=self.local_threshold)
+      ballot_box.Vote(True, user, vote_weight=self.local_threshold)
 
     # 1 VoteRow, 1 Binary Row for Score Change, 1 Binary Row for State Change
-    self.assertTaskCount(constants.TASK_QUEUE.BQ_PERSISTENCE, 1)
-    self.DrainTaskQueue(constants.TASK_QUEUE.BQ_PERSISTENCE)
-    self.assertTaskCount(constants.TASK_QUEUE.BQ_PERSISTENCE, 0)
-    self.assertEntityCount(bigquery.VoteRow, 1)
-    self.assertEntityCount(bigquery.BinaryRow, 2)
+    self.assertBigQueryInsertions([
+        TABLE.BINARY, TABLE.BINARY, TABLE.VOTE], reset_mock=False)
 
-  @mock.patch.object(intermodule_utils, 'SubmitIntermoduleRequest')
-  def testResolveVote_Bit9(self, mock_intermodule):
+    # Verify the score change in BigQuery.
+    predicate = lambda c: c[1].get('action') == 'SCORE_CHANGE'
+    calls = self.GetBigQueryCalls(predicate=predicate)
+    self.assertEqual(1, len(calls))
+    self.assertEqual(self.local_threshold, calls[0][1].get('score'))
+
+  def testBit9(self):
     binary = test_utils.CreateBit9Binary()
     user = test_utils.CreateUser()
     host = test_utils.CreateBit9Host(users=[user.nickname])
 
-    mock_intermodule.return_value.status_code = httplib.OK
-
     ballot_box = api.Bit9BallotBox(binary.key.id())
     with self.LoggedInUser(user=user):
-      ballot_box.ResolveVote(True, user, vote_weight=self.local_threshold)
+      ballot_box.Vote(True, user, vote_weight=self.local_threshold)
 
     self.assertEqual(self.local_threshold, binary.score)
 
@@ -132,68 +157,50 @@ class VotingTest(basetest.UpvoteTestCase):
     self.assertEqual(constants.RULE_POLICY.WHITELIST, changes[0].change_type)
     self.assertTrue(utils.KeyHasAncestor(changes[0].key, binary.key))
 
-    self.assertTrue(mock_intermodule.called)
+    self.assertTaskCount(constants.TASK_QUEUE.BIT9_COMMIT_CHANGE, 1)
 
-  @mock.patch.object(intermodule_utils, 'SubmitIntermoduleRequest')
-  def testResolveVote_Bit9_NoRules(self, mock_intermodule):
+    self.assertBigQueryInsertions([TABLE.VOTE, TABLE.BINARY, TABLE.BINARY])
+
+  def testBit9_NoRules(self):
     binary = test_utils.CreateBit9Binary()
-
-    mock_intermodule.return_value.status_code = httplib.OK
 
     ballot_box = api.Bit9BallotBox(binary.key.id())
     with self.LoggedInUser() as user:
-      ballot_box.ResolveVote(True, user, vote_weight=self.local_threshold)
+      ballot_box.Vote(True, user, vote_weight=self.local_threshold)
 
     self.assertEqual(self.local_threshold, binary.score)
     self.assertEqual(0, len(binary.GetRules()))
     self.assertEqual(0, bit9.RuleChangeSet.query().count())
 
-    self.assertFalse(mock_intermodule.called)
+    self.assertTaskCount(constants.TASK_QUEUE.BIT9_COMMIT_CHANGE, 0)
 
-  @mock.patch.object(
-      intermodule_utils,
-      'SubmitIntermoduleRequest',
-      side_effect=intermodule_utils.urlfetch.Error)
-  def testResolveVote_Bit9_IntermoduleFail(self, mock_intermodule):
-    binary = test_utils.CreateBit9Binary()
-    user = test_utils.CreateUser()
-    test_utils.CreateBit9Host(users=[user.nickname])
+    self.assertBigQueryInsertions([TABLE.VOTE, TABLE.BINARY, TABLE.BINARY])
 
-    mock_intermodule.return_value.status_code = httplib.OK
-
-    ballot_box = api.Bit9BallotBox(binary.key.id())
-    with self.LoggedInUser(user=user):
-      ballot_box.ResolveVote(True, user, vote_weight=self.local_threshold)
-
-    # Ensure voting and RuleChangeSet creation were still successful.
-    self.assertEqual(self.local_threshold, binary.score)
-    self.assertEqual(1, bit9.RuleChangeSet.query().count())
-
-    self.assertTrue(mock_intermodule.called)
-
-  def testResolveVote_Bit9_WrongBlockableType(self):
-    ballot_box = api.Bit9BallotBox(self.santa_blockable1.key.id())
-    with self.assertRaises(api.UnsupportedBlockableType):
-      with self.LoggedInUser() as user:
-        ballot_box.ResolveVote(True, user)
-
-  def testResolveVote_YesVote_FromUser(self):
+  def testYesVote_FromUser(self):
     """Normal vote on normal blockable."""
 
     ballot_box = api.SantaBallotBox(self.santa_blockable1.key.id())
     with self.LoggedInUser() as user:
-      ballot_box.ResolveVote(True, user)
+      ballot_box.Vote(True, user)
 
     blockable = self.santa_blockable1.key.get()
 
     self.assertEqual(blockable.score, 1)
 
-  def testResolveVote_NoVote_FromUser(self):
+    self.assertBigQueryInsertions([TABLE.VOTE, TABLE.BINARY], reset_mock=False)
+
+    # Verify the score change in BigQuery.
+    predicate = lambda c: c[1].get('action') == 'SCORE_CHANGE'
+    calls = self.GetBigQueryCalls(predicate=predicate)
+    self.assertEqual(1, len(calls))
+    self.assertEqual(1, calls[0][1].get('score'))
+
+  def testNoVote_FromUser(self):
     """Normal no vote on normal blockable."""
 
     ballot_box = api.SantaBallotBox(self.santa_blockable1.key.id())
     with self.LoggedInUser() as user:
-      ballot_box.ResolveVote(False, user)
+      ballot_box.Vote(False, user)
 
       blockable = self.santa_blockable1.key.get()
 
@@ -202,15 +209,23 @@ class VotingTest(basetest.UpvoteTestCase):
           'flagged': True}
       self.assertDictContainsSubset(expectations, blockable.to_dict())
 
-  def testResolve_NoVote_SantaBundle(self):
+    self.assertBigQueryInsertions([TABLE.VOTE, TABLE.BINARY], reset_mock=False)
+
+    # Verify the score change in BigQuery.
+    predicate = lambda c: c[1].get('action') == 'SCORE_CHANGE'
+    calls = self.GetBigQueryCalls(predicate=predicate)
+    self.assertEqual(1, len(calls))
+    self.assertEqual(-user.vote_weight, calls[0][1].get('score'))
+
+  def testNoVote_SantaBundle(self):
     """Restrict no vote for bundles."""
 
     ballot_box = api.SantaBallotBox(self.santa_bundle.key.id())
     with self.assertRaises(api.OperationNotAllowed):
       with self.LoggedInUser() as user:
-        ballot_box.ResolveVote(False, user)
+        ballot_box.Vote(False, user)
 
-  def testResolveVote_FromUser_WithCert(self):
+  def testFromUser_WithCert(self):
     """Normal vote on signed blockable."""
 
     cert = test_utils.CreateSantaCertificate()
@@ -220,59 +235,72 @@ class VotingTest(basetest.UpvoteTestCase):
 
     ballot_box = api.SantaBallotBox(self.santa_blockable1.key.id())
     with self.LoggedInUser(user=user):
-      ballot_box.ResolveVote(True, user)
+      ballot_box.Vote(True, user)
 
     blockable = self.santa_blockable1.key.get()
 
     self.assertEqual(user.vote_weight, blockable.score)
 
-  def testResolveVote_FromUser_VoteWeight(self):
+    self.assertBigQueryInsertions([TABLE.VOTE, TABLE.BINARY], reset_mock=False)
+
+    # Verify the score change in BigQuery.
+    predicate = lambda c: c[1].get('action') == 'SCORE_CHANGE'
+    calls = self.GetBigQueryCalls(predicate=predicate)
+    self.assertEqual(1, len(calls))
+    self.assertEqual(user.vote_weight, calls[0][1].get('score'))
+
+  def testFromUser_VoteWeight(self):
     """Normal vote on normal blockable with different vote weight."""
 
     user = test_utils.CreateUser()
-    new_weight = user.vote_weight + 1
+    new_weight = self.local_threshold + 1
     ballot_box = api.SantaBallotBox(self.santa_blockable1.key.id())
     with self.LoggedInUser(user=user):
-      ballot_box.ResolveVote(True, user, vote_weight=new_weight)
+      ballot_box.Vote(True, user, vote_weight=new_weight)
 
     blockable = self.santa_blockable1.key.get()
 
     self.assertEqual(blockable.score, new_weight)
 
-  def testResolveVote_FromUser_VoteWeight_Invalid(self):
-    """Normal vote on normal blockable with bad vote weight."""
+    self.assertBigQueryInsertions(
+        [TABLE.VOTE, TABLE.BINARY, TABLE.BINARY], reset_mock=False)
 
-    ballot_box = api.SantaBallotBox(self.santa_blockable1.key.id())
-    with self.assertRaises(ValueError):
-      with self.LoggedInUser() as user:
-        ballot_box.ResolveVote(False, user, vote_weight=-1)
+    # Verify the score change in BigQuery.
+    predicate = lambda c: c[1].get('action') == 'SCORE_CHANGE'
+    calls = self.GetBigQueryCalls(predicate=predicate)
+    self.assertEqual(1, len(calls))
+    self.assertEqual(blockable.score, calls[0][1].get('score'))
 
-  def testResolveVote_FromUser_VoteWeight_Zero(self):
+  def testFromUser_VoteWeight_Zero(self):
     """Normal vote on normal blockable with 0 vote weight."""
 
     new_weight = 0
     ballot_box = api.SantaBallotBox(self.santa_blockable1.key.id())
     with self.LoggedInUser() as user:
-      ballot_box.ResolveVote(True, user, vote_weight=new_weight)
+      ballot_box.Vote(True, user, vote_weight=new_weight)
 
     blockable = self.santa_blockable1.key.get()
 
     self.assertEqual(blockable.score, new_weight)
+    self.assertBigQueryInsertions([TABLE.VOTE])
 
-  def testResolveVote_ChangingVotes(self):
+  def testChangingVotes(self):
     """Normal vote on normal blockable."""
 
     ballot_box = api.SantaBallotBox(self.santa_blockable1.key.id())
     with self.LoggedInUser() as user:
-      ballot_box.ResolveVote(True, user)
-      ballot_box.ResolveVote(False, user)
-      ballot_box.ResolveVote(True, user)
+      ballot_box.Vote(True, user)
+      ballot_box.Vote(False, user)
+      ballot_box.Vote(True, user)
 
     blockable = self.santa_blockable1.key.get()
 
     self.assertEqual(blockable.score, 1)
 
-  def testResolveVote_FromUser_ArchivedVotes(self):
+    # SCORE_CHANGE x3
+    self.assertBigQueryInsertions([TABLE.VOTE, TABLE.BINARY] * 3)
+
+  def testFromUser_ArchivedVotes(self):
     """Normal vote on normal blockable with old votes."""
 
     user = test_utils.CreateUser()
@@ -292,13 +320,20 @@ class VotingTest(basetest.UpvoteTestCase):
     # Attempt to change in effect vote to yes.
     ballot_box = api.SantaBallotBox(self.santa_blockable1.key.id())
     with self.LoggedInUser(user=user):
-      ballot_box.ResolveVote(True, user)
+      ballot_box.Vote(True, user)
 
     blockable = self.santa_blockable1.key.get()
 
     self.assertEqual(blockable.score, 1)
+    self.assertBigQueryInsertions([TABLE.VOTE, TABLE.BINARY], reset_mock=False)
 
-  def testResolveVote_FromUser_ArchivedVote_NewVoteWeight(self):
+    # Verify the score change in BigQuery.
+    predicate = lambda c: c[1].get('action') == 'SCORE_CHANGE'
+    calls = self.GetBigQueryCalls(predicate=predicate)
+    self.assertEqual(1, len(calls))
+    self.assertEqual(blockable.score, calls[0][1].get('score'))
+
+  def testFromUser_ArchivedVote_NewVoteWeight(self):
     """Normal vote on normal blockable with old votes."""
 
     user = test_utils.CreateUser()
@@ -308,10 +343,10 @@ class VotingTest(basetest.UpvoteTestCase):
         self.santa_blockable1, user_email=user.email, was_yes_vote=False)
 
     # Attempt to change in effect vote to yes.
-    new_weight = user.vote_weight + 1
+    new_weight = self.local_threshold + 1
     ballot_box = api.SantaBallotBox(self.santa_blockable1.key.id())
     with self.LoggedInUser(user=user):
-      ballot_box.ResolveVote(True, user, vote_weight=new_weight)
+      ballot_box.Vote(True, user, vote_weight=new_weight)
 
     blockable = self.santa_blockable1.key.get()
 
@@ -326,14 +361,23 @@ class VotingTest(basetest.UpvoteTestCase):
     new_vote = next(vote for vote in votes if vote.in_effect)
     self.assertEqual(new_weight, new_vote.weight)
 
-  def testResolveVote_NonexistentBlockable(self):
+    self.assertBigQueryInsertions(
+        [TABLE.VOTE, TABLE.BINARY, TABLE.BINARY], reset_mock=False)
+
+    # Verify the score change in BigQuery.
+    predicate = lambda c: c[1].get('action') == 'SCORE_CHANGE'
+    calls = self.GetBigQueryCalls(predicate=predicate)
+    self.assertEqual(1, len(calls))
+    self.assertEqual(blockable.score, calls[0][1].get('score'))
+
+  def testNonexistentBlockable(self):
     """Voting on a blockable that doesn't exist in the datastore."""
     ballot_box = api.SantaBallotBox('bbbbllllfffftttt')
     with self.assertRaises(api.BlockableNotFound):
       with self.LoggedInUser() as user:
-        ballot_box.ResolveVote(True, user)
+        ballot_box.Vote(True, user)
 
-  def testResolveVote_YesVote_FromAdmin_FlaggedBlockable(self):
+  def testYesVote_FromAdmin_FlaggedBlockable(self):
     """Admin voting yes on flagged blockable."""
 
     user = test_utils.CreateUser()
@@ -342,11 +386,11 @@ class VotingTest(basetest.UpvoteTestCase):
     self.santa_blockable1 = test_utils.CreateSantaBlockable()
     ballot_box = api.SantaBallotBox(self.santa_blockable1.key.id())
     with self.LoggedInUser(user=user):
-      ballot_box.ResolveVote(False, user)
+      ballot_box.Vote(False, user)
     self.assertTrue(self.santa_blockable1.key.get().flagged)
 
     with self.LoggedInUser(user=admin):
-      ballot_box.ResolveVote(True, admin)
+      ballot_box.Vote(True, admin)
 
       expectations = {
           'score': -user.vote_weight + admin.vote_weight,
@@ -354,15 +398,17 @@ class VotingTest(basetest.UpvoteTestCase):
       self.assertDictContainsSubset(
           expectations, self.santa_blockable1.key.get().to_dict())
 
-  def testResolveVote_YesVote_FromUser_FlaggedBlockable_PreviousNoVote(self):
+    self.assertBigQueryInsertions([TABLE.VOTE] * 2 + [TABLE.BINARY] * 3)
+
+  def testYesVote_FromUser_FlaggedBlockable_PreviousNoVote(self):
     """A normal user changing their vote from no to yes on flagged blockable."""
 
     with self.LoggedInUser() as user:
       self.santa_blockable1 = test_utils.CreateSantaBlockable()
       ballot_box = api.SantaBallotBox(self.santa_blockable1.key.id())
-      ballot_box.ResolveVote(False, user)
+      ballot_box.Vote(False, user)
       self.assertTrue(self.santa_blockable1.key.get().flagged)
-      ballot_box.ResolveVote(True, user)
+      ballot_box.Vote(True, user)
 
       expectations = {
           'score': user.vote_weight,
@@ -370,7 +416,9 @@ class VotingTest(basetest.UpvoteTestCase):
       self.assertDictContainsSubset(
           expectations, self.santa_blockable1.key.get().to_dict())
 
-  def testResolveVote_NoVote_FromAdmin_SuspectBlockable(self):
+    self.assertBigQueryInsertions([TABLE.VOTE] * 2 + [TABLE.BINARY] * 2)
+
+  def testNoVote_FromAdmin_SuspectBlockable(self):
     """Admin votes no on suspect blockable."""
 
     suspect_blockable = test_utils.CreateSantaBlockable(
@@ -378,7 +426,7 @@ class VotingTest(basetest.UpvoteTestCase):
 
     ballot_box = api.SantaBallotBox(suspect_blockable.key.id())
     with self.LoggedInUser(admin=True) as admin:
-      ballot_box.ResolveVote(False, admin)
+      ballot_box.Vote(False, admin)
 
       expectations = {
           'score': -admin.vote_weight,
@@ -386,7 +434,16 @@ class VotingTest(basetest.UpvoteTestCase):
       self.assertDictContainsSubset(
           expectations, suspect_blockable.key.get().to_dict())
 
-  def testResolveVote_YesVote_FromAdmin_SuspectBlockable(self):
+    self.assertBigQueryInsertions(
+        [TABLE.VOTE] + [TABLE.BINARY] * 3, reset_mock=False)
+
+    # Verify the score change in BigQuery.
+    predicate = lambda c: c[1].get('action') == 'SCORE_CHANGE'
+    calls = self.GetBigQueryCalls(predicate=predicate)
+    self.assertEqual(1, len(calls))
+    self.assertEqual(-admin.vote_weight, calls[0][1].get('score'))
+
+  def testYesVote_FromAdmin_SuspectBlockable(self):
     """Admin votes yes on suspect blockable."""
 
     suspect_blockable = test_utils.CreateSantaBlockable(
@@ -394,7 +451,7 @@ class VotingTest(basetest.UpvoteTestCase):
     with self.LoggedInUser(admin=True) as admin:
 
       ballot_box = api.SantaBallotBox(suspect_blockable.key.id())
-      ballot_box.ResolveVote(True, admin)
+      ballot_box.Vote(True, admin)
 
       expectations = {
           'score': admin.vote_weight,
@@ -402,26 +459,37 @@ class VotingTest(basetest.UpvoteTestCase):
       self.assertDictContainsSubset(
           expectations, suspect_blockable.key.get().to_dict())
 
-  def testResolveVote_GlobalWhitelist(self):
+    self.assertBigQueryInsertions(
+        [TABLE.VOTE] + [TABLE.BINARY] * 2, reset_mock=False)
+
+    # Verify the score change in BigQuery.
+    predicate = lambda c: c[1].get('action') == 'SCORE_CHANGE'
+    calls = self.GetBigQueryCalls(predicate=predicate)
+    self.assertEqual(1, len(calls))
+    self.assertEqual(admin.vote_weight, calls[0][1].get('score'))
+
+  def testGlobalWhitelist(self):
     """2 admins' votes make a blockable globally whitelisted."""
 
     ballot_box = api.SantaBallotBox(self.santa_blockable1.key.id())
     ballot_box.blockable = self.santa_blockable1
 
     for admin_user in test_utils.CreateUsers(2, admin=True):
-      ballot_box.ResolveVote(True, admin_user)
+      ballot_box.Vote(True, admin_user)
 
     self.assertEqual(
         self.santa_blockable1.key.get().state,
         constants.STATE.GLOBALLY_WHITELISTED)
 
-  def testResolveVote_GlobalWhitelist_Bundle(self):
+    self.assertBigQueryInsertions([TABLE.VOTE] * 2 + [TABLE.BINARY] * 4)
+
+  def testGlobalWhitelist_Bundle(self):
     """2 admins' votes make a bundle globally whitelisted."""
 
     ballot_box = api.SantaBallotBox(self.santa_bundle.key.id())
 
     for admin_user in test_utils.CreateUsers(2, admin=True):
-      ballot_box.ResolveVote(True, admin_user)
+      ballot_box.Vote(True, admin_user)
 
     # Verify that global whitelist rule was created for the bundle.
     rules = santa.SantaRule.query(ancestor=self.santa_bundle.key).fetch()
@@ -433,24 +501,33 @@ class VotingTest(basetest.UpvoteTestCase):
         self.santa_bundle.key.get().state,
         constants.STATE.GLOBALLY_WHITELISTED)
 
-  def testResolveVote_LocalWhitelist(self):
+    self.assertBigQueryInsertions([TABLE.VOTE] * 2 + [TABLE.BUNDLE] * 4)
+
+  def testLocalWhitelist(self):
     ballot_box = api.SantaBallotBox(self.santa_blockable1.key.id())
 
-    for user in test_utils.CreateUsers(self.local_threshold):
+    users = test_utils.CreateUsers(self.local_threshold)
+    for user in users:
       test_utils.CreateSantaHost(primary_user=user.nickname)
-      ballot_box.ResolveVote(True, user)
+      ballot_box.Vote(True, user)
 
     self.assertEqual(
         self.santa_blockable1.key.get().state,
         constants.STATE.APPROVED_FOR_LOCAL_WHITELISTING)
 
-  def testResolveVote_LocalWhitelist_Bundle(self):
+    num_vote_rows = len(users)
+    num_binary_rows = self.local_threshold + 1
+    self.assertBigQueryInsertions(
+        [TABLE.VOTE] * num_vote_rows + [TABLE.BINARY] * num_binary_rows)
+
+  def testLocalWhitelist_Bundle(self):
     ballot_box = api.SantaBallotBox(self.santa_bundle.key.id())
 
+    users = test_utils.CreateUsers(self.local_threshold)
     with mock.patch.object(
         ballot_box, '_GetHostsToWhitelist', return_value={'a_host'}):
-      for user in test_utils.CreateUsers(self.local_threshold):
-        ballot_box.ResolveVote(True, user)
+      for user in users:
+        ballot_box.Vote(True, user)
 
     # Verify that local whitelist rules were created for the bundle.
     rules = santa.SantaRule.query(ancestor=self.santa_bundle.key).fetch()
@@ -466,7 +543,12 @@ class VotingTest(basetest.UpvoteTestCase):
     for blockable in self.santa_bundle_blockables:
       self.assertEqual(blockable.key.get().state, constants.STATE.UNTRUSTED)
 
-  def testResolveVote_AlreadyLocallyWhitelisted(self):
+    num_vote_rows = len(users)
+    num_bundle_rows = self.local_threshold + 1
+    self.assertBigQueryInsertions(
+        [TABLE.VOTE] * num_vote_rows + [TABLE.BUNDLE] * num_bundle_rows)
+
+  def testAlreadyLocallyWhitelisted(self):
     """Test voting when locally whitelistable, without actual state change."""
     # Simulate a Blockable which has been voted to the point where it is
     # available for local whitelisting.
@@ -504,7 +586,7 @@ class VotingTest(basetest.UpvoteTestCase):
 
     # The new voter casts a yes vote.
     ballot_box = api.SantaBallotBox(sha)
-    ballot_box.ResolveVote(True, users[-1])
+    ballot_box.Vote(True, users[-1])
 
     # Verify the Blockable, Votes, and Rules.
     blockable = base.Blockable.get_by_id(sha)
@@ -514,25 +596,35 @@ class VotingTest(basetest.UpvoteTestCase):
     self.assertEqual(len(users), len(blockable.GetVotes()))
     self.assertEqual(len(users), len(blockable.GetRules()))
 
-  def testResolveVote_ToSuspect_ByAdmin(self):
+    self.assertBigQueryInsertions([TABLE.VOTE, TABLE.BINARY])
+
+  def testToSuspect_ByAdmin(self):
     """Test changing state to untrusted."""
     blockable = test_utils.CreateSantaBlockable(
         state=constants.STATE.APPROVED_FOR_LOCAL_WHITELISTING)
 
     ballot_box = api.SantaBallotBox(blockable.key.id())
     with self.LoggedInUser(admin=True) as admin:
-      ballot_box.ResolveVote(False, admin)
+      ballot_box.Vote(False, admin)
 
-    self.assertEqual(blockable.key.get().state, constants.STATE.BANNED)
+    self.assertEqual(blockable.key.get().state, constants.STATE.SUSPECT)
 
-  def testResolveVote_GloballyWhitelist_RuleNoRules(self):
+    self.assertBigQueryInsertions(
+        [TABLE.VOTE] + [TABLE.BINARY] * 3, reset_mock=False)
+
+    # Verify the score change in BigQuery.
+    predicate = lambda c: c[1].get('action') == 'SCORE_CHANGE'
+    calls = self.GetBigQueryCalls(predicate=predicate)
+    self.assertEqual(1, len(calls))
+    self.assertEqual(-admin.vote_weight, calls[0][1].get('score'))
+
+  def testGloballyWhitelist_RuleNoRules(self):
     """Change a blockable state to Globally whitelisted."""
     self.rule1 = base.Rule(
         rule_type=constants.RULE_TYPE.BINARY,
         policy=constants.RULE_POLICY.BLACKLIST,
         in_effect=True,
-        parent=self.santa_blockable1.key,
-    )
+        parent=self.santa_blockable1.key)
 
     self.rule1.put()
 
@@ -541,8 +633,7 @@ class VotingTest(basetest.UpvoteTestCase):
         id_type=constants.ID_TYPE.SHA256,
         file_name='ginger spider 2',
         flagged=False,
-        state=constants.STATE.APPROVED_FOR_LOCAL_WHITELISTING
-    )
+        state=constants.STATE.APPROVED_FOR_LOCAL_WHITELISTING)
     blockable.put()
     test_utils.CreateVote(blockable)
     test_utils.CreateVote(blockable)
@@ -566,7 +657,7 @@ class VotingTest(basetest.UpvoteTestCase):
 
     self.assertEqual(rule.policy, constants.RULE_POLICY.WHITELIST)
 
-  def testResolveVote_LocallyWhitelist_RulesForAllVoters(self):
+  def testLocallyWhitelist_RulesForAllVoters(self):
     """Create rules for users who voted earlier."""
 
     user = test_utils.CreateUser()
@@ -580,13 +671,13 @@ class VotingTest(basetest.UpvoteTestCase):
     for other_user in other_users:
       with self.LoggedInUser(user=other_user):
         test_utils.CreateSantaHost(primary_user=other_user.nickname)
-        ballot_box.ResolveVote(True, other_user)
+        ballot_box.Vote(True, other_user)
 
     self.assertEqual(self.local_threshold - 1, len(blockable.GetVotes()))
     self.assertEqual(constants.STATE.UNTRUSTED, blockable.state)
 
     with self.LoggedInUser(user=user):
-      ballot_box.ResolveVote(True, user)
+      ballot_box.Vote(True, user)
 
     self.assertEqual(self.local_threshold, len(blockable.GetVotes()))
 
@@ -596,7 +687,12 @@ class VotingTest(basetest.UpvoteTestCase):
         set([other.key for other in other_users] + [user.key]),
         set(rule.user_key for rule in rules))
 
-  def testResolveVote_LocallyWhitelist_OnlyRulesForCurrentVoter(self):
+    num_vote_rows = len(other_users) + 1
+    num_binary_rows = self.local_threshold + 1
+    self.assertBigQueryInsertions(
+        [TABLE.VOTE] * num_vote_rows + [TABLE.BINARY] * num_binary_rows)
+
+  def testLocallyWhitelist_OnlyRulesForCurrentVoter(self):
     """Create rules for users who voted earlier."""
 
     user = test_utils.CreateUser()
@@ -610,7 +706,7 @@ class VotingTest(basetest.UpvoteTestCase):
     for other_user in other_users:
       with self.LoggedInUser(user=other_user):
         test_utils.CreateSantaHost(primary_user=other_user.nickname)
-        ballot_box.ResolveVote(True, other_user)
+        ballot_box.Vote(True, other_user)
 
     blockable = blockable.key.get()
 
@@ -620,7 +716,7 @@ class VotingTest(basetest.UpvoteTestCase):
         constants.STATE.APPROVED_FOR_LOCAL_WHITELISTING, blockable.state)
 
     with self.LoggedInUser(user=user):
-      ballot_box.ResolveVote(True, user)
+      ballot_box.Vote(True, user)
 
     self.assertEqual(self.local_threshold + 1, len(blockable.GetVotes()))
 
@@ -630,7 +726,11 @@ class VotingTest(basetest.UpvoteTestCase):
         set([other.key for other in other_users] + [user.key]),
         set(rule.user_key for rule in rules))
 
-  def testResolveVote_LocalWhitelist_OnlyCreateNewRules(self):
+    self.assertBigQueryInsertions(
+        [TABLE.VOTE] * (self.local_threshold + 1) + [
+            TABLE.BINARY] * ((self.local_threshold + 2)))
+
+  def testLocalWhitelist_OnlyCreateNewRules(self):
     """Add local rules where a couple already exist."""
     blockable = test_utils.CreateSantaBlockable()
     user = test_utils.CreateUser()
@@ -656,10 +756,10 @@ class VotingTest(basetest.UpvoteTestCase):
     ballot_box = api.SantaBallotBox(blockable.key.id())
     for other_user in other_users:
       with self.LoggedInUser(user=other_user):
-        ballot_box.ResolveVote(True, other_user)
+        ballot_box.Vote(True, other_user)
 
     with self.LoggedInUser(user=user):
-      ballot_box.ResolveVote(True, user)
+      ballot_box.Vote(True, user)
 
     # Ensure a new rule was created for the existing user's host.
     self.assertEqual(rule_query.count(), len(hosts))
@@ -674,13 +774,18 @@ class VotingTest(basetest.UpvoteTestCase):
         [host.key.id() for host in hosts],
         [rule.host_id for rule in rules])
 
-  def testResolveVote_KeyStructure(self):
+    num_vote_rows = len(other_users) + 1
+    num_binary_rows = self.local_threshold + 1
+    self.assertBigQueryInsertions(
+        [TABLE.VOTE] * num_vote_rows + [TABLE.BINARY] * num_binary_rows)
+
+  def testKeyStructure(self):
     ballot_box = api.SantaBallotBox(self.santa_blockable1.key.id())
 
     self.assertEqual(0, len(self.santa_blockable1.GetVotes()))
 
     with self.LoggedInUser() as user:
-      ballot_box.ResolveVote(True, user)
+      ballot_box.Vote(True, user)
 
       # Use Blockable.GetVotes to ensure our vote counts towards the blockable's
       # score.
@@ -690,31 +795,36 @@ class VotingTest(basetest.UpvoteTestCase):
 
       # Verify that the key is in the expected structure.
       expected_key = ndb.Key(
-          base.Blockable, self.santa_blockable1.key.id(), base.User,
-          user.email, base.Vote, base.Vote._IN_EFFECT_KEY_NAME)
+          base.Blockable, self.santa_blockable1.key.id(),
+          user_models.User, user.email, base.Vote,
+          base.Vote._IN_EFFECT_KEY_NAME)
       self.assertEqual(new_vote, expected_key.get())
 
-  def testResolveVote_DuplicateVote(self):
+    self.assertBigQueryInsertions([TABLE.VOTE, TABLE.BINARY])
+
+  def testDuplicateVote(self):
     user = test_utils.CreateUser()
 
     ballot_box = api.SantaBallotBox(self.santa_blockable1.key.id())
-    ballot_box.ResolveVote(True, user)
+    ballot_box.Vote(True, user)
 
     with self.assertRaises(api.DuplicateVoteError):
-      ballot_box.ResolveVote(True, user)
+      ballot_box.Vote(True, user)
 
-  def testResolveVote_ChangeVote(self):
+    self.assertBigQueryInsertions([TABLE.VOTE, TABLE.BINARY])
+
+  def testChangeVote(self):
     user = test_utils.CreateUser()
 
     ballot_box = api.SantaBallotBox(self.santa_blockable1.key.id())
 
     # The user upvotes the blockable.
-    ballot_box.ResolveVote(True, user)
+    ballot_box.Vote(True, user)
 
     orig_score = self.santa_blockable1.key.get().score
 
     # The user changes their vote on the blockable.
-    ballot_box.ResolveVote(False, user)
+    ballot_box.Vote(False, user)
 
     votes = base.Vote.query(ancestor=self.santa_blockable1.key).fetch()
     self.assertTrue(any(vote for vote in votes if vote.in_effect))
@@ -731,7 +841,9 @@ class VotingTest(basetest.UpvoteTestCase):
     self.assertEqual(new_score, -1 * orig_score)
     self.assertIsNotNone(new_vote.key.id())
 
-  def testResolveVote_ArchiveAllVote(self):
+    self.assertBigQueryInsertions([TABLE.VOTE, TABLE.BINARY] * 2)
+
+  def testArchiveAllVote(self):
     user = test_utils.CreateUser()
 
     ballot_box = api.SantaBallotBox(self.santa_blockable1.key.id())
@@ -739,7 +851,7 @@ class VotingTest(basetest.UpvoteTestCase):
     existing_count = base.Vote.query().count()
 
     # The user upvotes the blockable.
-    ballot_box.ResolveVote(True, user)
+    ballot_box.Vote(True, user)
 
     num_created = base.Vote.query().count() - existing_count
 
@@ -747,44 +859,38 @@ class VotingTest(basetest.UpvoteTestCase):
     self.assertEqual(1, num_created)
 
     # The user changes their vote on the blockable.
-    ballot_box.ResolveVote(False, user)
+    ballot_box.Vote(False, user)
 
     num_created = base.Vote.query().count() - existing_count
 
     # New Vote + Saved old Vote = 2 created
     self.assertEqual(2, num_created)
 
-  def testResolveVote_LookupMetric_WhenBinary(self):
+    self.assertBigQueryInsertions([TABLE.VOTE, TABLE.BINARY] * 2)
+
+  def testLookupMetric_WhenBinary(self):
     self.PatchSetting('ENABLE_BINARY_ANALYSIS_PRECACHING', True)
 
     user = test_utils.CreateUser()
 
     ballot_box = api.SantaBallotBox(self.santa_blockable1.key.id())
-    ballot_box.ResolveVote(False, user)
+    ballot_box.Vote(False, user)
 
     self.assertTaskCount(constants.TASK_QUEUE.METRICS, 1)
 
-  def testResolveVote_LookupMetric_SkipWhenBundle(self):
+    self.assertBigQueryInsertions([TABLE.VOTE, TABLE.BINARY])
+
+  def testLookupMetric_SkipWhenBundle(self):
     self.PatchSetting('ENABLE_BINARY_ANALYSIS_PRECACHING', True)
 
     user = test_utils.CreateUser()
 
     ballot_box = api.SantaBallotBox(self.santa_bundle.key.id())
-    ballot_box.ResolveVote(True, user)
+    ballot_box.Vote(True, user)
 
     self.assertTaskCount(constants.TASK_QUEUE.METRICS, 0)
 
-  def testRecountScore(self):
-    """Check that if score is out of sync it actually gets recalculated."""
-    santa_blockable = test_utils.CreateSantaBlockable()
-    santa_blockable.put()
-    user = test_utils.CreateUser()
-    test_utils.CreateVote(
-        santa_blockable, user_email=user.email, was_yes_vote=True)
-    ballot_box = api.SantaBallotBox(santa_blockable.key.id())
-    ballot_box.Recount()
-    santa_blockable = santa_blockable.key.get()
-    self.assertEqual(santa_blockable.score, 1)
+    self.assertBigQueryInsertions([TABLE.VOTE, TABLE.BUNDLE])
 
   def testFlaggedWithNegativeVote(self):
     """A blockable that is not marked as flagged, but should be."""
@@ -1187,14 +1293,41 @@ class VotingTest(basetest.UpvoteTestCase):
 
     self.assertFalse(rule.in_effect)
 
-  def testResetBlockable(self):
-    """Test resetting a blockable with some votes."""
+
+class RecountTest(basetest.UpvoteTestCase):
+
+  def testSuccess(self):
+    """Check that if score is out of sync it actually gets recalculated."""
+    santa_blockable = test_utils.CreateSantaBlockable()
+    santa_blockable.put()
+    user = test_utils.CreateUser()
+    test_utils.CreateVote(
+        santa_blockable, user_email=user.email, was_yes_vote=True)
+    api.Recount(santa_blockable.key.id())
+    santa_blockable = santa_blockable.key.get()
+    self.assertEqual(santa_blockable.score, 1)
+
+
+class ResetTest(basetest.UpvoteTestCase):
+
+  def setUp(self):
+    super(ResetTest, self).setUp()
+
+    santa_blockable_1 = test_utils.CreateSantaBlockable()
+    santa_blockable_2 = test_utils.CreateSantaBlockable()
+    santa_bundle_blockables = (santa_blockable_1, santa_blockable_2)
+    self.santa_bundle = test_utils.CreateSantaBundle(
+        bundle_binaries=santa_bundle_blockables)
+
+    self.local_threshold = settings.VOTING_THRESHOLDS[
+        constants.STATE.APPROVED_FOR_LOCAL_WHITELISTING]
+
+  def testSuccess(self):
     blockable = test_utils.CreateSantaBlockable(state=constants.STATE.SUSPECT)
     test_utils.CreateSantaRule(blockable.key)
     test_utils.CreateVotes(blockable, 11)
 
-    ballot_box = api.SantaBallotBox(blockable.key.id())
-    ballot_box.Reset()
+    api.Reset(blockable.key.id())
 
     self.assertEqual(constants.STATE.UNTRUSTED, blockable.key.get().state)
 
@@ -1210,30 +1343,25 @@ class VotingTest(basetest.UpvoteTestCase):
     self.assertEqual(retrieved_rules.count(), 2)
     self.assertEqual(retrieved_in_effect_rules.count(), 1)
 
-  def testResetBlockable_Bundles_NotAllowed(self):
-    """Test resetting a blockable with some votes."""
+    self.assertBigQueryInsertions([TABLE.BINARY])
 
-    ballot_box = api.SantaBallotBox(self.santa_bundle.key.id())
+  def testBundles_NotAllowed(self):
     with self.assertRaises(api.OperationNotAllowed):
-      ballot_box.Reset()
+      api.Reset(self.santa_bundle.key.id())
 
-  @mock.patch.object(intermodule_utils, 'SubmitIntermoduleRequest')
-  def testResetBlockable_Bit9(self, mock_intermodule):
+  def testBit9(self):
     binary = test_utils.CreateBit9Binary()
     user = test_utils.CreateUser()
     test_utils.CreateBit9Host(users=[user.nickname])
 
-    mock_intermodule.return_value.status_code = httplib.OK
-
-    ballot_box = api.Bit9BallotBox(binary.key.id())
     with self.LoggedInUser(user=user):
-      ballot_box.ResolveVote(True, user, vote_weight=self.local_threshold)
+      api.Vote(user, binary.key.id(), True, self.local_threshold)
 
     self.assertEqual(self.local_threshold, binary.score)
     self.assertEntityCount(bit9.Bit9Rule, 1)
     self.assertEntityCount(bit9.RuleChangeSet, 1)
 
-    ballot_box.Reset()
+    api.Reset(binary.key.id())
 
     self.assertEqual(0, binary.score)
 
@@ -1251,7 +1379,9 @@ class VotingTest(basetest.UpvoteTestCase):
     self.assertSameElements(
         [constants.RULE_POLICY.WHITELIST, constants.RULE_POLICY.REMOVE], types)
 
-    self.assertTrue(mock_intermodule.called)
+    self.assertTaskCount(constants.TASK_QUEUE.BIT9_COMMIT_CHANGE, 2)
+
+    self.assertBigQueryInsertions([TABLE.VOTE] + [TABLE.BINARY] * 3)
 
 
 if __name__ == '__main__':

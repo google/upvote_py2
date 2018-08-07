@@ -11,14 +11,6 @@ package_group(
 # ==============================================================================
 
 py_library(
-    name = "env",
-    srcs = ["env.py"],
-    deps = [
-        "//upvote/shared:constants",
-    ],
-)
-
-py_library(
     name = "metrics",
     srcs = ["metrics.py"],
     deps = [],

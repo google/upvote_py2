@@ -18,17 +18,18 @@ import httplib
 import logging
 
 import webapp2
+from webapp2_extras import routes
 
 from google.appengine.ext import deferred
 from google.appengine.ext import ndb
 
-from upvote.gae.datastore.models import base
+from upvote.gae.datastore import utils as datastore_utils
 from upvote.gae.datastore.models import santa
+from upvote.gae.datastore.models import user as user_models
 from upvote.gae.shared.common import groups
-from upvote.gae.shared.common import query_utils
 from upvote.gae.shared.common import settings
 from upvote.gae.shared.common import user_map
-from upvote.gae.shared.common import utils
+from upvote.gae.utils import iter_utils
 from upvote.shared import constants
 
 # This number may need tweaking.
@@ -49,7 +50,8 @@ class SyncRoles(webapp2.RequestHandler):
     for role, group_names in sorted(group_role_assignments.iteritems()):
 
       logging.info('Syncing role %s to %s', role, group_names)
-      ndb_roster = base.User.query(base.User.roles == role)
+      ndb_roster = user_models.User.query(
+          user_models.User.roles == role)
 
       # Make sure all of the groups actually exist first.
       bail = False
@@ -88,7 +90,7 @@ class SyncRoles(webapp2.RequestHandler):
       # they're supposed to, and remove the role from them if they aren't.
       for ndb_user in ndb_roster:
         if ndb_user.email not in expected_roster:
-          base.User.UpdateRoles(ndb_user.email, remove=[role])
+          user_models.User.UpdateRoles(ndb_user.email, remove=[role])
           removals += 1
         else:
           expected_roster.remove(ndb_user.email)
@@ -96,7 +98,7 @@ class SyncRoles(webapp2.RequestHandler):
       # At this point, the remaining users retrieved from the group client
       # should all be users which don't have the current role, but should.
       for user in expected_roster:
-        base.User.UpdateRoles(user, add=[role])
+        user_models.User.UpdateRoles(user, add=[role])
         additions += 1
 
       logging.info(
@@ -126,13 +128,14 @@ class ClientModeChangeHandler(webapp2.RequestHandler):
     logging.debug('Fetched %d user(s) from group %s', len(roster), group)
 
     # Generate the NDB Keys for all users in the roster.
-    user_keys = [ndb.Key(base.User, email) for email in roster if email]
+    user_keys = [
+        ndb.Key(user_models.User, email) for email in roster if email]
 
     # ndb.OR falls over if it gets an empty iterable...
     if not user_keys:
       return
 
-    for user_key_group in utils.Grouper(user_keys, BATCH_SIZE):
+    for user_key_group in iter_utils.Grouper(user_keys, BATCH_SIZE):
       user_key_group = filter(None, user_key_group)
       deferred.defer(
           _ChangeModeForHosts, mode, user_key_group, honor_lock,
@@ -202,7 +205,7 @@ class LockSpider(webapp2.RequestHandler):
     query = santa.SantaHost.query(
         santa.SantaHost.client_mode == constants.SANTA_CLIENT_MODE.MONITOR,
         santa.SantaHost.client_mode_lock == False)
-    query_utils.QueuedPaginatedBatchApply(
+    datastore_utils.QueuedPaginatedBatchApply(
         query, _SpiderBite, page_size=BATCH_SIZE,
         queue=constants.TASK_QUEUE.QUERY, keys_only=True)
 
@@ -215,3 +218,11 @@ def _SpiderBite(host_keys):
   ndb.put_multi(hosts)
   logging.debug(
       'Client mode changed to LOCKDOWN for %d host(s)', len(hosts))
+
+
+ROUTES = routes.PathPrefixRoute('/roles', [
+    webapp2.Route('/sync', handler=SyncRoles),
+    webapp2.Route('/lock-it-down', handler=LockItDown),
+    webapp2.Route('/monitor-it', handler=MonitorIt),
+    webapp2.Route('/lock-spider', handler=LockSpider),
+])

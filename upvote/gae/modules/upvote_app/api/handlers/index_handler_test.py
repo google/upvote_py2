@@ -18,8 +18,8 @@ import httplib
 import mock
 import webapp2
 
+from upvote.gae.lib.testing import basetest
 from upvote.gae.modules.upvote_app.api.handlers import index_handler
-from upvote.gae.shared.common import basetest
 from upvote.gae.shared.common import template_utils
 
 

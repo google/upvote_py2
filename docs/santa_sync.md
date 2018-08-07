@@ -61,15 +61,11 @@ Santa supports three different policy types:
 -   `BLACKLIST`: Block execution
 -   `REMOVE`: Remove any pre-existing _policy entry_ (**NOT** the file itself)
 
-...and three different Rule types:
+...and two different Rule types:
 
 -   `BINARY`: Apply the policy to a binary.
 -   `CERTIFICATE`: Apply the policy to any binary signed by the signing
     certificate.
--   `SCOPE`: Apply the policy to any file whose path matches a regex.
-
-*NOTE:* Upvote does not create or offer an interface to create Rules of type
-`SCOPE`.
 
 Rules are synced to Santa clients in order of their creation. Upvote maintains a
 rule sync cursor for each Santa host so that only Rules created since the last
@@ -77,13 +73,31 @@ host sync need to be sent down to the client. Upvote will also limit synced
 policy to Rules that are relevant to the host: All global Rules and local Rules
 for that host.
 
+#### Execution Path-based policy
+
+While not described using rules, Santa does offer execution-path-based policy
+via whitelist and blacklist regex host configuration parameters.
+
+*WARNING:* We discourage use path-based whitelisting because it introduces the
+potential to circumvent the lockdown execution protections that make Santa an
+effective endpoint security tool.
+
+That said, Upvote does offer a way to configure these parameters:
+
+-   The `SANTA_DIRECTORY_WHITELIST_REGEX` and `SANTA_DIRECTORY_BLACKLIST_REGEX`
+    settings configure the default value for all syncing hosts.
+-   Per-host overrides can be made by setting
+    `SantaHost.directory_whitelist_regex` and/or
+    `SantaHost.directory_blacklist_regex` (although there is currently no way of
+    setting these values through the UI).
+
 ### Policy Precedence
 
 While not directly related to Upvote, Santa's policy evaluation logic does have
 a great deal to do with administration strategy. In decreasing order of
-precedence: `BINARY` -> `CERTIFICATE` -> `SCOPE`. The notable significance of
-this evaluation order is that it permits easy exceptions to broad cert-based
-rules.
+precedence: `BINARY` -> `CERTIFICATE` -> `SCOPE` (i.e. path-based policy). One
+benefit of this evaluation hierarchy is that it allows Upvote users to specify
+exceptions to broad cert-based rules.
 
 For example, if a signing certificate was determined to be untrustworthy, it
 could be blacklisted but still permit a lone good binary signed by that

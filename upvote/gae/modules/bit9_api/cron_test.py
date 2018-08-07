@@ -24,14 +24,15 @@ from google.appengine.ext import ndb
 
 from absl.testing import absltest
 from upvote.gae.datastore import test_utils
-from upvote.gae.datastore.models import base as base_db
-from upvote.gae.datastore.models import bit9 as bit9_db
-from upvote.gae.modules.bit9_api import change_set
+from upvote.gae.datastore.models import base as base_models
+from upvote.gae.datastore.models import bit9 as bit9_models
+from upvote.gae.datastore.models import user as user_models
+from upvote.gae.lib.bit9 import api
+from upvote.gae.lib.bit9 import change_set
+from upvote.gae.lib.bit9 import utils as bit9_utils
+from upvote.gae.lib.testing import basetest
 from upvote.gae.modules.bit9_api import cron
 from upvote.gae.modules.bit9_api import sync
-from upvote.gae.modules.bit9_api import utils
-from upvote.gae.modules.bit9_api.api import api
-from upvote.gae.shared.common import basetest
 from upvote.gae.shared.common import user_map
 from upvote.shared import constants
 
@@ -40,7 +41,7 @@ class CronTest(basetest.UpvoteTestCase):
 
   def setUp(self, **kwargs):
     super(CronTest, self).setUp(**kwargs)
-    self.Patch(utils, 'CONTEXT')
+    self.Patch(bit9_utils, 'CONTEXT')
 
   def _PatchApiRequests(self, *results):
     requests = []
@@ -49,7 +50,7 @@ class CronTest(basetest.UpvoteTestCase):
         requests.append([obj.to_raw_dict() for obj in batch])
       else:
         requests.append(batch.to_raw_dict())
-    utils.CONTEXT.ExecuteRequest.side_effect = requests
+    bit9_utils.CONTEXT.ExecuteRequest.side_effect = requests
 
 
 class CommitAllChangeSetsTest(CronTest):
@@ -74,7 +75,7 @@ class CommitAllChangeSetsTest(CronTest):
 
     self.assertEqual(2, mock_metric.Set.call_args_list[0][0][0])
     self.assertTaskCount(constants.TASK_QUEUE.BIT9_COMMIT_CHANGE, 2)
-    with mock.patch.object(change_set, 'CommitChangeSet') as mock_commit:
+    with mock.patch.object(change_set, '_CommitChangeSet') as mock_commit:
       self.RunDeferredTasks(constants.TASK_QUEUE.BIT9_COMMIT_CHANGE)
 
       expected_calls = [mock.call(change.key), mock.call(real_change.key)]
@@ -95,7 +96,7 @@ class UpdateBit9PoliciesTest(CronTest):
         requests.append([obj.to_raw_dict() for obj in batch])
       else:
         requests.append(obj.to_raw_dict())
-    utils.CONTEXT.ExecuteRequest.side_effect = requests
+    bit9_utils.CONTEXT.ExecuteRequest.side_effect = requests
 
   def testGet_CreateNewPolicy(self):
     policy = api.Policy(id=1, name='foo', enforcement_level=20)
@@ -103,7 +104,7 @@ class UpdateBit9PoliciesTest(CronTest):
 
     self.testapp.get('/')
 
-    policies = bit9_db.Bit9Policy.query().fetch()
+    policies = bit9_models.Bit9Policy.query().fetch()
     self.assertEqual(1, len(policies))
 
     policy = policies[0]
@@ -113,13 +114,13 @@ class UpdateBit9PoliciesTest(CronTest):
         constants.BIT9_ENFORCEMENT_LEVEL.LOCKDOWN, policy.enforcement_level)
 
   def testGet_UpdateChangedPolicy(self):
-    policy_obj_1 = bit9_db.Bit9Policy(
+    policy_obj_1 = bit9_models.Bit9Policy(
         id='1', name='bar',
         enforcement_level=constants.BIT9_ENFORCEMENT_LEVEL.LOCKDOWN)
     policy_obj_1.put()
     old_policy_dt = policy_obj_1.updated_dt
 
-    policy_obj_2 = bit9_db.Bit9Policy(
+    policy_obj_2 = bit9_models.Bit9Policy(
         id='2', name='baz',
         enforcement_level=constants.BIT9_ENFORCEMENT_LEVEL.LOCKDOWN)
     policy_obj_2.put()
@@ -131,10 +132,10 @@ class UpdateBit9PoliciesTest(CronTest):
 
     self.testapp.get('/')
 
-    self.assertEqual(2, bit9_db.Bit9Policy.query().count())
+    self.assertEqual(2, bit9_models.Bit9Policy.query().count())
 
     # First policy should have has its name updated from 'bar' to 'foo'.
-    updated_policy = bit9_db.Bit9Policy.get_by_id('1')
+    updated_policy = bit9_models.Bit9Policy.get_by_id('1')
     self.assertEqual('foo', updated_policy.name)
     self.assertEqual(
         constants.BIT9_ENFORCEMENT_LEVEL.BLOCK_AND_ASK,
@@ -142,11 +143,11 @@ class UpdateBit9PoliciesTest(CronTest):
     self.assertNotEqual(old_policy_dt, updated_policy.updated_dt)
 
     # Second policy should be unchanged.
-    other_updated_policy = bit9_db.Bit9Policy.get_by_id('2')
+    other_updated_policy = bit9_models.Bit9Policy.get_by_id('2')
     self.assertEqual(old_other_policy_dt, other_updated_policy.updated_dt)
 
   def testGet_IgnoreBadEnforcementLevel(self):
-    policy_obj = bit9_db.Bit9Policy(
+    policy_obj = bit9_models.Bit9Policy(
         id='1', name='foo',
         enforcement_level=constants.BIT9_ENFORCEMENT_LEVEL.LOCKDOWN)
     policy_obj.put()
@@ -158,7 +159,7 @@ class UpdateBit9PoliciesTest(CronTest):
     self.testapp.get('/')
 
     # Policy name should _not_ be updated.
-    updated_policy = bit9_db.Bit9Policy.get_by_id('1')
+    updated_policy = bit9_models.Bit9Policy.get_by_id('1')
     self.assertEqual('foo', updated_policy.name)
 
 
@@ -170,7 +171,7 @@ class CountEventsToPullTest(CronTest):
 
   @mock.patch.object(cron.monitoring, 'events_to_pull')
   def testSuccess(self, mock_metric):
-    utils.CONTEXT.ExecuteRequest.return_value = {'count': 20}
+    bit9_utils.CONTEXT.ExecuteRequest.return_value = {'count': 20}
 
     self.testapp.get('/')
 

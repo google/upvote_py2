@@ -19,19 +19,19 @@ import logging
 import webapp2
 from webapp2_extras import routes
 
-from upvote.gae.datastore.models import base as base_db
+from upvote.gae.datastore.models import user as user_models
 from upvote.gae.modules.upvote_app.api import monitoring
 from upvote.gae.modules.upvote_app.api.handlers import base
 from upvote.gae.shared.common import handlers
 from upvote.gae.shared.common import user_map
-from upvote.gae.shared.common import xsrf_utils
+from upvote.gae.utils import xsrf_utils
 from upvote.shared import constants
 
 
 class UserQueryHandler(base.BaseQueryHandler):
   """Handler for querying users."""
 
-  MODEL_CLASS = base_db.User
+  MODEL_CLASS = user_models.User
   HAS_INTEGRAL_ID_TYPE = False
 
   @property
@@ -66,7 +66,7 @@ class UserHandler(base.BaseHandler):
 
   @base.RequireCapability(constants.PERMISSIONS.VIEW_OTHER_USERS)
   def _get_another_user(self, user_id):
-    return base_db.User.GetById(user_id)
+    return user_models.User.GetById(user_id)
 
   @base.RequireCapability(constants.PERMISSIONS.EDIT_USERS)
   @xsrf_utils.RequireToken
@@ -77,9 +77,9 @@ class UserHandler(base.BaseHandler):
     email_addr = user_map.UsernameToEmail(user_id)
 
     new_roles = self.request.get_all('roles')
-    base_db.User.SetRoles(email_addr, new_roles)
+    user_models.User.SetRoles(email_addr, new_roles)
 
-    user = base_db.User.GetOrInsert(email_addr=email_addr)
+    user = user_models.User.GetOrInsert(email_addr=email_addr)
     self.respond_json(user)
 
 

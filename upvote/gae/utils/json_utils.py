@@ -21,14 +21,22 @@ import re
 from google.appengine.ext import ndb
 
 
+DEFAULT_DATETIME_FORMAT = '%Y-%m-%dT%H:%MZ'
+EXTENDED_DATETIME_FORMAT = '%Y-%m-%dT%H:%M:%S.%fZ'
+
+
 class JSONEncoder(json.JSONEncoder):
   """JSON Encoder for returning values to clients."""
+
+  def __init__(self, datetime_format=DEFAULT_DATETIME_FORMAT, **kwargs):
+    self._datetime_format = datetime_format
+    super(JSONEncoder, self).__init__(**kwargs)
 
   def default(self, obj):
     if isinstance(obj, (set, frozenset)):
       return list(obj)
     elif isinstance(obj, datetime.datetime):
-      return str(obj.strftime('%Y-%m-%dT%H:%MZ'))
+      return str(obj.strftime(self._datetime_format))
     elif isinstance(obj, (datetime.date, datetime.time)):
       return str(obj)
     elif isinstance(obj, ndb.Key):
@@ -53,3 +61,30 @@ class JSONEncoderJavaScript(JSONEncoder):
       yield prev_part
       prev_part = part
     yield prev_part
+
+
+class JSONDecoder(json.JSONDecoder):
+
+  def __init__(self, datetime_format=DEFAULT_DATETIME_FORMAT, **kwargs):
+    defaults = {'object_hook': CreateDatetimeObjectHook(datetime_format)}
+    defaults.update(kwargs.copy())
+    super(JSONDecoder, self).__init__(**defaults)
+
+
+def CreateDatetimeObjectHook(datetime_format):
+  """Creates a JSONDecoder object hook for formatting datetime objects."""
+
+  def _DatetimeObjectHook(old_dict):
+    """JSONDecoder object hook for formatting datetime objects."""
+    new_dict = {}
+    for k, v in old_dict.iteritems():
+      if isinstance(v, (str, unicode)):
+        try:
+          new_dict[k] = datetime.datetime.strptime(v, datetime_format)
+        except ValueError:
+          new_dict[k] = v
+      else:
+        new_dict[k] = v
+    return new_dict
+
+  return _DatetimeObjectHook

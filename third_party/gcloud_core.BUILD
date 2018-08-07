@@ -10,11 +10,9 @@ py_library(
     data = glob(["*.egg-info/**"]),
     visibility = ["//visibility:public"],
     deps = [
+        "//external:gcloud_api_core",
         "//external:httplib2",
-        "//external:gapi_protos",
-        "//external:protobuf",
         "//external:gcloud_auth",
         "//external:gcloud_auth_httplib2",
-        "//external:six",
     ],
 )

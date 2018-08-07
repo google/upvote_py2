@@ -24,12 +24,23 @@ import mock
 from google.appengine.api import users
 from google.appengine.ext import ndb
 
+from upvote.gae.datastore import utils as model_utils
 from upvote.gae.datastore.models import base
 from upvote.gae.datastore.models import bit9
 from upvote.gae.datastore.models import santa
+from upvote.gae.datastore.models import user as user_models
 from upvote.gae.shared.common import settings
 from upvote.gae.shared.common import user_map
+from upvote.gae.utils import env_utils
 from upvote.shared import constants
+
+
+class Error(Exception):
+  """Module-level base Exception."""
+
+
+class NotRunningLocally(Error):
+  """Raised when calling a method that can only be used on local deployments."""
 
 
 def RandomInt(low=1000, high=9999):
@@ -304,7 +315,7 @@ def CreateVote(blockable, **kwargs):
 
   vote = base.Vote(**defaults)
   vote.key = base.Vote.GetKey(
-      blockable.key, ndb.Key(base.User, defaults['user_email']))
+      blockable.key, ndb.Key(user_models.User, defaults['user_email']))
   vote.put()
   return vote
 
@@ -414,7 +425,7 @@ def CreateUser(_, admin=False, **kwargs):
 
   # Create an User entity if one doesn't exist, and update the resulting
   # entity with any overridden properties.
-  user = base.User.GetOrInsert(email_addr=email)
+  user = user_models.User.GetOrInsert(email_addr=email)
   if kwargs:
     user.populate(**kwargs)
     user.put()
@@ -423,9 +434,9 @@ def CreateUser(_, admin=False, **kwargs):
   if admin:
     roles |= constants.USER_ROLE.SET_ADMIN_ROLES
   if roles:
-    base.User.SetRoles(email, roles)
+    user_models.User.SetRoles(email, roles)
 
-  return base.User.GetOrInsert(email_addr=email)
+  return user_models.User.GetOrInsert(email_addr=email)
 
 
 def CreateUsers(user_count, **kwargs):
@@ -587,3 +598,60 @@ def CreateBit9Policy(**kwargs):
   new_policy.put()
 
   return new_policy
+
+
+def CreateTestEntities(email_addr):
+  """Create some test Datastore data if specified, but only if running locally.
+
+  Note that this code doesn't (and shouldn't) delete any existing entities.
+  The risk of such code being accidentally triggered in prod is too great, so
+  if local entities need to be deleted, use the local Datastore viewer (e.g.
+  http://127.0.0.1:8000/datastore).
+
+  Args:
+    email_addr: Email address of the local users for whom test data should
+        be created.
+
+  Raises:
+    NotRunningLocally: if called anywhere other than a local deployment.
+  """
+  if not env_utils.RunningLocally():
+    raise NotRunningLocally
+
+  # Create a user entity with all available roles.
+  user = user_models.User.GetOrInsert(email_addr=email_addr)
+  user_models.User.SetRoles(email_addr, constants.USER_ROLE.SET_ALL)
+
+  username = user_map.EmailToUsername(email_addr)
+
+  # Create associated SantaHosts for the user.
+  santa_hosts = CreateSantaHosts(2, primary_user=username)
+
+  # For each SantaHost, create some SantaEvents.
+  for santa_host in santa_hosts:
+    for santa_blockable in CreateSantaBlockables(5):
+
+      parent_key = model_utils.ConcatenateKeys(
+          user.key, santa_host.key, santa_blockable.key)
+      CreateSantaEvent(
+          santa_blockable,
+          executing_user=username,
+          event_type=constants.EVENT_TYPE.BLOCK_BINARY,
+          host_id=santa_host.key.id(),
+          parent=parent_key)
+
+  # Create associated Bit9Hosts for the user.
+  bit9_hosts = CreateBit9Hosts(2, users=[username])
+
+  # For each Bit9Host, create some Bit9Events.
+  for bit9_host in bit9_hosts:
+    for bit9_binary in CreateBit9Binaries(5):
+
+      parent_key = model_utils.ConcatenateKeys(
+          user.key, bit9_host.key, bit9_binary.key)
+      CreateBit9Event(
+          bit9_binary,
+          executing_user=username,
+          event_type=constants.EVENT_TYPE.BLOCK_BINARY,
+          host_id=bit9_host.key.id(),
+          parent=parent_key)

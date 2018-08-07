@@ -48,7 +48,7 @@ upvote_appengine_test(
         ":api",
         "//external:mock",
         "//external:webtest",
-        "//upvote/gae/shared/common:basetest",
+        "//upvote/gae/lib/testing:basetest",
     ],
 )
 
@@ -61,7 +61,7 @@ upvote_appengine_test(
         "//external:mock",
         "//external:webtest",
         "//upvote/gae/datastore:test_utils",
-        "//upvote/gae/shared/common:basetest",
+        "//upvote/gae/lib/testing:basetest",
         "//upvote/shared:constants",
     ],
 )

@@ -15,14 +15,14 @@
 """NDB models for VirusTotal interactions."""
 
 from common.cloud_kms import kms_ndb
-from upvote.gae.datastore import utils
+from upvote.gae.datastore.models import singleton
 
 _KEY_LOC = 'global'
 _KEY_RING = 'ring'
 _KEY_NAME = 'virustotal'
 
 
-class VirusTotalApiAuth(utils.Singleton):
+class VirusTotalApiAuth(singleton.Singleton):
   """The VirusTotal API key.
 
   This class is intended to be a singleton as there should only be a single

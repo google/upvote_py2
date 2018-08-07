@@ -27,19 +27,20 @@ from google.appengine.ext import ndb
 
 from upvote.gae.datastore import test_utils
 from upvote.gae.datastore import utils
-from upvote.gae.datastore.models import base as base_db
-from upvote.gae.datastore.models import bigquery
-from upvote.gae.datastore.models import santa as santa_db
+from upvote.gae.datastore.models import santa as santa_models
+from upvote.gae.datastore.models import user as user_models
+from upvote.gae.lib.testing import basetest
 from upvote.gae.modules.santa_api import auth
 from upvote.gae.modules.santa_api import constants as santa_const
 from upvote.gae.modules.santa_api import sync
-from upvote.gae.shared.common import basetest
 from upvote.gae.shared.common import settings
 from upvote.gae.shared.common import user_map
 from upvote.shared import constants as common_const
 
 
-_SANTA_CLIENT_MODE = common_const.SANTA_CLIENT_MODE  # Done for brevity.
+# Done for the sake of brevity.
+SANTA_CLIENT_MODE = common_const.SANTA_CLIENT_MODE
+TABLE = common_const.BIGQUERY_TABLE
 
 
 class SantaApiTestCase(basetest.UpvoteTestCase):
@@ -158,7 +159,7 @@ class BaseSantaApiHandlerTest(SantaApiTestCase):
     sync.BaseSantaApiHandler.REQUIRE_HOST_OBJECT = True
     sync.BaseSantaApiHandler.SHOULD_PARSE_JSON = False
 
-    santa_db.SantaHost(key=ndb.Key('Host', 'my-uuid')).put()
+    santa_models.SantaHost(key=ndb.Key('Host', 'my-uuid')).put()
 
     self.testapp.post('/my-uuid', {})
 
@@ -190,6 +191,59 @@ class BaseSantaApiHandlerTest(SantaApiTestCase):
     self.VerifyIncrementCalls(self.mock_metric, httplib.BAD_REQUEST)
 
 
+class CopyLocalRulesTest(SantaApiTestCase):
+
+  def testCopyLocalRules(self):
+
+    blockable_count = 10
+
+    # Create a user and some corresponding SantaHosts.
+    user = test_utils.CreateUser()
+    now = datetime.datetime.utcnow()
+    host_1 = test_utils.CreateSantaHost(
+        id='1111', primary_user=user.nickname, last_postflight_dt=now)
+    host_2 = test_utils.CreateSantaHost(
+        id='2222', primary_user=user.nickname, last_postflight_dt=now)
+    host_3 = test_utils.CreateSantaHost(
+        id='3333', primary_user=user.nickname, last_postflight_dt=now)
+
+    # Create some SantaBlockables, each with a SantaRule for host_1 and host_2.
+    blockables = test_utils.CreateSantaBlockables(blockable_count)
+    for blockable in blockables:
+      test_utils.CreateSantaRule(
+          blockable.key, host_id=host_1.key.id(), user_key=user.key,
+          in_effect=True)
+      test_utils.CreateSantaRule(
+          blockable.key, host_id=host_2.key.id(), user_key=user.key,
+          in_effect=True)
+
+    # Verify all the rule counts.
+    self.assertEntityCount(santa_models.SantaRule, blockable_count * 2)
+    host_1_rules = santa_models.SantaRule.query(
+        santa_models.SantaRule.host_id == host_1.key.id()).fetch()
+    self.assertEqual(blockable_count, len(host_1_rules))
+    host_2_rules = santa_models.SantaRule.query(
+        santa_models.SantaRule.host_id == host_2.key.id()).fetch()
+    self.assertEqual(blockable_count, len(host_2_rules))
+    host_3_rules = santa_models.SantaRule.query(
+        santa_models.SantaRule.host_id == host_3.key.id()).fetch()
+    self.assertEqual(0, len(host_3_rules))
+
+    sync._CopyLocalRules(user.key, host_3.key.id()).get_result()
+
+    # Verify all the rule counts again.
+    self.assertEntityCount(santa_models.SantaRule, blockable_count * 3)
+    host_1_rules = santa_models.SantaRule.query(
+        santa_models.SantaRule.host_id == host_1.key.id()).fetch()
+    self.assertEqual(blockable_count, len(host_1_rules))
+    host_2_rules = santa_models.SantaRule.query(
+        santa_models.SantaRule.host_id == host_2.key.id()).fetch()
+    self.assertEqual(blockable_count, len(host_2_rules))
+    host_3_rules = santa_models.SantaRule.query(
+        santa_models.SantaRule.host_id == host_3.key.id()).fetch()
+    self.assertEqual(blockable_count, len(host_3_rules))
+
+
 class PreflightHandlerTest(SantaApiTestCase):
 
   def setUp(self):
@@ -208,7 +262,7 @@ class PreflightHandlerTest(SantaApiTestCase):
         santa_const.PREFLIGHT.SANTA_VERSION: '1.0.0',
         santa_const.PREFLIGHT.OS_VERSION: '10.9.3',
         santa_const.PREFLIGHT.OS_BUILD: '13D65',
-        santa_const.PREFLIGHT.CLIENT_MODE: _SANTA_CLIENT_MODE.LOCKDOWN}
+        santa_const.PREFLIGHT.CLIENT_MODE: SANTA_CLIENT_MODE.LOCKDOWN}
 
 
   def testFirstCheckin_Success(self):
@@ -218,7 +272,7 @@ class PreflightHandlerTest(SantaApiTestCase):
     other_host = test_utils.CreateSantaHost(
         primary_user='user', last_postflight_dt=datetime.datetime.utcnow())
     blockable = test_utils.CreateSantaBlockable()
-    user_key = ndb.Key(base_db.User, user_map.UsernameToEmail('user'))
+    user_key = ndb.Key(user_models.User, user_map.UsernameToEmail('user'))
     test_utils.CreateSantaRule(
         blockable.key, user_key=user_key, host_id=other_host.key.id(),
         in_effect=True)
@@ -228,31 +282,29 @@ class PreflightHandlerTest(SantaApiTestCase):
     self.assertEqual(httplib.OK, response.status_int)
     self.VerifyIncrementCalls(self.mock_metric, httplib.OK)
 
-    self.assertEntityCount(santa_db.SantaHost, 2)
-    self.assertTaskCount(common_const.TASK_QUEUE.BQ_PERSISTENCE, 2)
-    self.DrainTaskQueue(common_const.TASK_QUEUE.BQ_PERSISTENCE)
-    self.assertEntityCount(bigquery.UserRow, 1)
-    self.assertEntityCount(bigquery.HostRow, 1)
+    self.assertEntityCount(santa_models.SantaHost, 2)
+    self.assertBigQueryInsertions([TABLE.USER, TABLE.HOST])
 
     self.assertEqual(
-        _SANTA_CLIENT_MODE.LOCKDOWN,
+        SANTA_CLIENT_MODE.LOCKDOWN,
         response.json[santa_const.PREFLIGHT.CLIENT_MODE])
     self.assertEqual(42, response.json[santa_const.PREFLIGHT.BATCH_SIZE])
     self.assertTrue(response.json[santa_const.PREFLIGHT.CLEAN_SYNC])
 
-    new_host = santa_db.SantaHost.get_by_id('my-uuid')
+    new_host = santa_models.SantaHost.get_by_id('my-uuid')
     self.assertEqual('serial', new_host.serial_num)
     self.assertEqual('vogon', new_host.hostname)
+    self.assertFalse(new_host.transitive_whitelisting_enabled)
 
     # Ensure the new rule was created.
     self.assertEqual(
-        2, santa_db.SantaRule.query(ancestor=blockable.key).count())
+        2, santa_models.SantaRule.query(ancestor=blockable.key).count())
 
   def testFirstCheckin_OtherHostNotSynced(self):
 
     unsynced_host = test_utils.CreateSantaHost(primary_user='user')
     blockable = test_utils.CreateSantaBlockable()
-    user_key = ndb.Key(base_db.User, user_map.UsernameToEmail('user'))
+    user_key = ndb.Key(user_models.User, user_map.UsernameToEmail('user'))
     test_utils.CreateSantaRule(
         blockable.key, user_key=user_key, host_id=unsynced_host.key.id(),
         in_effect=True)
@@ -262,13 +314,11 @@ class PreflightHandlerTest(SantaApiTestCase):
     self.assertEqual(httplib.OK, response.status_int)
     self.VerifyIncrementCalls(self.mock_metric, httplib.OK)
 
-    self.assertEntityCount(santa_db.SantaHost, 2)
-    self.assertTaskCount(common_const.TASK_QUEUE.BQ_PERSISTENCE, 2)
-    self.DrainTaskQueue(common_const.TASK_QUEUE.BQ_PERSISTENCE)
-    self.assertEntityCount(bigquery.UserRow, 1)
-    self.assertEntityCount(bigquery.HostRow, 1)
+    self.assertEntityCount(santa_models.SantaHost, 2)
+    self.assertBigQueryInsertions([TABLE.USER, TABLE.HOST])
+
     # Ensure the existing rule wasn't copied from the unsynced host.
-    self.assertEntityCount(santa_db.SantaRule, 1)
+    self.assertEntityCount(santa_models.SantaRule, 1)
 
   def testFirstCheckin_NoPreexistingHost(self):
 
@@ -277,62 +327,54 @@ class PreflightHandlerTest(SantaApiTestCase):
     self.assertEqual(httplib.OK, response.status_int)
     self.VerifyIncrementCalls(self.mock_metric, httplib.OK)
 
-    self.assertEntityCount(santa_db.SantaHost, 1)
-    self.assertTaskCount(common_const.TASK_QUEUE.BQ_PERSISTENCE, 2)
-    self.DrainTaskQueue(common_const.TASK_QUEUE.BQ_PERSISTENCE)
-    self.assertEntityCount(bigquery.UserRow, 1)
-    self.assertEntityCount(bigquery.HostRow, 1)
+    self.assertEntityCount(santa_models.SantaHost, 1)
+    self.assertBigQueryInsertions([TABLE.USER, TABLE.HOST])
+
     # Ensure no rules were copied because none existed.
-    self.assertEntityCount(santa_db.SantaRule, 0)
+    self.assertEntityCount(santa_models.SantaRule, 0)
 
   def testFirstCheckin_SantaHostCreation(self):
 
-    self.assertEqual(0, santa_db.SantaHost.query().count())
+    self.assertEqual(0, santa_models.SantaHost.query().count())
 
     # First checkin should create the SantaHost.
     response = self.testapp.post_json('/my-uuid', self.request_json)
-    self.assertEqual(1, santa_db.SantaHost.query().count())
-    self.assertTaskCount(common_const.TASK_QUEUE.BQ_PERSISTENCE, 2)
-    self.DrainTaskQueue(common_const.TASK_QUEUE.BQ_PERSISTENCE)
-    self.assertEntityCount(bigquery.UserRow, 1)
-    self.assertEntityCount(bigquery.HostRow, 1)
+    self.assertEqual(1, santa_models.SantaHost.query().count())
+    self.assertBigQueryInsertions([TABLE.USER, TABLE.HOST])
     self.assertEqual(httplib.OK, response.status_int)
 
     # Next checkin should not.
     response = self.testapp.post_json('/my-uuid', self.request_json)
-    self.assertEqual(1, santa_db.SantaHost.query().count())
-    self.assertEntityCount(bigquery.HostRow, 1)
+    self.assertEqual(1, santa_models.SantaHost.query().count())
+    self.assertNoBigQueryInsertions()
     self.assertEqual(httplib.OK, response.status_int)
 
     self.VerifyIncrementCalls(self.mock_metric, httplib.OK, httplib.OK)
 
   def testFirstCheckin_UserCreation(self):
 
-    before_count = base_db.User.query().count()
+    before_count = user_models.User.query().count()
 
     # First checkin should create the User.
     response = self.testapp.post_json('/my-uuid', self.request_json)
-    self.assertEqual(1, base_db.User.query().count() - before_count)
-    self.assertTaskCount(common_const.TASK_QUEUE.BQ_PERSISTENCE, 2)
-    self.DrainTaskQueue(common_const.TASK_QUEUE.BQ_PERSISTENCE)
-    self.assertEntityCount(bigquery.UserRow, 1)
-    self.assertEntityCount(bigquery.HostRow, 1)
+    self.assertEqual(1, user_models.User.query().count() - before_count)
+    self.assertBigQueryInsertions([TABLE.USER, TABLE.HOST])
     self.assertEqual(httplib.OK, response.status_int)
 
     # Next checkin should not.
     response = self.testapp.post_json('/my-uuid', self.request_json)
-    self.assertEqual(1, base_db.User.query().count() - before_count)
-    self.assertTaskCount(common_const.TASK_QUEUE.BQ_PERSISTENCE, 0)
-    self.assertEntityCount(bigquery.HostRow, 1)
+    self.assertEqual(1, user_models.User.query().count() - before_count)
+    self.assertNoBigQueryInsertions()
     self.assertEqual(httplib.OK, response.status_int)
 
     self.VerifyIncrementCalls(self.mock_metric, httplib.OK, httplib.OK)
 
   def testCheckin_Success(self):
-    santa_db.SantaHost(
+    santa_models.SantaHost(
         key=ndb.Key('Host', 'my-uuid'),
         client_mode=common_const.SANTA_CLIENT_MODE.LOCKDOWN,
-        directory_whitelist_regex='^/[Bb]uild/.*').put()
+        directory_whitelist_regex='^/[Bb]uild/.*',
+        transitive_whitelisting_enabled=True).put()
 
     response = self.testapp.post_json('/my-uuid', self.request_json)
 
@@ -342,15 +384,33 @@ class PreflightHandlerTest(SantaApiTestCase):
     self.assertEqual(
         '^/[Bb]uild/.*',
         response.json[santa_const.PREFLIGHT.WHITELIST_REGEX])
+    self.assertTrue(
+        response.json[santa_const.PREFLIGHT.TRANSITIVE_WHITELISTING_ENABLED])
     self.assertEqual(httplib.OK, response.status_int)
     self.VerifyIncrementCalls(self.mock_metric, httplib.OK)
 
-    host = santa_db.SantaHost.get_by_id('my-uuid')
+    host = santa_models.SantaHost.get_by_id('my-uuid')
     self.assertEqual('serial', host.serial_num)
+
+    self.assertBigQueryInsertions([TABLE.USER])
+
+  def testCheckin_DefaultDirectoryRegex(self):
+    santa_models.SantaHost(id='my-uuid').put()
+    self.PatchSetting('SANTA_DIRECTORY_WHITELIST_REGEX', '^/[Bb]uild/.*')
+
+    response = self.testapp.post_json('/my-uuid', self.request_json)
+
+    self.assertEqual(
+        '^/[Bb]uild/.*',
+        response.json[santa_const.PREFLIGHT.WHITELIST_REGEX])
+    self.assertEqual(httplib.OK, response.status_int)
+    self.VerifyIncrementCalls(self.mock_metric, httplib.OK)
+
+    self.assertBigQueryInsertions([TABLE.USER])
 
   def testCheckin_ShouldUploadLogs(self):
 
-    santa_db.SantaHost(
+    santa_models.SantaHost(
         key=ndb.Key('Host', 'my-uuid'), should_upload_logs=True).put()
 
     response = self.testapp.post_json('/my-uuid', self.request_json)
@@ -359,8 +419,10 @@ class PreflightHandlerTest(SantaApiTestCase):
     self.assertEqual(httplib.OK, response.status_int)
     self.VerifyIncrementCalls(self.mock_metric, httplib.OK)
 
+    self.assertBigQueryInsertions([TABLE.USER])
+
   def testCheckin_RequestCleanSync(self):
-    santa_db.SantaHost(
+    santa_models.SantaHost(
         key=ndb.Key('Host', 'my-uuid'),
         rule_sync_dt=datetime.datetime.now()).put()
 
@@ -368,17 +430,19 @@ class PreflightHandlerTest(SantaApiTestCase):
 
     response = self.testapp.post_json('/my-uuid', self.request_json)
 
-    host = santa_db.SantaHost.get_by_id('my-uuid')
+    host = santa_models.SantaHost.get_by_id('my-uuid')
     self.assertIsNone(host.rule_sync_dt)
     self.assertTrue(response.json[santa_const.PREFLIGHT.CLEAN_SYNC])
     self.assertEqual(httplib.OK, response.status_int)
     self.VerifyIncrementCalls(self.mock_metric, httplib.OK)
 
+    self.assertBigQueryInsertions([TABLE.USER])
+
   def testCheckin_ModeMismatch(self):
 
-    santa_db.SantaHost(
+    santa_models.SantaHost(
         key=ndb.Key('Host', 'my-uuid'),
-        client_mode=_SANTA_CLIENT_MODE.LOCKDOWN).put()
+        client_mode=SANTA_CLIENT_MODE.LOCKDOWN).put()
     user = test_utils.CreateUser()
     request_json = {
         santa_const.PREFLIGHT.SERIAL_NUM: 'serial',
@@ -387,21 +451,18 @@ class PreflightHandlerTest(SantaApiTestCase):
         santa_const.PREFLIGHT.SANTA_VERSION: '1.0.0',
         santa_const.PREFLIGHT.OS_VERSION: '10.9.3',
         santa_const.PREFLIGHT.OS_BUILD: '13D65',
-        santa_const.PREFLIGHT.CLIENT_MODE: _SANTA_CLIENT_MODE.MONITOR
-    }
+        santa_const.PREFLIGHT.CLIENT_MODE: SANTA_CLIENT_MODE.MONITOR}
 
     response = self.testapp.post_json('/my-uuid', request_json)
 
     self.assertEqual(httplib.OK, response.status_int)
     self.VerifyIncrementCalls(self.mock_metric, httplib.OK)
-    self.assertTaskCount(common_const.TASK_QUEUE.BQ_PERSISTENCE, 1)
-    self.DrainTaskQueue(common_const.TASK_QUEUE.BQ_PERSISTENCE)
-    self.assertEntityCount(bigquery.HostRow, 1)
+    self.assertBigQueryInsertions([TABLE.HOST])
 
   def testCheckin_ClientModeUnsupported(self):
-    santa_db.SantaHost(
+    santa_models.SantaHost(
         key=ndb.Key('Host', 'my-uuid'),
-        client_mode=_SANTA_CLIENT_MODE.LOCKDOWN).put()
+        client_mode=SANTA_CLIENT_MODE.LOCKDOWN).put()
     user = test_utils.CreateUser()
     request_json = {
         santa_const.PREFLIGHT.SERIAL_NUM: 'serial',
@@ -410,23 +471,21 @@ class PreflightHandlerTest(SantaApiTestCase):
         santa_const.PREFLIGHT.SANTA_VERSION: '1.0.0',
         santa_const.PREFLIGHT.OS_VERSION: '10.9.3',
         santa_const.PREFLIGHT.OS_BUILD: '13D65',
-        santa_const.PREFLIGHT.CLIENT_MODE: 'pineapple'
-    }
+        santa_const.PREFLIGHT.CLIENT_MODE: 'pineapple'}
 
     response = self.testapp.post_json('/my-uuid', request_json)
 
     self.assertEqual(httplib.OK, response.status_int)
     self.VerifyIncrementCalls(self.mock_metric, httplib.OK)
-    self.assertTaskCount(common_const.TASK_QUEUE.BQ_PERSISTENCE, 1)
-    self.DrainTaskQueue(common_const.TASK_QUEUE.BQ_PERSISTENCE)
-    self.assertEntityCount(bigquery.HostRow, 1)
-    host_row = bigquery.HostRow.query().fetch(1)[0]
-    self.assertEqual(common_const.HOST_MODE.UNKNOWN, host_row.mode)
+
+    self.assertBigQueryInsertions([TABLE.HOST], reset_mock=False)
+    calls = self.GetBigQueryCalls()
+    self.assertEqual(common_const.HOST_MODE.UNKNOWN, calls[0][1].get('mode'))
 
   def testCheckin_ClientModeMissing(self):
-    santa_db.SantaHost(
+    santa_models.SantaHost(
         key=ndb.Key('Host', 'my-uuid'),
-        client_mode=_SANTA_CLIENT_MODE.LOCKDOWN).put()
+        client_mode=SANTA_CLIENT_MODE.LOCKDOWN).put()
     user = test_utils.CreateUser()
     request_json = {
         santa_const.PREFLIGHT.SERIAL_NUM: 'serial',
@@ -434,18 +493,15 @@ class PreflightHandlerTest(SantaApiTestCase):
         santa_const.PREFLIGHT.PRIMARY_USER: user.nickname,
         santa_const.PREFLIGHT.SANTA_VERSION: '1.0.0',
         santa_const.PREFLIGHT.OS_VERSION: '10.9.3',
-        santa_const.PREFLIGHT.OS_BUILD: '13D65'
-    }
+        santa_const.PREFLIGHT.OS_BUILD: '13D65'}
 
     response = self.testapp.post_json('/my-uuid', request_json)
 
     self.assertEqual(httplib.OK, response.status_int)
     self.VerifyIncrementCalls(self.mock_metric, httplib.OK)
-    self.assertTaskCount(common_const.TASK_QUEUE.BQ_PERSISTENCE, 1)
-    self.DrainTaskQueue(common_const.TASK_QUEUE.BQ_PERSISTENCE)
-    self.assertEntityCount(bigquery.HostRow, 1)
-    host_row = bigquery.HostRow.query().fetch(1)[0]
-    self.assertEqual(common_const.HOST_MODE.UNKNOWN, host_row.mode)
+    self.assertBigQueryInsertions([TABLE.HOST], reset_mock=False)
+    calls = self.GetBigQueryCalls()
+    self.assertEqual(common_const.HOST_MODE.UNKNOWN, calls[0][1].get('mode'))
 
 
 
@@ -462,7 +518,7 @@ class EventUploadHandlerTest(SantaApiTestCase):
 
     now = datetime.datetime.utcnow()
     before = now - datetime.timedelta(seconds=10)
-    self.host = santa_db.SantaHost(
+    self.host = santa_models.SantaHost(
         id='my-uuid',
         primary_user='user',
         last_preflight_dt=before,
@@ -541,9 +597,9 @@ class EventUploadHandlerTest(SantaApiTestCase):
     response = self.testapp.post_json('/my-uuid', request_json)
     self.assertEqual(httplib.OK, response.status_int)
 
-    self.assertEqual(0, len(santa_db.SantaEvent.query().fetch()))
+    self.assertEqual(0, len(santa_models.SantaEvent.query().fetch()))
 
-    self.assertTaskCount(common_const.TASK_QUEUE.BQ_PERSISTENCE, 0)
+    self.assertNoBigQueryInsertions()
 
   def testSingleEvent_ExistingBinary_NoCertificate(self):
     event = self._CreateEvent('the-sha256')
@@ -560,10 +616,7 @@ class EventUploadHandlerTest(SantaApiTestCase):
     self.assertEqual(httplib.OK, response.status_int)
     self.VerifyIncrementCalls(self.mock_metric, httplib.OK, httplib.OK)
 
-    self.assertTaskCount(common_const.TASK_QUEUE.BQ_PERSISTENCE, 3)
-    self.DrainTaskQueue(common_const.TASK_QUEUE.BQ_PERSISTENCE)
-    self.assertEntityCount(bigquery.BinaryRow, 1)
-    self.assertEntityCount(bigquery.ExecutionRow, 2)
+    self.assertBigQueryInsertions([TABLE.BINARY] + [TABLE.EXECUTION] * 2)
 
   def testSingleEvent_NewBinary_NoCertificate(self):
     event = self._CreateEvent('the-sha256')
@@ -573,12 +626,12 @@ class EventUploadHandlerTest(SantaApiTestCase):
         ['the-sha256'],
         response.json[santa_const.EVENT_UPLOAD.REQUEST_UPLOADS])
 
-    self.assertEqual(1, santa_db.SantaEvent.query().count())
+    self.assertEqual(1, santa_models.SantaEvent.query().count())
 
-    parent = ndb.Key(base_db.User, user_map.UsernameToEmail('user'),
-                     santa_db.SantaHost, 'my-uuid',
-                     santa_db.SantaBlockable, 'the-sha256')
-    event = santa_db.SantaEvent.query(ancestor=parent).get()
+    parent = ndb.Key(user_models.User, user_map.UsernameToEmail('user'),
+                     santa_models.SantaHost, 'my-uuid',
+                     santa_models.SantaBlockable, 'the-sha256')
+    event = santa_models.SantaEvent.query(ancestor=parent).get()
     self.assertEqual('my-uuid', event.host_id)
     self.assertEqual('fname', event.file_name)
     self.assertEqual('user', event.executing_user)
@@ -587,10 +640,7 @@ class EventUploadHandlerTest(SantaApiTestCase):
     self.assertEqual(httplib.OK, response.status_int)
     self.VerifyIncrementCalls(self.mock_metric, httplib.OK)
 
-    self.assertTaskCount(common_const.TASK_QUEUE.BQ_PERSISTENCE, 2)
-    self.DrainTaskQueue(common_const.TASK_QUEUE.BQ_PERSISTENCE)
-    self.assertEntityCount(bigquery.BinaryRow, 1)
-    self.assertEntityCount(bigquery.ExecutionRow, 1)
+    self.assertBigQueryInsertions([TABLE.BINARY, TABLE.EXECUTION])
 
   def testSingleEvent_NewBinary_NewCertificate(self):
     event = self._CreateEvent('the-sha256')
@@ -604,18 +654,18 @@ class EventUploadHandlerTest(SantaApiTestCase):
         ['the-sha256'],
         response.json[santa_const.EVENT_UPLOAD.REQUEST_UPLOADS])
 
-    self.assertEqual(1, santa_db.SantaEvent.query().count())
+    self.assertEqual(1, santa_models.SantaEvent.query().count())
 
-    parent = ndb.Key(base_db.User, user_map.UsernameToEmail('user'),
-                     santa_db.SantaHost, 'my-uuid',
-                     santa_db.SantaBlockable, 'the-sha256')
-    event = santa_db.SantaEvent.query(ancestor=parent).get()
+    parent = ndb.Key(user_models.User, user_map.UsernameToEmail('user'),
+                     santa_models.SantaHost, 'my-uuid',
+                     santa_models.SantaBlockable, 'the-sha256')
+    event = santa_models.SantaEvent.query(ancestor=parent).get()
     self.assertEqual('my-uuid', event.host_id)
     self.assertEqual('fname', event.file_name)
     self.assertEqual('user', event.executing_user)
 
-    self.assertEntityCount(santa_db.SantaCertificate, 3)
-    cert = santa_db.SantaCertificate.get_by_id('cert-sha256')
+    self.assertEntityCount(santa_models.SantaCertificate, 3)
+    cert = santa_models.SantaCertificate.get_by_id('cert-sha256')
     self.assertIsNotNone(cert)
     self.assertEqual('Acme Evil App 1.0', cert.common_name)
     self.assertEqual('Acme Corp.', cert.organization)
@@ -623,11 +673,8 @@ class EventUploadHandlerTest(SantaApiTestCase):
     self.assertEqual(httplib.OK, response.status_int)
     self.VerifyIncrementCalls(self.mock_metric, httplib.OK)
 
-    self.assertTaskCount(common_const.TASK_QUEUE.BQ_PERSISTENCE, 5)
-    self.DrainTaskQueue(common_const.TASK_QUEUE.BQ_PERSISTENCE)
-    self.assertEntityCount(bigquery.BinaryRow, 1)
-    self.assertEntityCount(bigquery.CertificateRow, 3)
-    self.assertEntityCount(bigquery.ExecutionRow, 1)
+    self.assertBigQueryInsertions(
+        [TABLE.BINARY, TABLE.EXECUTION] + [TABLE.CERTIFICATE] * 3)
 
   def testSingleEvent_NewBinary_ExistingCertificate(self):
     event = self._CreateEvent('the-sha256')
@@ -637,7 +684,7 @@ class EventUploadHandlerTest(SantaApiTestCase):
     request_json = {santa_const.EVENT_UPLOAD.EVENTS: [event]}
     response = self.testapp.post_json('/my-uuid', request_json)
 
-    cert = santa_db.SantaCertificate.get_by_id('cert-sha256')
+    cert = santa_models.SantaCertificate.get_by_id('cert-sha256')
     self.assertIsNotNone(cert)
     created = cert.recorded_dt
     self.assertEqual('Acme Corp.', cert.organization)
@@ -646,16 +693,13 @@ class EventUploadHandlerTest(SantaApiTestCase):
     # Upload the same Event again and ensure the Cert wasn't re-created.
     response = self.testapp.post_json('/my-uuid', request_json)
 
-    cert = santa_db.SantaCertificate.get_by_id('cert-sha256')
+    cert = santa_models.SantaCertificate.get_by_id('cert-sha256')
     self.assertIsNotNone(cert)
     self.assertEqual(created, cert.recorded_dt)
     self.assertEqual(httplib.OK, response.status_int)
 
-    self.assertTaskCount(common_const.TASK_QUEUE.BQ_PERSISTENCE, 6)
-    self.DrainTaskQueue(common_const.TASK_QUEUE.BQ_PERSISTENCE)
-    self.assertEntityCount(bigquery.BinaryRow, 1)
-    self.assertEntityCount(bigquery.CertificateRow, 3)
-    self.assertEntityCount(bigquery.ExecutionRow, 2)
+    self.assertBigQueryInsertions(
+        [TABLE.BINARY] + [TABLE.EXECUTION] * 2 + [TABLE.CERTIFICATE] * 3)
 
   def testSingleEvent_NewBinary_BundlePath(self):
     blockable = test_utils.CreateSantaBlockable()
@@ -672,15 +716,13 @@ class EventUploadHandlerTest(SantaApiTestCase):
     request_json = {santa_const.EVENT_UPLOAD.EVENTS: [event]}
     self.testapp.post_json('/my-uuid', request_json)
 
-    self.assertEqual(1, santa_db.SantaBundleBinary.query().count())
+    self.assertEqual(1, santa_models.SantaBundleBinary.query().count())
 
-    member = santa_db.SantaBundleBinary.query().get()
+    member = santa_models.SantaBundleBinary.query().get()
     self.assertEqual('Contents/MacOS/bar', member.rel_path)
     self.assertEqual('Contents/MacOS/bar/baz', member.full_path)
 
-    self.assertTaskCount(common_const.TASK_QUEUE.BQ_PERSISTENCE, 1)
-    self.DrainTaskQueue(common_const.TASK_QUEUE.BQ_PERSISTENCE)
-    self.assertEntityCount(bigquery.BundleBinaryRow, 1)
+    self.assertBigQueryInsertions([TABLE.BUNDLE_BINARY])
 
   def testSingleEvent_NewBinary_BadBundlePath(self):
     blockable = test_utils.CreateSantaBlockable()
@@ -697,10 +739,10 @@ class EventUploadHandlerTest(SantaApiTestCase):
     self.testapp.post_json('/my-uuid', request_json)
 
     # Bundle binary should have been skipped.
-    self.assertEqual(0, santa_db.SantaBundleBinary.query().count())
+    self.assertEqual(0, santa_models.SantaBundleBinary.query().count())
 
     # No Tasks should be triggered.
-    self.assertTaskCount(common_const.TASK_QUEUE.BQ_PERSISTENCE, 0)
+    self.assertNoBigQueryInsertions()
 
   def testSingleEvent_NewBinary_NoBundleHash(self):
     blockable = test_utils.CreateSantaBlockable()
@@ -713,10 +755,10 @@ class EventUploadHandlerTest(SantaApiTestCase):
     request_json = {santa_const.EVENT_UPLOAD.EVENTS: [event]}
     self.testapp.post_json('/my-uuid', request_json)
 
-    self.assertEqual(0, santa_db.SantaBundleBinary.query().count())
+    self.assertEqual(0, santa_models.SantaBundleBinary.query().count())
 
     # No Tasks should be triggered.
-    self.assertTaskCount(common_const.TASK_QUEUE.BQ_PERSISTENCE, 0)
+    self.assertNoBigQueryInsertions()
 
   def testSingleEvent_NewBinary_WithCert(self):
     blockable = test_utils.CreateSantaBlockable()
@@ -732,20 +774,18 @@ class EventUploadHandlerTest(SantaApiTestCase):
     request_json = {santa_const.EVENT_UPLOAD.EVENTS: [event]}
     self.testapp.post_json('/my-uuid', request_json)
 
-    self.assertEntityCount(santa_db.SantaCertificate, 3)
-    self.assertEntityCount(santa_db.SantaBundleBinary, 1)
+    self.assertEntityCount(santa_models.SantaCertificate, 3)
+    self.assertEntityCount(santa_models.SantaBundleBinary, 1)
 
     self.assertFalse(bundle.key.get().has_unsigned_contents)
 
-    bundle_binary = santa_db.SantaBundleBinary.query().get()
+    bundle_binary = santa_models.SantaBundleBinary.query().get()
     self.assertEqual('Contents/MacOS', bundle_binary.rel_path)
     self.assertEqual('Contents/MacOS/foo', bundle_binary.full_path)
     self.assertEqual('cert-sha256', bundle_binary.cert_key.id())
 
-    self.assertTaskCount(common_const.TASK_QUEUE.BQ_PERSISTENCE, 4)
-    self.DrainTaskQueue(common_const.TASK_QUEUE.BQ_PERSISTENCE)
-    self.assertEntityCount(bigquery.CertificateRow, 3)
-    self.assertEntityCount(bigquery.BundleBinaryRow, 1)
+    self.assertBigQueryInsertions(
+        [TABLE.BUNDLE_BINARY] + [TABLE.CERTIFICATE] * 3)
 
   def testSingleEvent_NewBinary_NewBundle(self):
     event = self._CreateEvent('the-sha256')
@@ -760,28 +800,29 @@ class EventUploadHandlerTest(SantaApiTestCase):
     response = self.testapp.post_json('/my-uuid', request_json)
     output = response.json  # pylint: disable=unused-variable
 
-    self.assertEqual(1, santa_db.SantaEvent.query().count())
+    self.assertEqual(1, santa_models.SantaEvent.query().count())
 
     # Validate the created event.
-    parent = ndb.Key(base_db.User, user_map.UsernameToEmail('user'),
-                     santa_db.SantaHost, 'my-uuid',
-                     santa_db.SantaBlockable, 'the-sha256')
-    event = santa_db.SantaEvent.query(ancestor=parent).get()
+    parent = ndb.Key(user_models.User, user_map.UsernameToEmail('user'),
+                     santa_models.SantaHost, 'my-uuid',
+                     santa_models.SantaBlockable, 'the-sha256')
+    event = santa_models.SantaEvent.query(ancestor=parent).get()
     self.assertEqual('my-uuid', event.host_id)
     self.assertEqual('foo', event.bundle_key.id())
     self.assertEqual(
-        ndb.Key(santa_db.SantaBlockable, 'the-sha256'), event.blockable_key)
+        ndb.Key(santa_models.SantaBlockable, 'the-sha256'), event.blockable_key)
     # Bundle SHOULD have been created.
     self.assertIsNotNone(event.bundle_key.get())
     # Binary SHOULD have been created.
     self.assertIsNotNone(event.blockable_key.get())
     # SantaBundleBinary SHOULD NOT have been created.
     member_key = ndb.Key(
-        santa_db.SantaBundle, 'foo', santa_db.SantaBundleBinary, 'the-sha256')
+        santa_models.SantaBundle, 'foo', santa_models.SantaBundleBinary,
+        'the-sha256')
     self.assertIsNone(member_key.get())
 
     # Validate the created bundle.
-    self.assertEqual(ndb.Key(santa_db.SantaBundle, 'foo'), event.bundle_key)
+    self.assertEqual(ndb.Key(santa_models.SantaBundle, 'foo'), event.bundle_key)
     bundle = event.bundle_key.get()
     self.assertEqual('foo', bundle.bundle_id)
     self.assertEqual('bar', bundle.version)
@@ -793,11 +834,7 @@ class EventUploadHandlerTest(SantaApiTestCase):
         ['foo'],
         output[santa_const.EVENT_UPLOAD.EVENT_UPLOAD_BUNDLE_BINARIES])
 
-    self.assertTaskCount(common_const.TASK_QUEUE.BQ_PERSISTENCE, 3)
-    self.DrainTaskQueue(common_const.TASK_QUEUE.BQ_PERSISTENCE)
-    self.assertEntityCount(bigquery.BinaryRow, 1)
-    self.assertEntityCount(bigquery.BundleRow, 1)
-    self.assertEntityCount(bigquery.ExecutionRow, 1)
+    self.assertBigQueryInsertions([TABLE.BINARY, TABLE.BUNDLE, TABLE.EXECUTION])
 
   def testSingleEvent_ExistingBinary_ExistingBundle(self):
     blockable = test_utils.CreateSantaBlockable()
@@ -810,8 +847,8 @@ class EventUploadHandlerTest(SantaApiTestCase):
     response = self.testapp.post_json('/my-uuid', request_json)
     output = response.json  # pylint: disable=unused-variable
 
-    self.assertEntityCount(santa_db.SantaEvent, 0)
-    self.assertEntityCount(santa_db.SantaBundleBinary, 1)
+    self.assertEntityCount(santa_models.SantaEvent, 0)
+    self.assertEntityCount(santa_models.SantaBundleBinary, 1)
 
     # Ensure the bundle hasn't been marked as uploaded.
     bundle = bundle.key.get()
@@ -824,9 +861,7 @@ class EventUploadHandlerTest(SantaApiTestCase):
         [bundle.key.id()],
         output[santa_const.EVENT_UPLOAD.EVENT_UPLOAD_BUNDLE_BINARIES])
 
-    self.assertTaskCount(common_const.TASK_QUEUE.BQ_PERSISTENCE, 1)
-    self.DrainTaskQueue(common_const.TASK_QUEUE.BQ_PERSISTENCE)
-    self.assertEntityCount(bigquery.BundleBinaryRow, 1)
+    self.assertBigQueryInsertions([TABLE.BUNDLE_BINARY])
 
   def testSingleEvent_NewBinary_ExistingUploadedBundle(self):
     # Create a bundle with a single binary and mark it uploaded.
@@ -840,12 +875,11 @@ class EventUploadHandlerTest(SantaApiTestCase):
     self.testapp.post_json('/my-uuid', request_json)
 
     # Ensure the new blockable doesn't get added to the bundle.
-    self.assertEntityCount(santa_db.SantaEvent, 0)
-    self.assertEntityCount(santa_db.SantaBundleBinary, 1, ancestor=bundle.key)
+    self.assertEntityCount(santa_models.SantaEvent, 0)
+    self.assertEntityCount(
+        santa_models.SantaBundleBinary, 1, ancestor=bundle.key)
 
-    self.assertTaskCount(common_const.TASK_QUEUE.BQ_PERSISTENCE, 1)
-    self.DrainTaskQueue(common_const.TASK_QUEUE.BQ_PERSISTENCE)
-    self.assertEntityCount(bigquery.BinaryRow, 1)
+    self.assertBigQueryInsertions([TABLE.BINARY])
 
   def testMultipleEvents_ExistingBlockable(self):
     event1 = self._CreateEvent('the-sha256')
@@ -863,7 +897,7 @@ class EventUploadHandlerTest(SantaApiTestCase):
         ['the-sha256'],
         response.json[santa_const.EVENT_UPLOAD.REQUEST_UPLOADS])
 
-    self.assertEqual(1, santa_db.SantaEvent.query().count())
+    self.assertEqual(1, santa_models.SantaEvent.query().count())
 
     # Request the second event.
     request_json = {santa_const.EVENT_UPLOAD.EVENTS: [event2]}
@@ -873,10 +907,10 @@ class EventUploadHandlerTest(SantaApiTestCase):
         response.json[santa_const.EVENT_UPLOAD.REQUEST_UPLOADS])
 
     # We expect 1 extra old-style Event.
-    self.assertEqual(1, santa_db.SantaEvent.query().count())
+    self.assertEqual(1, santa_models.SantaEvent.query().count())
 
     # Simulate an upload of a the binary
-    santa_db.SantaBinaryFile(
+    santa_models.SantaBinaryFile(
         id='the-sha256', shasum='the-sha256').put()
 
     # Request the final event.
@@ -885,19 +919,16 @@ class EventUploadHandlerTest(SantaApiTestCase):
     self.assertFalse(response.json)
     self.assertEqual(httplib.OK, response.status_int)
 
-    self.assertEqual(1, santa_db.SantaEvent.query().count())
+    self.assertEqual(1, santa_models.SantaEvent.query().count())
 
-    parent = ndb.Key(base_db.User, user_map.UsernameToEmail('user'),
-                     santa_db.SantaHost, 'my-uuid',
-                     santa_db.SantaBlockable, 'the-sha256')
-    event = santa_db.SantaEvent.query(ancestor=parent).get()
+    parent = ndb.Key(user_models.User, user_map.UsernameToEmail('user'),
+                     santa_models.SantaHost, 'my-uuid',
+                     santa_models.SantaBlockable, 'the-sha256')
+    event = santa_models.SantaEvent.query(ancestor=parent).get()
     expected_time = datetime.datetime.utcfromtimestamp(latest_timestamp)
     self.assertEqual(expected_time, event.last_blocked_dt)
 
-    self.assertTaskCount(common_const.TASK_QUEUE.BQ_PERSISTENCE, 4)
-    self.DrainTaskQueue(common_const.TASK_QUEUE.BQ_PERSISTENCE)
-    self.assertEntityCount(bigquery.BinaryRow, 1)
-    self.assertEntityCount(bigquery.ExecutionRow, 3)
+    self.assertBigQueryInsertions([TABLE.BINARY] + [TABLE.EXECUTION] * 3)
 
   def testMultipleEvents_DifferentUserTxns(self):
     self.PatchSetting(
@@ -922,10 +953,7 @@ class EventUploadHandlerTest(SantaApiTestCase):
       # 1 from creating Certificate entities + 2 from events
       self.assertEqual(3, put_multi_mock.call_count)
 
-    self.assertTaskCount(common_const.TASK_QUEUE.BQ_PERSISTENCE, 3)
-    self.DrainTaskQueue(common_const.TASK_QUEUE.BQ_PERSISTENCE)
-    self.assertEntityCount(bigquery.BinaryRow, 1)
-    self.assertEntityCount(bigquery.ExecutionRow, 2)
+    self.assertBigQueryInsertions([TABLE.BINARY] + [TABLE.EXECUTION] * 2)
 
   def testMultipleEvents_UpdateSequential(self):
     self.PatchSetting(
@@ -944,23 +972,20 @@ class EventUploadHandlerTest(SantaApiTestCase):
     request_json = {santa_const.EVENT_UPLOAD.EVENTS: [event3, event4]}
     self.testapp.post_json('/my-uuid', request_json)
 
-    self.assertEqual(2, santa_db.SantaEvent.query().count())
+    self.assertEqual(2, santa_models.SantaEvent.query().count())
 
-    parent = ndb.Key(base_db.User, user_map.UsernameToEmail('user'),
-                     santa_db.SantaHost, 'my-uuid',
-                     santa_db.SantaBlockable, 'the-sha256')
-    event = santa_db.SantaEvent.query(ancestor=parent).get()
+    parent = ndb.Key(user_models.User, user_map.UsernameToEmail('user'),
+                     santa_models.SantaHost, 'my-uuid',
+                     santa_models.SantaBlockable, 'the-sha256')
+    event = santa_models.SantaEvent.query(ancestor=parent).get()
     self.assertEqual(2, event.count)
-    parent = ndb.Key(base_db.User, user_map.UsernameToEmail('other'),
-                     santa_db.SantaHost, 'my-uuid',
-                     santa_db.SantaBlockable, 'the-sha256')
-    event = santa_db.SantaEvent.query(ancestor=parent).get()
+    parent = ndb.Key(user_models.User, user_map.UsernameToEmail('other'),
+                     santa_models.SantaHost, 'my-uuid',
+                     santa_models.SantaBlockable, 'the-sha256')
+    event = santa_models.SantaEvent.query(ancestor=parent).get()
     self.assertEqual(2, event.count)
 
-    self.assertTaskCount(common_const.TASK_QUEUE.BQ_PERSISTENCE, 5)
-    self.DrainTaskQueue(common_const.TASK_QUEUE.BQ_PERSISTENCE)
-    self.assertEntityCount(bigquery.BinaryRow, 1)
-    self.assertEntityCount(bigquery.ExecutionRow, 4)
+    self.assertBigQueryInsertions([TABLE.BINARY] + [TABLE.EXECUTION] * 4)
 
   def testMultipleEvents_Dedupe(self):
     event1 = self._CreateEvent('the-sha256')
@@ -973,12 +998,12 @@ class EventUploadHandlerTest(SantaApiTestCase):
         ['the-sha256'],
         response.json[santa_const.EVENT_UPLOAD.REQUEST_UPLOADS])
 
-    self.assertEqual(1, santa_db.SantaEvent.query().count())
+    self.assertEqual(1, santa_models.SantaEvent.query().count())
 
-    parent = ndb.Key(base_db.User, user_map.UsernameToEmail('user'),
-                     santa_db.SantaHost, 'my-uuid',
-                     santa_db.SantaBlockable, 'the-sha256')
-    event = santa_db.SantaEvent.query(ancestor=parent).get()
+    parent = ndb.Key(user_models.User, user_map.UsernameToEmail('user'),
+                     santa_models.SantaHost, 'my-uuid',
+                     santa_models.SantaBlockable, 'the-sha256')
+    event = santa_models.SantaEvent.query(ancestor=parent).get()
     self.assertEqual('my-uuid', event.host_id)
     self.assertEqual('fname', event.file_name)
     self.assertEqual('user', event.executing_user)
@@ -987,20 +1012,17 @@ class EventUploadHandlerTest(SantaApiTestCase):
     self.assertEqual(httplib.OK, response.status_int)
     self.VerifyIncrementCalls(self.mock_metric, httplib.OK)
 
-    self.assertTaskCount(common_const.TASK_QUEUE.BQ_PERSISTENCE, 3)
-    self.DrainTaskQueue(common_const.TASK_QUEUE.BQ_PERSISTENCE)
-    self.assertEntityCount(bigquery.BinaryRow, 1)
-    self.assertEntityCount(bigquery.ExecutionRow, 2)
+    self.assertBigQueryInsertions([TABLE.BINARY] + [TABLE.EXECUTION] * 2)
 
   def testMultipleEvents_RetriedTxn(self):
     user = test_utils.CreateUser()
     blockable = test_utils.CreateSantaBlockable()
     host = test_utils.CreateSantaHost()
 
-    event_key = ndb.Key(base_db.User, user.key.id(),
-                        santa_db.SantaHost, host.key.id(),
-                        santa_db.SantaBlockable, blockable.key.id(),
-                        santa_db.SantaEvent, '1')
+    event_key = ndb.Key(user_models.User, user.key.id(),
+                        santa_models.SantaHost, host.key.id(),
+                        santa_models.SantaBlockable, blockable.key.id(),
+                        santa_models.SantaEvent, '1')
 
     # This Event will already exist in the datastore but calling
     # _DedupeExistingAndPut on it will simulate an identical Event being synced.
@@ -1023,7 +1045,7 @@ class EventUploadHandlerTest(SantaApiTestCase):
     put_event = event_key.get()
     self.assertEqual(20, put_event.count)
 
-    self.assertTaskCount(common_const.TASK_QUEUE.BQ_PERSISTENCE, 0)
+    self.assertNoBigQueryInsertions()
 
   def testBundleUpload_SingleBinary(self):
     blockable = test_utils.CreateSantaBlockable()
@@ -1040,14 +1062,12 @@ class EventUploadHandlerTest(SantaApiTestCase):
     request_json = {santa_const.EVENT_UPLOAD.EVENTS: [event]}
     self.testapp.post_json('/my-uuid', request_json)
 
-    self.assertEqual(0, santa_db.SantaEvent.query().count())
+    self.assertEqual(0, santa_models.SantaEvent.query().count())
     self.assertEqual(
-        1, santa_db.SantaBundleBinary.query(ancestor=bundle.key).count())
+        1, santa_models.SantaBundleBinary.query(ancestor=bundle.key).count())
     self.assertFalse(bundle.key.get().has_been_uploaded)
 
-    self.assertTaskCount(common_const.TASK_QUEUE.BQ_PERSISTENCE, 1)
-    self.DrainTaskQueue(common_const.TASK_QUEUE.BQ_PERSISTENCE)
-    self.assertEntityCount(bigquery.BundleBinaryRow, 1)
+    self.assertBigQueryInsertions([TABLE.BUNDLE_BINARY])
 
   def testBundleUpload_MultipleBinaries(self):
     num_binaries = 20
@@ -1067,22 +1087,21 @@ class EventUploadHandlerTest(SantaApiTestCase):
     request_json = {santa_const.EVENT_UPLOAD.EVENTS: events}
     self.testapp.post_json('/my-uuid', request_json)
 
-    self.assertEqual(0, santa_db.SantaEvent.query().count())
+    self.assertEqual(0, santa_models.SantaEvent.query().count())
 
     # Should have created the blockables.
-    self.assertIsNotNone(santa_db.SantaBlockable.get_by_id('foo'))
+    self.assertIsNotNone(santa_models.SantaBlockable.get_by_id('foo'))
     for i in xrange(num_binaries - 1):
-      self.assertIsNotNone(santa_db.SantaBlockable.get_by_id('bar%s' % i))
+      self.assertIsNotNone(santa_models.SantaBlockable.get_by_id('bar%s' % i))
     self.assertEqual(
         num_binaries,
-        santa_db.SantaBundleBinary.query(ancestor=bundle.key).count())
+        santa_models.SantaBundleBinary.query(ancestor=bundle.key).count())
 
     # Should have marked the bundle as uploaded
     self.assertTrue(bundle.key.get().has_been_uploaded)
 
-    self.DrainTaskQueue(common_const.TASK_QUEUE.BQ_PERSISTENCE)
-    self.assertEntityCount(bigquery.BinaryRow, num_binaries)
-    self.assertEntityCount(bigquery.BundleBinaryRow, num_binaries)
+    self.assertBigQueryInsertions(
+        [TABLE.BINARY, TABLE.BUNDLE_BINARY] * num_binaries)
 
   def testBundleUpload_MultipleBundles(self):
     blockable = test_utils.CreateSantaBlockable()
@@ -1109,18 +1128,16 @@ class EventUploadHandlerTest(SantaApiTestCase):
     request_json = {santa_const.EVENT_UPLOAD.EVENTS: [event, other_event]}
     self.testapp.post_json('/my-uuid', request_json)
 
-    self.assertEqual(0, santa_db.SantaEvent.query().count())
+    self.assertEqual(0, santa_models.SantaEvent.query().count())
 
-    self.assertEqual(
-        1, santa_db.SantaBundleBinary.query(ancestor=bundle.key).count())
-    self.assertEqual(
-        1, santa_db.SantaBundleBinary.query(ancestor=other_bundle.key).count())
+    self.assertEntityCount(
+        santa_models.SantaBundleBinary, 1, ancestor=bundle.key)
+    self.assertEntityCount(
+        santa_models.SantaBundleBinary, 1, ancestor=other_bundle.key)
     self.assertTrue(bundle.key.get().has_been_uploaded)
     self.assertTrue(other_bundle.key.get().has_been_uploaded)
 
-    self.assertTaskCount(common_const.TASK_QUEUE.BQ_PERSISTENCE, 2)
-    self.DrainTaskQueue(common_const.TASK_QUEUE.BQ_PERSISTENCE)
-    self.assertEntityCount(bigquery.BundleBinaryRow, 2)
+    self.assertBigQueryInsertions([TABLE.BUNDLE_BINARY] * 2)
 
   def testBundleUpload_PreviouslyUnknownBundle(self):
     event = self._CreateEvent('HashToUpload')
@@ -1137,23 +1154,21 @@ class EventUploadHandlerTest(SantaApiTestCase):
     request_json = {santa_const.EVENT_UPLOAD.EVENTS: [event]}
     self.testapp.post_json('/my-uuid', request_json)
 
-    self.assertEqual(0, santa_db.SantaEvent.query().count())
+    self.assertEqual(0, santa_models.SantaEvent.query().count())
 
     # Should have created the bundle.
-    bundle = santa_db.SantaBundle.get_by_id('UnknownBundle')
+    bundle = santa_models.SantaBundle.get_by_id('UnknownBundle')
     self.assertIsNotNone(bundle)
 
     # Should have created the bundle member.
     expected_binary_key = utils.ConcatenateKeys(
-        bundle.key, ndb.Key(santa_db.SantaBundleBinary, 'HashToUpload'))
+        bundle.key, ndb.Key(santa_models.SantaBundleBinary, 'HashToUpload'))
     self.assertIsNotNone(expected_binary_key.get())
     self.assertEqual(
-        1, santa_db.SantaBundleBinary.query(ancestor=bundle.key).count())
+        1, santa_models.SantaBundleBinary.query(ancestor=bundle.key).count())
 
-    self.DrainTaskQueue(common_const.TASK_QUEUE.BQ_PERSISTENCE)
-    self.assertEntityCount(bigquery.BinaryRow, 1)
-    self.assertEntityCount(bigquery.BundleRow, 1)
-    self.assertEntityCount(bigquery.BundleBinaryRow, 1)
+    self.assertBigQueryInsertions(
+        [TABLE.BINARY, TABLE.BUNDLE, TABLE.BUNDLE_BINARY])
 
   def testBundleUpload_Mixed(self):
     blockable = test_utils.CreateSantaBlockable()
@@ -1175,22 +1190,19 @@ class EventUploadHandlerTest(SantaApiTestCase):
     response = self.testapp.post_json('/my-uuid', request_json)
     output = response.json
 
-    self.assertEqual(1, santa_db.SantaEvent.query().count())
-    self.assertIsNotNone(santa_db.SantaBlockable.get_by_id('blah'))
+    self.assertEqual(1, santa_models.SantaEvent.query().count())
+    self.assertIsNotNone(santa_models.SantaBlockable.get_by_id('blah'))
 
     self.assertEqual(
-        1, santa_db.SantaBundleBinary.query(ancestor=bundle.key).count())
+        1, santa_models.SantaBundleBinary.query(ancestor=bundle.key).count())
     self.assertTrue(bundle.key.get().has_been_uploaded)
 
     self.assertSameElements(
         [blockable.key.id(), 'blah'],
         output[santa_const.EVENT_UPLOAD.REQUEST_UPLOADS])
 
-    self.assertTaskCount(common_const.TASK_QUEUE.BQ_PERSISTENCE, 3)
-    self.DrainTaskQueue(common_const.TASK_QUEUE.BQ_PERSISTENCE)
-    self.assertEntityCount(bigquery.BinaryRow, 1)
-    self.assertEntityCount(bigquery.BundleBinaryRow, 1)
-    self.assertEntityCount(bigquery.ExecutionRow, 1)
+    self.assertBigQueryInsertions(
+        [TABLE.BINARY, TABLE.BUNDLE_BINARY, TABLE.EXECUTION])
 
   def testBundleUpload_IndexedValueTooLong(self):
     event = self._CreateEvent('HashToUpload')
@@ -1208,23 +1220,21 @@ class EventUploadHandlerTest(SantaApiTestCase):
     request_json = {santa_const.EVENT_UPLOAD.EVENTS: [event]}
     self.testapp.post_json('/my-uuid', request_json)
 
-    self.assertEqual(0, santa_db.SantaEvent.query().count())
+    self.assertEqual(0, santa_models.SantaEvent.query().count())
 
     # Should have created the bundle.
-    bundle = santa_db.SantaBundle.get_by_id('UnknownBundle')
+    bundle = santa_models.SantaBundle.get_by_id('UnknownBundle')
     self.assertIsNotNone(bundle)
 
     # Should have created the bundle member.
     expected_binary_key = utils.ConcatenateKeys(
-        bundle.key, ndb.Key(santa_db.SantaBundleBinary, 'HashToUpload'))
+        bundle.key, ndb.Key(santa_models.SantaBundleBinary, 'HashToUpload'))
     self.assertIsNotNone(expected_binary_key.get())
     self.assertEqual(
-        1, santa_db.SantaBundleBinary.query(ancestor=bundle.key).count())
+        1, santa_models.SantaBundleBinary.query(ancestor=bundle.key).count())
 
-    self.DrainTaskQueue(common_const.TASK_QUEUE.BQ_PERSISTENCE)
-    self.assertEntityCount(bigquery.BinaryRow, 1)
-    self.assertEntityCount(bigquery.BundleRow, 1)
-    self.assertEntityCount(bigquery.BundleBinaryRow, 1)
+    self.assertBigQueryInsertions(
+        [TABLE.BINARY, TABLE.BUNDLE, TABLE.BUNDLE_BINARY])
 
   def testQuarantine(self):
     event = self._CreateEvent('the-sha256')
@@ -1238,7 +1248,7 @@ class EventUploadHandlerTest(SantaApiTestCase):
     request_json = {santa_const.EVENT_UPLOAD.EVENTS: [event]}
     self.testapp.post_json('/my-uuid', request_json)
 
-    event_entity = santa_db.SantaEvent.query().get()
+    event_entity = santa_models.SantaEvent.query().get()
 
     self.assertEqual('http://a.com', event_entity.quarantine.data_url)
     self.assertEqual('http://', event_entity.quarantine.referer_url)
@@ -1246,10 +1256,7 @@ class EventUploadHandlerTest(SantaApiTestCase):
         datetime.datetime.utcfromtimestamp(1234567),
         event_entity.quarantine.downloaded_dt)
 
-    self.assertTaskCount(common_const.TASK_QUEUE.BQ_PERSISTENCE, 2)
-    self.DrainTaskQueue(common_const.TASK_QUEUE.BQ_PERSISTENCE)
-    self.assertEntityCount(bigquery.BinaryRow, 1)
-    self.assertEntityCount(bigquery.ExecutionRow, 1)
+    self.assertBigQueryInsertions([TABLE.BINARY, TABLE.EXECUTION])
 
   def testQuarantine_NoData(self):
     event = self._CreateEvent('the-sha256')
@@ -1257,14 +1264,11 @@ class EventUploadHandlerTest(SantaApiTestCase):
     request_json = {santa_const.EVENT_UPLOAD.EVENTS: [event]}
     self.testapp.post_json('/my-uuid', request_json)
 
-    event_entity = santa_db.SantaEvent.query().get()
+    event_entity = santa_models.SantaEvent.query().get()
 
     self.assertIsNone(event_entity.quarantine)
 
-    self.assertTaskCount(common_const.TASK_QUEUE.BQ_PERSISTENCE, 2)
-    self.DrainTaskQueue(common_const.TASK_QUEUE.BQ_PERSISTENCE)
-    self.assertEntityCount(bigquery.BinaryRow, 1)
-    self.assertEntityCount(bigquery.ExecutionRow, 1)
+    self.assertBigQueryInsertions([TABLE.BINARY, TABLE.EXECUTION])
 
 
 class LogUploadHandlerTest(SantaApiTestCase):
@@ -1278,14 +1282,14 @@ class LogUploadHandlerTest(SantaApiTestCase):
         new_callable=mock.PropertyMock,
         return_value=self.mock_metric)
 
-    self.host = santa_db.SantaHost(id='my-uuid', should_upload_logs=True)
+    self.host = santa_models.SantaHost(id='my-uuid', should_upload_logs=True)
     self.host.put()
 
   def testDisabledLogUpload(self):
     response = self.testapp.post('/my-uuid')
 
     self.assertFalse(
-        santa_db.SantaHost.get_by_id('my-uuid').should_upload_logs)
+        santa_models.SantaHost.get_by_id('my-uuid').should_upload_logs)
     self.assertEqual(httplib.OK, response.status_int)
     self.VerifyIncrementCalls(self.mock_metric, httplib.OK)
 
@@ -1309,7 +1313,7 @@ class LogUploadHandlerTest(SantaApiTestCase):
       self.assertEqual(httplib.OK, response.status_int)
       self.VerifyIncrementCalls(self.mock_metric, httplib.OK)
 
-    q = santa_db.SantaLogFile.query()
+    q = santa_models.SantaLogFile.query()
     self.assertEqual(1, q.count())
     comp = q.get()
     self.assertEqual('system.log', comp.filename)
@@ -1328,7 +1332,7 @@ class BinaryUploadHandlerTest(SantaApiTestCase):
         new_callable=mock.PropertyMock,
         return_value=self.mock_metric)
 
-    santa_db.SantaHost(key=ndb.Key('Host', 'my-uuid')).put()
+    santa_models.SantaHost(key=ndb.Key('Host', 'my-uuid')).put()
 
   def testCreatesLogFileEntity(self):
     # NOTE: Yuck. The Blobstore stub doesn't provide any way to test
@@ -1348,7 +1352,7 @@ class BinaryUploadHandlerTest(SantaApiTestCase):
 
     response = self.testapp.post('/my-uuid')
 
-    q = santa_db.SantaBinaryFile.query()
+    q = santa_models.SantaBinaryFile.query()
     self.assertEqual(1, q.count())
     comp = q.get()
     self.assertEqual(fname, comp.key.id())
@@ -1370,14 +1374,14 @@ class RuleDownloadHandlerTest(SantaApiTestCase):
         new_callable=mock.PropertyMock,
         return_value=self.mock_metric)
 
-    self.host = santa_db.SantaHost(
+    self.host = santa_models.SantaHost(
         key=ndb.Key('Host', 'my-uuid'),
         rule_sync_dt=datetime.datetime(2001, 01, 01, 0, 0, 0))
     self.host.put()
 
     self.blockable = test_utils.CreateBlockable(
         id='aaaaaaaaaabbbbbbbbbbcccccccccdddddddddd')
-    self.rule = santa_db.SantaRule(
+    self.rule = santa_models.SantaRule(
         parent=self.blockable.key,
         rule_type=common_const.RULE_TYPE.BINARY,
         policy=common_const.RULE_POLICY.WHITELIST)
@@ -1426,7 +1430,7 @@ class RuleDownloadHandlerTest(SantaApiTestCase):
     self.rule.host_id = 'my-uuid'
     self.rule.put()
 
-    second_comp = santa_db.SantaHost(
+    second_comp = santa_models.SantaHost(
         key=ndb.Key('Host', 'my-other-uuid'),
         rule_sync_dt=datetime.datetime(2001, 01, 01, 0, 0, 0))
     second_comp.put()
@@ -1447,11 +1451,11 @@ class RuleDownloadHandlerTest(SantaApiTestCase):
     self.host.put()
 
     blockable = test_utils.CreateBlockable()
-    santa_db.SantaRule(
+    santa_models.SantaRule(
         parent=blockable.key,
         rule_type=common_const.RULE_TYPE.BINARY,
         policy=common_const.RULE_POLICY.BLACKLIST).put()
-    santa_db.SantaRule(
+    santa_models.SantaRule(
         parent=blockable.key,
         rule_type=common_const.RULE_TYPE.BINARY,
         policy=common_const.RULE_POLICY.WHITELIST).put()
@@ -1500,7 +1504,7 @@ class RuleDownloadHandlerTest(SantaApiTestCase):
 
   def testCursor(self):
     blockable = test_utils.CreateBlockable()
-    santa_db.SantaRule(
+    santa_models.SantaRule(
         parent=blockable.key,
         rule_type=common_const.RULE_TYPE.CERTIFICATE,
         policy=common_const.RULE_POLICY.BLACKLIST).put()
@@ -1545,14 +1549,12 @@ class PostflightHandlerTest(SantaApiTestCase):
 
     response = self.testapp.post('/%s' % self.host.key.id())
 
-    host = santa_db.SantaHost.get_by_id('MY-UUID')
+    host = santa_models.SantaHost.get_by_id('MY-UUID')
     self.assertEqual(host.rule_sync_dt, self.preflight_dt)
     self.assertTrue(host.last_postflight_dt)
     self.assertEqual(httplib.OK, response.status_int)
     self.VerifyIncrementCalls(self.mock_metric, httplib.OK)
-    self.assertTaskCount(common_const.TASK_QUEUE.BQ_PERSISTENCE, 1)
-    self.RunDeferredTasks(common_const.TASK_QUEUE.BQ_PERSISTENCE)
-    self.assertEntityCount(bigquery.HostRow, 1)
+    self.assertBigQueryInsertions([TABLE.HOST])
 
 
 if __name__ == '__main__':

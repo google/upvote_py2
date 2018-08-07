@@ -40,12 +40,6 @@ upvote.admin.settingspage.Settings = class {
     this.votingThresholds = 0;
     /** @export {!Object<string, number>} */
     this.votingWeights = {};
-    /** @export {string} */
-    this.lockdownGroup = '';
-    /** @export {string} */
-    this.monitorGroup = '';
-    /** @export {!Object<string, (Array<string>|string)>} */
-    this.groupRoleAssignments = {};
     /**
      * @export {{
      *   message: string,

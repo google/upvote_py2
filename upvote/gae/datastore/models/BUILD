@@ -14,9 +14,15 @@ py_appengine_library(
     deps = [
         ":alert",
         ":base",
-        ":bigquery",
         ":bit9",
+        ":cache",
+        ":metrics",
+        ":mixin",
+        ":rule",
         ":santa",
+        ":singleton",
+        ":tickets",
+        ":virustotal",
     ],
 )
 
@@ -32,25 +38,12 @@ py_appengine_library(
     name = "base",
     srcs = ["base.py"],
     deps = [
-        ":bigquery",
+        ":mixin",
+        ":user",
+        "//upvote/gae/bigquery:tables",
         "//upvote/gae/datastore:utils",
         "//upvote/gae/shared/common:settings",
         "//upvote/gae/shared/common:user_map",
-        "//upvote/gae/taskqueue:utils",
-        "//upvote/shared:constants",
-    ],
-)
-
-py_appengine_library(
-    name = "bigquery",
-    srcs = ["bigquery.py"],
-    deps = [
-        "//upvote/gae/datastore:utils",
-        "//upvote/gae/shared/common:monitoring",
-        "//upvote/gae/shared/common:settings",
-        "//upvote/gae/shared/common:utils",
-        "//upvote/gae/utils:json_utils",
-        "//upvote/monitoring:metrics",
         "//upvote/shared:constants",
     ],
 )
@@ -60,9 +53,10 @@ py_appengine_library(
     srcs = ["bit9.py"],
     deps = [
         ":base",
-        ":bigquery",
+        ":mixin",
         "//common/cloud_kms:kms_ndb",
-        "//upvote/gae/datastore:utils",
+        "//upvote/gae/bigquery:tables",
+        "//upvote/gae/datastore/models:singleton",
         "//upvote/shared:constants",
     ],
 )
@@ -81,21 +75,60 @@ py_appengine_library(
 )
 
 py_appengine_library(
+    name = "mixin",
+    srcs = ["mixin.py"],
+    deps = [
+        "//upvote/shared:constants",
+    ],
+)
+
+py_appengine_library(
+    name = "rule",
+    srcs = ["rule.py"],
+    deps = [
+        ":santa",
+        "//upvote/shared:constants",
+    ],
+)
+
+py_appengine_library(
     name = "santa",
     srcs = ["santa.py"],
     deps = [
         ":base",
-        ":bigquery",
-        "//upvote/gae/shared/common:query_utils",
+        ":mixin",
+        ":user",
+        "//upvote/gae/bigquery:tables",
+        "//upvote/gae/datastore:utils",
         "//upvote/shared:constants",
     ],
+)
+
+py_appengine_library(
+    name = "singleton",
+    srcs = ["singleton.py"],
+    deps = [],
 )
 
 py_appengine_library(
     name = "tickets",
     srcs = ["tickets.py"],
     deps = [
-        ":base",
+        ":mixin",
+    ],
+)
+
+py_appengine_library(
+    name = "user",
+    srcs = ["user.py"],
+    deps = [
+        ":mixin",
+        "//upvote/gae/bigquery:tables",
+        "//upvote/gae/datastore:utils",
+        "//upvote/gae/shared/common:settings",
+        "//upvote/gae/shared/common:user_map",
+        "//upvote/gae/taskqueue:utils",
+        "//upvote/shared:constants",
     ],
 )
 
@@ -104,7 +137,7 @@ py_appengine_library(
     srcs = ["virustotal.py"],
     deps = [
         "//common/cloud_kms:kms_ndb",
-        "//upvote/gae/datastore:utils",
+        "//upvote/gae/datastore/models:singleton",
     ],
 )
 
@@ -117,7 +150,7 @@ upvote_appengine_test(
     srcs = ["alert_test.py"],
     deps = [
         ":alert",
-        "//upvote/gae/shared/common:basetest",
+        "//upvote/gae/lib/testing:basetest",
         "@absl_git//absl/testing:absltest",
     ],
 )
@@ -128,32 +161,13 @@ upvote_appengine_test(
     srcs = ["base_test.py"],
     deps = [
         ":base",
-        ":bigquery",
         "//common/testing:basetest",
         "//external:mock",
+        "//upvote/gae/bigquery:tables",
         "//upvote/gae/datastore:test_utils",
         "//upvote/gae/datastore:utils",
-        "//upvote/gae/shared/common:basetest",
+        "//upvote/gae/lib/testing:basetest",
         "//upvote/gae/shared/common:settings",
-        "//upvote/gae/shared/common:utils",
-        "//upvote/shared:constants",
-        "@absl_git//absl/testing:absltest",
-    ],
-)
-
-upvote_appengine_test(
-    name = "bigquery_test",
-    size = "small",
-    srcs = ["bigquery_test.py"],
-    deps = [
-        ":bigquery",
-        "//common/testing:basetest",
-        "//external:mock",
-        "//upvote/gae/datastore:test_utils",
-        "//upvote/gae/datastore:utils",
-        "//upvote/gae/shared/common:basetest",
-        "//upvote/gae/shared/common:settings",
-        "//upvote/gae/shared/common:settings_utils",
         "//upvote/shared:constants",
         "@absl_git//absl/testing:absltest",
     ],
@@ -168,8 +182,32 @@ upvote_appengine_test(
         "//common/testing:basetest",
         "//upvote/gae/datastore:test_utils",
         "//upvote/gae/datastore:utils",
-        "//upvote/gae/shared/common:basetest",
+        "//upvote/gae/lib/testing:basetest",
         "//upvote/shared:constants",
+        "@absl_git//absl/testing:absltest",
+    ],
+)
+
+upvote_appengine_test(
+    name = "mixin_test",
+    size = "small",
+    srcs = ["mixin_test.py"],
+    deps = [
+        ":mixin",
+        "//upvote/gae/lib/testing:basetest",
+        "@absl_git//absl/testing:absltest",
+    ],
+)
+
+upvote_appengine_test(
+    name = "rule_test",
+    size = "small",
+    srcs = ["rule_test.py"],
+    deps = [
+        ":rule",
+        ":santa",
+        "//upvote/gae/datastore:test_utils",
+        "//upvote/gae/lib/testing:basetest",
         "@absl_git//absl/testing:absltest",
     ],
 )
@@ -184,8 +222,20 @@ upvote_appengine_test(
         "//external:mock",
         "//upvote/gae/datastore:test_utils",
         "//upvote/gae/datastore:utils",
-        "//upvote/gae/shared/common:basetest",
+        "//upvote/gae/lib/testing:basetest",
         "//upvote/shared:constants",
+        "@absl_git//absl/testing:absltest",
+    ],
+)
+
+upvote_appengine_test(
+    name = "singleton_test",
+    size = "small",
+    srcs = ["singleton_test.py"],
+    deps = [
+        ":singleton",
+        "//external:mock",
+        "//upvote/gae/lib/testing:basetest",
         "@absl_git//absl/testing:absltest",
     ],
 )
@@ -197,7 +247,25 @@ upvote_appengine_test(
     deps = [
         ":tickets",
         "//common/testing:basetest",
-        "//upvote/gae/shared/common:basetest",
+        "//upvote/gae/lib/testing:basetest",
+        "@absl_git//absl/testing:absltest",
+    ],
+)
+
+upvote_appengine_test(
+    name = "user_test",
+    size = "small",
+    srcs = ["user_test.py"],
+    deps = [
+        ":user",
+        "//common/testing:basetest",
+        "//external:mock",
+        "//upvote/gae/bigquery:tables",
+        "//upvote/gae/datastore:test_utils",
+        "//upvote/gae/datastore:utils",
+        "//upvote/gae/lib/testing:basetest",
+        "//upvote/gae/shared/common:settings",
+        "//upvote/shared:constants",
         "@absl_git//absl/testing:absltest",
     ],
 )

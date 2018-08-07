@@ -13,19 +13,8 @@ py_library(
     name = "all",
     deps = [
         ":big_red",
-        ":model_mapping",
-        ":query_utils",
         ":settings",
         "//upvote/gae/utils:json_utils",
-    ],
-)
-
-py_library(
-    name = "model_mapping",
-    srcs = ["model_mapping.py"],
-    deps = [
-        "//upvote/gae/datastore/models:santa",
-        "//upvote/shared:constants",
     ],
 )
 
@@ -63,49 +52,11 @@ py_appengine_library(
 )
 
 py_appengine_library(
-    name = "query_utils",
-    srcs = ["query_utils.py"],
-    deps = [
-        "//upvote/shared:constants",
-    ],
-)
-
-py_appengine_library(
     name = "handlers",
     srcs = ["handlers.py"],
     deps = [
-        ":utils",
+        "//upvote/gae/utils:env_utils",
         "//upvote/gae/utils:json_utils",
-    ],
-)
-
-py_appengine_library(
-    name = "utils",
-    srcs = ["utils.py"],
-    deps = [
-        ":settings",
-        ":settings_utils",
-        "//upvote/shared:constants",
-    ],
-)
-
-py_appengine_library(
-    name = "basetest",
-    testonly = 1,
-    srcs = ["basetest.py"],
-    data = ["//upvote/gae:index.yaml"],
-    deps = [
-        ":handlers",
-        ":settings",
-        ":settings_utils",
-        ":xsrf_utils",
-        "//common/testing:basetest",
-        "//external:mock",
-        "//external:oauth2client",
-        "//external:webob",
-        "//external:webtest",
-        "//upvote/gae/datastore:test_utils",
-        "//upvote/shared:constants",
     ],
 )
 
@@ -139,22 +90,6 @@ py_appengine_library(
 )
 
 py_appengine_library(
-    name = "test_utils",
-    srcs = ["test_utils.py"],
-    deps = [
-        "//external:mock",
-    ],
-)
-
-py_appengine_library(
-    name = "xsrf_utils",
-    srcs = ["xsrf_utils.py"],
-    deps = [
-        "//external:oauth2client",
-    ],
-)
-
-py_appengine_library(
     name = "groups",
     srcs = ["groups.py"],
 )
@@ -169,7 +104,7 @@ upvote_appengine_test(
     deps = [
         ":big_red",
         "//upvote/gae/datastore/models:santa",
-        "//upvote/gae/shared/common:basetest",
+        "//upvote/gae/lib/testing:basetest",
         "//upvote/shared:constants",
     ],
 )
@@ -179,20 +114,9 @@ upvote_appengine_test(
     size = "small",
     srcs = ["settings_utils_test.py"],
     deps = [
-        ":basetest",
         ":settings",
         ":settings_utils",
-    ],
-)
-
-upvote_appengine_test(
-    name = "utils_test",
-    size = "small",
-    srcs = ["utils_test.py"],
-    deps = [
-        ":utils",
-        "//common/testing:basetest",
-        "//upvote/shared:constants",
+        "//upvote/gae/lib/testing:basetest",
     ],
 )
 
@@ -201,23 +125,12 @@ upvote_appengine_test(
     size = "small",
     srcs = ["handlers_test.py"],
     deps = [
-        ":basetest",
         ":handlers",
         "//common/testing:basetest",
         "//external:mock",
         "//external:webob",
         "//external:webtest",
-    ],
-)
-
-upvote_appengine_test(
-    name = "query_utils_test",
-    srcs = ["query_utils_test.py"],
-    deps = [
-        ":basetest",
-        ":query_utils",
-        "//external:mock",
-        "//upvote/shared:constants",
+        "//upvote/gae/lib/testing:basetest",
     ],
 )
 
@@ -237,20 +150,7 @@ upvote_appengine_test(
     size = "small",
     srcs = ["user_map_test.py"],
     deps = [
-        ":basetest",
         ":user_map",
-    ],
-)
-
-upvote_appengine_test(
-    name = "xsrf_utils_test",
-    size = "small",
-    srcs = ["xsrf_utils_test.py"],
-    deps = [
-        ":basetest",
-        ":xsrf_utils",
-        "//external:mock",
-        "//external:oauth2client",
-        "@absl_git//absl/testing:absltest",
+        "//upvote/gae/lib/testing:basetest",
     ],
 )

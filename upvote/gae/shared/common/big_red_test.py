@@ -15,7 +15,7 @@
 """Tests for the big red button."""
 
 from upvote.gae.datastore.models import cache
-from upvote.gae.shared.common import basetest
+from upvote.gae.lib.testing import basetest
 from upvote.gae.shared.common import big_red
 
 

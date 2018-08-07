@@ -23,8 +23,8 @@ from google.appengine.ext import ndb
 
 from upvote.gae.datastore import test_utils
 from upvote.gae.datastore import utils
+from upvote.gae.lib.testing import basetest
 from upvote.gae.modules.upvote_app.api.handlers import events
-from upvote.gae.shared.common import basetest
 from upvote.gae.shared.common import user_map
 from upvote.shared import constants
 

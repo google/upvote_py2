@@ -17,7 +17,7 @@
 import datetime
 
 from upvote.gae.datastore.models import alert
-from upvote.gae.shared.common import basetest
+from upvote.gae.lib.testing import basetest
 
 from upvote.shared import constants
 

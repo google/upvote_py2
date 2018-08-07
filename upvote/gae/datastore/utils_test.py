@@ -15,45 +15,19 @@
 """Tests for model utils."""
 
 import datetime
+import itertools
+import math
+import operator
+
+import mock
 
 from google.appengine.api import datastore_errors
 from google.appengine.ext import ndb
 from google.appengine.ext.ndb import polymodel
 
 from upvote.gae.datastore import utils
-from upvote.gae.shared.common import basetest
-
-
-class SingletonTest(basetest.UpvoteTestCase):
-
-  def setUp(self):
-    super(SingletonTest, self).setUp()
-
-  def testGetAndSet(self):
-
-    class A(utils.Singleton):
-      a = ndb.StringProperty()
-
-    self.assertIsNone(A.GetInstance())
-
-    inst = A.SetInstance(a='abcd')
-    self.assertEqual('abcd', inst.a)
-
-    inst = A.GetInstance()
-    self.assertEqual('abcd', inst.a)
-    self.assertEqual('A', A.GetInstance().key.id())
-
-  def testOverrideGetId(self):
-
-    class A(utils.Singleton):
-      a = ndb.StringProperty()
-
-      @classmethod
-      def _GetId(cls):
-        return '1'
-
-    inst = A.SetInstance(a='abcd')
-    self.assertEqual('1', inst.key.id())
+from upvote.gae.lib.testing import basetest
+from upvote.shared import constants
 
 
 class CopyEntityTest(basetest.UpvoteTestCase):
@@ -384,9 +358,6 @@ class DeletePropertyTest(basetest.UpvoteTestCase):
 
 class DeletePropertyValueTest(basetest.UpvoteTestCase):
 
-  def setUp(self):
-    super(DeletePropertyValueTest, self).setUp()
-
   def testDeleteValue(self):
 
     # Initial schema
@@ -479,6 +450,27 @@ class DeletePropertyValueTest(basetest.UpvoteTestCase):
     self.assertIsNotNone(inst.a)
 
 
+class HasValueTest(basetest.UpvoteTestCase):
+
+  def testHasValue(self):
+
+    class Foo(ndb.Model):
+      a = ndb.ComputedProperty(lambda self: 'a')
+      b = ndb.StringProperty()
+
+    foo = Foo()
+    self.assertFalse(utils.HasValue(foo, 'a'))
+    self.assertFalse(utils.HasValue(foo, 'b'))
+
+    foo.b = 'b'
+    self.assertFalse(utils.HasValue(foo, 'a'))
+    self.assertTrue(utils.HasValue(foo, 'b'))
+
+    foo.put()
+    self.assertTrue(utils.HasValue(foo, 'a'))
+    self.assertTrue(utils.HasValue(foo, 'b'))
+
+
 class GetLocalComputedPropertyValueTest(basetest.UpvoteTestCase):
 
   def setUp(self):
@@ -508,6 +500,42 @@ class GetLocalComputedPropertyValueTest(basetest.UpvoteTestCase):
       utils.GetLocalComputedPropertyValue(self.inst, 'a')
 
 
+class KeyHasAncestorTest(basetest.UpvoteTestCase):
+
+  def testKeyHasAncestor(self):
+    self.assertFalse(utils.KeyHasAncestor(ndb.Key('A', 1), ndb.Key('A', 1)))
+    self.assertTrue(
+        utils.KeyHasAncestor(ndb.Key('A', 1, 'B', 2), ndb.Key('A', 1)))
+    self.assertFalse(
+        utils.KeyHasAncestor(ndb.Key('A', 1, 'B', 2), ndb.Key('A', 2)))
+    self.assertFalse(
+        utils.KeyHasAncestor(ndb.Key('A', 1, 'B', 2), ndb.Key('A', 1, 'B', 2)))
+    self.assertTrue(
+        utils.KeyHasAncestor(
+            ndb.Key('A', 1, 'B', 2, 'C', 3), ndb.Key('A', 1, 'B', 2)))
+
+
+class ConcatenateKeysTest(basetest.UpvoteTestCase):
+
+  def testSuccess(self):
+    keys = [ndb.Key('A', 1, 'B', 2), ndb.Key('C', 3)]
+    self.assertEqual(
+        ndb.Key('A', 1, 'B', 2, 'C', 3), utils.ConcatenateKeys(*keys))
+
+  def testEmpty(self):
+    self.assertIsNone(utils.ConcatenateKeys())
+
+
+class GetKeyFromUrlsafeTest(basetest.UpvoteTestCase):
+
+  def testSuccess(self):
+    key = ndb.Key('A', 'a', 'B', 'b')
+    self.assertEqual(key, utils.GetKeyFromUrlsafe(key.urlsafe()))
+
+  def testError(self):
+    self.assertIsNone(utils.GetKeyFromUrlsafe('not a real ndb key string'))
+
+
 class FutureFactoryTest(basetest.UpvoteTestCase):
 
   def testInTxn(self):
@@ -521,6 +549,20 @@ class FutureFactoryTest(basetest.UpvoteTestCase):
       fut.get_result()
 
     ndb.transaction(RunAssert)
+
+
+class GetNoOpFutureTest(basetest.UpvoteTestCase):
+
+  def testNone(self):
+    future = utils.GetNoOpFuture()
+    self.assertTrue(future.done())
+    self.assertIsNone(future.get_result())
+
+  def testResult(self):
+    result = 'foobar'
+    future = utils.GetNoOpFuture(result)
+    self.assertTrue(future.done())
+    self.assertEqual(result, future.get_result())
 
 
 class GetMultiFutureTest(basetest.UpvoteTestCase):
@@ -621,63 +663,236 @@ class GetChainingMultiFutureTest(basetest.UpvoteTestCase):
       mf.add_dependent(ndb.Future())
 
 
-class OtherUtilsTest(basetest.UpvoteTestCase):
+class TestModel(ndb.Model):
+  foo = ndb.StringProperty()
+  bar = ndb.IntegerProperty()
 
-  def testHasValue(self):
 
-    class Foo(ndb.Model):
-      a = ndb.ComputedProperty(lambda self: 'a')
-      b = ndb.StringProperty()
+def CreateEntity(foo='foo', bar=0):
+  entity = TestModel(foo=foo, bar=bar)
+  entity.put()
+  return entity
 
-    foo = Foo()
-    self.assertFalse(utils.HasValue(foo, 'a'))
-    self.assertFalse(utils.HasValue(foo, 'b'))
 
-    foo.b = 'b'
-    self.assertFalse(utils.HasValue(foo, 'a'))
-    self.assertTrue(utils.HasValue(foo, 'b'))
+def CreateEntities(count, **kwargs):
+  return [CreateEntity(**kwargs) for _ in xrange(count)]
 
-    foo.put()
-    self.assertTrue(utils.HasValue(foo, 'a'))
-    self.assertTrue(utils.HasValue(foo, 'b'))
 
-  def testKeyHasAncestor(self):
-    self.assertFalse(utils.KeyHasAncestor(ndb.Key('A', 1), ndb.Key('A', 1)))
-    self.assertTrue(
-        utils.KeyHasAncestor(ndb.Key('A', 1, 'B', 2), ndb.Key('A', 1)))
-    self.assertFalse(
-        utils.KeyHasAncestor(ndb.Key('A', 1, 'B', 2), ndb.Key('A', 2)))
-    self.assertFalse(
-        utils.KeyHasAncestor(ndb.Key('A', 1, 'B', 2), ndb.Key('A', 1, 'B', 2)))
-    self.assertTrue(
-        utils.KeyHasAncestor(
-            ndb.Key('A', 1, 'B', 2, 'C', 3), ndb.Key('A', 1, 'B', 2)))
+_GLOBAL_CBK_MOCK = mock.MagicMock()
 
-  def testConcatenateKeys(self):
-    keys = [ndb.Key('A', 1, 'B', 2), ndb.Key('C', 3)]
-    self.assertEqual(
-        ndb.Key('A', 1, 'B', 2, 'C', 3), utils.ConcatenateKeys(*keys))
 
-  def testConcatenateKeys_Empty(self):
-    self.assertIsNone(utils.ConcatenateKeys())
+def CallMock(*args, **kwargs):
+  _GLOBAL_CBK_MOCK(*args, **kwargs)
 
-  def testGetKeyFromUrlsafe(self):
-    key = ndb.Key('A', 'a', 'B', 'b')
-    self.assertEqual(key, utils.GetKeyFromUrlsafe(key.urlsafe()))
 
-  def testGetKeyFromUrlsafe_Error(self):
-    self.assertIsNone(utils.GetKeyFromUrlsafe('not a real ndb key string'))
+def GetKey(key):
+  return key.get()
 
-  def testGetNoOpFuture(self):
-    future = utils.GetNoOpFuture()
-    self.assertTrue(future.done())
-    self.assertIsNone(future.get_result())
 
-  def testGetNoOpFuture_Result(self):
-    result = 'foobar'
-    future = utils.GetNoOpFuture(result)
-    self.assertTrue(future.done())
-    self.assertEqual(result, future.get_result())
+def ReturnFoo(entity):
+  return entity.foo
+
+
+def ReturnBar(entity):
+  return entity.bar
+
+
+class PaginatedFetchTest(basetest.UpvoteTestCase):
+
+  def testSuccess(self):
+    CreateEntities(3)
+    result = utils.PaginatedFetch(TestModel.query(), page_size=2)
+    map_result = utils.PaginatedMap(TestModel.query(), None, page_size=2)
+    self.assertEqual(3, len(result))
+    self.assertEqual(map_result, result)
+
+
+class PaginatedMapTest(basetest.UpvoteTestCase):
+
+  def testSuccess(self):
+    CreateEntities(3)
+    result = utils.PaginatedMap(TestModel.query(), ReturnFoo)
+    self.assertEqual(3, len(result))
+    self.assertEqual('foo', result[0])
+
+  def testTwoPages(self):
+    CreateEntities(3)
+    cbk_mock = mock.MagicMock()
+
+    result = utils.PaginatedMap(TestModel.query(), cbk_mock, page_size=2)
+    self.assertEqual(3, len(result))
+    self.assertEqual(3, cbk_mock.call_count)
+
+  def testThreePages(self):
+    CreateEntities(3)
+    cbk_mock = mock.MagicMock()
+
+    result = utils.PaginatedMap(TestModel.query(), cbk_mock, page_size=1)
+    self.assertEqual(3, len(result))
+    self.assertEqual(3, cbk_mock.call_count)
+
+  def testQueryOptions(self):
+    CreateEntities(3)
+
+    result = utils.PaginatedMap(TestModel.query(), GetKey, keys_only=True)
+
+    self.assertEqual(3, len(result))
+    self.assertTrue(all(isinstance(entity, TestModel) for entity in result))
+
+
+class PaginatedMapReduceTest(basetest.UpvoteTestCase):
+
+  def testSuccess(self):
+    CreateEntities(3)
+    map_cbk_mock = mock.MagicMock()
+    reduce_cbk_mock = mock.MagicMock()
+    reduce_cbk_mock.return_value = None
+
+    result = utils.PaginatedMapReduce(
+        TestModel.query(), map_cbk_mock, reduce_cbk_mock, page_size=1)
+    self.assertIsNone(result)
+    self.assertEqual(3, map_cbk_mock.call_count)
+    self.assertEqual(3, reduce_cbk_mock.call_count)
+
+  def testInitial(self):
+    CreateEntities(3, bar=1)
+
+    result = utils.PaginatedMapReduce(
+        TestModel.query(), ReturnBar, operator.add, initial=5, page_size=1)
+    self.assertEqual(5 + 3, result)
+
+
+class PaginateTest(basetest.UpvoteTestCase):
+
+  def testSuccess(self):
+
+    page_size = 10
+    for entity_count in xrange(50):
+
+      # Create some number of entities.
+      CreateEntities(entity_count)
+
+      # Verify that we get the expected number of pages.
+      pages = list(utils.Paginate(TestModel.query(), page_size=page_size))
+      expected_page_count = int(math.ceil(float(entity_count) / page_size))
+      self.assertEqual(expected_page_count, len(pages))
+
+      # Verify that we get the expected number of entities.
+      entities = list(itertools.chain(*pages))
+      self.assertEqual(entity_count, len(entities))
+
+      # Delete everything.
+      for entity in entities:
+        entity.key.delete()
+
+
+class QueuedPaginatedApplyTest(basetest.UpvoteTestCase):
+
+  def tearDown(self):
+    super(QueuedPaginatedApplyTest, self).tearDown()
+    _GLOBAL_CBK_MOCK.reset_mock()
+
+  def testSuccess(self):
+    CreateEntities(3)
+    utils.QueuedPaginatedApply(TestModel.query(), CallMock, page_size=1)
+
+    for _ in xrange(4):
+      self.assertTaskCount(constants.TASK_QUEUE.DEFAULT, 1)
+      self.RunDeferredTasks()
+
+    self.assertTaskCount(constants.TASK_QUEUE.DEFAULT, 0)
+
+    self.assertEqual(3, _GLOBAL_CBK_MOCK.call_count)
+
+  def testExtraArgs(self):
+    CreateEntities(3)
+    utils.QueuedPaginatedApply(
+        TestModel.query(), CallMock, extra_args=['a', 'b'],
+        extra_kwargs={'c': 'c'})
+
+    for _ in xrange(2):
+      self.assertTaskCount(constants.TASK_QUEUE.DEFAULT, 1)
+      self.RunDeferredTasks()
+
+    self.assertTaskCount(constants.TASK_QUEUE.DEFAULT, 0)
+
+    self.assertTrue(_GLOBAL_CBK_MOCK.called_with('foo', 'a', 'b', c='c'))
+
+  def testTransform(self):
+    CreateEntities(3)
+    utils.QueuedPaginatedApply(
+        TestModel.query(), CallMock, pre_queue_callback=ReturnFoo, page_size=1)
+
+    for _ in xrange(4):
+      self.assertTaskCount(constants.TASK_QUEUE.DEFAULT, 1)
+      self.RunDeferredTasks()
+
+    self.assertTaskCount(constants.TASK_QUEUE.DEFAULT, 0)
+
+    self.assertTrue(_GLOBAL_CBK_MOCK.called_with('foo'))
+
+  def testDifferentQueue(self):
+    CreateEntities(3)
+    utils.QueuedPaginatedApply(TestModel.query(), CallMock, queue='foo')
+
+    for _ in xrange(2):
+      self.assertTaskCount('foo', 1)
+      self.assertTaskCount(constants.TASK_QUEUE.DEFAULT, 0)
+      self.RunDeferredTasks('foo')
+
+    self.assertTaskCount('foo', 0)
+
+    self.assertEqual(3, _GLOBAL_CBK_MOCK.call_count)
+
+  def testQueryOptions(self):
+    entities = CreateEntities(3)
+    utils.QueuedPaginatedApply(
+        TestModel.query(), CallMock, keys_only=True)
+
+    for _ in xrange(2):
+      self.assertTaskCount(constants.TASK_QUEUE.DEFAULT, 1)
+      self.RunDeferredTasks()
+
+    self.assertTaskCount(constants.TASK_QUEUE.DEFAULT, 0)
+
+    self.assertEqual(3, _GLOBAL_CBK_MOCK.call_count)
+    self.assertTrue(_GLOBAL_CBK_MOCK.called_with(entities[0].key))
+
+
+class QueuedPaginatedBatchApply(basetest.UpvoteTestCase):
+
+  def tearDown(self):
+    super(QueuedPaginatedBatchApply, self).tearDown()
+    _GLOBAL_CBK_MOCK.reset_mock()
+
+  def testSuccess(self):
+    entities = CreateEntities(3)
+    utils.QueuedPaginatedBatchApply(
+        TestModel.query(), CallMock, page_size=2)
+
+    for _ in xrange(3):
+      self.assertTaskCount(constants.TASK_QUEUE.DEFAULT, 1)
+      self.RunDeferredTasks()
+
+    self.assertTaskCount(constants.TASK_QUEUE.DEFAULT, 0)
+
+    self.assertTrue(_GLOBAL_CBK_MOCK.called_with(entities[:2]))
+    self.assertTrue(_GLOBAL_CBK_MOCK.called_with(entities[2:]))
+    self.assertEqual(2, _GLOBAL_CBK_MOCK.call_count)
+
+  def testExtraArgs(self):
+    entities = CreateEntities(1)
+    utils.QueuedPaginatedBatchApply(
+        TestModel.query(), CallMock, extra_args=['a', 'b'],
+        extra_kwargs={'c': 'c'})
+
+    for _ in xrange(2):
+      self.assertTaskCount(constants.TASK_QUEUE.DEFAULT, 1)
+      self.RunDeferredTasks()
+
+    self.assertTaskCount(constants.TASK_QUEUE.DEFAULT, 0)
+
+    self.assertTrue(_GLOBAL_CBK_MOCK.called_with(entities, 'a', 'b', c='c'))
 
 
 if __name__ == '__main__':

@@ -107,12 +107,8 @@ introduction to BigQuery.
 To enable this feature:
 
 1.  Set `ENABLE_BIGQUERY_STREAMING` to `True` in settings
-2.  `./manage_crons.py enable bigquery`
-3.  `bazel run upvote/gae:monolith_binary.deploy -- ${PROJ_ID} app.yaml
+2.  `bazel run upvote/gae:monolith_binary.deploy -- ${PROJ_ID} app.yaml
     santa_api.yaml bit9_api.yaml`
-4.  Once the app is deployed, request the URL
-    "`<my-app>.appspot.com/api/web/export/init-bigquery-streaming`" in your
-    browser to create the necessary tables in BigQuery.
 
 Done! You should start seeing entries at
 "`https://bigquery.cloud.google.com/dataset/<my-app>:gae_streaming`".

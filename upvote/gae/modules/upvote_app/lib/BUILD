@@ -9,27 +9,5 @@ package(default_visibility = ["//upvote"])
 # Libraries
 # ==============================================================================
 
-py_appengine_library(
-    name = "bigquery_schema",
-    srcs = ["bigquery_schema.py"],
-    deps = [
-        "//external:gcloud_bigquery",
-        "//upvote/gae/shared/common:google_cloud_lib_fixer",
-        "//upvote/shared:constants",
-    ],
-)
-
 # AppEngine Unit Tests
 # ==============================================================================
-
-upvote_appengine_test(
-    name = "bigquery_schema_test",
-    size = "medium",
-    srcs = ["bigquery_schema_test.py"],
-    deps = [
-        ":bigquery_schema",
-        "//upvote/gae/datastore/models:bigquery",
-        "//upvote/gae/shared/common:basetest",
-        "//upvote/shared:constants",
-    ],
-)

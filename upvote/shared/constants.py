@@ -290,7 +290,7 @@ RULE_TYPE = UppercaseNamespace(['BINARY', 'CERTIFICATE', 'PACKAGE'])
 
 RULE_POLICY = UppercaseNamespace([
     'WHITELIST', 'BLACKLIST', 'REMOVE', 'FORCE_INSTALLER',
-    'FORCE_NOT_INSTALLER'])
+    'FORCE_NOT_INSTALLER', 'WHITELIST_COMPILER'])
 RULE_POLICY.DefineSet('EXECUTION', [
     RULE_POLICY.WHITELIST, RULE_POLICY.BLACKLIST, RULE_POLICY.REMOVE])
 RULE_POLICY.DefineSet('INSTALLER', [
@@ -299,7 +299,8 @@ RULE_POLICY.DefineSet('BIT9', [
     RULE_POLICY.WHITELIST, RULE_POLICY.BLACKLIST, RULE_POLICY.REMOVE,
     RULE_POLICY.FORCE_INSTALLER, RULE_POLICY.FORCE_NOT_INSTALLER])
 RULE_POLICY.DefineSet('SANTA', [
-    RULE_POLICY.WHITELIST, RULE_POLICY.BLACKLIST, RULE_POLICY.REMOVE])
+    RULE_POLICY.WHITELIST, RULE_POLICY.BLACKLIST, RULE_POLICY.REMOVE,
+    RULE_POLICY.WHITELIST_COMPILER])
 
 HOST_EXEMPTION_REASON = UppercaseNamespace(names=[
 
@@ -338,9 +339,9 @@ LOCAL_ADMIN = Namespace(tuples=[
     (PLATFORM.WINDOWS, 'NT AUTHORITY\\SYSTEM'),
     (PLATFORM.MACOS, 'root')])
 
-GAE_STREAMING_DATASET = 'gae_streaming'
+BIGQUERY_DATASET = 'gae_streaming'
 
-GAE_STREAMING_TABLES = Namespace(tuples=[
+BIGQUERY_TABLE = Namespace(tuples=[
     ('VOTE', 'Vote'),
     ('HOST', 'Host'),
     ('BINARY', 'Binary'),
@@ -372,6 +373,9 @@ SITE_ALERT_SEVERITY = UppercaseNamespace(names=['INFO', 'ERROR'])
 
 TASK_QUEUE = Namespace(tuples=[
 
+    # Used for daily Datastore backups.
+    ('BACKUP', 'backup'),
+
     # Used for changes that need to be committed to Bit9.
     ('BIT9_COMMIT_CHANGE', 'bit9-commit-change'),
 
@@ -387,27 +391,14 @@ TASK_QUEUE = Namespace(tuples=[
     # Used for processing events that have been pulled out of Bit9.
     ('BIT9_PROCESS', 'bit9-process'),
 
-
     # Default task queue.
     ('DEFAULT', 'default'),
 
-    # Used for deferring batch query tasks. See query_utils.py.
+    # Used for deferring batch query tasks. See gae/datastore/utils.py.
     ('QUERY', 'query'),
 
     # Used for deferring the collection of VirusTotal metrics.
     ('METRICS', 'metrics'),
-
-    # Used for deferring BigQueryRow storing.
-    ('BQ_PERSISTENCE', 'bigquery-row-persistence'),
-
-    # Used for deferring BigQueryRow streaming.
-    ('BQ_ROW_STREAMING', 'bigquery-row-streaming'),
-
-    # Used for dispatching BigQueryRow streaming.
-    ('BQ_DISPATCH', 'bigquery-row-dispatch'),
-
-    # Used for deferring BigQueryRow counting.
-    ('BQ_COUNTING', 'bigquery-row-counting'),
 
     # Used for performing BigQueryRow streaming inserts.
     ('BIGQUERY_STREAMING', 'bigquery-streaming')])

@@ -24,8 +24,10 @@ py_appengine_library(
         "//upvote/gae/datastore/models:base",
         "//upvote/gae/datastore/models:bit9",
         "//upvote/gae/datastore/models:santa",
+        "//upvote/gae/datastore/models:user",
         "//upvote/gae/shared/common:settings",
         "//upvote/gae/shared/common:user_map",
+        "//upvote/gae/utils:env_utils",
         "//upvote/shared:constants",
     ],
 )
@@ -45,7 +47,21 @@ upvote_appengine_test(
     deps = [
         ":utils",
         "//external:mock",
-        "//upvote/gae/shared/common:basetest",
+        "//upvote/gae/lib/testing:basetest",
         "@absl_git//absl/testing:absltest",
+    ],
+)
+
+upvote_appengine_test(
+    name = "test_utils_test",
+    size = "small",
+    srcs = ["test_utils_test.py"],
+    deps = [
+        ":test_utils",
+        "//upvote/gae/datastore/models:bit9",
+        "//upvote/gae/datastore/models:santa",
+        "//upvote/gae/datastore/models:user",
+        "//upvote/gae/lib/testing:basetest",
+        "//upvote/gae/shared/common:settings",
     ],
 )

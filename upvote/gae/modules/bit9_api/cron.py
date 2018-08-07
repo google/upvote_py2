@@ -21,16 +21,17 @@ import random
 from google.appengine.ext import deferred
 from google.appengine.ext import ndb
 
+from upvote.gae.datastore import utils as datastore_utils
 from upvote.gae.datastore.models import base
 from upvote.gae.datastore.models import bit9
-from upvote.gae.modules.bit9_api import change_set
-from upvote.gae.modules.bit9_api import constants as bit9_constants
-from upvote.gae.modules.bit9_api import monitoring
+from upvote.gae.datastore.models import user as user_models
+from upvote.gae.lib.bit9 import api
+from upvote.gae.lib.bit9 import change_set
+from upvote.gae.lib.bit9 import constants as bit9_constants
+from upvote.gae.lib.bit9 import monitoring
+from upvote.gae.lib.bit9 import utils as bit9_utils
 from upvote.gae.modules.bit9_api import sync
-from upvote.gae.modules.bit9_api import utils
-from upvote.gae.modules.bit9_api.api import api
 from upvote.gae.shared.common import handlers
-from upvote.gae.shared.common import query_utils
 from upvote.gae.shared.common import user_map
 from upvote.gae.taskqueue import utils as taskqueue_utils
 from upvote.shared import constants
@@ -44,30 +45,39 @@ class CommitAllChangeSets(handlers.UpvoteRequestHandler):
   """Attempt a deferred commit for each Blockable with pending change sets."""
 
   def get(self):
+
+    start_time = datetime.datetime.utcnow()
+
     changes = bit9.RuleChangeSet.query(
         projection=[bit9.RuleChangeSet.blockable_key], distinct=True).fetch()
 
-    change_count = len(changes)
-    logging.info('Retrieved %d pending Bit9 change(s)', change_count)
-    monitoring.pending_changes.Set(change_count)
+    # Count the number of distinct SHA256s that have outstanding RuleChangeSets.
+    blockable_keys = [change.blockable_key for change in changes]
+    blockable_key_count = len(blockable_keys)
+    logging.info('Retrieved %d pending change(s)', blockable_key_count)
+    monitoring.pending_changes.Set(blockable_key_count)
 
-    # Don't over-defer to the bit9-commit-change queue, otherwise it can back up
-    # real fast with duplicate tasks in the event of a large backlog.
-    queue_size = taskqueue_utils.QueueSize(
-        queue=constants.TASK_QUEUE.BIT9_COMMIT_CHANGE, deadline=30)
-    logging.info('Bit9 commit queue currently contains %d task(s)', queue_size)
-    available = max(20 - queue_size, 0)
-    logging.info('Deferring %d Bit9 change(s)', available)
+    # Don't just throw everything into the bit9-commit-change queue, because if
+    # anything is still pending when the cron fires again, the queue could start
+    # to back up. Allow 3 tasks/sec for the number of seconds remaining (minus a
+    # small buffer), evenly spread out over the remaining cron period.
+    now = datetime.datetime.utcnow()
+    cron_seconds = int(datetime.timedelta(minutes=5).total_seconds())
+    elapsed_seconds = int((now - start_time).total_seconds())
+    available_seconds = cron_seconds - elapsed_seconds - 10
 
     # Randomly sample from the outstanding changes in order to avoid
     # head-of-the-line blocking due to unsynced hosts, for example.
-    sample_size = min(change_count, available)
-    selected_changes = random.sample(changes, sample_size)
+    sample_size = min(len(blockable_keys), 3 * available_seconds)
+    selected_keys = random.sample(blockable_keys, sample_size)
+    logging.info('Deferring %d pending change(s)', len(selected_keys))
 
-    blockable_keys = [change.blockable_key for change in selected_changes]
-    logging.info('Deferring %d blockable change(s)', len(blockable_keys))
-    for blockable_key in blockable_keys:
-      change_set.DeferCommitBlockableChangeSet(blockable_key)
+    for selected_key in selected_keys:
+
+      # Schedule the task for a random time in the remaining cron period.
+      countdown = random.randint(0, available_seconds)
+      change_set.DeferCommitBlockableChangeSet(
+          selected_key, countdown=countdown)
 
 
 class UpdateBit9Policies(handlers.UpvoteRequestHandler):
@@ -76,9 +86,9 @@ class UpdateBit9Policies(handlers.UpvoteRequestHandler):
   def get(self):
     policies_future = bit9.Bit9Policy.query().fetch_async()
 
-    active_policies = (api.Policy.query()
-                       .filter(api.Policy.total_computers > 0)
-                       .execute(utils.CONTEXT))
+    active_policies = (
+        api.Policy.query().filter(api.Policy.total_computers > 0)
+        .execute(bit9_utils.CONTEXT))
     local_policies = {
         policy.key.id(): policy for policy in policies_future.get_result()}
     policies_to_update = []
@@ -117,11 +127,9 @@ class CountEventsToPull(handlers.UpvoteRequestHandler):
 
   def get(self):
     queue_length = (
-        api.Event.query()
-        .filter(api.Event.id > sync.GetLastSyncedId())
-        .filter(api.Event.file_catalog_id > 0)
-        .filter(sync.BuildEventSubtypeFilter())
-        .count(utils.CONTEXT))
+        api.Event.query().filter(api.Event.id > sync.GetLastSyncedId())
+        .filter(api.Event.file_catalog_id > 0).filter(
+            sync.BuildEventSubtypeFilter()).count(bit9_utils.CONTEXT))
     logging.info(
         'There are currently %d events waiting in Bit9', queue_length)
     monitoring.events_to_pull.Set(queue_length)

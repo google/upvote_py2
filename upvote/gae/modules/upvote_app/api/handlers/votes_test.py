@@ -15,6 +15,7 @@
 """Unit tests for Votes handlers."""
 
 import httplib
+import mock
 
 import webapp2
 
@@ -23,8 +24,9 @@ from google.appengine.ext import ndb
 from upvote.gae.datastore import test_utils
 from upvote.gae.datastore import utils
 from upvote.gae.datastore.models import base as base_db
+from upvote.gae.lib.testing import basetest
+from upvote.gae.lib.voting import api as voting_api
 from upvote.gae.modules.upvote_app.api.handlers import votes
-from upvote.gae.shared.common import basetest
 from upvote.shared import constants
 
 
@@ -168,7 +170,7 @@ class VoteCastHandlerTest(VotesTest):
 
   ROUTE = '/votes/cast/%s'
 
-  def testAdminPost(self):
+  def testPost_Admin_Success(self):
     """Admin posts a vote."""
     params = {'wasYesVote': 'true'}
 
@@ -184,7 +186,7 @@ class VoteCastHandlerTest(VotesTest):
     self.assertEqual(self.santa_blockable.key.id(), output['blockable']['id'])
     self.assertEqual(True, output['vote']['wasYesVote'])
 
-  def testAdminPost_Cert(self):
+  def testPost_Admin_Cert(self):
     params = {'wasYesVote': 'true'}
 
     with self.LoggedInUser(admin=True):
@@ -199,7 +201,7 @@ class VoteCastHandlerTest(VotesTest):
     self.assertEqual(self.santa_certificate.key.id(), output['blockable']['id'])
     self.assertEqual(True, output['vote']['wasYesVote'])
 
-  def testAdminPost_AsRole_User(self):
+  def testPost_Admin_AsRole_User(self):
     params = {'wasYesVote': 'true', 'asRole': constants.USER_ROLE.USER}
 
     with self.LoggedInUser(admin=True):
@@ -209,7 +211,7 @@ class VoteCastHandlerTest(VotesTest):
 
     self.assertEqual(1, output['vote']['weight'])
 
-  def testAdminPost_AsRole_NoRole(self):
+  def testPost_Admin_AsRole_NoRole(self):
     params = {'wasYesVote': 'true', 'asRole': ''}
 
     with self.LoggedInUser(admin=True) as admin:
@@ -219,7 +221,7 @@ class VoteCastHandlerTest(VotesTest):
 
       self.assertEqual(admin.vote_weight, output['vote']['weight'])
 
-  def testAdminPost_AsRole_BadRole(self):
+  def testPost_Admin_AsRole_BadRole(self):
     params = {'wasYesVote': 'true', 'asRole': 'NotARole'}
 
     with self.LoggedInUser(admin=True):
@@ -227,7 +229,7 @@ class VoteCastHandlerTest(VotesTest):
           self.ROUTE % self.santa_blockable.key.id(), params,
           status=httplib.BAD_REQUEST)
 
-  def testUserPost_AsRole_NotAuthorized(self):
+  def testPost_User_AsRole_NotAuthorized(self):
     params = {'wasYesVote': 'true', 'asRole': constants.USER_ROLE.TRUSTED_USER}
 
     with self.LoggedInUser(email_addr=self.user_2.email):
@@ -235,7 +237,7 @@ class VoteCastHandlerTest(VotesTest):
           self.ROUTE % self.santa_blockable.key.id(), params,
           status=httplib.FORBIDDEN)
 
-  def testUserPost(self):
+  def testPost_User_Success(self):
     """Normal user posts a vote."""
     params = {'wasYesVote': 'true'}
 
@@ -251,7 +253,7 @@ class VoteCastHandlerTest(VotesTest):
     self.assertEqual(self.santa_blockable.key.id(), output['blockable']['id'])
     self.assertEqual(True, output['vote']['wasYesVote'])
 
-  def testUserPost_Duplicate(self):
+  def testPost_User_Duplicate(self):
     params = {'wasYesVote': 'true'}
 
     with self.LoggedInUser(email_addr=self.user_2.email):
@@ -262,14 +264,14 @@ class VoteCastHandlerTest(VotesTest):
           self.ROUTE % self.santa_blockable.key.id(), params,
           status=httplib.CONFLICT)
 
-  def testUserPost_UnknownBlockable(self):
+  def testPost_User_UnknownBlockable(self):
     params = {'wasYesVote': 'true'}
 
     with self.LoggedInUser(email_addr=self.user_2.email):
       self.testapp.post(
           self.ROUTE % 'notablockable', params, status=httplib.NOT_FOUND)
 
-  def testUserPost_Cert(self):
+  def testPost_User_Cert(self):
     """Normal user posts a vote."""
     params = {'wasYesVote': 'true'}
 
@@ -278,7 +280,60 @@ class VoteCastHandlerTest(VotesTest):
           self.ROUTE % self.santa_certificate.key.id(), params,
           status=httplib.FORBIDDEN)
 
-  def testUserGet(self):
+  @mock.patch.object(
+      votes.voting_api, 'Vote', side_effect=voting_api.BlockableNotFound)
+  def testPost_BlockableNotFound(self, mock_vote):
+    with self.LoggedInUser():
+      self.testapp.post(
+          self.ROUTE % test_utils.RandomSHA256(),
+          params={'wasYesVote': 'true'},
+          status=httplib.NOT_FOUND)
+
+  @mock.patch.object(
+      votes.voting_api, 'Vote', side_effect=voting_api.UnsupportedPlatform)
+  def testPost_UnsupportedPlatform(self, mock_vote):
+    with self.LoggedInUser():
+      self.testapp.post(
+          self.ROUTE % test_utils.RandomSHA256(),
+          params={'wasYesVote': 'true'},
+          status=httplib.BAD_REQUEST)
+
+  @mock.patch.object(
+      votes.voting_api, 'Vote', side_effect=voting_api.InvalidVoteWeight)
+  def testPost_InvalidVoteWeight(self, mock_vote):
+    with self.LoggedInUser():
+      self.testapp.post(
+          self.ROUTE % test_utils.RandomSHA256(),
+          params={'wasYesVote': 'true'},
+          status=httplib.BAD_REQUEST)
+
+  @mock.patch.object(
+      votes.voting_api, 'Vote', side_effect=voting_api.DuplicateVoteError)
+  def testPost_DuplicateVoteError(self, mock_vote):
+    with self.LoggedInUser():
+      self.testapp.post(
+          self.ROUTE % test_utils.RandomSHA256(),
+          params={'wasYesVote': 'true'},
+          status=httplib.CONFLICT)
+
+  @mock.patch.object(
+      votes.voting_api, 'Vote', side_effect=voting_api.OperationNotAllowed)
+  def testPost_OperationNotAllowed(self, mock_vote):
+    with self.LoggedInUser():
+      self.testapp.post(
+          self.ROUTE % test_utils.RandomSHA256(),
+          params={'wasYesVote': 'true'},
+          status=httplib.FORBIDDEN)
+
+  @mock.patch.object(votes.voting_api, 'Vote', side_effect=Exception)
+  def testPost_Exception(self, mock_vote):
+    with self.LoggedInUser():
+      self.testapp.post(
+          self.ROUTE % test_utils.RandomSHA256(),
+          params={'wasYesVote': 'true'},
+          status=httplib.INTERNAL_SERVER_ERROR)
+
+  def testGet_User(self):
     """Normal user reads a vote."""
     inactive_key = ndb.Key(flat=self.vote_2.key.flat()[:-1] + (None,))
     inactive_vote = utils.CopyEntity(self.vote_2, new_key=inactive_key)

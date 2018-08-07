@@ -40,11 +40,6 @@ handlers:
   secure: always
   login: admin  # Since these are cron handlers
 
-- url: /api/bit9/.*
-  script: upvote.gae.modules.bit9_api.main.app
-  secure: always
-  login: required
-
 - url: /_ah/warmup
   script: upvote.gae.modules.bit9_api.main.app
   secure: always

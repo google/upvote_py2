@@ -20,7 +20,7 @@ import webapp2
 
 from upvote.gae.modules.upvote_app.api.handlers import base
 from upvote.gae.shared.common import big_red
-from upvote.gae.shared.common import xsrf_utils
+from upvote.gae.utils import xsrf_utils
 from upvote.shared import constants
 
 

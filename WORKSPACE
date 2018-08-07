@@ -296,15 +296,63 @@ bind(
     actual = "@gcloud_auth_httplib2_git//:gcloud_auth_httplib2",
 )
 
+# needed for gcloud_api_core
+
+new_http_archive(
+    name = "futures_archive",
+    build_file = "//third_party:futures.BUILD",
+    sha256 = "9ec02aa7d674acb8618afb127e27fde7fc68994c0437ad759fa094a574adb265",
+    strip_prefix = "futures-3.2.0",
+    urls = [
+        "https://files.pythonhosted.org/packages/1f/9e/7b2ff7e965fc654592269f2906ade1c7d705f1bf25b7d469fa153f7d19eb/futures-3.2.0.tar.gz",
+    ],
+)
+
+bind(
+    name = "futures",
+    actual = "@futures_archive//:futures",
+)
+
+new_http_archive(
+    name = "pytz_archive",
+    build_file = "//third_party:pytz.BUILD",
+    sha256 = "ffb9ef1de172603304d9d2819af6f5ece76f2e85ec10692a524dd876e72bf277",
+    strip_prefix = "pytz-2018.5",
+    urls = [
+        "https://files.pythonhosted.org/packages/ca/a9/62f96decb1e309d6300ebe7eee9acfd7bccaeedd693794437005b9067b44/pytz-2018.5.tar.gz",
+    ],
+)
+
+bind(
+    name = "pytz",
+    actual = "@pytz_archive//:pytz",
+)
+
+# needed for gcloud_core
+new_http_archive(
+    name = "gcloud_api_core_archive",
+    build_file = "//third_party:gcloud_api_core.BUILD",
+    sha256 = "370d5dc108ac5dfea2eee8ef32b77693444bf957d4657820d12596ca5082e8ae",
+    strip_prefix = "google-api-core-1.2.0",
+    urls = [
+        "https://files.pythonhosted.org/packages/d2/8d/b715c15184f1b96f92d331d806ed730ed1ca0c1e6e6db9cc26f9a1f2d927/google-api-core-1.2.0.tar.gz",
+    ],
+)
+
+bind(
+    name = "gcloud_api_core",
+    actual = "@gcloud_api_core_archive//:gcloud_api_core",
+)
+
 # needed for gcloud_bigquery
 new_http_archive(
     name = "gcloud_core_archive",
     build_file = "//third_party:gcloud_core.BUILD",
-    sha256 = "1249ee44c445f820eaf99d37904b37961347019dcd3637dbad1f3173260245f2",
-    strip_prefix = "google-cloud-core-0.25.0",
+    sha256 = "89e8140a288acec20c5e56159461d3afa4073570c9758c05d4e6cb7f2f8cc440",
+    strip_prefix = "google-cloud-core-0.28.1",
     urls = [
-        "https://mirror.bazel.build/pypi.python.org/packages/58/d0/c3a30eca2a0073d5ac00254a1a9d259929a899deee6e3dfe4e45264f5187/google-cloud-core-0.25.0.tar.gz",
-        "https://pypi.python.org/packages/58/d0/c3a30eca2a0073d5ac00254a1a9d259929a899deee6e3dfe4e45264f5187/google-cloud-core-0.25.0.tar.gz",
+        "https://mirror.bazel.build/files.pythonhosted.org/packages/22/f0/a062f4d877420e765f451af99045326e44f9b026088d621ca40011f14c66/google-cloud-core-0.28.1.tar.gz",
+        "https://files.pythonhosted.org/packages/22/f0/a062f4d877420e765f451af99045326e44f9b026088d621ca40011f14c66/google-cloud-core-0.28.1.tar.gz",
     ],
 )
 
@@ -368,11 +416,11 @@ bind(
 new_http_archive(
     name = "gcloud_bigquery_archive",
     build_file = "//third_party:gcloud_bigquery.BUILD",
-    sha256 = "6e8cc6914701bbfd8845cc0e0b19c5e2123649fc6ddc49aa945d83629499f4ec",
-    strip_prefix = "google-cloud-bigquery-0.25.0",
+    sha256 = "aed2b1d4db1e21d891522d6d6bb14476e6ba58c681cbb68eeb42c168a4e3fda9",
+    strip_prefix = "google-cloud-bigquery-1.1.0",
     urls = [
-        "https://mirror.bazel.build/pypi.python.org/packages/4a/f1/05631b0a29b1f763794404195d161edb24d7463029c987e0a32fc521e2a6/google-cloud-bigquery-0.25.0.tar.gz",
-        "https://pypi.python.org/packages/4a/f1/05631b0a29b1f763794404195d161edb24d7463029c987e0a32fc521e2a6/google-cloud-bigquery-0.25.0.tar.gz",
+        "https://mirror.bazel.build/files.pythonhosted.org/packages/24/f8/54a929bc544d4744ef02cee1c9b97c9498d835445608bf2d099268ed8f1c/google-cloud-bigquery-1.1.0.tar.gz",
+        "https://files.pythonhosted.org/packages/24/f8/54a929bc544d4744ef02cee1c9b97c9498d835445608bf2d099268ed8f1c/google-cloud-bigquery-1.1.0.tar.gz",
     ],
 )
 
@@ -396,30 +444,18 @@ bind(
     actual = "@requests_toolbelt_archive//:requests_toolbelt",
 )
 
-new_http_archive(
-    name = "com_google_javascript_closure_library",
-    build_file = "//third_party:closure_library.BUILD",
-    sha256 = "d018003a6895141f6e24b11fd969f6a9ad7756fc15dff6acfb49e2aab1d02b14",
-    strip_prefix = "closure-library-20170626",
-    urls = [
-        "http://mirror.bazel.build/github.com/google/closure-library/archive/v20170626.tar.gz",
-        "https://github.com/google/closure-library/archive/v20170626.tar.gz",
-    ],
-)
-
 http_archive(
     name = "io_bazel_rules_closure",
-    sha256 = "8026155cf296459b63e318ccd230f0ad79eae3b1e339a49ea7122a3c512ed680",
-    strip_prefix = "rules_closure-f4d0633f14570313b94822223039ebda0f398102",
+    sha256 = "f91ec43ce3898c6b965e2bdff91a53755a13004adbeaf606804f719f1e888340",
+    strip_prefix = "rules_closure-3555e5ba61fdcc17157dd833eaf7d19b313b1bca",
     urls = [
-        "http://mirror.bazel.build/github.com/bazelbuild/rules_closure/archive/f4d0633f14570313b94822223039ebda0f398102.tar.gz",
-        "https://github.com/bazelbuild/rules_closure/archive/f4d0633f14570313b94822223039ebda0f398102.tar.gz",
+        "https://github.com/bazelbuild/rules_closure/archive/3555e5ba61fdcc17157dd833eaf7d19b313b1bca.tar.gz",  # 2018-07-23
     ],
 )
 
 load("@io_bazel_rules_closure//closure:defs.bzl", "closure_repositories")
 
-closure_repositories(omit_com_google_javascript_closure_library = True)
+closure_repositories()
 
 http_archive(
     name = "org_pubref_rules_node",

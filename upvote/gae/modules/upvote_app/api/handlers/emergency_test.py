@@ -18,8 +18,8 @@ import mock
 
 import webapp2
 
+from upvote.gae.lib.testing import basetest
 from upvote.gae.modules.upvote_app.api.handlers import emergency
-from upvote.gae.shared.common import basetest
 
 
 class EmergencyTest(basetest.UpvoteTestCase):

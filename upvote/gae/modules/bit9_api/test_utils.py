@@ -14,8 +14,8 @@
 
 """Common test utilities for bit9_api."""
 
-from upvote.gae.modules.bit9_api import constants as bit9_constants
-from upvote.gae.modules.bit9_api.api import api
+from upvote.gae.lib.bit9 import api
+from upvote.gae.lib.bit9 import constants as bit9_constants
 from upvote.gae.shared.common import settings
 
 # This giant dict is the combined default state for test data. It allows each of
@@ -72,7 +72,8 @@ _PROPERTY_MAP = {
         'policy_id': '',
         'users': '',
         'enforcement_level': '',
-        'cli_password': ''},
+        'cli_password': ''
+    },
     api.FileCatalog: {
         'file_catalog_id': 'id',
         'date_created': '',
@@ -94,14 +95,16 @@ _PROPERTY_MAP = {
         'certificate_state': '',
         'file_flags': '',
         'publisher_id': '',
-        'certificate_id': ''},
+        'certificate_id': ''
+    },
     api.Certificate: {
         'certificate_id': 'id',
         'certificate_state': '',
         'thumbprint': '',
         'thumbprint_algorithm': '',
         'valid_from': '',
-        'valid_to': ''},
+        'valid_to': ''
+    },
     api.Event: {
         'event_id': 'id',
         'timestamp': '',
@@ -112,11 +115,13 @@ _PROPERTY_MAP = {
         'file_catalog_id': '',
         'file_name': '',
         'path_name': '',
-        'user_name': ''},
+        'user_name': ''
+    },
     api.Policy: {
         'policy_id': 'id',
         'name': 'policy_name',
-        'enforcement_level': ''},
+        'enforcement_level': ''
+    },
 }
 
 

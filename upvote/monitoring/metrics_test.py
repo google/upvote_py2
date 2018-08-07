@@ -32,7 +32,7 @@ class MetricNamespaceTest(absltest.TestCase):
     self.assertEqual(6, len(metrics.SANTA_API.ALL))
 
   def testBit9Api(self):
-    self.assertEqual(11, len(metrics.BIT9_API.ALL))
+    self.assertEqual(12, len(metrics.BIT9_API.ALL))
 
   def testBit9RestApi(self):
     self.assertEqual(3, len(metrics.BIT9_REST_API.ALL))
@@ -44,7 +44,7 @@ class MetricNamespaceTest(absltest.TestCase):
     self.assertEqual(2, len(metrics.ANALYSIS.ALL))
 
   def testBigQuery(self):
-    self.assertEqual(5, len(metrics.BIGQUERY.ALL))
+    self.assertEqual(1, len(metrics.BIGQUERY.ALL))
 
   def testRpcServer(self):
     self.assertEqual(3, len(metrics.RPC_SERVER.ALL))

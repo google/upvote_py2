@@ -16,7 +16,7 @@
 
 import os
 
-from upvote.gae.shared.common import basetest
+from upvote.gae.lib.testing import basetest
 from upvote.gae.shared.common import settings
 from upvote.gae.shared.common import settings_utils
 

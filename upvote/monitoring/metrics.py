@@ -73,7 +73,8 @@ BIT9_API = UpvoteNamespace('bit9_api/', [
     ('bit9_qps', 'Bit9 QPS'),
     ('bit9_requests', 'Bit9 Requests'),
     ('bit9_latency', 'Bit9 Latency'),
-    ('local_whitelisting_latency', 'Local Whitelisting Latency')])
+    ('local_whitelisting_latency', 'Local Whitelisting Latency'),
+    ('file_instances_missing', 'File Instances Missing')])
 
 
 BIT9_REST_API = UpvoteNamespace('bit9_rest_api/', [
@@ -101,10 +102,6 @@ ANALYSIS = UpvoteNamespace('analysis/', [
 
 
 BIGQUERY = UpvoteNamespace('bigquery/', [
-    ('rows_to_persist', 'Rows To Persist'),
-    ('rows_persisted', 'Rows Persisted'),
-    ('rows_to_stream', 'Rows To Stream'),
-    ('rows_streamed', 'Rows Streamed'),
     ('row_insertions', 'Row Insertions')])
 
 

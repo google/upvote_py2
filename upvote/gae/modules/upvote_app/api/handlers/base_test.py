@@ -23,10 +23,10 @@ import webtest
 from google.appengine.ext import ndb
 
 from common.testing import basetest as gae_basetest
+from upvote.gae.lib.testing import basetest
 from upvote.gae.modules.upvote_app.api.handlers import base
-from upvote.gae.shared.common import basetest
 from upvote.gae.shared.common import handlers
-from upvote.gae.shared.common import xsrf_utils
+from upvote.gae.utils import xsrf_utils
 from upvote.shared import constants
 
 

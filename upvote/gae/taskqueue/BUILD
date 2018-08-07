@@ -33,6 +33,6 @@ upvote_appengine_test(
     deps = [
         ":utils",
         "//common/testing:basetest",
-        "//upvote/gae/shared/common:basetest",
+        "//upvote/gae/lib/testing:basetest",
     ],
 )

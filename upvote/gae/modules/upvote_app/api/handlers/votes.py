@@ -29,7 +29,7 @@ from upvote.gae.modules.upvote_app.api import monitoring
 from upvote.gae.modules.upvote_app.api.handlers import base
 from upvote.gae.shared.common import handlers
 from upvote.gae.shared.common import settings
-from upvote.gae.shared.common import xsrf_utils
+from upvote.gae.utils import xsrf_utils
 from upvote.shared import constants
 
 
@@ -93,7 +93,7 @@ class VoteCastHandler(base.BaseHandler):
 
   def _GetVoteWeight(self, role):
     if not role:
-      return None
+      return self.user.vote_weight
 
     role_weights = settings.VOTING_WEIGHTS
     vote_weight = role_weights.get(role)
@@ -125,19 +125,23 @@ class VoteCastHandler(base.BaseHandler):
     vote_weight = self._GetVoteWeight(role)
 
     try:
-      ballot_box = voting_api.GetBallotBox(blockable_id)
-      ballot_box.ResolveVote(was_yes_vote, self.user, vote_weight)
+      vote = voting_api.Vote(self.user, blockable_id, was_yes_vote, vote_weight)
+    except voting_api.BlockableNotFound:
+      self.abort(httplib.NOT_FOUND, explanation='Application not found')
+    except voting_api.UnsupportedPlatform:
+      self.abort(httplib.BAD_REQUEST, explanation='Unsupported platform')
+    except voting_api.InvalidVoteWeight:
+      self.abort(httplib.BAD_REQUEST, explanation='Invalid voting weight')
     except voting_api.DuplicateVoteError:
       self.abort(httplib.CONFLICT, explanation='Vote already exists')
     except voting_api.OperationNotAllowed as e:
       self.abort(httplib.FORBIDDEN, explanation=e.message)
-    except voting_api.BlockableNotFound:
-      self.abort(httplib.NOT_FOUND, explanation='Blockable not found')
-    except voting_api.UnsupportedBlockableType as e:
-      self.abort(httplib.BAD_REQUEST, explanation=e.message)
+    except Exception as e:  # pylint: disable=broad-except
+      self.abort(httplib.INTERNAL_SERVER_ERROR, explanation=e.message)
     else:
       self.respond_json({
-          'blockable': ballot_box.blockable, 'vote': ballot_box.new_vote})
+          'blockable': base_db.Blockable.get_by_id(blockable_id),
+          'vote': vote})
 
   def get(self, blockable_id):
     """Gets user's vote for the given blockable."""

@@ -26,22 +26,19 @@ from google.appengine.ext import blobstore
 from google.appengine.ext import ndb
 from google.appengine.ext.webapp import blobstore_handlers
 
-from upvote.gae.datastore import utils
-from upvote.gae.datastore.models import base as base_db
-from upvote.gae.datastore.models import bigquery
+from upvote.gae.bigquery import tables
+from upvote.gae.datastore import utils as datastore_utils
 from upvote.gae.datastore.models import santa as santa_db
+from upvote.gae.datastore.models import user as user_models
 from upvote.gae.lib.analysis import metrics
 from upvote.gae.modules.santa_api import auth
 from upvote.gae.modules.santa_api import constants as santa_const
 from upvote.gae.modules.santa_api import monitoring
 from upvote.gae.shared.common import big_red
 from upvote.gae.shared.common import handlers
-from upvote.gae.shared.common import query_utils
 from upvote.gae.shared.common import settings
 from upvote.gae.shared.common import user_map
-from upvote.gae.shared.common import utils as common_utils
-from upvote.gae.shared.common import xsrf_utils
-from upvote.gae.taskqueue import utils as taskqueue_utils
+from upvote.gae.utils import xsrf_utils
 from upvote.shared import constants as common_const
 
 _SANTA_ACTION = 'santa_action'
@@ -131,6 +128,42 @@ class BaseSantaApiHandler(handlers.UpvoteRequestHandler):
     super(BaseSantaApiHandler, self).dispatch()
 
 
+def _CopyLocalRules(user_key, dest_host_id):
+  """Creates copies of all local rules for the new host."""
+
+  logging.info(
+      'Copying rules for user %s to host %s', user_key.id(), dest_host_id)
+
+  # Pick any host owned by the user to copy rules from. Exclude hosts that
+  # haven't completed a full sync because they won't have a complete rule set.
+  username = user_map.EmailToUsername(user_key.id())
+  query = santa_db.SantaHost.query(
+      santa_db.SantaHost.primary_user == username,
+      santa_db.SantaHost.last_postflight_dt != None)  # pylint: disable=g-equals-none
+  src_host = query.get()
+  if src_host is None:
+    logging.warning('User %s has no hosts to copy from', username)
+    return datastore_utils.GetNoOpFuture()
+
+  # Query for all SantaRules for the given user on the chosen host.
+  query = santa_db.SantaRule.query(
+      santa_db.SantaRule.host_id == src_host.key.id(),
+      santa_db.SantaRule.user_key == user_key)
+
+  # Copy the local rules to the new host.
+  new_rules = []
+  for src_rules in datastore_utils.Paginate(query):
+    for src_rule in src_rules:
+      new_rule = datastore_utils.CopyEntity(
+          src_rule, new_parent=src_rule.key.parent(), host_id=dest_host_id,
+          user_key=user_key)
+      new_rules.append(new_rule)
+
+  logging.info('Copying %d rule(s) to host %s', len(new_rules), dest_host_id)
+  futures = ndb.put_multi_async(new_rules)
+  return datastore_utils.GetMultiFuture(futures)
+
+
 class PreflightHandler(BaseSantaApiHandler):
   """Preflight is the first stage of the sync process for a full sync."""
   REQUIRE_HOST_OBJECT = False
@@ -139,36 +172,6 @@ class PreflightHandler(BaseSantaApiHandler):
   def RequestCounter(self):
     return monitoring.preflight_requests
 
-  def _CreateNewLocalRules(self, uuid, user_key):
-    """Creates copies of all local rules for the new host."""
-    # Pick any host owned by the user to copy rules from. Exclude hosts that
-    # haven't completed a full sync because they won't have a complete rule set.
-    # NOTE: Because we expect all hosts owned by a user to have the same local
-    # rules, we should get the same rules set with any one of the user's hosts.
-    username = user_map.EmailToUsername(user_key.id())
-    host_query = santa_db.SantaHost.query(
-        santa_db.SantaHost.primary_user == username,
-        santa_db.SantaHost.last_postflight_dt != None)  # pylint: disable=g-equals-none
-    a_host = host_query.get()
-    if a_host is None:
-      return utils.GetNoOpFuture()
-
-    # Get all local rules from that host.
-    rules_query = santa_db.SantaRule.query(
-        santa_db.SantaRule.host_id == a_host.key.id(),
-        santa_db.SantaRule.in_effect == True)  # pylint: disable=g-explicit-bool-comparison
-
-    # Copy the local rules to the new host.
-    new_rules = []
-    for batch in query_utils.Paginate(rules_query):
-      for rule in batch:
-        new_rule = utils.CopyEntity(
-            rule, new_parent=rule.key.parent(), host_id=uuid, user_key=user_key)
-        new_rules.append(new_rule)
-
-    futures = ndb.put_multi_async(new_rules)
-    return utils.GetMultiFuture(futures)
-
   @handlers.RecordRequest
   def post(self, uuid):
     futures = []
@@ -176,7 +179,7 @@ class PreflightHandler(BaseSantaApiHandler):
     # Create an User for the primary_user on any preflight if one doesn't
     # already exist.
     primary_user = self.parsed_json.get(santa_const.PREFLIGHT.PRIMARY_USER)
-    user = base_db.User.GetOrInsert(
+    user = user_models.User.GetOrInsert(
         user_map.UsernameToEmail(primary_user))
     # Ensures the returned username is consistent with the User entity.
     primary_user = user.nickname
@@ -186,7 +189,7 @@ class PreflightHandler(BaseSantaApiHandler):
     if first_preflight:
       self.host = santa_db.SantaHost(key=self.host_key)
       self.host.client_mode = settings.SANTA_DEFAULT_CLIENT_MODE
-      futures.append(self._CreateNewLocalRules(uuid, user.key))
+      futures.append(_CopyLocalRules(user.key, uuid))
 
     # Update host entity on every sync.
     self.host.serial_num = self.parsed_json.get(
@@ -215,7 +218,7 @@ class PreflightHandler(BaseSantaApiHandler):
       if reported_mode not in common_const.HOST_MODE.SET_ALL:
         reported_mode = common_const.HOST_MODE.UNKNOWN
 
-      bigquery.HostRow.DeferCreate(
+      tables.HOST.InsertRow(
           device_id=uuid,
           timestamp=datetime.datetime.utcnow(),
           action=common_const.HOST_ACTION.COMMENT,
@@ -247,12 +250,18 @@ class PreflightHandler(BaseSantaApiHandler):
             settings.SANTA_EVENT_BATCH_SIZE),
         santa_const.PREFLIGHT.CLIENT_MODE: actual_client_mode,
         santa_const.PREFLIGHT.WHITELIST_REGEX: (
-            self.host.directory_whitelist_regex),
+            self.host.directory_whitelist_regex
+            if self.host.directory_whitelist_regex is not None
+            else settings.SANTA_DIRECTORY_WHITELIST_REGEX),
         santa_const.PREFLIGHT.BLACKLIST_REGEX: (
-            self.host.directory_blacklist_regex),
+            self.host.directory_blacklist_regex
+            if self.host.directory_blacklist_regex is not None
+            else settings.SANTA_DIRECTORY_BLACKLIST_REGEX),
         santa_const.PREFLIGHT.CLEAN_SYNC: not self.host.rule_sync_dt,
         santa_const.PREFLIGHT.BUNDLES_ENABLED: (
             settings.SANTA_BUNDLES_ENABLED),
+        santa_const.PREFLIGHT.TRANSITIVE_WHITELISTING_ENABLED: (
+            self.host.transitive_whitelisting_enabled),
     }
 
     if self.host.should_upload_logs:
@@ -268,7 +277,7 @@ class PreflightHandler(BaseSantaApiHandler):
     # is an auto_now_add.
     if first_preflight:
       new_host = ndb.Key('Host', uuid).get()
-      bigquery.HostRow.DeferCreate(
+      tables.HOST.InsertRow(
           device_id=uuid,
           timestamp=new_host.recorded_dt,
           action=common_const.HOST_ACTION.FIRST_SEEN,
@@ -444,7 +453,7 @@ class EventUploadHandler(BaseSantaApiHandler):
 
     usernames = event.get(santa_const.EVENT_UPLOAD.LOGGED_IN_USERS, [])
 
-    bigquery.ExecutionRow.DeferCreate(
+    tables.EXECUTION.InsertRow(
         sha256=blockable_id,
         device_id=dbevent.host_id,
         timestamp=occurred_dt,
@@ -458,7 +467,7 @@ class EventUploadHandler(BaseSantaApiHandler):
         decision=dbevent.event_type)
 
     return [
-        utils.CopyEntity(dbevent, new_key=key)
+        datastore_utils.CopyEntity(dbevent, new_key=key)
         for key in dbevent.GetKeysToInsert(usernames, [self.host.primary_user])]
 
   @classmethod
@@ -477,7 +486,7 @@ class EventUploadHandler(BaseSantaApiHandler):
     for cert_entity in unknown_certs:
       cert_entity.PersistRow(
           common_const.BLOCK_ACTION.FIRST_SEEN,
-          cert_entity.recorded_dt)
+          timestamp=cert_entity.recorded_dt)
 
     yield ndb.put_multi_async(unknown_certs)
 
@@ -491,7 +500,8 @@ class EventUploadHandler(BaseSantaApiHandler):
     # parameters in the event of a failure. If we modify the event objects in
     # place, subsequent retries will see the changes made by previous attempts.
     event_copies = [
-        utils.CopyEntity(event, new_key=event.key) for event in events]
+        datastore_utils.CopyEntity(event, new_key=event.key)
+        for event in events]
     existing_events = yield ndb.get_multi_async(event.key for event in events)
     for event, existing_event in zip(event_copies, existing_events):
       if existing_event:
@@ -527,7 +537,6 @@ class EventUploadHandler(BaseSantaApiHandler):
   # pylint: disable=g-doc-return-or-yield
   @classmethod
   @ndb.transactional_tasklet
-  @taskqueue_utils.GroupTransactionalTaskletDefers
   def _CreateBlockableFromJsonEvent(cls, json_event):
     """Creates a SantaBlockable from a JSON event if it does not already exist.
 
@@ -554,7 +563,7 @@ class EventUploadHandler(BaseSantaApiHandler):
       yield blockable.put_async()
 
       blockable.PersistRow(
-          common_const.BLOCK_ACTION.FIRST_SEEN, blockable.recorded_dt)
+          common_const.BLOCK_ACTION.FIRST_SEEN, timestamp=blockable.recorded_dt)
 
       metrics.DeferLookupMetric(
           blockable_id, common_const.ANALYSIS_REASON.NEW_BLOCKABLE)
@@ -562,7 +571,6 @@ class EventUploadHandler(BaseSantaApiHandler):
   # pylint: disable=g-doc-return-or-yield
   @classmethod
   @ndb.transactional_tasklet
-  @taskqueue_utils.GroupTransactionalTaskletDefers
   def _CreateBundleFromJsonEvent(cls, json_event):
     """Creates a SantaBundle from a JSON event if it does not already exist.
 
@@ -577,8 +585,7 @@ class EventUploadHandler(BaseSantaApiHandler):
         bundle = cls._GenerateBundleFromJsonEvent(json_event)
 
         bundle.PersistRow(
-            common_const.BLOCK_ACTION.FIRST_SEEN,
-            bundle.recorded_dt)
+            common_const.BLOCK_ACTION.FIRST_SEEN, timestamp=bundle.recorded_dt)
 
         yield bundle.put_async()
 
@@ -599,7 +606,6 @@ class EventUploadHandler(BaseSantaApiHandler):
 
   @classmethod
   @ndb.transactional_tasklet
-  @taskqueue_utils.GroupTransactionalTaskletDefers
   def _CreateBundleBinaries(cls, bundle_key, bundle_upload_events):
     """Create the uploaded binaries associated with a single bundle."""
     logging.info(
@@ -611,8 +617,7 @@ class EventUploadHandler(BaseSantaApiHandler):
       bundle = cls._GenerateBundleFromJsonEvent(bundle_upload_events[0])
 
       bundle.PersistRow(
-          common_const.BLOCK_ACTION.FIRST_SEEN,
-          bundle.recorded_dt)
+          common_const.BLOCK_ACTION.FIRST_SEEN, timestamp=bundle.recorded_dt)
 
       yield bundle.put_async()
     elif bundle and bundle.has_been_uploaded:
@@ -644,7 +649,7 @@ class EventUploadHandler(BaseSantaApiHandler):
           cert_key=signing_cert_key)
       bundle_binaries.append(bundle_binary)
 
-      bigquery.BundleBinaryRow.DeferCreate(
+      tables.BUNDLE_BINARY.InsertRow(
           bundle_hash=bundle_key.id(),
           sha256=blockable.key.id(),
           timestamp=datetime.datetime.utcnow(),
@@ -803,7 +808,7 @@ class EventUploadHandler(BaseSantaApiHandler):
     all_futures.append(self._CreateAllBundlesFromJsonEvents(normal_events))
 
     # Create bundle members for bundle upload events.
-    bundle_member_future = utils.GetNoOpFuture()
+    bundle_member_future = datastore_utils.GetNoOpFuture()
     if bundle_upload_events:
       logging.info('Syncing %d bundle events', len(bundle_upload_events))
       bundle_member_future = self._CreateAllBundleBinaries(bundle_upload_events)
@@ -867,8 +872,8 @@ class EventUploadHandler(BaseSantaApiHandler):
     self.respond_json(response_dict)
 
 
-class LogUploadHandler(blobstore_handlers.BlobstoreUploadHandler,
-                       BaseSantaApiHandler):
+class LogUploadHandler(
+    blobstore_handlers.BlobstoreUploadHandler, BaseSantaApiHandler):
   """Handles log uploads."""
   # Clients do not send any JSON with this request.
   SHOULD_PARSE_JSON = False
@@ -948,7 +953,8 @@ class RuleDownloadHandler(BaseSantaApiHandler):
     # Process the received rules.
     response_rules = []
     for rule in rules:
-      creation_timestamp = common_utils.ToUtcTimestamp(rule.updated_dt)
+      epoch = datetime.datetime.utcfromtimestamp(0)
+      creation_timestamp = (rule.updated_dt - epoch).total_seconds()
       rule_dict = {
           santa_const.RULE_DOWNLOAD.SHA256: rule.key.parent().id(),
           santa_const.RULE_DOWNLOAD.RULE_TYPE: rule.rule_type,
@@ -999,7 +1005,7 @@ class PostflightHandler(BaseSantaApiHandler):
     self.host.put()
 
     host_id = self.host.key.id()
-    bigquery.HostRow.DeferCreate(
+    tables.HOST.InsertRow(
         device_id=host_id,
         timestamp=self.host.last_postflight_dt,
         action=common_const.HOST_ACTION.FULL_SYNC,

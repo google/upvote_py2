@@ -95,9 +95,18 @@ class JSONEncoderTest(BaseEncoderTest):
     actual = self._PerformEncoding(frozenset(['aaa', 'bbb', 'ccc']))
     self._VerifyEncoding(['aaa', 'bbb', 'ccc'], actual)
 
-  def testEncode_Datetime(self):
-    actual = self._PerformEncoding(datetime.datetime(2015, 4, 1, 17, 0, 0))
+  def testEncode_Datetime_Default(self):
+    encoder = json_utils.JSONEncoder(
+        datetime_format=json_utils.DEFAULT_DATETIME_FORMAT)
+    actual = json.loads(encoder.encode(datetime.datetime(2015, 4, 1, 17, 0, 0)))
     self._VerifyEncoding('2015-04-01T17:00Z', actual)
+
+  def testEncode_Datetime_Extended(self):
+    encoder = json_utils.JSONEncoder(
+        datetime_format=json_utils.EXTENDED_DATETIME_FORMAT)
+    actual = json.loads(
+        encoder.encode(datetime.datetime(2015, 4, 1, 17, 11, 22, 333333)))
+    self._VerifyEncoding('2015-04-01T17:11:22.333333Z', actual)
 
   def testEncode_Date(self):
     actual = self._PerformEncoding(datetime.date(2014, 2, 3))
@@ -213,6 +222,25 @@ class JSONEncoderJavascriptTest(BaseEncoderTest):
     """Test encoding a single Boolean value."""
     actual = self._PerformEncoding(True)
     self._VerifyEncoding(True, actual)
+
+
+class JSONDecoderTest(basetest.AppEngineTestCase):
+
+  def testDecode_Datetime_Default(self):
+    decoder = json_utils.JSONDecoder(
+        datetime_format=json_utils.DEFAULT_DATETIME_FORMAT)
+    encoded_str = '{"aaa": "2018-07-09T10:11Z"}'
+    expected = {'aaa': datetime.datetime(2018, 7, 9, 10, 11, 0, 0)}
+    actual = decoder.decode(encoded_str)
+    self.assertEqual(expected, actual)
+
+  def testDecode_Datetime_Extended(self):
+    decoder = json_utils.JSONDecoder(
+        datetime_format=json_utils.EXTENDED_DATETIME_FORMAT)
+    encoded_str = '{"aaa": "2018-07-09T11:22:33.444444Z"}'
+    expected = {'aaa': datetime.datetime(2018, 7, 9, 11, 22, 33, 444444)}
+    actual = decoder.decode(encoded_str)
+    self.assertEqual(expected, actual)
 
 
 if __name__ == '__main__':

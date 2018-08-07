@@ -19,7 +19,6 @@ import webapp2
 from webapp2_extras import routes
 
 from upvote.gae.modules.bit9_api import cron
-from upvote.gae.modules.bit9_api import handlers
 from upvote.gae.shared.common import handlers as common_handlers
 
 
@@ -51,10 +50,6 @@ app = webapp2.WSGIApplication(routes=[
                 '/process-events',
                 handler=cron.ProcessEvents),
         ]),
-
-        webapp2.Route(
-            '/commit-change-set/<blockable_id>',
-            handler=handlers.CommitBlockableChangeSet),
     ]),
 ])
 

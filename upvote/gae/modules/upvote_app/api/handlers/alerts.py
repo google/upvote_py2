@@ -26,7 +26,7 @@ from google.appengine.ext import ndb
 
 from upvote.gae.datastore.models import alert as alert_db
 from upvote.gae.modules.upvote_app.api.handlers import base
-from upvote.gae.shared.common import xsrf_utils
+from upvote.gae.utils import xsrf_utils
 from upvote.shared import constants
 
 

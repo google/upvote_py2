@@ -26,8 +26,8 @@ from upvote.gae.modules.upvote_app.api import monitoring
 from upvote.gae.modules.upvote_app.api.handlers import base
 from upvote.gae.shared.common import handlers
 from upvote.gae.shared.common import settings
-from upvote.gae.shared.common import xsrf_utils
 from upvote.gae.utils import string_utils
+from upvote.gae.utils import xsrf_utils
 from upvote.shared import constants
 
 

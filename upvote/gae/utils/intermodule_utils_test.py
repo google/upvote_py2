@@ -22,7 +22,7 @@ import webapp2
 from google.appengine.api import modules
 from google.appengine.api import urlfetch
 
-from upvote.gae.shared.common import basetest
+from upvote.gae.lib.testing import basetest
 from upvote.gae.shared.common import settings
 from upvote.gae.shared.common import settings_utils
 from upvote.gae.utils import intermodule_utils

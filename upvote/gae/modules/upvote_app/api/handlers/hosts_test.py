@@ -21,14 +21,13 @@ import webapp2
 
 from upvote.gae.datastore import test_utils
 from upvote.gae.datastore import utils
-from upvote.gae.datastore.models import bigquery
 from upvote.gae.datastore.models import bit9
 from upvote.gae.datastore.models import santa
 from upvote.gae.datastore.models import tickets
+from upvote.gae.lib.testing import basetest
+from upvote.gae.lib.testing import test_utils as common_test_utils
 from upvote.gae.modules.upvote_app.api.handlers import hosts
-from upvote.gae.shared.common import basetest
 from upvote.gae.shared.common import settings
-from upvote.gae.shared.common import test_utils as common_test_utils
 from upvote.shared import constants
 
 
@@ -383,10 +382,11 @@ class HostExceptionHandlerTest(HostsTest):
           self.ROUTE % self.santa_host_3.key.id(), params)
     self.assertEqual(httplib.OK, response.status_int)
     self.assertEqual(response.json['id'], self.santa_host_3.key.id())
-  # pylint: disable=line-too-long
-    self.assertTaskCount(constants.TASK_QUEUE.BQ_PERSISTENCE, 1)
-    self.DrainTaskQueue(constants.TASK_QUEUE.BQ_PERSISTENCE)
-    self.assertEntityCount(bigquery.HostRow, 1)
+
+    self.assertBigQueryInsertions([
+        constants.BIGQUERY_TABLE.HOST,
+    ])
+
     ticket = tickets.HostExceptionTicket.query().get()
     self.assertEqual(self.santa_host_3.key.id(), ticket.host_id)
     self.assertEqual(self.user.email, ticket.user_id)
@@ -404,10 +404,11 @@ class HostExceptionHandlerTest(HostsTest):
               'otherText': 'foo'}
     with self.LoggedInUser(user=self.user):
       self.testapp.post(self.ROUTE % self.santa_host_3.key.id(), params)
-  # pylint: disable=line-too-long
-    self.assertTaskCount(constants.TASK_QUEUE.BQ_PERSISTENCE, 1)
-    self.DrainTaskQueue(constants.TASK_QUEUE.BQ_PERSISTENCE)
-    self.assertEntityCount(bigquery.HostRow, 1)
+
+    self.assertBigQueryInsertions([
+        constants.BIGQUERY_TABLE.HOST,
+    ])
+
     ticket = tickets.HostExceptionTicket.query().get()
     self.assertEqual(constants.HOST_EXEMPTION_REASON.OTHER, ticket.reason)
     self.assertEqual('foo', ticket.other_text)
@@ -429,10 +430,12 @@ class HostExceptionHandlerTest(HostsTest):
 
       params = {'reason': constants.HOST_EXEMPTION_REASON.OSX_DEVELOPER}
       response = self.testapp.post(
-          self.ROUTE % self.santa_host_3.key.id(), params)  # pylint: disable=line-too-long
-      self.assertTaskCount(constants.TASK_QUEUE.BQ_PERSISTENCE, 1)
-      self.DrainTaskQueue(constants.TASK_QUEUE.BQ_PERSISTENCE)
-      self.assertEntityCount(bigquery.HostRow, 1)
+          self.ROUTE % self.santa_host_3.key.id(), params)
+
+      self.assertBigQueryInsertions([
+          constants.BIGQUERY_TABLE.HOST,
+      ])
+
       self.assertTrue(response)
       self.assertTrue(tickets.HostExceptionTicket.query().get())
 
@@ -450,10 +453,12 @@ class HostExceptionHandlerTest(HostsTest):
     with self.LoggedInUser(user=self.user):
       response = self.testapp.post(
           self.ROUTE % self.santa_host_3.key.id(), params)
-    self.assertEqual(httplib.OK, response.status_int)  # pylint: disable=line-too-long
-    self.assertTaskCount(constants.TASK_QUEUE.BQ_PERSISTENCE, 1)
-    self.DrainTaskQueue(constants.TASK_QUEUE.BQ_PERSISTENCE)
-    self.assertEntityCount(bigquery.HostRow, 1)
+    self.assertEqual(httplib.OK, response.status_int)
+
+    self.assertBigQueryInsertions([
+        constants.BIGQUERY_TABLE.HOST,
+    ])
+
 
   def testCreateHostException_NoReason(self):
     with self.LoggedInUser(user=self.user):
@@ -544,7 +549,7 @@ class LockdownHandlerTest(HostsTest):
     self.santa_host_3.client_mode = constants.SANTA_CLIENT_MODE.MONITOR
     self.santa_host_3.put()
 
-  def testLockdown(self):
+  def testPost(self):
     with self.LoggedInUser(user=self.user):
       response = self.testapp.post(self.ROUTE % self.santa_host_3.key.id())
     self.assertEqual(httplib.OK, response.status_int)
@@ -557,7 +562,9 @@ class LockdownHandlerTest(HostsTest):
     self.assertEqual(
         constants.SANTA_CLIENT_MODE.LOCKDOWN, updated_host.client_mode)
 
-  def testLockdown_Admin(self):
+    self.assertBigQueryInsertions([constants.BIGQUERY_TABLE.HOST])
+
+  def testPost_Admin(self):
     with self.LoggedInUser(admin=True):
       response = self.testapp.post(self.ROUTE % self.santa_host_3.key.id())
     self.assertEqual(httplib.OK, response.status_int)
@@ -567,11 +574,13 @@ class LockdownHandlerTest(HostsTest):
     self.assertEqual(
         constants.SANTA_CLIENT_MODE.LOCKDOWN, updated_host.client_mode)
 
-  def testLockdown_UnknownHost(self):
+    self.assertBigQueryInsertions([constants.BIGQUERY_TABLE.HOST])
+
+  def testPost_UnknownHost(self):
     with self.LoggedInUser(user=self.user):
       self.testapp.post(self.ROUTE % 'NotAHost', status=httplib.NOT_FOUND)
 
-  def testLockdown_UnownedHost(self):
+  def testPost_UnownedHost(self):
     with self.LoggedInUser(user=self.user):
       self.testapp.post(
           self.ROUTE % self.santa_host_2.key.id(), status=httplib.FORBIDDEN)

@@ -22,8 +22,8 @@ from google.appengine.ext import ndb
 
 from upvote.gae.cron import roles
 from upvote.gae.datastore import test_utils
-from upvote.gae.datastore.models import base
-from upvote.gae.shared.common import basetest
+from upvote.gae.datastore.models import user as user_models
+from upvote.gae.lib.testing import basetest
 from upvote.gae.shared.common import settings
 from upvote.gae.shared.common import user_map
 from upvote.shared import constants
@@ -41,13 +41,15 @@ LOCKDOWN = constants.SANTA_CLIENT_MODE.LOCKDOWN
 class SyncRolesTest(basetest.UpvoteTestCase):
   """This is a test of the emergency handler system."""
 
+  ROUTE = '/roles/sync'
+
   def setUp(self):
-    app = webapp2.WSGIApplication([webapp2.Route(r'', handler=roles.SyncRoles)])
+    app = webapp2.WSGIApplication(routes=[roles.ROUTES])
     super(SyncRolesTest, self).setUp(wsgi_app=app)
 
   def VerifyUser(self, email_addr, expected_roles):
 
-    user = base.User.GetOrInsert(email_addr=email_addr)
+    user = user_models.User.GetOrInsert(email_addr=email_addr)
     self.assertIsNotNone(user)
     self.assertSetEqual(set(expected_roles), set(user.roles))
 
@@ -71,7 +73,7 @@ class SyncRolesTest(basetest.UpvoteTestCase):
     self.VerifyUser(user1.email, [USER])
     self.VerifyUser(user2.email, [USER])
 
-    response = self.testapp.get('', expect_errors=True)
+    response = self.testapp.get(self.ROUTE, expect_errors=True)
     self.assertEqual(httplib.NOT_FOUND, response.status_int)
 
     self.VerifyUser(user1.email, [USER])
@@ -93,11 +95,13 @@ class SyncRolesTest(basetest.UpvoteTestCase):
     self.VerifyUser(user1.email, [USER])
     self.VerifyUser(user2.email, [USER])
 
-    response = self.testapp.get('')
+    response = self.testapp.get(self.ROUTE)
     self.assertEqual(httplib.OK, response.status_int)
 
     self.VerifyUser(user1.email, [USER, TRUSTED_USER])
     self.VerifyUser(user2.email, [USER, TRUSTED_USER])
+
+    self.assertBigQueryInsertions([constants.BIGQUERY_TABLE.USER] * 2)
 
   @mock.patch.object(roles.groups, 'GroupManager')
   def testGet_ExistingRole_AddRole(self, mock_ctor):
@@ -116,11 +120,13 @@ class SyncRolesTest(basetest.UpvoteTestCase):
     self.VerifyUser(user1.email, [USER, TRUSTED_USER])
     self.VerifyUser(user2.email, [USER, TRUSTED_USER])
 
-    response = self.testapp.get('')
+    response = self.testapp.get(self.ROUTE)
     self.assertEqual(httplib.OK, response.status_int)
 
     self.VerifyUser(user1.email, [USER, TRUSTED_USER, SUPERUSER])
     self.VerifyUser(user2.email, [USER, TRUSTED_USER, SUPERUSER])
+
+    self.assertBigQueryInsertions([constants.BIGQUERY_TABLE.USER] * 2)
 
   @mock.patch.object(roles.groups, 'GroupManager')
   def testGet_ExistingRole_AddGroup(self, mock_ctor):
@@ -141,12 +147,14 @@ class SyncRolesTest(basetest.UpvoteTestCase):
     self.VerifyUser(user2.email, [USER, TRUSTED_USER])
     self.VerifyUser(user3.email, [USER])
 
-    response = self.testapp.get('')
+    response = self.testapp.get(self.ROUTE)
     self.assertEqual(httplib.OK, response.status_int)
 
     self.VerifyUser(user1.email, [USER, TRUSTED_USER])
     self.VerifyUser(user2.email, [USER, TRUSTED_USER])
     self.VerifyUser(user3.email, [USER, TRUSTED_USER])
+
+    self.assertBigQueryInsertions([constants.BIGQUERY_TABLE.USER])
 
   @mock.patch.object(roles.groups, 'GroupManager')
   def testGet_RemoveRole(self, mock_ctor):
@@ -164,11 +172,13 @@ class SyncRolesTest(basetest.UpvoteTestCase):
     self.VerifyUser(user1.email, [USER, TRUSTED_USER, SUPERUSER])
     self.VerifyUser(user2.email, [USER, TRUSTED_USER, SUPERUSER])
 
-    response = self.testapp.get('')
+    response = self.testapp.get(self.ROUTE)
     self.assertEqual(httplib.OK, response.status_int)
 
     self.VerifyUser(user1.email, [USER, TRUSTED_USER])
     self.VerifyUser(user2.email, [USER, TRUSTED_USER])
+
+    self.assertBigQueryInsertions([constants.BIGQUERY_TABLE.USER] * 2)
 
   @mock.patch.object(roles.groups, 'GroupManager')
   def testGet_ExistingRole_RemoveGroup(self, mock_ctor):
@@ -188,12 +198,14 @@ class SyncRolesTest(basetest.UpvoteTestCase):
     self.VerifyUser(user2.email, [USER, TRUSTED_USER])
     self.VerifyUser(user3.email, [USER, TRUSTED_USER])
 
-    response = self.testapp.get('')
+    response = self.testapp.get(self.ROUTE)
     self.assertEqual(httplib.OK, response.status_int)
 
     self.VerifyUser(user1.email, [USER, TRUSTED_USER])
     self.VerifyUser(user2.email, [USER, TRUSTED_USER])
     self.VerifyUser(user3.email, [USER])
+
+    self.assertBigQueryInsertions([constants.BIGQUERY_TABLE.USER])
 
   @mock.patch.object(roles.groups, 'GroupManager')
   def testGet_MemberAdded(self, mock_ctor):
@@ -213,12 +225,14 @@ class SyncRolesTest(basetest.UpvoteTestCase):
     self.VerifyUser(user2.email, [USER, TRUSTED_USER])
     self.VerifyUser(user3.email, [USER])
 
-    response = self.testapp.get('')
+    response = self.testapp.get(self.ROUTE)
     self.assertEqual(httplib.OK, response.status_int)
 
     self.VerifyUser(user1.email, [USER, TRUSTED_USER])
     self.VerifyUser(user2.email, [USER, TRUSTED_USER])
     self.VerifyUser(user3.email, [USER, TRUSTED_USER])
+
+    self.assertBigQueryInsertions([constants.BIGQUERY_TABLE.USER])
 
   @mock.patch.object(roles.groups, 'GroupManager')
   def testGet_MemberRemoved(self, mock_ctor):
@@ -238,13 +252,15 @@ class SyncRolesTest(basetest.UpvoteTestCase):
     self.VerifyUser(user2.email, [USER, TRUSTED_USER])
     self.VerifyUser(user3.email, [USER, TRUSTED_USER])
 
-    response = self.testapp.get('')
+    response = self.testapp.get(self.ROUTE)
     self.assertEqual(httplib.OK, response.status_int)
 
     self.VerifyUser(user1.email, [USER, TRUSTED_USER])
     self.VerifyUser(user2.email, [USER, TRUSTED_USER])
     # Removing last role will ensure minimum of USER.
     self.VerifyUser(user3.email, [USER])
+
+    self.assertBigQueryInsertions([constants.BIGQUERY_TABLE.USER])
 
   @mock.patch.object(roles.groups, 'GroupManager')
   def testGet_EnsureFailsafeAdmins(self, mock_ctor):
@@ -260,7 +276,7 @@ class SyncRolesTest(basetest.UpvoteTestCase):
     self.VerifyUser(user1.email, [USER, ADMINISTRATOR])
     self.VerifyUser(user2.email, [USER, ADMINISTRATOR])
 
-    response = self.testapp.get('')
+    response = self.testapp.get(self.ROUTE)
     self.assertEqual(httplib.OK, response.status_int)
 
     self.VerifyUser(user1.email, [USER, ADMINISTRATOR])
@@ -268,6 +284,11 @@ class SyncRolesTest(basetest.UpvoteTestCase):
 
     for failsafe in settings.FAILSAFE_ADMINISTRATORS:
       self.VerifyUser(failsafe, [USER, ADMINISTRATOR])
+
+    # 2x the number of failsafe admins: one FIRST_SEEN and one ROLE_CHANGE each.
+    expected_insertions = [constants.BIGQUERY_TABLE.USER] * 2 * len(
+        settings.FAILSAFE_ADMINISTRATORS)
+    self.assertBigQueryInsertions(expected_insertions)
 
 
 class FakeClientModeChangeHandler(roles.ClientModeChangeHandler):
@@ -400,14 +421,15 @@ class ChangeModeForHostsTest(basetest.UpvoteTestCase):
 class LockSpiderTest(basetest.UpvoteTestCase):
   """Test LockSpider cron class."""
 
+  ROUTE = '/roles/lock-spider'
+
   def setUp(self):
-    app = webapp2.WSGIApplication(
-        [webapp2.Route(r'', handler=roles.LockSpider)])
+    app = webapp2.WSGIApplication(routes=[roles.ROUTES])
     super(LockSpiderTest, self).setUp(wsgi_app=app)
 
-  @mock.patch.object(roles.query_utils, 'QueuedPaginatedBatchApply')
+  @mock.patch.object(roles.datastore_utils, 'QueuedPaginatedBatchApply')
   def testLockSpider(self, mock_query_util):
-    response = self.testapp.get('')
+    response = self.testapp.get(self.ROUTE)
 
     self.assertEqual(httplib.OK, response.status_int)
     self.assertEqual(1, mock_query_util.call_count)

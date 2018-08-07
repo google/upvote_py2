@@ -18,7 +18,6 @@ py_library(
         ":constants",
         ":emergency",
         ":events",
-        ":export",
         ":hosts",
         ":index_handler",
         ":lookups",
@@ -37,7 +36,7 @@ py_library(
         "//upvote/gae/datastore/models:alert",
         "//upvote/gae/modules/upvote_app/api:monitoring",
         "//upvote/gae/shared/common:handlers",
-        "//upvote/gae/shared/common:xsrf_utils",
+        "//upvote/gae/utils:xsrf_utils",
         "//upvote/shared:constants",
     ],
 )
@@ -47,15 +46,15 @@ py_library(
     srcs = ["blockables.py"],
     deps = [
         ":base",
+        "//upvote/gae/bigquery:tables",
         "//upvote/gae/datastore/models:base",
         "//upvote/gae/datastore/models:bit9",
         "//upvote/gae/datastore/models:santa",
+        "//upvote/gae/lib/bit9:change_set",
         "//upvote/gae/lib/voting:api",
-        "//upvote/gae/modules/bit9_api:change_set",
         "//upvote/gae/modules/upvote_app/api:monitoring",
         "//upvote/gae/shared/common:handlers",
-        "//upvote/gae/shared/common:model_mapping",
-        "//upvote/gae/shared/common:xsrf_utils",
+        "//upvote/gae/utils:xsrf_utils",
         "//upvote/shared:constants",
     ],
 )
@@ -78,7 +77,7 @@ py_library(
         ":base",
         "//upvote/gae/datastore/models:cache",
         "//upvote/gae/shared/common:big_red",
-        "//upvote/gae/shared/common:xsrf_utils",
+        "//upvote/gae/utils:xsrf_utils",
         "//upvote/shared:constants",
     ],
 )
@@ -99,27 +98,12 @@ py_library(
 )
 
 py_library(
-    name = "export",
-    srcs = ["export.py"],
-    deps = [
-        ":base",
-        "//external:gcloud_auth",
-        "//external:gcloud_bigquery",
-        "//upvote/gae/modules/upvote_app/lib:bigquery_schema",
-        "//upvote/gae/shared/common:google_cloud_lib_fixer",
-        "//upvote/gae/shared/common:handlers",
-        "//upvote/gae/shared/common:settings",
-        "//upvote/shared:constants",
-    ],
-)
-
-py_library(
     name = "hosts",
     srcs = ["hosts.py"],
     deps = [
         ":base",
+        "//upvote/gae/bigquery:tables",
         "//upvote/gae/datastore/models:base",
-        "//upvote/gae/datastore/models:bigquery",
         "//upvote/gae/datastore/models:santa",
         "//upvote/gae/datastore/models:tickets",
         "//upvote/gae/modules/upvote_app/api:monitoring",
@@ -164,8 +148,8 @@ py_library(
         "//upvote/gae/modules/upvote_app/api:monitoring",
         "//upvote/gae/shared/common:handlers",
         "//upvote/gae/shared/common:settings",
-        "//upvote/gae/shared/common:xsrf_utils",
         "//upvote/gae/utils:string_utils",
+        "//upvote/gae/utils:xsrf_utils",
         "//upvote/shared:constants",
     ],
 )
@@ -175,11 +159,11 @@ py_library(
     srcs = ["users.py"],
     deps = [
         ":base",
-        "//upvote/gae/datastore/models:base",
+        "//upvote/gae/datastore/models:user",
         "//upvote/gae/modules/upvote_app/api:monitoring",
         "//upvote/gae/shared/common:handlers",
         "//upvote/gae/shared/common:user_map",
-        "//upvote/gae/shared/common:xsrf_utils",
+        "//upvote/gae/utils:xsrf_utils",
         "//upvote/shared:constants",
     ],
 )
@@ -194,7 +178,7 @@ py_library(
         "//upvote/gae/lib/voting:api",
         "//upvote/gae/modules/upvote_app/api:monitoring",
         "//upvote/gae/shared/common:handlers",
-        "//upvote/gae/shared/common:xsrf_utils",
+        "//upvote/gae/utils:xsrf_utils",
         "//upvote/shared:constants",
     ],
 )
@@ -207,9 +191,9 @@ py_appengine_library(
     srcs = ["base.py"],
     deps = [
         "//upvote/gae/datastore:utils",
-        "//upvote/gae/datastore/models:base",
+        "//upvote/gae/datastore/models:user",
         "//upvote/gae/shared/common:handlers",
-        "//upvote/gae/shared/common:utils",
+        "//upvote/gae/utils:env_utils",
         "//upvote/gae/utils:json_utils",
         "//upvote/gae/utils:string_utils",
     ],
@@ -221,8 +205,7 @@ py_appengine_library(
     deps = [
         "//upvote/gae/shared/common:handlers",
         "//upvote/gae/shared/common:template_utils",
-        "//upvote/gae/shared/common:utils",
-        "//upvote/gae/shared/common:xsrf_utils",
+        "//upvote/gae/utils:xsrf_utils",
     ],
 )
 
@@ -237,7 +220,7 @@ upvote_appengine_test(
         ":base",
         "//upvote/gae/datastore:test_utils",
         "//upvote/gae/datastore/models:base",
-        "//upvote/gae/shared/common:basetest",
+        "//upvote/gae/lib/testing:basetest",
         "//upvote/shared:constants",
     ],
 )
@@ -249,7 +232,7 @@ upvote_appengine_test(
     deps = [
         ":index_handler",
         "//external:mock",
-        "//upvote/gae/shared/common:basetest",
+        "//upvote/gae/lib/testing:basetest",
     ],
 )
 
@@ -261,8 +244,8 @@ upvote_appengine_test(
         ":alerts",
         "//external:mock",
         "//upvote/gae/datastore/models:alert",
+        "//upvote/gae/lib/testing:basetest",
         "//upvote/gae/modules/upvote_app/api",
-        "//upvote/gae/shared/common:basetest",
         "//upvote/gae/utils:json_utils",
         "//upvote/shared:constants",
     ],
@@ -278,10 +261,10 @@ upvote_appengine_test(
         "//upvote/gae/datastore:test_utils",
         "//upvote/gae/datastore:utils",
         "//upvote/gae/datastore/models:base",
-        "//upvote/gae/datastore/models:bigquery",
         "//upvote/gae/datastore/models:santa",
+        "//upvote/gae/lib/testing:basetest",
+        "//upvote/gae/lib/voting:api",
         "//upvote/gae/modules/upvote_app/api",
-        "//upvote/gae/shared/common:basetest",
         "//upvote/shared:constants",
     ],
 )
@@ -293,7 +276,7 @@ upvote_appengine_test(
     deps = [
         ":constants",
         "//external:mock",
-        "//upvote/gae/shared/common:basetest",
+        "//upvote/gae/lib/testing:basetest",
         "//upvote/shared:constants",
     ],
 )
@@ -305,8 +288,8 @@ upvote_appengine_test(
     deps = [
         ":emergency",
         "//external:mock",
+        "//upvote/gae/lib/testing:basetest",
         "//upvote/gae/modules/upvote_app/api",
-        "//upvote/gae/shared/common:basetest",
     ],
 )
 
@@ -318,24 +301,9 @@ upvote_appengine_test(
         ":events",
         "//upvote/gae/datastore:test_utils",
         "//upvote/gae/datastore:utils",
+        "//upvote/gae/lib/testing:basetest",
         "//upvote/gae/modules/upvote_app/api",
-        "//upvote/gae/shared/common:basetest",
-        "//upvote/gae/shared/common:utils",
         "//upvote/shared:constants",
-    ],
-)
-
-upvote_appengine_test(
-    name = "export_test",
-    size = "small",
-    srcs = ["export_test.py"],
-    deps = [
-        ":export",
-        "//external:gcloud_bigquery",
-        "//external:mock",
-        "//upvote/gae/modules/upvote_app/lib:bigquery_schema",
-        "//upvote/gae/shared/common:basetest",
-        "//upvote/gae/shared/common:google_cloud_lib_fixer",
     ],
 )
 
@@ -351,10 +319,10 @@ upvote_appengine_test(
         "//upvote/gae/datastore/models:base",
         "//upvote/gae/datastore/models:santa",
         "//upvote/gae/datastore/models:tickets",
+        "//upvote/gae/lib/testing:basetest",
+        "//upvote/gae/lib/testing:test_utils",
         "//upvote/gae/modules/upvote_app/api",
-        "//upvote/gae/shared/common:basetest",
-        "//upvote/gae/shared/common:test_utils",
-        "//upvote/gae/shared/common:xsrf_utils",
+        "//upvote/gae/utils:xsrf_utils",
         "//upvote/shared:constants",
     ],
 )
@@ -369,10 +337,9 @@ upvote_appengine_test(
         "//upvote/gae/datastore:test_utils",
         "//upvote/gae/datastore/models:base",
         "//upvote/gae/lib/analysis:api",
+        "//upvote/gae/lib/testing:basetest",
         "//upvote/gae/modules/upvote_app/api",
-        "//upvote/gae/shared/common:basetest",
         "//upvote/gae/shared/common:settings_utils",
-        "//upvote/gae/shared/common:utils",
         "//upvote/shared:constants",
     ],
 )
@@ -387,8 +354,8 @@ upvote_appengine_test(
         "//upvote/gae/datastore:test_utils",
         "//upvote/gae/datastore/models:base",
         "//upvote/gae/datastore/models:santa",
+        "//upvote/gae/lib/testing:basetest",
         "//upvote/gae/modules/upvote_app/api",
-        "//upvote/gae/shared/common:basetest",
     ],
 )
 
@@ -400,8 +367,8 @@ upvote_appengine_test(
         ":settings",
         "//external:mock",
         "//upvote/gae/datastore/models:cache",
+        "//upvote/gae/lib/testing:basetest",
         "//upvote/gae/modules/upvote_app/api",
-        "//upvote/gae/shared/common:basetest",
     ],
 )
 
@@ -412,9 +379,9 @@ upvote_appengine_test(
     deps = [
         ":users",
         "//upvote/gae/datastore:test_utils",
-        "//upvote/gae/datastore/models:base",
+        "//upvote/gae/datastore/models:user",
+        "//upvote/gae/lib/testing:basetest",
         "//upvote/gae/modules/upvote_app/api",
-        "//upvote/gae/shared/common:basetest",
         "//upvote/shared:constants",
     ],
 )
@@ -429,7 +396,7 @@ upvote_appengine_test(
         "//upvote/gae/datastore:test_utils",
         "//upvote/gae/datastore:utils",
         "//upvote/gae/datastore/models:base",
+        "//upvote/gae/lib/testing:basetest",
         "//upvote/gae/modules/upvote_app/api",
-        "//upvote/gae/shared/common:basetest",
     ],
 )

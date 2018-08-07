@@ -22,17 +22,16 @@ from webapp2_extras import routes
 
 from google.appengine.ext import ndb
 
+from upvote.gae.bigquery import tables
 from upvote.gae.datastore.models import base as base_db
-from upvote.gae.datastore.models import bigquery
 from upvote.gae.datastore.models import bit9 as bit9_db
 from upvote.gae.datastore.models import santa as santa_db
+from upvote.gae.lib.bit9 import change_set
 from upvote.gae.lib.voting import api as voting_api
-from upvote.gae.modules.bit9_api import change_set
 from upvote.gae.modules.upvote_app.api import monitoring
 from upvote.gae.modules.upvote_app.api.handlers import base
 from upvote.gae.shared.common import handlers
-from upvote.gae.shared.common import model_mapping
-from upvote.gae.shared.common import xsrf_utils
+from upvote.gae.utils import xsrf_utils
 from upvote.shared import constants
 
 
@@ -170,8 +169,9 @@ class BlockableHandler(base.BaseHandler):
 
   def get(self, blockable_id):  # pylint: disable=g-bad-name
     """View of single blockable, accessible to anyone with URL."""
-    logging.debug('Blockable handler get method called with ID: %s',
-                  blockable_id)
+    blockable_id = blockable_id.lower()
+    logging.debug(
+        'Blockable handler get method called with ID: %s', blockable_id)
     blockable = base_db.Blockable.get_by_id(blockable_id)
     if not blockable:
       self.abort(httplib.NOT_FOUND, explanation='Blockable not found')
@@ -181,39 +181,58 @@ class BlockableHandler(base.BaseHandler):
   @base.RequireCapability(constants.PERMISSIONS.VIEW_OTHER_BLOCKABLES)
   def post(self, blockable_id):  # pylint: disable=g-bad-name
     """Post handler for blockables."""
+    blockable_id = blockable_id.lower()
     logging.debug('Blockable handler POST input: %s', self.request.arguments())
     if self.request.get('recount').lower() == 'recount':
       try:
-        ballot_box = voting_api.GetBallotBox(blockable_id)
-        ballot_box.Recount()
+        voting_api.Recount(blockable_id)
       except voting_api.BlockableNotFound:
         self.abort(httplib.NOT_FOUND, explanation='Blockable not found')
-      except voting_api.UnsupportedBlockableType as e:
-        self.abort(httplib.BAD_REQUEST, explanation=e.message)
+      except voting_api.UnsupportedPlatform:
+        self.abort(httplib.BAD_REQUEST, explanation='Unsupported platform')
+      except Exception as e:  # pylint: disable=broad-except
+        self.abort(httplib.INTERNAL_SERVER_ERROR, explanation=e.message)
       else:
-        self.respond_json(ballot_box.blockable)
+        blockable = base_db.Blockable.get_by_id(blockable_id)
+        self.respond_json(blockable)
     elif self.request.get('reset').lower() == 'reset':
       self._reset_blockable(blockable_id)
     else:
-      self._insert_blockable(blockable_id)
+      self._insert_blockable(blockable_id, datetime.datetime.utcnow())
 
+  @ndb.transactional(xg=True)  # xg because respond_json() touches User.
   @base.RequireCapability(constants.PERMISSIONS.INSERT_BLOCKABLES)
-  def _insert_blockable(self, blockable_id):
+  def _insert_blockable(self, blockable_id, timestamp):
+
     blockable_type = self.request.get('type')
-    model_class = getattr(
-        model_mapping.BlockableTypeModelMap, blockable_type, None)
+
+    model_class_map = {
+        constants.BLOCKABLE_TYPE.SANTA_BINARY: santa_db.SantaBlockable,
+        constants.BLOCKABLE_TYPE.SANTA_CERTIFICATE: santa_db.SantaCertificate}
+    model_class = model_class_map.get(blockable_type, None)
+
     if not model_class:
-      self.abort(httplib.BAD_REQUEST, explanation='Model class not found')
+      self.abort(
+          httplib.BAD_REQUEST,
+          explanation='No Model class found for "%s"' % blockable_type)
+
     elif model_class.get_by_id(blockable_id):
-      self.abort(httplib.CONFLICT, explanation='Blockable already exists')
+      self.abort(
+          httplib.CONFLICT,
+          explanation='Blockable "%s" already exists' % blockable_id)
+
     else:
       flag = (self.request.get('flagged') == 'true')
+
+      logging.info('Creating new %s %s', model_class.__name__, blockable_id)
       blockable = model_class.get_or_insert(
           blockable_id,
           file_name=self.request.get('fileName'),
           publisher=self.request.get('publisher'),
           flagged=flag,
           id_type=constants.ID_TYPE.SHA256)
+      blockable.PersistRow(
+          constants.BLOCK_ACTION.FIRST_SEEN, timestamp=timestamp)
 
       # If one was provided, create a note to accompany the blockable.
       note_text = self.request.get('notes')
@@ -232,14 +251,18 @@ class BlockableHandler(base.BaseHandler):
   def _reset_blockable(self, blockable_id):
     logging.info('Blockable reset: %s', blockable_id)
     try:
-      ballot_box = voting_api.GetBallotBox(blockable_id)
-      ballot_box.Reset()
+      voting_api.Reset(blockable_id)
     except voting_api.BlockableNotFound:
       self.abort(httplib.NOT_FOUND)
-    except voting_api.UnsupportedBlockableType as e:
-      self.abort(httplib.BAD_REQUEST, explanation=e.message)
+    except voting_api.UnsupportedPlatform:
+      self.abort(httplib.BAD_REQUEST, explanation='Unsupported platform')
+    except voting_api.OperationNotAllowed as e:
+      self.abort(httplib.FORBIDDEN, explanation=e.message)
+    except Exception as e:  # pylint: disable=broad-except
+      self.abort(httplib.INTERNAL_SERVER_ERROR, explanation=e.message)
     else:
-      self.respond_json(ballot_box.blockable)
+      blockable = base_db.Blockable.get_by_id(blockable_id)
+      self.respond_json(blockable)
 
 
 class AuthorizedHostCountHandler(base.BaseHandler):
@@ -247,6 +270,7 @@ class AuthorizedHostCountHandler(base.BaseHandler):
 
   @base.RequireCapability(constants.PERMISSIONS.VIEW_OTHER_BLOCKABLES)
   def get(self, blockable_id):
+    blockable_id = blockable_id.lower()
     blockable = base_db.Blockable.get_by_id(blockable_id)
     if not blockable:
       self.abort(httplib.NOT_FOUND, explanation='Blockable not found.')
@@ -283,6 +307,7 @@ class UniqueEventCountHandler(base.BaseHandler):
   """Handler for providing the number of times a blockable has been blocked."""
 
   def get(self, blockable_id):
+    blockable_id = blockable_id.lower()
     blockable = base_db.Blockable.get_by_id(blockable_id)
     if not blockable:
       self.abort(httplib.NOT_FOUND, explanation='Blockable not found.')
@@ -333,6 +358,7 @@ class PendingStateChangeHandler(base.BaseHandler):
   """Determines whether a Bit9 blockable has a pending state change."""
 
   def get(self, blockable_id):
+    blockable_id = blockable_id.lower()
     blockable = base_db.Blockable.get_by_id(blockable_id)
     if not blockable:
       self.abort(httplib.NOT_FOUND, explanation='Blockable not found.')
@@ -364,6 +390,7 @@ class PendingInstallerStateChangeHandler(base.BaseHandler):
   """Determines whether a Bit9 blockable has a pending state change."""
 
   def get(self, blockable_id):
+    blockable_id = blockable_id.lower()
     blockable = base_db.Blockable.get_by_id(blockable_id)
     if not blockable:
       self.abort(httplib.NOT_FOUND, explanation='Blockable not found.')
@@ -423,7 +450,7 @@ class SetInstallerStateHandler(base.BaseHandler):
 
     message = 'User %s changed installer state to %s' % (
         self.user.key.id(), new_policy)
-    bigquery.BinaryRow.DeferCreate(
+    tables.BINARY.InsertRow(
         sha256=blockable.key.id(),
         timestamp=datetime.datetime.utcnow(),
         action=constants.BLOCK_ACTION.COMMENT,
@@ -444,6 +471,7 @@ class SetInstallerStateHandler(base.BaseHandler):
     return blockable.is_installer
 
   def post(self, blockable_id):
+    blockable_id = blockable_id.lower()
     blockable = base_db.Blockable.get_by_id(blockable_id)
     if not blockable:
       self.abort(httplib.NOT_FOUND, explanation='Blockable not found.')
