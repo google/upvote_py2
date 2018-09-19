@@ -159,7 +159,7 @@ BLOCKABLE_TYPE = UppercaseNamespace(['santa_binary', 'santa_certificate'])
 
 PERMISSIONS = UppercaseNamespace([
     'ADD_OVERRIDE', 'CHANGE_SETTINGS', 'EDIT_ALERTS', 'EDIT_HOSTS',
-    'EDIT_USERS', 'FLAG', 'INSERT_BLOCKABLES',
+    'FLAG', 'INSERT_BLOCKABLES',
     'MARK_INSTALLER', 'MARK_MALWARE', 'REQUEST_HOST_EXEMPTION',
     'RESET_BLOCKABLE_STATE', 'RUN_BATCH_JOB', 'TRIGGER_MANUAL_DATA_EXPORT',
     'UNFLAG', 'VIEW_CONSTANTS', 'VIEW_DASHBOARD', 'VIEW_HOST_IP',
@@ -185,8 +185,7 @@ PERMISSIONS.DefineSet('SECURITY', PERMISSIONS.SET_SUPERUSER.union([
 
 PERMISSIONS.DefineSet('ADMINISTRATOR', PERMISSIONS.SET_SECURITY.union([
     PERMISSIONS.ADD_OVERRIDE, PERMISSIONS.CHANGE_SETTINGS,
-    PERMISSIONS.EDIT_ALERTS, PERMISSIONS.EDIT_USERS,
-    PERMISSIONS.RUN_BATCH_JOB,
+    PERMISSIONS.EDIT_ALERTS, PERMISSIONS.RUN_BATCH_JOB,
     PERMISSIONS.REQUEST_HOST_EXEMPTION,
     PERMISSIONS.TRIGGER_MANUAL_DATA_EXPORT]))
 
@@ -288,6 +287,9 @@ SANTA_CLIENT_MODE = UppercaseNamespace(['MONITOR', 'LOCKDOWN'])
 RULE_TYPE = UppercaseNamespace(['BINARY', 'CERTIFICATE', 'PACKAGE'])
 
 
+RULE_SCOPE = UppercaseNamespace(['GLOBAL', 'LOCAL'])
+
+
 RULE_POLICY = UppercaseNamespace([
     'WHITELIST', 'BLACKLIST', 'REMOVE', 'FORCE_INSTALLER',
     'FORCE_NOT_INSTALLER', 'WHITELIST_COMPILER'])
@@ -304,23 +306,23 @@ RULE_POLICY.DefineSet('SANTA', [
 
 HOST_EXEMPTION_REASON = UppercaseNamespace(names=[
 
-    # Develops OS X for work
-    'OSX_DEVELOPER',
+    # Develops for the macOS platform.
+    'DEVELOPER_MACOS',
 
-    # Develops iOS for work
-    'IOS_DEVELOPER',
+    # Develops for the iOS platform.
+    'DEVELOPER_IOS',
 
-    # Develops compilers, dev tools for work
-    'DEVTOOLS_DEVELOPER',
+    # Develops compilers, dev tools, etc.
+    'DEVELOPER_DEVTOOLS',
 
-    # Develops, but not for work
+    # Develops for personal use.
     'DEVELOPER_PERSONAL',
 
-    # Uses a package manager such as Homebrew
-    'PACKAGE_MANAGER',
+    # Uses a package manager such as Homebrew.
+    'USES_PACKAGE_MANAGER',
 
-    # Is scared of Santa and doesn't want to be in the trial
-    'IM_A_BABY',
+    # Is fearful of lockdown mode having a negative impact.
+    'FEARS_NEGATIVE_IMPACT',
 
     # Reason doesn't fall into the above categories. A separate explanation will
     # be provided.
@@ -335,6 +337,43 @@ BIT9_ENFORCEMENT_LEVEL.DefineMap('FROM_INTEGRAL_LEVEL', {
     40: BIT9_ENFORCEMENT_LEVEL.MONITOR,
     80: BIT9_ENFORCEMENT_LEVEL.DISABLED})
 
+EXEMPTION_STATE = UppercaseNamespace(names=[
+    'REQUESTED', 'PENDING', 'APPROVED', 'DENIED', 'ESCALATED', 'CANCELLED',
+    'REVOKED', 'EXPIRED'])
+EXEMPTION_STATE.DefineSet('OUTCOME', ['APPROVED', 'DENIED', 'ESCALATED'])
+EXEMPTION_STATE.DefineSet('TERMINAL', ['CANCELLED', 'REVOKED', 'EXPIRED'])
+EXEMPTION_STATE.DefineMap('VALID_STATE_CHANGES', {
+    EXEMPTION_STATE.REQUESTED: set([EXEMPTION_STATE.PENDING]),
+    EXEMPTION_STATE.PENDING: set([
+        EXEMPTION_STATE.DENIED,
+        EXEMPTION_STATE.ESCALATED,
+        EXEMPTION_STATE.APPROVED,
+        EXEMPTION_STATE.REQUESTED]),
+    EXEMPTION_STATE.APPROVED: set([
+        EXEMPTION_STATE.CANCELLED,
+        EXEMPTION_STATE.REVOKED,
+        EXEMPTION_STATE.EXPIRED]),
+    EXEMPTION_STATE.DENIED: set([
+        EXEMPTION_STATE.ESCALATED,
+        EXEMPTION_STATE.REQUESTED]),
+    EXEMPTION_STATE.ESCALATED: set([
+        EXEMPTION_STATE.APPROVED,
+        EXEMPTION_STATE.DENIED]),
+    EXEMPTION_STATE.CANCELLED: set([EXEMPTION_STATE.REQUESTED]),
+    EXEMPTION_STATE.REVOKED: set([EXEMPTION_STATE.REQUESTED]),
+    EXEMPTION_STATE.EXPIRED: set([EXEMPTION_STATE.REQUESTED])})
+
+HOST_EXEMPTION_TERM = UppercaseNamespace(names=[
+    'DAY', 'WEEK', 'MONTH', 'YEAR'])
+
+# Map of exemption terms to an integer number of days
+# Used to calculate offset for exemption deactivation timestamp
+HOST_EXEMPTION_TERM.DefineMap('TO_DAYS', {
+    HOST_EXEMPTION_TERM.DAY: 1,
+    HOST_EXEMPTION_TERM.WEEK: 7,
+    HOST_EXEMPTION_TERM.MONTH: 31,
+    HOST_EXEMPTION_TERM.YEAR: 365})
+
 LOCAL_ADMIN = Namespace(tuples=[
     (PLATFORM.WINDOWS, 'NT AUTHORITY\\SYSTEM'),
     (PLATFORM.MACOS, 'root')])
@@ -344,12 +383,14 @@ BIGQUERY_DATASET = 'gae_streaming'
 BIGQUERY_TABLE = Namespace(tuples=[
     ('VOTE', 'Vote'),
     ('HOST', 'Host'),
+    ('EXEMPTION', 'Exemption'),
     ('BINARY', 'Binary'),
     ('EXECUTION', 'Execution'),
     ('CERTIFICATE', 'Certificate'),
     ('BUNDLE', 'Bundle'),
     ('BUNDLE_BINARY', 'BundleBinary'),
-    ('USER', 'User')])
+    ('USER', 'User'),
+    ('RULE', 'Rule')])
 
 HOST_ACTION = UppercaseNamespace(names=[
     'FIRST_SEEN', 'FULL_SYNC', 'MODE_CHANGE', 'USERS_CHANGE', 'COMMENT'])

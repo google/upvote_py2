@@ -202,28 +202,6 @@ class BlockableTest(basetest.UpvoteTestCase):
     self.user = test_utils.CreateUser(email=_TEST_EMAIL)
     self.Login(self.user.email)
 
-  def testChangeState(self):
-
-    # Verify the Blockable is in the default state of UNTRUSTED.
-    blockable_hash = self.blockable_1.blockable_hash
-    blockable = base.Blockable.get_by_id(blockable_hash)
-    self.assertIsNotNone(blockable)
-    self.assertEqual(constants.STATE.UNTRUSTED, blockable.state)
-
-    # Note the state change timestamp.
-    old_state_change_dt = blockable.state_change_dt
-
-    # Change the state.
-    blockable.ChangeState(constants.STATE.BANNED)
-
-    # Reload, and verify the state change.
-    blockable = base.Blockable.get_by_id(blockable_hash)
-    self.assertIsNotNone(blockable)
-    self.assertEqual(constants.STATE.BANNED, blockable.state)
-
-    # And the state change timestamp should be increased.
-    self.assertTrue(blockable.state_change_dt > old_state_change_dt)
-
   def testAvoidInitialScoreCalculation(self):
     b = base.Blockable(id_type='SHA256')
     with mock.patch.object(b, 'GetVotes', return_value=[]) as get_votes_mock:
@@ -352,16 +330,6 @@ class BlockableTest(basetest.UpvoteTestCase):
     allowed, reason = cert.IsVotingAllowed(current_user=admin)
     self.assertTrue(allowed)
     self.assertIsNone(reason)
-
-  def testResetState(self):
-    blockable = test_utils.CreateBlockable(
-        state=constants.STATE.BANNED, flagged=True)
-    blockable.ResetState()
-
-    retrieved_blockable = blockable.key.get()
-
-    self.assertEqual(retrieved_blockable.state, constants.STATE.UNTRUSTED)
-    self.assertFalse(retrieved_blockable.flagged)
 
   def testToDict_Score(self):
     blockable = test_utils.CreateBlockable()
@@ -610,6 +578,61 @@ class VoteTest(basetest.UpvoteTestCase):
     self.assertTrue(vote.in_effect)
     vote.key = None
     self.assertFalse(vote.in_effect)
+
+
+class RuleTest(basetest.UpvoteTestCase):
+
+  def testInsertBigQueryRow_LocalRule_UserKeyMissing(self):
+    """Verifies that a LOCAL row is inserted, even if user_key is missing.
+
+    The host_id and user_key columns have to be NULLABLE in order to support
+    GLOBAL rows (which will lack values for both of these columns). If user_key
+    is mistakenly omitted, we should still insert a LOCAL row with the values
+    we have.
+    """
+    blockable_key = test_utils.CreateSantaBlockable().key
+    local_rule = test_utils.CreateSantaRule(blockable_key, host_id='12345')
+    local_rule.InsertBigQueryRow()
+
+    self.assertBigQueryInsertions(
+        [constants.BIGQUERY_TABLE.RULE], reset_mock=False)
+
+    calls = self.GetBigQueryCalls()
+    self.assertEqual(1, len(calls))
+    self.assertEqual(constants.RULE_SCOPE.LOCAL, calls[0][1].get('scope'))
+
+  def testInsertBigQueryRow_LocalRule_HostIdMissing(self):
+    """Verifies that a LOCAL row is inserted, even if host_id is missing.
+
+    The host_id and user_key columns have to be NULLABLE in order to support
+    GLOBAL rows (which will lack values for both of these columns). If host_id
+    is mistakenly omitted, we should still insert a LOCAL row with the values
+    we have.
+    """
+    blockable_key = test_utils.CreateSantaBlockable().key
+    user_key = test_utils.CreateUser().key
+    local_rule = test_utils.CreateSantaRule(blockable_key, user_key=user_key)
+    local_rule.InsertBigQueryRow()
+
+    self.assertBigQueryInsertions(
+        [constants.BIGQUERY_TABLE.RULE], reset_mock=False)
+
+    calls = self.GetBigQueryCalls()
+    self.assertEqual(1, len(calls))
+    self.assertEqual(constants.RULE_SCOPE.LOCAL, calls[0][1].get('scope'))
+
+  def testInsertBigQueryRow_GlobalRule(self):
+
+    blockable_key = test_utils.CreateSantaBlockable().key
+    global_rule = test_utils.CreateSantaRule(blockable_key)
+    global_rule.InsertBigQueryRow()
+
+    self.assertBigQueryInsertions(
+        [constants.BIGQUERY_TABLE.RULE], reset_mock=False)
+
+    calls = self.GetBigQueryCalls()
+    self.assertEqual(1, len(calls))
+    self.assertEqual(constants.RULE_SCOPE.GLOBAL, calls[0][1].get('scope'))
 
 
 if __name__ == '__main__':

@@ -17,7 +17,6 @@
 import datetime
 import itertools
 import math
-import operator
 
 import mock
 
@@ -613,56 +612,6 @@ class GetMultiFutureTest(basetest.UpvoteTestCase):
       mf.add_dependent(ndb.Future())
 
 
-class GetChainingMultiFutureTest(basetest.UpvoteTestCase):
-
-  def testNoInput(self):
-    mf = utils.GetChainingMultiFuture([])
-    self.assertTrue(mf.done())
-
-  def testSingleFuture(self):
-    f = ndb.Future()
-    mf = utils.GetChainingMultiFuture([f])
-
-    self.assertFalse(f.done())
-    self.assertFalse(mf.done())
-
-    f.set_result([])
-
-    self.assertTrue(f.done())
-    self.assertFalse(mf.done())
-
-    # Event loop must run for the MultiFuture to be marked as done.
-    mf.wait()
-
-    self.assertTrue(mf.done())
-    self.assertEqual([], mf.get_result())
-
-  def testManyFutures(self):
-    futures = [ndb.Future() for _ in xrange(3)]
-    mf = utils.GetChainingMultiFuture(futures)
-
-    self.assertFalse(any(f.done() for f in futures))
-    self.assertFalse(mf.done())
-
-    for i, f in enumerate(futures):
-      f.set_result([i])
-
-    self.assertTrue(all(f.done() for f in futures))
-    self.assertFalse(mf.done())
-
-    # Event loop must run for the MultiFuture to be marked as done.
-    mf.wait()
-
-    self.assertTrue(mf.done())
-    self.assertEqual([0, 1, 2], mf.get_result())
-
-  def testCantModifyResult(self):
-    f = ndb.Future()
-    mf = utils.GetChainingMultiFuture([f])
-    with self.assertRaises(RuntimeError):
-      mf.add_dependent(ndb.Future())
-
-
 class TestModel(ndb.Model):
   foo = ndb.StringProperty()
   bar = ndb.IntegerProperty()
@@ -697,71 +646,6 @@ def ReturnBar(entity):
   return entity.bar
 
 
-class PaginatedFetchTest(basetest.UpvoteTestCase):
-
-  def testSuccess(self):
-    CreateEntities(3)
-    result = utils.PaginatedFetch(TestModel.query(), page_size=2)
-    map_result = utils.PaginatedMap(TestModel.query(), None, page_size=2)
-    self.assertEqual(3, len(result))
-    self.assertEqual(map_result, result)
-
-
-class PaginatedMapTest(basetest.UpvoteTestCase):
-
-  def testSuccess(self):
-    CreateEntities(3)
-    result = utils.PaginatedMap(TestModel.query(), ReturnFoo)
-    self.assertEqual(3, len(result))
-    self.assertEqual('foo', result[0])
-
-  def testTwoPages(self):
-    CreateEntities(3)
-    cbk_mock = mock.MagicMock()
-
-    result = utils.PaginatedMap(TestModel.query(), cbk_mock, page_size=2)
-    self.assertEqual(3, len(result))
-    self.assertEqual(3, cbk_mock.call_count)
-
-  def testThreePages(self):
-    CreateEntities(3)
-    cbk_mock = mock.MagicMock()
-
-    result = utils.PaginatedMap(TestModel.query(), cbk_mock, page_size=1)
-    self.assertEqual(3, len(result))
-    self.assertEqual(3, cbk_mock.call_count)
-
-  def testQueryOptions(self):
-    CreateEntities(3)
-
-    result = utils.PaginatedMap(TestModel.query(), GetKey, keys_only=True)
-
-    self.assertEqual(3, len(result))
-    self.assertTrue(all(isinstance(entity, TestModel) for entity in result))
-
-
-class PaginatedMapReduceTest(basetest.UpvoteTestCase):
-
-  def testSuccess(self):
-    CreateEntities(3)
-    map_cbk_mock = mock.MagicMock()
-    reduce_cbk_mock = mock.MagicMock()
-    reduce_cbk_mock.return_value = None
-
-    result = utils.PaginatedMapReduce(
-        TestModel.query(), map_cbk_mock, reduce_cbk_mock, page_size=1)
-    self.assertIsNone(result)
-    self.assertEqual(3, map_cbk_mock.call_count)
-    self.assertEqual(3, reduce_cbk_mock.call_count)
-
-  def testInitial(self):
-    CreateEntities(3, bar=1)
-
-    result = utils.PaginatedMapReduce(
-        TestModel.query(), ReturnBar, operator.add, initial=5, page_size=1)
-    self.assertEqual(5 + 3, result)
-
-
 class PaginateTest(basetest.UpvoteTestCase):
 
   def testSuccess(self):
@@ -784,79 +668,6 @@ class PaginateTest(basetest.UpvoteTestCase):
       # Delete everything.
       for entity in entities:
         entity.key.delete()
-
-
-class QueuedPaginatedApplyTest(basetest.UpvoteTestCase):
-
-  def tearDown(self):
-    super(QueuedPaginatedApplyTest, self).tearDown()
-    _GLOBAL_CBK_MOCK.reset_mock()
-
-  def testSuccess(self):
-    CreateEntities(3)
-    utils.QueuedPaginatedApply(TestModel.query(), CallMock, page_size=1)
-
-    for _ in xrange(4):
-      self.assertTaskCount(constants.TASK_QUEUE.DEFAULT, 1)
-      self.RunDeferredTasks()
-
-    self.assertTaskCount(constants.TASK_QUEUE.DEFAULT, 0)
-
-    self.assertEqual(3, _GLOBAL_CBK_MOCK.call_count)
-
-  def testExtraArgs(self):
-    CreateEntities(3)
-    utils.QueuedPaginatedApply(
-        TestModel.query(), CallMock, extra_args=['a', 'b'],
-        extra_kwargs={'c': 'c'})
-
-    for _ in xrange(2):
-      self.assertTaskCount(constants.TASK_QUEUE.DEFAULT, 1)
-      self.RunDeferredTasks()
-
-    self.assertTaskCount(constants.TASK_QUEUE.DEFAULT, 0)
-
-    self.assertTrue(_GLOBAL_CBK_MOCK.called_with('foo', 'a', 'b', c='c'))
-
-  def testTransform(self):
-    CreateEntities(3)
-    utils.QueuedPaginatedApply(
-        TestModel.query(), CallMock, pre_queue_callback=ReturnFoo, page_size=1)
-
-    for _ in xrange(4):
-      self.assertTaskCount(constants.TASK_QUEUE.DEFAULT, 1)
-      self.RunDeferredTasks()
-
-    self.assertTaskCount(constants.TASK_QUEUE.DEFAULT, 0)
-
-    self.assertTrue(_GLOBAL_CBK_MOCK.called_with('foo'))
-
-  def testDifferentQueue(self):
-    CreateEntities(3)
-    utils.QueuedPaginatedApply(TestModel.query(), CallMock, queue='foo')
-
-    for _ in xrange(2):
-      self.assertTaskCount('foo', 1)
-      self.assertTaskCount(constants.TASK_QUEUE.DEFAULT, 0)
-      self.RunDeferredTasks('foo')
-
-    self.assertTaskCount('foo', 0)
-
-    self.assertEqual(3, _GLOBAL_CBK_MOCK.call_count)
-
-  def testQueryOptions(self):
-    entities = CreateEntities(3)
-    utils.QueuedPaginatedApply(
-        TestModel.query(), CallMock, keys_only=True)
-
-    for _ in xrange(2):
-      self.assertTaskCount(constants.TASK_QUEUE.DEFAULT, 1)
-      self.RunDeferredTasks()
-
-    self.assertTaskCount(constants.TASK_QUEUE.DEFAULT, 0)
-
-    self.assertEqual(3, _GLOBAL_CBK_MOCK.call_count)
-    self.assertTrue(_GLOBAL_CBK_MOCK.called_with(entities[0].key))
 
 
 class QueuedPaginatedBatchApply(basetest.UpvoteTestCase):

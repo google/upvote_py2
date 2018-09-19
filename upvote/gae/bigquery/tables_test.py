@@ -17,6 +17,8 @@
 import datetime
 import mock
 
+from google.appengine.ext import ndb
+
 import upvote.gae.shared.common.google_cloud_lib_fixer  # pylint: disable=unused-import
 # pylint: disable=g-bad-import-order,g-import-not-at-top
 from google.cloud import exceptions
@@ -54,6 +56,10 @@ TEST_TABLE = tables.BigQueryTable(
             field_type=tables.FIELD_TYPE.STRING,
             mode=tables.MODE.REPEATED,
             choices=['f1', 'f2', 'f3']),
+        tables.Column(
+            name='timestamp',
+            field_type=tables.FIELD_TYPE.TIMESTAMP,
+            mode=tables.MODE.NULLABLE)
     ])
 
 
@@ -84,7 +90,7 @@ class SendToBigQueryTest(basetest.UpvoteTestCase):
   def setUp(self):
     super(SendToBigQueryTest, self).setUp(patch_send_to_bigquery=False)
     self.row_dict = {'aaa': 111, 'bbb': 222, 'ccc': 333}
-    self.row_id = TEST_TABLE.CreateRowId(**self.row_dict)
+    self.row_id = TEST_TABLE.CreateUniqueId(**self.row_dict)
     self.Patch(tables, '_Sleep')
 
   def testMissingDataset_Created(self):
@@ -261,34 +267,34 @@ class BigQueryTableTest(basetest.UpvoteTestCase):
     TEST_TABLE._ValidateInsertion(
         aaa=True, bbb=4, ccc=['ccc'], ddd=now, eee='e1', fff=['f2', 'f3'])
 
-  def testCreateRowId_Identical(self):
+  def testCreateUniqueId_Identical(self):
 
     now = datetime.datetime.utcnow()
     row = {'aaa': True, 'bbb': 4, 'ccc': ['ccc'], 'ddd': now}
 
     self.assertEqual(
-        TEST_TABLE.CreateRowId(**row),
-        TEST_TABLE.CreateRowId(**row))
+        TEST_TABLE.CreateUniqueId(**row),
+        TEST_TABLE.CreateUniqueId(**row))
 
-  def testCreateRowId_OmittedNullable(self):
+  def testCreateUniqueId_OmittedNullable(self):
 
     row_1 = {'aaa': True, 'bbb': 4, 'ccc': ['ccc'], 'ddd': None}
     row_2 = {'aaa': True, 'bbb': 4, 'ccc': ['ccc']}
 
     self.assertEqual(
-        TEST_TABLE.CreateRowId(**row_1),
-        TEST_TABLE.CreateRowId(**row_2))
+        TEST_TABLE.CreateUniqueId(**row_1),
+        TEST_TABLE.CreateUniqueId(**row_2))
 
-  def testCreateRowId_Mismatch(self):
+  def testCreateUniqueId_Mismatch(self):
 
     row_1 = {'aaa': True, 'bbb': 4}
     row_2 = {'aaa': True, 'bbb': 5}
 
     self.assertNotEqual(
-        TEST_TABLE.CreateRowId(**row_1),
-        TEST_TABLE.CreateRowId(**row_2))
+        TEST_TABLE.CreateUniqueId(**row_1),
+        TEST_TABLE.CreateUniqueId(**row_2))
 
-  def testCreateRowId_Unicode(self):
+  def testCreateUniqueId_Unicode(self):
 
     row_1 = {
         'aaa': True,
@@ -298,10 +304,10 @@ class BigQueryTableTest(basetest.UpvoteTestCase):
     row_2 = {'aaa': True, 'bbb': 4, 'ccc': ['ccc???'], 'eee': 'eee???'}
 
     self.assertEqual(
-        TEST_TABLE.CreateRowId(**row_1),
-        TEST_TABLE.CreateRowId(**row_2))
+        TEST_TABLE.CreateUniqueId(**row_1),
+        TEST_TABLE.CreateUniqueId(**row_2))
 
-  def testDoInsertRow_Failure(self):
+  def testDoInsertRow_Exception(self):
 
     self.mock_send_to_bigquery.side_effect = Exception
 
@@ -310,6 +316,39 @@ class BigQueryTableTest(basetest.UpvoteTestCase):
     TEST_TABLE._DoInsertRow(**row_values)
 
     self.assertTrue(tables.monitoring.row_insertions.Failure.called)
+    self.mock_send_to_bigquery.reset_mock()
+
+  @mock.patch.object(tables.memcache, 'get')
+  def testDoInsertRow_Repeats_InsideTransaction(self, mock_get):
+
+    attempts = 3
+    mock_get.side_effect = [None] + [True] * (attempts - 1)
+
+    @ndb.transactional
+    def _RepeatedInserts():
+      for _ in xrange(attempts):
+        now = datetime.datetime.utcnow()
+        row_values = {'aaa': True, 'bbb': 4, 'timestamp': now}
+        TEST_TABLE._DoInsertRow(**row_values)
+
+    _RepeatedInserts()
+
+    self.assertEqual(1, self.mock_send_to_bigquery.call_count)
+    self.assertTrue(tables.monitoring.row_insertions.Success.called)
+    self.mock_send_to_bigquery.reset_mock()
+
+  def testDoInsertRow_Repeats_OutsideTransaction(self):
+
+    attempts = 3
+
+    for _ in xrange(attempts):
+      now = datetime.datetime.utcnow()
+      row_values = {'aaa': True, 'bbb': 4, 'timestamp': now}
+      TEST_TABLE._DoInsertRow(**row_values)
+
+    self.assertEqual(attempts, self.mock_send_to_bigquery.call_count)
+    self.assertTrue(tables.monitoring.row_insertions.Success.called)
+    self.mock_send_to_bigquery.reset_mock()
 
   def testDoInsertRow_Success(self):
 
@@ -319,6 +358,7 @@ class BigQueryTableTest(basetest.UpvoteTestCase):
 
     self.assertTrue(self.mock_send_to_bigquery.called)
     self.assertTrue(tables.monitoring.row_insertions.Success.called)
+    self.mock_send_to_bigquery.reset_mock()
 
 
 if __name__ == '__main__':

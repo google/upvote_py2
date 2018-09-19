@@ -88,7 +88,7 @@ class CommitBlockableChangeSetTest(basetest.UpvoteTestCase):
     # Set up a fake Bit9ApiAuth entity in Datastore.
     os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = os.path.join(
         absltest.get_default_test_srcdir(),
-        'upvote/gae/modules/bit9_api',
+        'upvote/gae/lib/bit9',
         'fake_credentials.json')
     self.Patch(
         change_set.bit9_utils.bit9.kms_ndb.EncryptedBlobProperty, '_Encrypt',

@@ -604,6 +604,16 @@ upvote.detailpage.BlockableDetailsController = class {
          this.user['isAdmin']);
   }
 
+  /**
+   * Returns the voting weight objects available to the current user.
+   * @return {!Array<{'role': string, 'weight': number}>}
+   * @export
+   */
+  availableVotingWeights() {
+    return this.votingWeights.filter(
+        entry => !!this.user && this.user['roles'].includes(entry.role));
+  }
+
   getAdminUrl() {
     return upvote.admin.app.constants.URL_PREFIX + 'blockables/' + this.id;
   }

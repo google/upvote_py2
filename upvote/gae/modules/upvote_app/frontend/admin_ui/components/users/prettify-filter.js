@@ -50,6 +50,5 @@ upvote.admin.users.prettifyRole.MAP_ = {
   'UNFLAG': 'Unflag Blockable',
   'ADD_OVERRIDE': 'Add Policy Override',
   'CHANGE_BLOCKABLE_STATE': 'Change the State of a Blockable',
-  'CHANGE_CERTIFICATE_STATE': 'Change the State of a Certificate',
-  'EDIT_USERS': 'Edit Users'
+  'CHANGE_CERTIFICATE_STATE': 'Change the State of a Certificate'
 };

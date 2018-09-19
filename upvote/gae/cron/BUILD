@@ -14,7 +14,7 @@ py_appengine_library(
     deps = [
         ":datastore_backup",
         ":main",
-        ":roles",
+        ":role_syncing",
     ],
 )
 
@@ -31,8 +31,8 @@ py_appengine_library(
 )
 
 py_appengine_library(
-    name = "roles",
-    srcs = ["roles.py"],
+    name = "role_syncing",
+    srcs = ["role_syncing.py"],
     deps = [
         "//upvote/gae/datastore:utils",
         "//upvote/gae/datastore/models:santa",
@@ -48,7 +48,7 @@ py_appengine_library(
     srcs = ["main.py"],
     deps = [
         ":datastore_backup",
-        ":roles",
+        ":role_syncing",
     ],
 )
 
@@ -71,11 +71,11 @@ upvote_appengine_test(
 )
 
 upvote_appengine_test(
-    name = "roles_test",
+    name = "role_syncing_test",
     size = "small",
-    srcs = ["roles_test.py"],
+    srcs = ["role_syncing_test.py"],
     deps = [
-        ":roles",
+        ":role_syncing",
         "//external:mock",
         "//upvote/gae/datastore:test_utils",
         "//upvote/gae/datastore/models:base",

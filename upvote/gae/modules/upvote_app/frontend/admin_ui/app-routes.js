@@ -79,12 +79,6 @@ upvote.admin.app.routeProvider = ($routeProvider, $locationProvider) => {
         controller: 'SettingsController',
         controllerAs: 'settingsCtrl'
       })
-      .when(upvote.admin.app.constants.URL_PREFIX + 'users/:id?', {
-        templateUrl: upvote.admin.app.constants.STATIC_URL_PREFIX +
-            'userpage/users.html',
-        controller: 'UserController',
-        controllerAs: 'userCtrl'
-      })
       .when(upvote.admin.app.constants.URL_PREFIX + 'votes/:id?', {
         templateUrl: upvote.admin.app.constants.STATIC_URL_PREFIX +
             'votepage/votes.html',

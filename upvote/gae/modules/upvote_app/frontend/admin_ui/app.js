@@ -35,7 +35,6 @@ goog.require('upvote.admin.rules.module');
 goog.require('upvote.admin.settings.module');
 goog.require('upvote.admin.settingspage.SettingsController');
 goog.require('upvote.admin.templates.module');
-goog.require('upvote.admin.userpage.UserController');
 goog.require('upvote.admin.users.module');
 goog.require('upvote.admin.votepage.VoteController');
 goog.require('upvote.admin.votes.module');
@@ -147,7 +146,6 @@ upvote.admin.app.start = (username) => {
   module.controller('RuleController', upvote.admin.rulepage.RuleController);
   module.controller(
       'SettingsController', upvote.admin.settingspage.SettingsController);
-  module.controller('UserController', upvote.admin.userpage.UserController);
   module.controller('VoteController', upvote.admin.votepage.VoteController);
 };
 });  // goog.scope

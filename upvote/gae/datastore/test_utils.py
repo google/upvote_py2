@@ -27,6 +27,7 @@ from google.appengine.ext import ndb
 from upvote.gae.datastore import utils as model_utils
 from upvote.gae.datastore.models import base
 from upvote.gae.datastore.models import bit9
+from upvote.gae.datastore.models import exemption as exemption_models
 from upvote.gae.datastore.models import santa
 from upvote.gae.datastore.models import user as user_models
 from upvote.gae.shared.common import settings
@@ -208,6 +209,20 @@ def CreateBlockable(**kwargs):
   return blockable
 
 
+def CreateBinary(**kwargs):
+  """Creates a Binary.
+
+  Args:
+    **kwargs: Dictionary of any Binary properties to customize.
+
+  Returns:
+    The newly-created Binary entity.
+  """
+  blockable = CreateBlockableEntity(base.Binary, **kwargs)
+  blockable.put()
+  return blockable
+
+
 def CreateBit9Binary(**kwargs):
   """Creates a Bit9Binary.
 
@@ -231,7 +246,13 @@ def CreateBit9Binary(**kwargs):
 
 
 def CreateBit9Certificate(**kwargs):
-  bit9_cert = CreateBlockableEntity(bit9.Bit9Certificate, **kwargs)
+
+  defaults = {
+      'valid_from_dt': Now(),
+      'valid_to_dt': Now()}
+  defaults.update(kwargs.copy())
+
+  bit9_cert = CreateBlockableEntity(bit9.Bit9Certificate, **defaults)
   bit9_cert.put()
   return bit9_cert
 
@@ -598,6 +619,26 @@ def CreateBit9Policy(**kwargs):
   new_policy.put()
 
   return new_policy
+
+
+def CreateExemption(
+    host_id, deactivation_dt=None, reason=None, other_text=None,
+    initial_state=constants.EXEMPTION_STATE.REQUESTED):
+  """Creates a test Exemption entity."""
+
+  key = exemption_models.Exemption.CreateKey(host_id)
+  deactivation_dt = (
+      deactivation_dt if deactivation_dt else datetime.datetime.utcnow())
+  reason = reason if reason else 'Some fake reason'
+  details = [reason, other_text] if other_text else [reason]
+  record = exemption_models.Record(state=initial_state, details=details)
+  history = [record]
+
+  return exemption_models.Exemption(
+      key=key,
+      deactivation_dt=deactivation_dt,
+      state=initial_state,
+      history=history).put()
 
 
 def CreateTestEntities(email_addr):

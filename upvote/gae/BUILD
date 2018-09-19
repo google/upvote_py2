@@ -53,5 +53,7 @@ upvote_appengine_test(
     deps = [
         ":appengine_config",
         "//upvote/gae/lib/testing:basetest",
+        "//upvote/gae/shared/common:settings",
+        "//upvote/shared:constants",
     ],
 )

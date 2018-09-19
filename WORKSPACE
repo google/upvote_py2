@@ -374,6 +374,23 @@ bind(
     actual = "@gcloud_resumable_media_git//:gcloud_resumable_media",
 )
 
+# NOTE: workaround for pkg_resources import issue with gcloud_bigquery.
+new_http_archive(
+    name = "setuptools_archive",
+    build_file = "//third_party:setuptools.BUILD",
+    sha256 = "47881d54ede4da9c15273bac65f9340f8929d4f0213193fa7894be384f2dcfa6",
+    strip_prefix = "setuptools-40.2.0",
+    urls = [
+        "http://mirror.bazel.build/pypi.python.org/packages/source/s/six/setuptools-40.2.0.zip",
+        "https://pypi.python.org/packages/source/s/setuptools/setuptools-40.2.0.zip",
+    ],
+)
+
+bind(
+    name = "setuptools",
+    actual = "@setuptools_archive//:setuptools",
+)
+
 # needed for gcloud_auth
 new_git_repository(
     name = "pyasn1_modules_git",

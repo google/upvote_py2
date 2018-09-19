@@ -20,7 +20,7 @@ py_appengine_library(
     deps = [
         ":monitoring",
         "//upvote/gae/cron:all",
-        "//upvote/gae/modules/upvote_app/api/handlers:all",
+        "//upvote/gae/modules/upvote_app/api/web:all",
         "//upvote/gae/shared/common:handlers",
         "//upvote/gae/shared/common:settings",
     ],

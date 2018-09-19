@@ -18,18 +18,18 @@ import webapp2
 
 from webapp2_extras import routes
 
-from upvote.gae.modules.upvote_app.api.handlers import alerts
-from upvote.gae.modules.upvote_app.api.handlers import blockables
-from upvote.gae.modules.upvote_app.api.handlers import constants
-from upvote.gae.modules.upvote_app.api.handlers import emergency
-from upvote.gae.modules.upvote_app.api.handlers import events
-from upvote.gae.modules.upvote_app.api.handlers import hosts
-from upvote.gae.modules.upvote_app.api.handlers import index_handler
-from upvote.gae.modules.upvote_app.api.handlers import lookups
-from upvote.gae.modules.upvote_app.api.handlers import rules
-from upvote.gae.modules.upvote_app.api.handlers import settings
-from upvote.gae.modules.upvote_app.api.handlers import users
-from upvote.gae.modules.upvote_app.api.handlers import votes
+from upvote.gae.modules.upvote_app.api.web import alerts
+from upvote.gae.modules.upvote_app.api.web import blockables
+from upvote.gae.modules.upvote_app.api.web import constants
+from upvote.gae.modules.upvote_app.api.web import emergency
+from upvote.gae.modules.upvote_app.api.web import events
+from upvote.gae.modules.upvote_app.api.web import hosts
+from upvote.gae.modules.upvote_app.api.web import index_handler
+from upvote.gae.modules.upvote_app.api.web import lookups
+from upvote.gae.modules.upvote_app.api.web import rules
+from upvote.gae.modules.upvote_app.api.web import settings
+from upvote.gae.modules.upvote_app.api.web import users
+from upvote.gae.modules.upvote_app.api.web import votes
 from upvote.gae.shared.common import handlers
 
 
@@ -39,22 +39,22 @@ _ALL_ROUTES = [
     webapp2.Route('/_ah/warmup', handler=handlers.AckHandler),
 
     # API handlers
-    routes.PathPrefixRoute('/api/web', [
-
-        webapp2.Route('/ack', handler=handlers.AckHandler),
-
-        alerts.ROUTES,
-        blockables.ROUTES,
-        constants.ROUTES,
-        emergency.ROUTES,
-        events.ROUTES,
-        hosts.ROUTES,
-        lookups.ROUTES,
-        rules.ROUTES,
-        settings.ROUTES,
-        users.ROUTES,
-        votes.ROUTES
-    ]),
+    routes.PathPrefixRoute(
+        '/api/web',
+        [
+            webapp2.Route('/ack', handler=handlers.AckHandler),
+            alerts.ROUTES,
+            blockables.ROUTES,
+            constants.ROUTES,
+            emergency.ROUTES,
+            events.ROUTES,
+            hosts.ROUTES,
+            lookups.ROUTES,
+            rules.ROUTES,
+            settings.ROUTES,
+            users.ROUTES,
+            votes.ROUTES
+        ]),
 
     # Index handler
     webapp2.Route(
@@ -62,7 +62,6 @@ _ALL_ROUTES = [
         handler=index_handler.IndexHandler,
         handler_method='GetAdmin',
         methods=['GET']),
-
     webapp2.Route(
         r'/<:/?><:.*>',
         handler=index_handler.IndexHandler,

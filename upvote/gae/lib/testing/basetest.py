@@ -85,20 +85,23 @@ class UpvoteTestCase(basetest.AppEngineTestCase):
     else:
       self.testapp = None
 
-    self.secret_key = 'test-secret'
-    xsrf_utils.SiteXsrfSecret.SetInstance(secret=self.secret_key.encode('hex'))
-
+    # NOTE: PatchEnv() needs to be called before the xsrf_utils bit below. The
+    # call to Singleton.SetInstance() eventually imports appengine_config.py,
+    # which will attempt to make some BigQuery insertions, which then fail with
+    # UnknownEnvironment unless we've already patched the environment detection.
     self._env_patcher = None
-
-    if patch_generate_token:
-      self.Patch(xsrfutil, 'generate_token', return_value='token')
-
     self.PatchEnv(settings.ProdEnv, ENABLE_BIGQUERY_STREAMING=True)
 
     # Patch out the call that streams to BigQuery so it can be verified in
     # assertBigQueryInsertions() below.
     if patch_send_to_bigquery:
       self.mock_send_to_bigquery = self.Patch(tables, '_SendToBigQuery')
+
+    self.secret_key = 'test-secret'
+    xsrf_utils.SiteXsrfSecret.SetInstance(secret=self.secret_key.encode('hex'))
+
+    if patch_generate_token:
+      self.Patch(xsrfutil, 'generate_token', return_value='token')
 
   def tearDown(self):
     super(UpvoteTestCase, self).tearDown()
@@ -107,7 +110,8 @@ class UpvoteTestCase(basetest.AppEngineTestCase):
     # Any test that results in a BigQuery row being generated should also be
     # calling UpvoteTestCase.DrainTaskQueue() and verifying that the drained
     # rows pass validation.
-    self.assertTaskCount(constants.TASK_QUEUE.BIGQUERY_STREAMING, 0)
+    if hasattr(self, 'mock_send_to_bigquery'):
+      self.assertNoBigQueryInsertions()
 
     self.UnpatchEnv()
 
@@ -258,6 +262,18 @@ class UpvoteTestCase(basetest.AppEngineTestCase):
     if reset_mock:
       self.mock_send_to_bigquery.reset_mock()
 
+  def assertBigQueryInsertion(self, table_name, reset_mock=True):
+    """Verifies that all outstanding BigQuery insertions match expectations.
+
+    Args:
+      table_name: A string which must be a valid BigQuery table name. The string
+          represents the table that is expected to have a row insertion.
+      reset_mock: Whether to reset the _SendToBigQuery() mock or not. If the
+          actual arguments passed to the mock need to be tested, this should be
+          False.
+    """
+    self.assertBigQueryInsertions([table_name], reset_mock=reset_mock)
+
   def GetBigQueryCalls(self, predicate=None, reset_mock=True):
     """Returns a list of tuples, representing the args of _SendToBigQuery().
 
@@ -278,8 +294,7 @@ class UpvoteTestCase(basetest.AppEngineTestCase):
     return filter(predicate, call_args)
 
   def assertNoBigQueryInsertions(self):
-    tasks = self.UnpackTaskQueue(constants.TASK_QUEUE.BIGQUERY_STREAMING)
-    self.assertEqual(0, len(tasks))
+    self.assertBigQueryInsertions([])
 
   def Patch(self, target, attribute, **kwargs):
     patcher = mock.patch.object(target, attribute, **kwargs)

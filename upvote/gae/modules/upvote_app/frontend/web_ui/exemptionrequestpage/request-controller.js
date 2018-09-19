@@ -54,7 +54,7 @@ upvote.exemptionrequestpage.ExemptionRequestController = class {
 
     /** @export {!upvote.hosts.ExceptionRequestData} */
     this.requestData = {
-      'reason': ExceptionReason['OSX_DEVELOPER'],
+      'reason': ExceptionReason['DEVELOPER_MACOS'],
       'otherText': null
     };
 
@@ -118,18 +118,18 @@ let ExemRequestCtrl = upvote.exemptionrequestpage.ExemptionRequestController;
 
 /** @export {!Object<string, string>} */
 ExemRequestCtrl.REASON_DESCRIPTIONS = {};
-ExemRequestCtrl.REASON_DESCRIPTIONS[ExceptionReason['OSX_DEVELOPER']] =
+ExemRequestCtrl.REASON_DESCRIPTIONS[ExceptionReason['DEVELOPER_MACOS']] =
     'As part of my job role, I develop macOS software on this machine.';
-ExemRequestCtrl.REASON_DESCRIPTIONS[ExceptionReason['IOS_DEVELOPER']] =
+ExemRequestCtrl.REASON_DESCRIPTIONS[ExceptionReason['DEVELOPER_IOS']] =
     'As part of my job role, I develop iOS software on this machine.';
-ExemRequestCtrl.REASON_DESCRIPTIONS[ExceptionReason['DEVTOOLS_DEVELOPER']] =
+ExemRequestCtrl.REASON_DESCRIPTIONS[ExceptionReason['DEVELOPER_DEVTOOLS']] =
     'As part of my job role, I develop and/or test developer tools ' +
     '(e.g. compilers) on this machine.';
 ExemRequestCtrl.REASON_DESCRIPTIONS[ExceptionReason['DEVELOPER_PERSONAL']] =
     'I develop on this machine for personal projects/use.';
-ExemRequestCtrl.REASON_DESCRIPTIONS[ExceptionReason['PACKAGE_MANAGER']] =
+ExemRequestCtrl.REASON_DESCRIPTIONS[ExceptionReason['USES_PACKAGE_MANAGER']] =
     'I use a package manager (e.g. Homebrew) on this machine.';
-ExemRequestCtrl.REASON_DESCRIPTIONS[ExceptionReason['IM_A_BABY']] =
+ExemRequestCtrl.REASON_DESCRIPTIONS[ExceptionReason['FEARS_NEGATIVE_IMPACT']] =
     'I\'m afraid Santa will have a negative impact on my work but I\'m ' +
     'not sure why.';
 ExemRequestCtrl.REASON_DESCRIPTIONS[ExceptionReason['OTHER']] =

@@ -181,12 +181,8 @@
               <md-input-container>
                 <label>Vote Weight</label>
                 <md-select ng-model="ctrl.requestedVoteRole">
-                  <md-option ng-value="null">
-                    Default
-                  </md-option>
-                  <md-option ng-repeat="entry in ctrl.votingWeights | orderBy:['weight', 'role']"
-                             ng-value="entry.role"
-                             ng-disabled="!ctrl.user.isAdmin && !ctrl.user.roles.includes(entry.role)">
+                  <md-option ng-repeat="entry in ctrl.availableVotingWeights() | orderBy:['weight', 'role']"
+                             ng-value="entry.role">
                     &plusmn;{{ entry.weight }} ({{ entry.role }})
                   </md-option>
                 </md-select>

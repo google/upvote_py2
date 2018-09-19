@@ -103,20 +103,6 @@ class SantaBlockable(mixin.Santa, base.Binary):
   # DEPRECATED
   cert_sha256 = ndb.StringProperty()  # Use base.Binary.cert_key
 
-  def PersistRow(self, action, timestamp=None):
-    if timestamp is None:
-      timestamp = datetime.datetime.now()
-    tables.BINARY.InsertRow(
-        sha256=self.key.id(),
-        timestamp=timestamp,
-        action=action,
-        state=self.state,
-        score=self.score,
-        platform=self.GetPlatformName(),
-        client=self.GetClientName(),
-        first_seen_file_name=self.file_name,
-        cert_fingerprint=self.cert_id)
-
   @property
   def cert_id(self):
     return (self.cert_key and self.cert_key.id()) or self.cert_sha256
@@ -129,12 +115,12 @@ class SantaBlockable(mixin.Santa, base.Binary):
     # user is not an admin.
     if not current_user.is_admin and self.cert_id:
       cert = SantaCertificate.get_by_id(self.cert_id)
-      # pylint: disable=g-explicit-bool-comparison
+      # pylint: disable=g-explicit-bool-comparison, singleton-comparison
       cert_rules = base.Rule.query(
           base.Rule.in_effect == True,
           base.Rule.policy == constants.RULE_POLICY.BLACKLIST,
           ancestor=cert.key)
-      # pylint: enable=g-explicit-bool-comparison
+      # pylint: enable=g-explicit-bool-comparison, singleton-comparison
       if cert_rules.count() > 0:
         return (False, constants.VOTING_PROHIBITED_REASONS.BLACKLISTED_CERT)
 
@@ -160,20 +146,17 @@ class SantaCertificate(mixin.Santa, base.Certificate):
   valid_from_dt = ndb.DateTimeProperty()
   valid_until_dt = ndb.DateTimeProperty()
 
-  def PersistRow(self, action, timestamp=None):
-    if timestamp is None:
-      timestamp = datetime.datetime.now()
-    tables.CERTIFICATE.InsertRow(
-        fingerprint=self.key.id(),
-        timestamp=timestamp,
-        action=action,
-        common_name=self.common_name,
-        organization=self.organization,
-        organizational_unit=self.organizational_unit,
-        not_before=self.valid_from_dt,
-        not_after=self.valid_until_dt,
-        state=self.state,
-        score=self.score)
+  def InsertBigQueryRow(self, action, **kwargs):
+
+    defaults = {
+        'not_before': self.valid_from_dt,
+        'not_after': self.valid_until_dt,
+        'common_name': self.common_name,
+        'organization': self.organization,
+        'organizational_unit': self.organizational_unit}
+    defaults.update(kwargs.copy())
+
+    super(SantaCertificate, self).InsertBigQueryRow(action, **defaults)
 
 
 class SantaBundleBinary(mixin.Santa, ndb.Model):
@@ -262,17 +245,19 @@ class SantaBundle(mixin.Santa, base.Package):
   # Overrides base.Blockable.score to suppress score calculation during upload.
   score = ndb.ComputedProperty(_CalculateScore)
 
-  def PersistRow(self, action, timestamp=None):
-    if timestamp is None:
-      timestamp = datetime.datetime.now()
-    tables.BUNDLE.InsertRow(
-        bundle_hash=self.key.id(),
-        timestamp=timestamp,
-        action=action,
-        bundle_id=self.bundle_id,
-        version=self.version,
-        state=self.state,
-        score=self.score)
+  def InsertBigQueryRow(self, action, **kwargs):
+
+    defaults = {
+        'bundle_hash': self.key.id(),
+        'timestamp': datetime.datetime.utcnow(),
+        'action': action,
+        'bundle_id': self.bundle_id,
+        'version': self.version,
+        'state': self.state,
+        'score': self.score}
+    defaults.update(kwargs.copy())
+
+    tables.BUNDLE.InsertRow(**defaults)
 
   @property
   def has_been_uploaded(self):
@@ -433,6 +418,14 @@ class SantaHost(mixin.Santa, base.Host):
         event.host_id for event in events_future.get_result())
 
     return list(ids_where_primary_user | ids_when_logged_in)
+
+  @classmethod
+  @ndb.transactional
+  def ChangeClientMode(cls, host_id, new_client_mode):
+    host = cls.get_by_id(host_id)
+    host.client_mode_lock = True
+    host.client_mode = new_client_mode
+    host.put()
 
   def IsAssociatedWithUser(self, user):
     """Returns whether the given user is associated with this host."""

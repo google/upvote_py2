@@ -133,9 +133,29 @@ class SantaBlockableTest(SantaModelTest):
         santa_blockable.IsVotingAllowed()
         self.assertTrue(mock_method.called)
 
-  def testChangeState_Persists(self):
-    self.santa_blockable.ChangeState(constants.STATE.SUSPECT)
-    self.assertBigQueryInsertions([constants.BIGQUERY_TABLE.BINARY])
+  def testChangeState_Success(self):
+
+    # Verify the SantaBlockable is in the default state of UNTRUSTED.
+    blockable = test_utils.CreateSantaBlockable()
+    blockable_hash = blockable.blockable_hash
+    blockable = santa.SantaBlockable.get_by_id(blockable_hash)
+    self.assertIsNotNone(blockable)
+    self.assertEqual(constants.STATE.UNTRUSTED, blockable.state)
+
+    # Note the state change timestamp.
+    old_state_change_dt = blockable.state_change_dt
+
+    # Change the state.
+    blockable.ChangeState(constants.STATE.BANNED)
+
+    # Reload, and verify the state change.
+    blockable = santa.SantaBlockable.get_by_id(blockable_hash)
+    self.assertIsNotNone(blockable)
+    self.assertEqual(constants.STATE.BANNED, blockable.state)
+    self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.BINARY)
+
+    # And the state change timestamp should be increased.
+    self.assertTrue(blockable.state_change_dt > old_state_change_dt)
 
   def testChangeState_BinaryRowCreation_NoBlockableHash(self):
 
@@ -145,22 +165,60 @@ class SantaBlockableTest(SantaModelTest):
         file_name='Whatever.app')
     hashless_santa_blockable.ChangeState(constants.STATE.SUSPECT)
 
-    self.assertBigQueryInsertions([constants.BIGQUERY_TABLE.BINARY])
+    self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.BINARY)
 
   def testResetState(self):
-    self.santa_blockable.ResetState()
-    self.assertBigQueryInsertions([constants.BIGQUERY_TABLE.BINARY])
+    blockable = test_utils.CreateSantaBlockable(
+        state=constants.STATE.BANNED, flagged=True)
+    blockable.ResetState()
+
+    actual_binary = blockable.key.get()
+
+    self.assertEqual(actual_binary.state, constants.STATE.UNTRUSTED)
+    self.assertFalse(actual_binary.flagged)
+    self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.BINARY)
 
 
-class SantaCertificateTest(SantaModelTest):
+class SantaCertificateTest(basetest.UpvoteTestCase):
 
-  def testPersistsStateChange(self):
-    self.santa_certificate.ChangeState(constants.STATE.SUSPECT)
-    self.assertBigQueryInsertions([constants.BIGQUERY_TABLE.CERTIFICATE])
+  def setUp(self):
+    super(SantaCertificateTest, self).setUp()
+    self.PatchEnv(settings.ProdEnv, ENABLE_BIGQUERY_STREAMING=True)
 
-  def testResetsState(self):
-    self.santa_certificate.ResetState()
-    self.assertBigQueryInsertions([constants.BIGQUERY_TABLE.CERTIFICATE])
+  def testChangeState(self):
+
+    # Verify the SantaCertificate is in the default state of UNTRUSTED.
+    cert = test_utils.CreateSantaCertificate()
+    blockable_hash = cert.blockable_hash
+    cert = santa.SantaCertificate.get_by_id(blockable_hash)
+    self.assertIsNotNone(cert)
+    self.assertEqual(constants.STATE.UNTRUSTED, cert.state)
+
+    # Note the state change timestamp.
+    old_state_change_dt = cert.state_change_dt
+
+    # Change the state.
+    cert.ChangeState(constants.STATE.BANNED)
+
+    # Reload, and verify the state change.
+    cert = santa.SantaCertificate.get_by_id(blockable_hash)
+    self.assertIsNotNone(cert)
+    self.assertEqual(constants.STATE.BANNED, cert.state)
+    self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.CERTIFICATE)
+
+    # And the state change timestamp should be increased.
+    self.assertTrue(cert.state_change_dt > old_state_change_dt)
+
+  def testResetState(self):
+    cert = test_utils.CreateSantaCertificate(
+        state=constants.STATE.BANNED, flagged=True)
+    cert.ResetState()
+
+    actual_cert = cert.key.get()
+
+    self.assertEqual(actual_cert.state, constants.STATE.UNTRUSTED)
+    self.assertFalse(actual_cert.flagged)
+    self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.CERTIFICATE)
 
 
 class SantaEventTest(SantaModelTest):
@@ -360,12 +418,12 @@ class SantaBundleTest(SantaModelTest):
   def testPersistsStateChange(self):
     bundle = test_utils.CreateSantaBundle(uploaded_dt=None)
     bundle.ChangeState(constants.STATE.SUSPECT)
-    self.assertBigQueryInsertions([constants.BIGQUERY_TABLE.BUNDLE])
+    self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.BUNDLE)
 
   def testResetsState(self):
     bundle = test_utils.CreateSantaBundle(uploaded_dt=None)
     bundle.ResetState()
-    self.assertBigQueryInsertions([constants.BIGQUERY_TABLE.BUNDLE])
+    self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.BUNDLE)
 
 
 class SantaHostTest(SantaModelTest):
@@ -426,6 +484,21 @@ class SantaHostTest(SantaModelTest):
 
     self.assertListEqual(
         [host.key.id()], santa.SantaHost.GetAssociatedHostIds(user))
+
+  def testChangeClientMode(self):
+
+    host_key = test_utils.CreateSantaHost(
+        client_mode=constants.SANTA_CLIENT_MODE.MONITOR,
+        client_mode_lock=False).key
+
+    self.assertEqual(
+        constants.SANTA_CLIENT_MODE.MONITOR, host_key.get().client_mode)
+    self.assertFalse(host_key.get().client_mode_lock)
+    santa.SantaHost.ChangeClientMode(
+        host_key.id(), constants.SANTA_CLIENT_MODE.LOCKDOWN)
+    self.assertEqual(
+        constants.SANTA_CLIENT_MODE.LOCKDOWN, host_key.get().client_mode)
+    self.assertTrue(host_key.get().client_mode_lock)
 
   def testHostIsAssociatedWithUser_PrimaryUser(self):
     user = test_utils.CreateUser()

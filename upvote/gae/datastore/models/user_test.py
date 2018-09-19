@@ -75,7 +75,7 @@ class UserTest(basetest.UpvoteTestCase):
     self.assertListEqual([constants.USER_ROLE.USER], user.roles)
     self.assertSetEqual(constants.PERMISSIONS.SET_USER, user.permissions)
 
-    self.assertBigQueryInsertions([constants.BIGQUERY_TABLE.USER])
+    self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.USER)
 
   def testGetOrInsert_NewUser_EmailAddr_Lowercase(self):
 
@@ -84,7 +84,7 @@ class UserTest(basetest.UpvoteTestCase):
     self.assertEqual('upper@case.addr', user.email)
     self.assertEqual('upper', user.nickname)
 
-    self.assertBigQueryInsertions([constants.BIGQUERY_TABLE.USER])
+    self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.USER)
 
   def testGetOrInsert_NewUser_AppEngineUser(self):
 
@@ -99,7 +99,7 @@ class UserTest(basetest.UpvoteTestCase):
     self.assertListEqual([constants.USER_ROLE.USER], user.roles)
     self.assertSetEqual(constants.PERMISSIONS.SET_USER, user.permissions)
 
-    self.assertBigQueryInsertions([constants.BIGQUERY_TABLE.USER])
+    self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.USER)
 
   def testGetOrInsert_UnknownUserError(self):
 
@@ -116,7 +116,7 @@ class UserTest(basetest.UpvoteTestCase):
     self.assertEqual(1, len(user.roles))
     self.assertEquals([USER], user.roles)
 
-    self.assertBigQueryInsertions([constants.BIGQUERY_TABLE.USER])
+    self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.USER)
 
   def testSetRoles_RemoveAll(self):
     with self.LoggedInUser() as user:
@@ -163,7 +163,7 @@ class UserTest(basetest.UpvoteTestCase):
     self.assertEqual(
         self._voting_weights[constants.USER_ROLE.SUPERUSER], user.vote_weight)
 
-    self.assertBigQueryInsertions([constants.BIGQUERY_TABLE.USER])
+    self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.USER)
 
   def testSetRoles_RemoveRole(self):
 
@@ -179,7 +179,7 @@ class UserTest(basetest.UpvoteTestCase):
     self.assertEqual(
         self._voting_weights[constants.USER_ROLE.USER], user.vote_weight)
 
-    self.assertBigQueryInsertions([constants.BIGQUERY_TABLE.USER])
+    self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.USER)
 
   def testUpdateRoles_AddRole(self):
 
@@ -196,7 +196,7 @@ class UserTest(basetest.UpvoteTestCase):
     self.assertEqual(
         self._voting_weights[constants.USER_ROLE.SUPERUSER], user.vote_weight)
 
-    self.assertBigQueryInsertions([constants.BIGQUERY_TABLE.USER])
+    self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.USER)
 
   def testUpdateRoles_RemoveRole(self):
 
@@ -213,7 +213,7 @@ class UserTest(basetest.UpvoteTestCase):
     self.assertEqual(
         self._voting_weights[constants.USER_ROLE.USER], user.vote_weight)
 
-    self.assertBigQueryInsertions([constants.BIGQUERY_TABLE.USER])
+    self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.USER)
 
   def testIsAdmin_Nope(self):
     lowly_peon = test_utils.CreateUser(roles=[constants.USER_ROLE.USER])

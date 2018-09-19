@@ -62,12 +62,12 @@ describe('Host Service', () => {
       it('', () => {
         httpBackend.expectPOST('/api/web/hosts/abc/request-exception')
             .respond((method, url, data, headers, params) => {
-              expect(data.search(/reason=OSX_DEVELOPER/)).not.toBe(-1);
+              expect(data.search(/reason=DEVELOPER_MACOS/)).not.toBe(-1);
               expect(data.search(/otherText/)).toBe(-1);
               return [200, {}];
             });
         hostService.requestHostException(
-            'abc', {'reason': 'OSX_DEVELOPER', 'otherText': null});
+            'abc', {'reason': 'DEVELOPER_MACOS', 'otherText': null});
       });
 
       it('of type OTHER', () => {

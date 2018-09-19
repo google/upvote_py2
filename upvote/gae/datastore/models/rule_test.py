@@ -18,6 +18,7 @@ from upvote.gae.datastore import test_utils
 from upvote.gae.datastore.models import rule
 from upvote.gae.datastore.models import santa
 from upvote.gae.lib.testing import basetest
+from upvote.shared import constants
 
 
 class EnsureCriticalRulesTest(basetest.UpvoteTestCase):
@@ -32,6 +33,7 @@ class EnsureCriticalRulesTest(basetest.UpvoteTestCase):
 
     self.assertEntityCount(santa.SantaCertificate, 5)
     self.assertEntityCount(santa.SantaRule, 5)
+    self.assertBigQueryInsertions([constants.BIGQUERY_TABLE.CERTIFICATE] * 5)
 
 
 if __name__ == '__main__':

@@ -55,7 +55,6 @@ py_appengine_library(
         ":base",
         ":mixin",
         "//common/cloud_kms:kms_ndb",
-        "//upvote/gae/bigquery:tables",
         "//upvote/gae/datastore/models:singleton",
         "//upvote/shared:constants",
     ],
@@ -64,6 +63,17 @@ py_appengine_library(
 py_appengine_library(
     name = "cache",
     srcs = ["cache.py"],
+)
+
+py_appengine_library(
+    name = "exemption",
+    srcs = ["exemption.py"],
+    deps = [
+        ":base",
+        ":mixin",
+        "//upvote/gae/bigquery:tables",
+        "//upvote/gae/taskqueue:utils",
+    ],
 )
 
 py_appengine_library(
@@ -189,6 +199,20 @@ upvote_appengine_test(
 )
 
 upvote_appengine_test(
+    name = "exemption_test",
+    size = "small",
+    srcs = ["exemption_test.py"],
+    deps = [
+        ":base",
+        ":exemption",
+        "//common/testing:basetest",
+        "//upvote/gae/datastore:test_utils",
+        "//upvote/gae/lib/testing:basetest",
+        "@absl_git//absl/testing:absltest",
+    ],
+)
+
+upvote_appengine_test(
     name = "mixin_test",
     size = "small",
     srcs = ["mixin_test.py"],
@@ -208,6 +232,7 @@ upvote_appengine_test(
         ":santa",
         "//upvote/gae/datastore:test_utils",
         "//upvote/gae/lib/testing:basetest",
+        "//upvote/shared:constants",
         "@absl_git//absl/testing:absltest",
     ],
 )

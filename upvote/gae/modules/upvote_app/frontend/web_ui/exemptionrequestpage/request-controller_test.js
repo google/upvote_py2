@@ -100,7 +100,7 @@ describe('Host Request Controller', () => {
 
     expect(ctrl.isOtherSelected()).toBe(true);
 
-    ctrl.requestData.reason = upvote.hosts.ExceptionReason.OSX_DEVELOPER;
+    ctrl.requestData.reason = upvote.hosts.ExceptionReason.DEVELOPER_MACOS;
     rootScope.$apply();
 
     expect(ctrl.isOtherSelected()).toBe(false);

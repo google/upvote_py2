@@ -8,15 +8,6 @@ package(default_visibility = ["//upvote"])
 py_appengine_library(
     name = "utils",
     srcs = ["utils.py"],
-    visibility = [
-        "//upvote",
-        "//upvote/gae/cron:__pkg__",
-        "//upvote/gae/datastore/models:__pkg__",
-        "//upvote/gae/modules/bit9_api:__pkg__",
-        "//upvote/gae/modules/santa_api:__pkg__",
-        "//upvote/gae/modules/upvote_app/api/handlers:__pkg__",
-        "//upvote/gae/modules/upvote_app/lib:__pkg__",
-    ],
     deps = [
         "//upvote/gae/datastore:utils",
         "//upvote/shared:constants",

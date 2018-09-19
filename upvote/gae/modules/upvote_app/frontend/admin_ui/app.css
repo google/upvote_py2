@@ -5,3 +5,9 @@ body {
 #uv-all-content {
   background-color: inherit;
 }
+
+.scroll-y {
+  overflow-y: auto;
+  padding-bottom: 10%;
+  height: 100%;
+}

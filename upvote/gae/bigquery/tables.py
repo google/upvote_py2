@@ -25,7 +25,9 @@ import upvote.gae.shared.common.google_cloud_lib_fixer  # pylint: disable=unused
 from google.cloud import bigquery
 from google.cloud import exceptions
 
+from google.appengine.api import memcache
 from google.appengine.ext import deferred
+from google.appengine.ext import ndb
 
 from upvote.gae.bigquery import monitoring
 from upvote.gae.shared.common import settings
@@ -114,6 +116,9 @@ def _SendToBigQuery(table, row_dict):
   For a reference of the possible errors that the BigQuery API can return, see:
   https://cloud.google.com/bigquery/troubleshooting-errors#errortable
 
+  For more information about how BigQuery uses row IDs for deduplication, see:
+  https://cloud.google.com/bigquery/streaming-data-into-bigquery#dataconsistency
+
   Args:
     table: The BigQueryTable object doing the sending.
     row_dict: A dict representing the row to be sent.
@@ -128,7 +133,7 @@ def _SendToBigQuery(table, row_dict):
     dataset_ref = client.dataset(constants.BIGQUERY_DATASET)
     table_ref = dataset_ref.table(table.name)
     schema = table.schema
-    row_id = table.CreateRowId(**row_dict)
+    row_id = table.CreateUniqueId(**row_dict)
     errors = client.insert_rows(
         table_ref, [row_dict], selected_fields=schema, row_ids=[row_id])
 
@@ -281,11 +286,8 @@ class BigQueryTable(object):
             raise InvalidValue(
                 'Column "%s" contains an invalid value: %s' % (k, item))
 
-  def CreateRowId(self, **kwargs):
-    """Creates a unique row ID so BigQuery can dedupe repeated inserts.
-
-    For more details, see:
-    https://cloud.google.com/bigquery/streaming-data-into-bigquery#dataconsistency
+  def CreateUniqueId(self, **kwargs):
+    """Creates a unique identifier of the provided row (key, value) pairs.
 
     Args:
       **kwargs: The kwargs that InsertRow() is called with, representing the
@@ -308,15 +310,38 @@ class BigQueryTable(object):
       **kwargs: The kwargs that InsertRow() is called with, representing the
           individual values of this particular row.
     """
+    logging.info('Inserting row into the %s table: %s', self.name, kwargs)
     try:
+
       self._ValidateInsertion(**kwargs)
+
+      # If this is being called within a transaction, make a reasonable attempt
+      # to avoid inserting 'duplicate' rows that only differ due to a miniscule
+      # difference in the 'timestamp' value. This can easily occur if a
+      # transaction retries, and uses something like datetime.datetime.utcnow()
+      # to populate the 'timestamp' value.
+      if ndb.in_transaction() and 'timestamp' in kwargs:
+
+        # Create a unique identifier based on all columns except 'timestamp'.
+        memcache_key = self.CreateUniqueId(
+            **{k: v for k, v in kwargs.iteritems() if k != 'timestamp'})
+
+        # If the key is already in memcache despite the extremely short timeout,
+        # this is likely a repeat insertion due to a retry, so skip it.
+        if memcache.get(memcache_key):
+          logging.info('Skipping row due to likely transaction retry')
+          return
+
+        # Otherwise, set the key as a guard in case this transaction retries.
+        else:
+          memcache.set(memcache_key, True, time=5)
+
       _SendToBigQuery(self, kwargs)
       monitoring.row_insertions.Success()
 
     except Exception:  # pylint: disable=broad-except
       logging.exception(
-          'Error encountered while inserting the following row into the %s '
-          'table: %s', self.name, str(kwargs))
+          'Error encountered while inserting row into the %s table', self.name)
       monitoring.row_insertions.Failure()
 
   def InsertRow(self, **kwargs):
@@ -405,6 +430,16 @@ EXECUTION = BigQueryTable(
         Column(name='decision', choices=constants.EVENT_TYPE.SET_ALL),
         Column(name='comment', mode=MODE.NULLABLE)])
 
+
+EXEMPTION = BigQueryTable(
+    constants.BIGQUERY_TABLE.EXEMPTION, [
+        Column(name='device_id'),
+        Column(name='timestamp', field_type=FIELD_TYPE.TIMESTAMP),
+        Column(name='state', choices=constants.EXEMPTION_STATE.SET_ALL),
+        Column(name='comment', mode=MODE.NULLABLE),
+        Column(name='details', mode=MODE.REPEATED)])
+
+
 HOST = BigQueryTable(
     constants.BIGQUERY_TABLE.HOST, [
         Column(name='device_id'),
@@ -435,3 +470,15 @@ VOTE = BigQueryTable(
         Column(name='platform', choices=constants.PLATFORM.SET_ALL),
         Column(name='target_type', choices=constants.RULE_TYPE.SET_ALL),
         Column(name='voter')])
+
+
+RULE = BigQueryTable(
+    constants.BIGQUERY_TABLE.RULE, [
+        Column(name='sha256'),
+        Column(name='timestamp', field_type=FIELD_TYPE.TIMESTAMP),
+        Column(name='scope', choices=constants.RULE_SCOPE.SET_ALL),
+        Column(name='policy', choices=constants.RULE_POLICY.SET_ALL),
+        Column(name='target_type', choices=constants.RULE_TYPE.SET_ALL),
+        Column(name='device_id', mode=MODE.NULLABLE),  # NULLABLE b/c of globals
+        Column(name='user', mode=MODE.NULLABLE),  # NULLABLE b/c of globals
+        Column(name='comment', mode=MODE.NULLABLE)])

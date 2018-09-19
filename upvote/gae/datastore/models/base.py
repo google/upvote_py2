@@ -13,7 +13,6 @@
 # limitations under the License.
 
 """Model definitions for Upvote."""
-import abc
 import datetime
 import hashlib
 import logging
@@ -23,6 +22,7 @@ from google.appengine.api import memcache
 from google.appengine.ext import ndb
 from google.appengine.ext.ndb import polymodel
 
+from upvote.gae.bigquery import tables
 from upvote.gae.datastore import utils as model_utils
 from upvote.gae.datastore.models import mixin
 from upvote.gae.datastore.models import user as user_models
@@ -33,6 +33,11 @@ from upvote.shared import constants
 
 _BLACKLIST_MEMCACHE_KEY = '_blacklist'
 _BLACKLIST_MEMCACHE_EXPIRATION = 3600  # in seconds
+
+
+# Done for the sake of brevity.
+LOCAL = constants.RULE_SCOPE.LOCAL
+GLOBAL = constants.RULE_SCOPE.GLOBAL
 
 
 class Error(Exception):
@@ -261,15 +266,6 @@ class Blockable(mixin.Base, polymodel.PolyModel):
 
   score = ndb.ComputedProperty(_CalculateScore)
 
-  @abc.abstractmethod
-  def PersistRow(self, action, timestamp=None):
-    """Persists the current blockable with the given action.
-
-    Args:
-      action: constants.BLOCK_ACTION, the action to persist.
-      timestamp: datetime, time of the persistence.
-    """
-
   def ChangeState(self, new_state):
     """Helper method for changing the state of this Blockable.
 
@@ -280,7 +276,7 @@ class Blockable(mixin.Base, polymodel.PolyModel):
     self.state_change_dt = datetime.datetime.utcnow()
     self.put()
 
-    self.PersistRow(
+    self.InsertBigQueryRow(
         constants.BLOCK_ACTION.STATE_CHANGE, timestamp=self.state_change_dt)
 
   def GetRules(self, in_effect=True):
@@ -294,9 +290,9 @@ class Blockable(mixin.Base, polymodel.PolyModel):
     """
     query = Rule.query(ancestor=self.key)
     if in_effect:
-      # pylint: disable=g-explicit-bool-comparison
+      # pylint: disable=g-explicit-bool-comparison, singleton-comparison
       query = query.filter(Rule.in_effect == True)
-      # pylint: enable=g-explicit-bool-comparison
+      # pylint: enable=g-explicit-bool-comparison, singleton-comparison
     return query.fetch()
 
   def GetVotes(self):
@@ -305,9 +301,9 @@ class Blockable(mixin.Base, polymodel.PolyModel):
     Returns:
       A list of cast Votes.
     """
-    # pylint: disable=g-explicit-bool-comparison
+    # pylint: disable=g-explicit-bool-comparison, singleton-comparison
     return Vote.query(Vote.in_effect == True, ancestor=self.key).fetch()
-    # pylint: enable=g-explicit-bool-comparison
+    # pylint: enable=g-explicit-bool-comparison, singleton-comparison
 
   def GetStrongestVote(self):
     """Retrieves the 'strongest' vote cast for this Blockable.
@@ -377,7 +373,7 @@ class Blockable(mixin.Base, polymodel.PolyModel):
     self.flagged = False
     self.put()
 
-    self.PersistRow(
+    self.InsertBigQueryRow(
         constants.BLOCK_ACTION.RESET, timestamp=self.state_change_dt)
 
   def to_dict(self, include=None, exclude=None):  # pylint: disable=g-bad-name
@@ -430,12 +426,41 @@ class Binary(Blockable):
     result['cert_id'] = self.cert_id
     return result
 
+  def InsertBigQueryRow(self, action, **kwargs):
+
+    defaults = {
+        'sha256': self.key.id(),
+        'timestamp': datetime.datetime.utcnow(),
+        'action': action,
+        'state': self.state,
+        'score': self.score,
+        'platform': self.GetPlatformName(),
+        'client': self.GetClientName(),
+        'first_seen_file_name': self.file_name,
+        'cert_fingerprint': self.cert_id}
+    defaults.update(kwargs.copy())
+
+    tables.BINARY.InsertRow(**defaults)
+
 
 class Certificate(Blockable):
+  """A codesigning certificate that has been encountered by Upvote."""
 
   @property
   def rule_type(self):
     return constants.RULE_TYPE.CERTIFICATE
+
+  def InsertBigQueryRow(self, action, **kwargs):
+
+    defaults = {
+        'fingerprint': self.key.id(),
+        'timestamp': datetime.datetime.utcnow(),
+        'action': action,
+        'state': self.state,
+        'score': self.score}
+    defaults.update(kwargs.copy())
+
+    tables.CERTIFICATE.InsertRow(**defaults)
 
 
 class Package(Blockable):
@@ -620,6 +645,23 @@ class Rule(mixin.Base, polymodel.PolyModel):
 
   def MarkDisabled(self):
     self.in_effect = False
+
+  def InsertBigQueryRow(self, **kwargs):
+
+    user = (
+        user_map.EmailToUsername(self.user_key.id()) if self.user_key else None)
+
+    defaults = {
+        'sha256': self.key.parent().id(),
+        'timestamp': datetime.datetime.utcnow(),
+        'scope': LOCAL if self.host_id or self.user_key else GLOBAL,
+        'policy': self.policy,
+        'target_type': self.rule_type,
+        'device_id': self.host_id if self.host_id else None,
+        'user': user}
+    defaults.update(kwargs.copy())
+
+    tables.RULE.InsertRow(**defaults)
 
 
 class Blacklist(ndb.Model):

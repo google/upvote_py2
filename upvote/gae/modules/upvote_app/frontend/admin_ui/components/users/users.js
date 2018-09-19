@@ -17,7 +17,6 @@ goog.provide('upvote.admin.users.module');
 goog.require('upvote.admin.users.UserQueryResource');
 goog.require('upvote.admin.users.UserResource');
 goog.require('upvote.admin.users.prettifyRole');
-goog.require('upvote.admin.users.uvUserCard');
 
 
 /** @type {!angular.Module} */
@@ -25,5 +24,4 @@ upvote.admin.users.module =
     angular.module('upvote.admin.users', ['ngResource'])
         .factory('userResource', upvote.admin.users.UserResource)
         .factory('userQueryResource', upvote.admin.users.UserQueryResource)
-        .directive('uvUserCard', upvote.admin.users.uvUserCard)
         .filter('prettifyRole', () => upvote.admin.users.prettifyRole);

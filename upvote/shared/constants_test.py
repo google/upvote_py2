@@ -181,7 +181,7 @@ class ConstantsTest(absltest.TestCase):
 
       self.assertNotEqual(set(), lesser_perms)
       self.assertNotEqual(set(), greater_perms)
-      self.assertTrue(greater_perms >= lesser_perms)
+      self.assertGreaterEqual(greater_perms, lesser_perms)
 
 
 if __name__ == '__main__':

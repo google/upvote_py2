@@ -705,7 +705,7 @@ describe('Detail Controller', () => {
 
     describe('should initialize', () => {
       it('voting weights', () => {
-        setUser({'isAdmin': true});
+        setUser({'isAdmin': false, 'roles': ['USER', 'TRUSTED_USER']});
 
         ctrl = buildController();
         scope.$apply();
@@ -715,7 +715,12 @@ describe('Detail Controller', () => {
           'setting': 'votingWeights'
         });
 
-        expect(ctrl.votingWeights).toContain({'role': 'USER', 'weight': 1});
+        expect(ctrl.votingWeights).toEqual([
+          {'role': 'USER', 'weight': 1}, {'role': 'TRUSTED_USER', 'weight': 3}
+        ]);
+        expect(ctrl.availableVotingWeights()).toEqual([
+          {'role': 'USER', 'weight': 1}, {'role': 'TRUSTED_USER', 'weight': 3}
+        ]);
       });
 
       it('package contents', () => {

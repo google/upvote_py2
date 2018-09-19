@@ -14,6 +14,7 @@ py_appengine_library(
     srcs = ["tables.py"],
     deps = [
         ":monitoring",
+        "//external:gcloud_auth",
         "//external:gcloud_bigquery",
         "//upvote/gae/shared/common:google_cloud_lib_fixer",
         "//upvote/gae/shared/common:settings",

@@ -82,8 +82,14 @@ py_library(
     deps = [
         "//external:mock",
         "//external:requests",
+        "//upvote/gae/lib/bit9:api",
+        "//upvote/gae/lib/bit9:constants",
+        "//upvote/gae/shared/common:settings",
     ],
 )
+
+# AppEngine Libraries
+# ==============================================================================
 
 py_appengine_library(
     name = "change_set",
@@ -107,9 +113,6 @@ py_appengine_library(
     ],
 )
 
-# AppEngine Libraries
-# ==============================================================================
-
 py_appengine_library(
     name = "utils",
     srcs = ["utils.py"],
@@ -122,10 +125,10 @@ py_appengine_library(
     ],
 )
 
-# Unit Tests
+# AppEngine Unit Tests
 # ==============================================================================
 
-py_test(
+upvote_appengine_test(
     name = "context_test",
     size = "small",
     srcs = ["context_test.py"],
@@ -139,7 +142,7 @@ py_test(
     ],
 )
 
-py_test(
+upvote_appengine_test(
     name = "model_test",
     size = "small",
     srcs = ["model_test.py"],
@@ -154,7 +157,7 @@ py_test(
     ],
 )
 
-py_test(
+upvote_appengine_test(
     name = "query_test",
     size = "small",
     srcs = ["query_test.py"],
@@ -173,7 +176,7 @@ py_test(
 upvote_appengine_test(
     name = "change_set_test",
     srcs = ["change_set_test.py"],
-    data = ["//upvote/gae/modules/bit9_api:fake_credentials"],
+    data = [":fake_credentials"],
     deps = [
         ":change_set",
         ":utils",
@@ -195,9 +198,6 @@ upvote_appengine_test(
     ],
 )
 
-# AppEngine Unit Tests
-# ==============================================================================
-
 upvote_appengine_test(
     name = "utils_test",
     size = "small",
@@ -209,4 +209,12 @@ upvote_appengine_test(
         "//upvote/gae/shared/common:settings",
         "@absl_git//absl/testing:absltest",
     ],
+)
+
+# Test Data
+# ==============================================================================
+
+filegroup(
+    name = "fake_credentials",
+    srcs = ["fake_credentials.json"],
 )

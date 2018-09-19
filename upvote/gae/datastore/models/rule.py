@@ -27,6 +27,7 @@ def EnsureCriticalRules(sha256_list):
     if not cert:
       cert = santa.SantaCertificate(id=sha256, id_type=constants.ID_TYPE.SHA256)
       cert.put()
+      cert.InsertBigQueryRow(constants.BLOCK_ACTION.FIRST_SEEN)
 
     # Check for at least one matching SantaRule.
     rule_missing = santa.SantaRule.query(

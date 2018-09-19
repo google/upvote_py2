@@ -70,7 +70,7 @@ class HostExceptionTicket(Ticket):
           was created.
     """
     parent_key = cls.GetParentKey(user_id, host_id)
-    open_query = cls.query(cls.is_open == True, ancestor=parent_key)  # pylint: disable=g-explicit-bool-comparison
+    open_query = cls.query(cls.is_open == True, ancestor=parent_key)  # pylint: disable=g-explicit-bool-comparison, singleton-comparison
     ticket = open_query.get()
     exists = bool(ticket)
     if not exists:

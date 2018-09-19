@@ -23,6 +23,7 @@ py_appengine_library(
         "//external:mock",
         "//upvote/gae/datastore/models:base",
         "//upvote/gae/datastore/models:bit9",
+        "//upvote/gae/datastore/models:exemption",
         "//upvote/gae/datastore/models:santa",
         "//upvote/gae/datastore/models:user",
         "//upvote/gae/shared/common:settings",

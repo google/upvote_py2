@@ -16,6 +16,8 @@
 
 import datetime
 
+from google.appengine.ext import ndb
+
 from upvote.gae.datastore import test_utils
 from upvote.gae.datastore import utils
 from upvote.gae.datastore.models import bit9
@@ -42,6 +44,26 @@ class Bit9HostTest(basetest.UpvoteTestCase):
 
     associated_hosts = bit9.Bit9Host.GetAssociatedHostIds(self.user)
     self.assertListEqual([self.bit9_host.key.id()], associated_hosts)
+
+  def testChangePolicyKey_InvalidEnforcementLevel(self):
+
+    host_key = test_utils.CreateBit9Host().key
+
+    with self.assertRaises(bit9.InvalidEnforcementLevel):
+      bit9.Bit9Host.ChangePolicyKey(host_key.id(), 'OMGWTF')
+
+  def testChangePolicyKey_Success(self):
+
+    monitor_policy_key = ndb.Key(
+        bit9.Bit9Policy, constants.BIT9_ENFORCEMENT_LEVEL.MONITOR)
+    lockdown_policy_key = ndb.Key(
+        bit9.Bit9Policy, constants.BIT9_ENFORCEMENT_LEVEL.LOCKDOWN)
+    host_key = test_utils.CreateBit9Host(policy_key=monitor_policy_key).key
+
+    self.assertEqual(monitor_policy_key, host_key.get().policy_key)
+    bit9.Bit9Host.ChangePolicyKey(
+        host_key.id(), constants.BIT9_ENFORCEMENT_LEVEL.LOCKDOWN)
+    self.assertEqual(lockdown_policy_key, host_key.get().policy_key)
 
   def testIsAssociatedWithUser(self):
     self.assertTrue(self.bit9_host.IsAssociatedWithUser(self.user))
@@ -174,30 +196,82 @@ class Bit9BinaryTest(basetest.UpvoteTestCase):
       blockable = test_utils.CreateBlockable()
       self.assertIn('is_voting_allowed', blockable.to_dict())
 
-  def testPersistsStateChange(self):
-    self.bit9_binary.ChangeState(constants.STATE.SUSPECT)
-    self.assertBigQueryInsertions([constants.BIGQUERY_TABLE.BINARY])
+  def testChangeState(self):
 
-  def testResetsState(self):
-    self.bit9_binary.ResetState()
-    self.assertBigQueryInsertions([constants.BIGQUERY_TABLE.BINARY])
+    # Verify the Bit9Binary is in the default state of UNTRUSTED.
+    binary = test_utils.CreateBit9Binary()
+    blockable_hash = binary.blockable_hash
+    binary = bit9.Bit9Binary.get_by_id(blockable_hash)
+    self.assertIsNotNone(binary)
+    self.assertEqual(constants.STATE.UNTRUSTED, binary.state)
+
+    # Note the state change timestamp.
+    old_state_change_dt = binary.state_change_dt
+
+    # Change the state.
+    binary.ChangeState(constants.STATE.BANNED)
+
+    # Reload, and verify the state change.
+    binary = bit9.Bit9Binary.get_by_id(blockable_hash)
+    self.assertIsNotNone(binary)
+    self.assertEqual(constants.STATE.BANNED, binary.state)
+    self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.BINARY)
+
+    # And the state change timestamp should be increased.
+    self.assertTrue(binary.state_change_dt > old_state_change_dt)
+
+  def testResetState(self):
+    binary = test_utils.CreateBit9Binary(
+        state=constants.STATE.BANNED, flagged=True)
+    binary.ResetState()
+
+    reset_binary = binary.key.get()
+
+    self.assertEqual(reset_binary.state, constants.STATE.UNTRUSTED)
+    self.assertFalse(reset_binary.flagged)
+    self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.BINARY)
 
 
 class Bit9CertificateTest(basetest.UpvoteTestCase):
 
   def setUp(self):
     super(Bit9CertificateTest, self).setUp()
-    self.bit9_certificate = test_utils.CreateBit9Certificate()
-
     self.PatchEnv(settings.ProdEnv, ENABLE_BIGQUERY_STREAMING=True)
 
-  def testPersistsStateChange(self):
-    self.bit9_certificate.ChangeState(constants.STATE.SUSPECT)
-    self.assertBigQueryInsertions([constants.BIGQUERY_TABLE.CERTIFICATE])
+  def testChangeState(self):
 
-  def testResetsState(self):
-    self.bit9_certificate.ResetState()
-    self.assertBigQueryInsertions([constants.BIGQUERY_TABLE.CERTIFICATE])
+    # Verify the Bit9Certificate is in the default state of UNTRUSTED.
+    cert = test_utils.CreateBit9Certificate()
+    blockable_hash = cert.blockable_hash
+    cert = bit9.Bit9Certificate.get_by_id(blockable_hash)
+    self.assertIsNotNone(cert)
+    self.assertEqual(constants.STATE.UNTRUSTED, cert.state)
+
+    # Note the state change timestamp.
+    old_state_change_dt = cert.state_change_dt
+
+    # Change the state.
+    cert.ChangeState(constants.STATE.BANNED)
+
+    # Reload, and verify the state change.
+    cert = bit9.Bit9Certificate.get_by_id(blockable_hash)
+    self.assertIsNotNone(cert)
+    self.assertEqual(constants.STATE.BANNED, cert.state)
+    self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.CERTIFICATE)
+
+    # And the state change timestamp should be increased.
+    self.assertTrue(cert.state_change_dt > old_state_change_dt)
+
+  def testResetState(self):
+    cert = test_utils.CreateBit9Certificate(
+        state=constants.STATE.BANNED, flagged=True)
+    cert.ResetState()
+
+    reset_cert = cert.key.get()
+
+    self.assertEqual(reset_cert.state, constants.STATE.UNTRUSTED)
+    self.assertFalse(reset_cert.flagged)
+    self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.CERTIFICATE)
 
 
 class RuleChangeSetTest(basetest.UpvoteTestCase):
