@@ -376,7 +376,7 @@ class HostExceptionHandlerTest(HostsTest):
 
     self.PatchEnv(settings.ProdEnv, ENABLE_BIGQUERY_STREAMING=True)
 
-  def testCreateHostException(self):
+  def testCreateHostException_Success(self):
     params = {'reason': constants.HOST_EXEMPTION_REASON.DEVELOPER_MACOS}
     with self.LoggedInUser(user=self.user):
       response = self.testapp.post(
@@ -399,6 +399,44 @@ class HostExceptionHandlerTest(HostsTest):
     self.assertTrue(updated_host.client_mode_lock)
     self.assertEqual(
         constants.SANTA_CLIENT_MODE.MONITOR, updated_host.client_mode)
+
+  def testCreateHostException_ReRequest(self):
+
+    params = {'reason': constants.HOST_EXEMPTION_REASON.DEVELOPER_MACOS}
+    with self.LoggedInUser(user=self.user):
+      response = self.testapp.post(
+          self.ROUTE % self.santa_host_3.key.id(), params)
+    self.assertEqual(httplib.OK, response.status_int)
+    self.assertEqual(response.json['id'], self.santa_host_3.key.id())
+
+    self.assertBigQueryInsertions([
+        constants.BIGQUERY_TABLE.HOST,
+    ])
+
+    host = self.santa_host_3.key.get()
+    self.assertTrue(host.client_mode_lock)
+    self.assertEqual(
+        constants.SANTA_CLIENT_MODE.MONITOR, host.client_mode)
+
+    # Revert the client mode.
+    host.client_mode_lock = True
+    host.client_mode = constants.SANTA_CLIENT_MODE.LOCKDOWN
+    host.put()
+
+    # Request again.
+    params = {'reason': constants.HOST_EXEMPTION_REASON.DEVELOPER_MACOS}
+    with self.LoggedInUser(user=self.user):
+      response = self.testapp.post(
+          self.ROUTE % self.santa_host_3.key.id(), params)
+    self.assertEqual(httplib.OK, response.status_int)
+    self.assertEqual(response.json['id'], self.santa_host_3.key.id())
+
+    self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.HOST)
+
+    host = self.santa_host_3.key.get()
+    self.assertTrue(host.client_mode_lock)
+    self.assertEqual(
+        constants.SANTA_CLIENT_MODE.MONITOR, host.client_mode)
 
   def testCreateHostException_OtherReason(self):
     params = {'reason': constants.HOST_EXEMPTION_REASON.OTHER,
