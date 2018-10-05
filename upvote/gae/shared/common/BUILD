@@ -89,11 +89,6 @@ py_appengine_library(
     srcs = ["template_utils.py"],
 )
 
-py_appengine_library(
-    name = "groups",
-    srcs = ["groups.py"],
-)
-
 # AppEngine Unit Tests
 # ==============================================================================
 

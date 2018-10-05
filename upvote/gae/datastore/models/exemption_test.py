@@ -30,6 +30,11 @@ class MysteryHost(base_models.Host):
 
 class ExemptionTest(basetest.UpvoteTestCase):
 
+  def testCanChangeToState(self):
+    exm = test_utils.CreateExemption('aaa').get()  # Initial state is REQUESTED
+    self.assertTrue(exm.CanChangeToState(constants.EXEMPTION_STATE.PENDING))
+    self.assertFalse(exm.CanChangeToState(constants.EXEMPTION_STATE.APPROVED))
+
   def testGet(self):
     host_id = '12345'
     self.assertIsNone(exemption.Exemption.Get(host_id))
@@ -60,6 +65,12 @@ class ExemptionTest(basetest.UpvoteTestCase):
     exm_key = test_utils.CreateExemption(host_id)
     self.assertEqual(
         constants.PLATFORM.WINDOWS, exemption.Exemption.GetPlatform(exm_key))
+
+  def testGetHostId(self):
+    expected_host_id = test_utils.CreateSantaHost().key.id()
+    exm_key = test_utils.CreateExemption(expected_host_id)
+    actual_host_id = exemption.Exemption.GetHostId(exm_key)
+    self.assertEqual(expected_host_id, actual_host_id)
 
   def testInsert_Success(self):
 

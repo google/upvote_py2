@@ -37,8 +37,8 @@ py_appengine_library(
         "//upvote/gae/datastore:utils",
         "//upvote/gae/datastore/models:santa",
         "//upvote/gae/datastore/models:user",
-        "//upvote/gae/shared/common:groups",
         "//upvote/gae/shared/common:user_map",
+        "//upvote/gae/utils:group_utils",
         "//upvote/gae/utils:iter_utils",
     ],
 )
@@ -80,8 +80,8 @@ upvote_appengine_test(
         "//upvote/gae/datastore:test_utils",
         "//upvote/gae/datastore/models:base",
         "//upvote/gae/lib/testing:basetest",
-        "//upvote/gae/shared/common:groups",
         "//upvote/gae/shared/common:settings",
+        "//upvote/gae/utils:group_utils",
         "//upvote/shared:constants",
     ],
 )

@@ -247,106 +247,108 @@ class HostHandlerTest(HostsTest):
 
 
 class AssociatedHostHandlerTest(HostsTest):
-  """Test HostHandler class."""
 
   SELF_ROUTE = '/hosts/associated'
   USER_ID_ROUTE = '/hosts/associated/%s'
 
-  def setUp(self):
-    super(AssociatedHostHandlerTest, self).setUp()
+  def testGetByUserId_IsAdmin(self):
 
-    self.user = test_utils.CreateUser()
-    self.admin = test_utils.CreateUser(admin=True)
+    user = test_utils.CreateUser()
+    bit9_host_id = test_utils.CreateBit9Host(users=[user.nickname]).key.id()
 
-    self.santa_blockable = test_utils.CreateSantaBlockable()
-    self.santa_event = test_utils.CreateSantaEvent(
-        self.santa_blockable,
-        host_id=self.santa_host_1.key.id(),
-        executing_user=self.user.nickname,
-        parent=utils.ConcatenateKeys(
-            self.user.key, self.santa_host_1.key, self.santa_blockable.key))
+    santa_host_key = test_utils.CreateSantaHost(
+        primary_user=user.nickname).key
+    santa_host_id = santa_host_key.id()
+    blockable = test_utils.CreateSantaBlockable()
+    event_parent_key = utils.ConcatenateKeys(
+        user.key, santa_host_key, blockable.key)
+    test_utils.CreateSantaEvent(
+        blockable, host_id=santa_host_id, parent=event_parent_key)
 
-    self.bit9_host_1.users = [self.user.nickname]
-    self.bit9_host_1.put()
+    with self.LoggedInUser(admin=True):
+      response = self.testapp.get(self.USER_ID_ROUTE % user.key.id())
 
-  def testGetByUserId(self):
-    with self.LoggedInUser(user=self.admin):
-      response = self.testapp.get(self.USER_ID_ROUTE % self.user.key.id())
     output = response.json
     self.assertEqual(2, len(output))
-    ids = set(host['id'] for host in output)
-    self.assertSetEqual(
-        set([self.santa_host_1.key.id(), self.bit9_host_1.key.id()]), ids)
+    actual_ids = set(host['id'] for host in output)
+    self.assertSetEqual(set([santa_host_id, bit9_host_id]), actual_ids)
 
   def testGetByUserId_NotAuthorized(self):
-    with self.LoggedInUser(user=self.user):
+    other_user_id = test_utils.CreateUser().key.id()
+    with self.LoggedInUser():
       self.testapp.get(
-          self.USER_ID_ROUTE % self.admin.key.id(), status=httplib.FORBIDDEN)
+          self.USER_ID_ROUTE % other_user_id, status=httplib.FORBIDDEN)
 
   def testGetByUserId_UnknownUser(self):
-    with self.LoggedInUser(user=self.admin):
+    with self.LoggedInUser(admin=True):
       self.testapp.get(
           self.USER_ID_ROUTE % 'NotAUser', status=httplib.NOT_FOUND)
 
   def testGetSelf(self):
-    with self.LoggedInUser(user=self.user):
+
+    user = test_utils.CreateUser()
+    host_id_1 = test_utils.CreateBit9Host(users=[user.nickname]).key.id()
+    host_id_2 = test_utils.CreateBit9Host(users=[user.nickname]).key.id()
+
+    with self.LoggedInUser(user=user):
       response = self.testapp.get(self.SELF_ROUTE)
+
     output = response.json
-    self.assertEqual(2, len(output))
+    expected_host_ids = [host_id_1, host_id_2]
+    actual_host_ids = [host['id'] for host in output]
+    self.assertListEqual(sorted(expected_host_ids), sorted(actual_host_ids))
 
   def testGetSelf_Sorted(self):
     """Hosts are sorted by their rule_sync_dts."""
     early, middle, recent, recenter = common_test_utils.GetSequentialTimes(4)
 
-    self.santa_host_1.rule_sync_dt = early
-    self.santa_host_2.rule_sync_dt = middle
-    self.santa_host_2.primary_user = self.user.nickname
-    self.santa_host_3.rule_sync_dt = recent
-    self.bit9_host_1.last_event_dt = recenter
+    user = test_utils.CreateUser()
 
-    self.santa_host_1.put()
-    self.santa_host_2.put()
-    self.santa_host_3.put()
-    self.bit9_host_1.put()
+    santa_host_1 = test_utils.CreateSantaHost(
+        primary_user=user.nickname, rule_sync_dt=early)
+    santa_host_2 = test_utils.CreateSantaHost(
+        primary_user=user.nickname, rule_sync_dt=middle)
+    test_utils.CreateSantaHost(rule_sync_dt=recent)
+    bit9_host_1 = test_utils.CreateBit9Host(
+        users=[user.nickname], last_event_dt=recenter)
 
-    self.assertTrue(self.santa_host_1.IsAssociatedWithUser(self.user))
-    self.assertTrue(self.santa_host_2.IsAssociatedWithUser(self.user))
-    self.assertTrue(self.bit9_host_1.IsAssociatedWithUser(self.user))
+    self.assertTrue(santa_host_1.IsAssociatedWithUser(user))
+    self.assertTrue(santa_host_2.IsAssociatedWithUser(user))
+    self.assertTrue(bit9_host_1.IsAssociatedWithUser(user))
 
-    with self.LoggedInUser(user=self.user):
+    with self.LoggedInUser(user=user):
       response = self.testapp.get(self.SELF_ROUTE)
     output = response.json
 
     self.assertIn('application/json', response.headers['Content-type'])
 
     self.assertEqual(3, len(output))
-    self.assertListEqual(
-        [self.bit9_host_1.key.id(), self.santa_host_2.key.id(),
-         self.santa_host_1.key.id()],
-        [entry['id'] for entry in output])
+    expected_host_ids = [
+        bit9_host_1.key.id(), santa_host_2.key.id(), santa_host_1.key.id()]
+    actual_host_ids = [entry['id'] for entry in output]
+    self.assertListEqual(sorted(expected_host_ids), sorted(actual_host_ids))
 
   def testGetSelf_NeverSyncedRules(self):
-    self.santa_host_1.rule_sync_dt = None
-    self.santa_host_2.rule_sync_dt = datetime.datetime.utcnow()
-    self.santa_host_2.primary_user = self.user.nickname
-    self.bit9_host_1.last_event_dt = None
 
-    self.santa_host_1.put()
-    self.santa_host_2.put()
-    self.bit9_host_1.put()
+    user = test_utils.CreateUser()
 
-    with self.LoggedInUser(user=self.user):
+    test_utils.CreateSantaHost(
+        primary_user=user.nickname, rule_sync_dt=None)
+    santa_host_2 = test_utils.CreateSantaHost(
+        primary_user=user.nickname, rule_sync_dt=datetime.datetime.utcnow())
+    test_utils.CreateBit9Host(
+        users=[user.nickname], last_event_dt=None)
+
+    with self.LoggedInUser(user=user):
       response = self.testapp.get(self.SELF_ROUTE)
+
     output = response.json
     self.assertIn('application/json', response.headers['Content-type'])
 
-    self.assertEqual(self.santa_host_2.key.id(), output[0]['id'])
+    self.assertEqual(santa_host_2.key.id(), output[0]['id'])
 
-  def testGetSelf_NonexistentHostId(self):
-    """Host IDs that don't exist are ignored."""
-    self.santa_host_1.key.delete()
-    self.bit9_host_1.key.delete()
-    with self.LoggedInUser(user=self.user):
+  def testGetSelf_NoHosts(self):
+    with self.LoggedInUser():
       response = self.testapp.get(self.SELF_ROUTE)
     output = response.json
     self.assertEqual(0, len(output))

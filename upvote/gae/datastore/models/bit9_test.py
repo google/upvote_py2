@@ -45,14 +45,7 @@ class Bit9HostTest(basetest.UpvoteTestCase):
     associated_hosts = bit9.Bit9Host.GetAssociatedHostIds(self.user)
     self.assertListEqual([self.bit9_host.key.id()], associated_hosts)
 
-  def testChangePolicyKey_InvalidEnforcementLevel(self):
-
-    host_key = test_utils.CreateBit9Host().key
-
-    with self.assertRaises(bit9.InvalidEnforcementLevel):
-      bit9.Bit9Host.ChangePolicyKey(host_key.id(), 'OMGWTF')
-
-  def testChangePolicyKey_Success(self):
+  def testChangePolicyKey(self):
 
     monitor_policy_key = ndb.Key(
         bit9.Bit9Policy, constants.BIT9_ENFORCEMENT_LEVEL.MONITOR)
@@ -61,8 +54,7 @@ class Bit9HostTest(basetest.UpvoteTestCase):
     host_key = test_utils.CreateBit9Host(policy_key=monitor_policy_key).key
 
     self.assertEqual(monitor_policy_key, host_key.get().policy_key)
-    bit9.Bit9Host.ChangePolicyKey(
-        host_key.id(), constants.BIT9_ENFORCEMENT_LEVEL.LOCKDOWN)
+    bit9.Bit9Host.ChangePolicyKey(host_key.id(), lockdown_policy_key)
     self.assertEqual(lockdown_policy_key, host_key.get().policy_key)
 
   def testIsAssociatedWithUser(self):

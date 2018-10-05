@@ -26,9 +26,9 @@ from google.appengine.ext import ndb
 from upvote.gae.datastore import utils as datastore_utils
 from upvote.gae.datastore.models import santa
 from upvote.gae.datastore.models import user as user_models
-from upvote.gae.shared.common import groups
 from upvote.gae.shared.common import settings
 from upvote.gae.shared.common import user_map
+from upvote.gae.utils import group_utils
 from upvote.gae.utils import iter_utils
 from upvote.shared import constants
 
@@ -43,7 +43,7 @@ class SyncRoles(webapp2.RequestHandler):
 
     logging.info('Starting role sync...')
     group_role_assignments = settings.GROUP_ROLE_ASSIGNMENTS
-    group_client = groups.GroupManager()
+    group_client = group_utils.GroupManager()
 
     # Iterate over the syncing dict, where each entry consists of a role key
     # which maps to a list of groups that should have that role.
@@ -123,7 +123,7 @@ class ClientModeChangeHandler(webapp2.RequestHandler):
     """
     logging.info('Changing mode to %s for %s', mode, group)
 
-    group_client = groups.GroupManager()
+    group_client = group_utils.GroupManager()
     roster = group_client.AllMembers(group)
     logging.debug('Fetched %d user(s) from group %s', len(roster), group)
 

@@ -59,7 +59,7 @@ then applies `UsernameToEmail`.
 Next, you need to give yourself admin rights to the application. To do so, you
 must modify the user grouping interface Upvote uses to assign elevated-privilege
 roles. Upvote provides a simple default implementation of user grouping (found
-in `GroupManager` in [groups.py](upvote/gae/shared/common/groups.py)) so all you
+in `GroupManager` in [groups.py](upvote/gae/utils/group_utils.py)) so all you
 need to do is add your email (and those of any other admins) to the
 '`admin-users`' group. This static solution should suffice for small
 organizations and for individual users.

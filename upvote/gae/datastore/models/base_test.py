@@ -19,7 +19,6 @@ import datetime
 import mock
 
 from google.appengine.ext import ndb
-from google.appengine.ext import testbed
 
 from upvote.gae.datastore import test_utils
 from upvote.gae.datastore import utils
@@ -426,42 +425,6 @@ class BinaryTest(basetest.UpvoteTestCase):
     self.assertIn('cert_id', self.blockable.to_dict())
 
 
-class BlacklistTest(basetest.UpvoteTestCase):
-
-  def setUp(self):
-
-    self.testbed = testbed.Testbed()
-
-    self.testbed.activate()
-    self.testbed.init_datastore_v3_stub()
-    self.testbed.init_memcache_stub()
-
-    regexes = [
-        r'.*7-Zip GUI.*',
-        r'.*Firefox.*',
-        r'.*Windows PowerShell.*',
-        r'.*WinZip 17\.5 Setup.*',
-        r'.*\.dll.*']
-
-    for regex in regexes:
-      base.Blacklist(regex=regex).put()
-
-  def tearDown(self):
-    self.testbed.deactivate()
-
-  def testGetBlacklist(self):
-    blacklist = base.Blacklist.GetBlacklist()
-    self.assertEqual(5, len(blacklist))
-
-  def testIsBlacklisted(self):
-    self.assertTrue(base.Blacklist.IsBlacklisted('7-Zip GUI 2.0'))
-    self.assertTrue(base.Blacklist.IsBlacklisted('Something Firefox Something'))
-    self.assertTrue(base.Blacklist.IsBlacklisted('Fancy Windows PowerShell'))
-    self.assertTrue(base.Blacklist.IsBlacklisted('WinZip 17.5 Setup Thing'))
-    self.assertTrue(base.Blacklist.IsBlacklisted('not_malware.dll'))
-    self.assertFalse(base.Blacklist.IsBlacklisted('Not Malware For Real'))
-
-
 class HostTest(basetest.UpvoteTestCase):
 
   def setUp(self):
@@ -478,34 +441,6 @@ class HostTest(basetest.UpvoteTestCase):
   def testIsAssociatedWithUser(self):
     with self.assertRaises(NotImplementedError):
       self.host.IsAssociatedWithUser(self.user1)
-
-  def testGetUserBlockRate(self):
-    test_utils.CreateEvent(
-        self.blockable, last_blocked_dt=datetime.datetime.utcnow(),
-        parent=utils.ConcatenateKeys(self.user1.key, self.host.key))
-
-    was_max, block_rate = self.host.GetUserBlockRate(
-        self.user1, duration_to_fetch=datetime.timedelta(days=7))
-
-    self.assertFalse(was_max)
-    self.assertEqual(1. / 5, block_rate)
-
-  def testGetUserBlockRate_WasMax(self):
-    test_utils.CreateEvent(
-        self.blockable, last_blocked_dt=datetime.datetime.utcnow(),
-        parent=utils.ConcatenateKeys(self.user1.key, self.host.key))
-
-    was_max, _ = self.host.GetUserBlockRate(
-        self.user1, max_events_to_fetch=1)
-
-    self.assertTrue(was_max)
-
-  def testGetUserBlockRate_InvalidArgument(self):
-    with self.assertRaises(base.InvalidArgumentError):
-      self.host.GetUserBlockRate(
-          self.user1, duration_to_fetch=datetime.timedelta(seconds=1))
-    with self.assertRaises(base.InvalidArgumentError):
-      self.host.GetUserBlockRate(self.user1, max_events_to_fetch=0)
 
 
 class VoteTest(basetest.UpvoteTestCase):

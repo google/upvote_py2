@@ -22,10 +22,12 @@ from upvote.gae.cron import datastore_backup
 from upvote.gae.cron import role_syncing
 
 _ALL_ROUTES = [
-    routes.PathPrefixRoute('/cron', [
-        datastore_backup.ROUTES,
-        role_syncing.ROUTES
-    ]),
+    routes.PathPrefixRoute(
+        '/cron',
+        [
+            datastore_backup.ROUTES,
+            role_syncing.ROUTES
+        ]),
 ]
 
 app = webapp2.WSGIApplication(routes=_ALL_ROUTES)

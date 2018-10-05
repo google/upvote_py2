@@ -76,6 +76,15 @@ class Exemption(mixin.Base, polymodel.PolyModel):
       default=constants.EXEMPTION_STATE.REQUESTED)
   history = ndb.LocalStructuredProperty(Record, repeated=True)
 
+  def CanChangeToState(self, new_state):
+    valid_states = constants.EXEMPTION_STATE.MAP_VALID_STATE_CHANGES[self.state]
+    allowed = new_state in valid_states
+    if not allowed:
+      logging.warning(
+          'Exemption for host %s cannot change state from %s to %s',
+          self.key.parent().id(), self.state, new_state)
+    return allowed
+
   @classmethod
   def CreateKey(cls, host_id):
     return ndb.Key(base.Host, host_id, cls, '1')
@@ -90,10 +99,17 @@ class Exemption(mixin.Base, polymodel.PolyModel):
 
   @classmethod
   def GetPlatform(cls, exm_key):
-    platform = exm_key.parent().get().GetPlatformName()
+    host = exm_key.parent().get()
+    platform = host.GetPlatformName()
     if platform not in constants.PLATFORM.SET_ALL:
-      raise UnknownPlatform(platform)
+      message = 'Host %s has an unknown platform: %s' % (
+          host.key.id(), platform)
+      raise UnknownPlatform(message)
     return platform
+
+  @classmethod
+  def GetHostId(cls, exm_key):
+    return exm_key.parent().id()
 
   @classmethod
   @ndb.transactional
@@ -155,20 +171,15 @@ class Exemption(mixin.Base, polymodel.PolyModel):
       raise InvalidExemption('No Exemption exists for host %s' % host_id)
 
     # Verify that the desired state can be reached from the current state.
-    current_state = exm.state
-    valid_states = constants.EXEMPTION_STATE.MAP_VALID_STATE_CHANGES[
-        current_state]
-    if new_state not in valid_states:
-      message = 'Exemption for host %s cannot change state from %s to %s' % (
-          host_id, current_state, new_state)
-      raise InvalidStateChange(message)
+    if not exm.CanChangeToState(new_state):
+      raise InvalidStateChange('%s to %s' % (exm.state, new_state))
 
     if details is None:
       details = []
 
     logging.info(
         'Exemption for host %s changing state from %s to %s', host_id,
-        current_state, new_state)
+        exm.state, new_state)
     exm.state = new_state
     exm.history.append(Record(state=new_state, details=details))
     exm.put()

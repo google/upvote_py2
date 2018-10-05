@@ -30,14 +30,6 @@ _KEY_RING = 'ring'
 _KEY_NAME = 'bit9'
 
 
-class Error(Exception):
-  """Base error class for module."""
-
-
-class InvalidEnforcementLevel(Error):
-  """Raised if an invalid Bit9 enforcement level is provided."""
-
-
 class Bit9ApiAuth(singleton.Singleton):
   """The Bit9 API key.
 
@@ -92,13 +84,9 @@ class Bit9Host(mixin.Bit9, base.Host):
 
   @classmethod
   @ndb.transactional
-  def ChangePolicyKey(cls, host_id, new_enforcement_level):
-
-    if new_enforcement_level not in constants.BIT9_ENFORCEMENT_LEVEL.SET_ALL:
-      raise InvalidEnforcementLevel(new_enforcement_level)
-
+  def ChangePolicyKey(cls, host_id, new_policy_key):
     host = cls.get_by_id(host_id)
-    host.policy_key = ndb.Key(Bit9Policy, new_enforcement_level)
+    host.policy_key = new_policy_key
     host.put()
 
   def IsAssociatedWithUser(self, user):

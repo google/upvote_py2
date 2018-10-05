@@ -63,6 +63,11 @@ py_appengine_library(
     ],
 )
 
+py_appengine_library(
+    name = "group_utils",
+    srcs = ["group_utils.py"],
+)
+
 # AppEngine Unit Tests
 # ==============================================================================
 

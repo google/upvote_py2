@@ -16,9 +16,7 @@
 import datetime
 import hashlib
 import logging
-import re
 
-from google.appengine.api import memcache
 from google.appengine.ext import ndb
 from google.appengine.ext.ndb import polymodel
 
@@ -29,10 +27,6 @@ from upvote.gae.datastore.models import user as user_models
 from upvote.gae.shared.common import settings
 from upvote.gae.shared.common import user_map
 from upvote.shared import constants
-
-
-_BLACKLIST_MEMCACHE_KEY = '_blacklist'
-_BLACKLIST_MEMCACHE_EXPIRATION = 3600  # in seconds
 
 
 # Done for the sake of brevity.
@@ -514,55 +508,6 @@ class Host(mixin.Base, polymodel.PolyModel):
     """
     raise NotImplementedError
 
-  def GetUserBlockRate(
-      self, user, duration_to_fetch=datetime.timedelta(days=60),
-      max_events_to_fetch=1000):
-    """Calculates the block rate for a given user on this host.
-
-    "Block rate" is defined as the number of _unique_ blockables a user runs on
-    the host every _workday_ (i.e. 5 out of 7 days per week).
-
-    Args:
-      user: User, The user for whom to calculate the block rate on this
-          host.
-      duration_to_fetch: datetime.timedelta, The span of time over which the
-          block rate should be calculated.
-      max_events_to_fetch: int, The maximum number of events to be counted. The
-          mitigates the risk that a host with thousands of events results in the
-          datastore query timing out.
-
-    Returns:
-      (bool, float), A 2-tuple of the form (was_max, block_rate). was_max is
-      True when max_events_to_fetch events were found in the provided time
-      frame. block_rate is the block rate for the given user on this host.
-
-    Raises:
-      InvalidArgumentError: duration_to_fetch is less than 1 day or
-          max_events_to_fetch is less than 1.
-    """
-    # Duration must be at least 1 day.
-    if duration_to_fetch.days == 0:
-      raise InvalidArgumentError('Duration must be at least 1 day')
-    elif max_events_to_fetch <= 0:
-      raise InvalidArgumentError('Max Events must be at least 1')
-
-    threshold_dt = datetime.datetime.utcnow() - duration_to_fetch
-    parent_key = model_utils.ConcatenateKeys(user.key, self.key)
-    query = Event.query(
-        Event.last_blocked_dt >= threshold_dt,
-        ancestor=parent_key
-    ).order(-Event.last_blocked_dt)
-
-    num_events = query.count(limit=max_events_to_fetch)
-
-    was_max = num_events == max_events_to_fetch
-
-    # 5 workdays out of 7 days of the week.
-    ratio_of_workdays = 5. / 7
-    workdays_to_fetch = ratio_of_workdays * duration_to_fetch.days
-    block_rate = float(num_events) / workdays_to_fetch
-    return (was_max, block_rate)
-
   @staticmethod
   def NormalizeId(host_id):
     return host_id.upper()
@@ -662,32 +607,3 @@ class Rule(mixin.Base, polymodel.PolyModel):
     defaults.update(kwargs.copy())
 
     tables.RULE.InsertRow(**defaults)
-
-
-class Blacklist(ndb.Model):
-  """Model for storing regular expressions for items that should be blacklisted.
-
-  Attributes:
-    regex: str, regular expression whose matches should be blacklisted.
-    updated_dt: datetime, when the state was last changed.
-  """
-  regex = ndb.StringProperty()
-  updated_dt = ndb.DateTimeProperty(auto_now=True)
-
-  @classmethod
-  def GetBlacklist(cls):
-    """Returns all Blacklist entries."""
-    entries = memcache.get(_BLACKLIST_MEMCACHE_KEY) or []
-    if not entries:
-      entries = Blacklist.query().fetch()
-      memcache.set(
-          _BLACKLIST_MEMCACHE_KEY, entries, time=_BLACKLIST_MEMCACHE_EXPIRATION)
-    return entries
-
-  @classmethod
-  def IsBlacklisted(cls, text):
-    """Returns True if the text matches a blacklist entry, False otherwise."""
-    for entry in Blacklist.GetBlacklist():
-      if re.match(entry.regex, text):
-        return True
-    return False

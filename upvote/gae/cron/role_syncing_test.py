@@ -57,7 +57,7 @@ class SyncRolesTest(basetest.UpvoteTestCase):
     expected_vote_weight = max(voting_weights[r] for r in expected_roles)
     self.assertEqual(expected_vote_weight, user.vote_weight)
 
-  @mock.patch.object(role_syncing.groups, 'GroupManager')
+  @mock.patch.object(role_syncing.group_utils, 'GroupManager')
   def testGet_GroupDoesNotExist(self, mock_ctor):
     """Tests a sync with a nonexistent group."""
 
@@ -79,7 +79,7 @@ class SyncRolesTest(basetest.UpvoteTestCase):
     self.VerifyUser(user1.email, [USER])
     self.VerifyUser(user2.email, [USER])
 
-  @mock.patch.object(role_syncing.groups, 'GroupManager')
+  @mock.patch.object(role_syncing.group_utils, 'GroupManager')
   def testGet_AddRole(self, mock_ctor):
     """Tests a new role being added to the syncing dict."""
 
@@ -103,7 +103,7 @@ class SyncRolesTest(basetest.UpvoteTestCase):
 
     self.assertBigQueryInsertions([constants.BIGQUERY_TABLE.USER] * 2)
 
-  @mock.patch.object(role_syncing.groups, 'GroupManager')
+  @mock.patch.object(role_syncing.group_utils, 'GroupManager')
   def testGet_ExistingRole_AddRole(self, mock_ctor):
     """Tests a new role being added alongside an existing role."""
 
@@ -128,7 +128,7 @@ class SyncRolesTest(basetest.UpvoteTestCase):
 
     self.assertBigQueryInsertions([constants.BIGQUERY_TABLE.USER] * 2)
 
-  @mock.patch.object(role_syncing.groups, 'GroupManager')
+  @mock.patch.object(role_syncing.group_utils, 'GroupManager')
   def testGet_ExistingRole_AddGroup(self, mock_ctor):
     """Tests a new group being added to an existing role."""
 
@@ -156,7 +156,7 @@ class SyncRolesTest(basetest.UpvoteTestCase):
 
     self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.USER)
 
-  @mock.patch.object(role_syncing.groups, 'GroupManager')
+  @mock.patch.object(role_syncing.group_utils, 'GroupManager')
   def testGet_RemoveRole(self, mock_ctor):
     """Tests a role being removed entirely."""
 
@@ -180,7 +180,7 @@ class SyncRolesTest(basetest.UpvoteTestCase):
 
     self.assertBigQueryInsertions([constants.BIGQUERY_TABLE.USER] * 2)
 
-  @mock.patch.object(role_syncing.groups, 'GroupManager')
+  @mock.patch.object(role_syncing.group_utils, 'GroupManager')
   def testGet_ExistingRole_RemoveGroup(self, mock_ctor):
     """Tests a single group being removed from a role which has multiple."""
 
@@ -207,7 +207,7 @@ class SyncRolesTest(basetest.UpvoteTestCase):
 
     self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.USER)
 
-  @mock.patch.object(role_syncing.groups, 'GroupManager')
+  @mock.patch.object(role_syncing.group_utils, 'GroupManager')
   def testGet_MemberAdded(self, mock_ctor):
     """Tests a member being added to an existing group."""
 
@@ -234,7 +234,7 @@ class SyncRolesTest(basetest.UpvoteTestCase):
 
     self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.USER)
 
-  @mock.patch.object(role_syncing.groups, 'GroupManager')
+  @mock.patch.object(role_syncing.group_utils, 'GroupManager')
   def testGet_MemberRemoved(self, mock_ctor):
     """Tests a member being removed from an existing group."""
 
@@ -262,7 +262,7 @@ class SyncRolesTest(basetest.UpvoteTestCase):
 
     self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.USER)
 
-  @mock.patch.object(role_syncing.groups, 'GroupManager')
+  @mock.patch.object(role_syncing.group_utils, 'GroupManager')
   def testGet_EnsureFailsafeAdmins(self, mock_ctor):
 
     self.PatchSetting('GROUP_ROLE_ASSIGNMENTS', {ADMINISTRATOR: ['group1']})
@@ -304,7 +304,7 @@ class ClientModeChangeHandlerTest(basetest.UpvoteTestCase):
         [webapp2.Route(r'', handler=FakeClientModeChangeHandler)])
     super(ClientModeChangeHandlerTest, self).setUp(wsgi_app=app)
 
-  @mock.patch.object(role_syncing.groups, 'GroupManager')
+  @mock.patch.object(role_syncing.group_utils, 'GroupManager')
   @mock.patch.dict(role_syncing.__dict__, values={'BATCH_SIZE': 2})
   def testChangeModeForGroup_SingleBatch(self, mock_ctor):
 
@@ -328,7 +328,7 @@ class ClientModeChangeHandlerTest(basetest.UpvoteTestCase):
     new_hosts = ndb.get_multi(host.key for host in hosts)
     self.assertTrue(all(host.client_mode == LOCKDOWN for host in new_hosts))
 
-  @mock.patch.object(role_syncing.groups, 'GroupManager')
+  @mock.patch.object(role_syncing.group_utils, 'GroupManager')
   @mock.patch.dict(role_syncing.__dict__, values={'BATCH_SIZE': 2})
   def testChangeModeForGroup_MultiBatch(self, mock_ctor):
 
@@ -352,7 +352,7 @@ class ClientModeChangeHandlerTest(basetest.UpvoteTestCase):
     new_hosts = ndb.get_multi(host.key for host in hosts)
     self.assertTrue(all(host.client_mode == LOCKDOWN for host in new_hosts))
 
-  @mock.patch.object(role_syncing.groups, 'GroupManager')
+  @mock.patch.object(role_syncing.group_utils, 'GroupManager')
   def testChangeModeForGroup_NoUsers(self, mock_ctor):
 
     mock_ctor.return_value.AllMembers.return_value = []

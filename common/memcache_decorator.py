@@ -34,7 +34,8 @@ def DefaultCreateKey(func, prefix, args, kwargs=None):
   Returns:
     str - the string to use as key in memcache.
   """
-  key = prefix or func.__name__
+  module = func.__module__ or 'None'
+  key = prefix or module + '.' + func.__name__
   if args:
     for arg in args:
       try:
