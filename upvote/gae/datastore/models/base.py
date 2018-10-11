@@ -21,9 +21,10 @@ from google.appengine.ext import ndb
 from google.appengine.ext.ndb import polymodel
 
 from upvote.gae.bigquery import tables
-from upvote.gae.datastore import utils as model_utils
+from upvote.gae.datastore import utils as datastore_utils
 from upvote.gae.datastore.models import mixin
 from upvote.gae.datastore.models import user as user_models
+from upvote.gae.datastore.models import vote as vote_models
 from upvote.gae.shared.common import settings
 from upvote.gae.shared.common import user_map
 from upvote.shared import constants
@@ -226,7 +227,7 @@ class Blockable(mixin.Base, polymodel.PolyModel):
     # the first time, we won't see a pre-existing value for 'score'. Here, we
     # avoid the score calculation for newly-created Blockables as they shouldn't
     # have any Votes associated with them and, thus, should have a score of 0.
-    if not model_utils.HasValue(self, 'score'):
+    if not datastore_utils.HasValue(self, 'score'):
       return 0
 
     tally = 0
@@ -296,7 +297,8 @@ class Blockable(mixin.Base, polymodel.PolyModel):
       A list of cast Votes.
     """
     # pylint: disable=g-explicit-bool-comparison, singleton-comparison
-    return Vote.query(Vote.in_effect == True, ancestor=self.key).fetch()
+    return vote_models.Vote.query(
+        vote_models.Vote.in_effect == True, ancestor=self.key).fetch()
     # pylint: enable=g-explicit-bool-comparison, singleton-comparison
 
   def GetStrongestVote(self):
@@ -379,7 +381,8 @@ class Blockable(mixin.Base, polymodel.PolyModel):
     # called when serializing Blockables. This will return an inaccurate value
     # if a vote was cast after the Blockable was retrieved but this can be
     # avoided by wrapping the call to to_dict in a transaction.
-    result['score'] = model_utils.GetLocalComputedPropertyValue(self, 'score')
+    result['score'] = datastore_utils.GetLocalComputedPropertyValue(
+        self, 'score')
 
     allowed, reason = self.IsVotingAllowed()
     result['is_voting_allowed'] = allowed
@@ -478,22 +481,6 @@ class Host(mixin.Base, polymodel.PolyModel):
   recorded_dt = ndb.DateTimeProperty(auto_now_add=True)
   hidden = ndb.BooleanProperty(default=False)
 
-  @classmethod
-  def GetAssociatedHostIds(cls, user):
-    """Returns the IDs of each host which is associated with the given user.
-
-    NOTE: What consitutes "associated with" is platform-dependent and should be
-    defined for each inheriting class.
-
-    Args:
-      user: User, The user for which associated hosts should be fetched.
-
-    Returns:
-      list of str, A list of host IDs for hosts associated with the provided
-          user.
-    """
-    raise NotImplementedError
-
   def IsAssociatedWithUser(self, user):
     """Returns whether the given user is associated with this host.
 
@@ -511,58 +498,6 @@ class Host(mixin.Base, polymodel.PolyModel):
   @staticmethod
   def NormalizeId(host_id):
     return host_id.upper()
-
-
-class Vote(mixin.Base, ndb.Model):
-  """An individual vote on a blockable cast by a user.
-
-  key = Key(Blockable, hash) -> Key(User, email) -> Key(Vote, 'InEffect')
-
-  Attributes:
-    user_email: str, the email of the voting user at the time of the vote.
-    was_yes_vote: boolean, True if the vote was "Yes."
-    recorded_dt: DateTime, time of vote.
-    value: Int, the value of the vote at the time of voting, based on the value
-        of the users vote.
-    candidate_type: str, the type of blockable being voted on.
-    blockable_key: Key, the key of the blockable being voted on.
-    in_effect: boolean, True if the vote counts towards the blockable score.
-  """
-  _IN_EFFECT_KEY_NAME = 'InEffect'
-
-  def _ComputeBlockableKey(self):
-    if not self.key:
-      return None
-    pairs = self.key.pairs()
-    if len(pairs) < 3:
-      return None
-    return ndb.Key(pairs=pairs[:-2])
-
-  user_email = ndb.StringProperty(required=True)
-  was_yes_vote = ndb.BooleanProperty(required=True, default=True)
-  recorded_dt = ndb.DateTimeProperty(auto_now_add=True)
-  weight = ndb.IntegerProperty(default=0)
-  candidate_type = ndb.StringProperty(
-      choices=constants.RULE_TYPE.SET_ALL, required=True)
-  blockable_key = ndb.ComputedProperty(_ComputeBlockableKey)
-  in_effect = ndb.ComputedProperty(
-      lambda self: self.key and self.key.flat()[-1] == Vote._IN_EFFECT_KEY_NAME)
-
-  @classmethod
-  def GetKey(cls, blockable_key, user_key, in_effect=True):
-    # In the in_effect == False case, the None ID field of the key will cause
-    # NDB to generate a random one when the vote is put.
-    vote_id = Vote._IN_EFFECT_KEY_NAME if in_effect else None
-    return model_utils.ConcatenateKeys(
-        blockable_key, user_key, ndb.Key(Vote, vote_id))
-
-  @property
-  def effective_weight(self):
-    return self.weight if self.was_yes_vote else -self.weight
-
-  @property
-  def user_key(self):
-    return ndb.Key(user_models.User, self.user_email.lower())
 
 
 class Rule(mixin.Base, polymodel.PolyModel):

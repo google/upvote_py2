@@ -59,29 +59,29 @@ def CurrentEnvironment():
   Raises:
     UnknownEnvironment: if the environment cannot be determined.
   """
-  logging.debug('Attempting to determine current environment')
+  logging.info('Attempting to determine current environment')
 
   # Check the DEFAULT_VERSION_HOSTNAME first.
-  logging.debug('Checking DEFAULT_VERSION_HOSTNAME')
+  logging.info('Checking DEFAULT_VERSION_HOSTNAME')
   if 'DEFAULT_VERSION_HOSTNAME' in os.environ:
     hostname = app_identity.get_default_version_hostname()
-    logging.debug('DEFAULT_VERSION_HOSTNAME is %s', hostname)
+    logging.info('DEFAULT_VERSION_HOSTNAME is %s', hostname)
     for env in _ALL_ENVS:
       if env.HOSTNAME == hostname:
         return env
   else:
-    logging.debug('DEFAULT_VERSION_HOSTNAME not present')
+    logging.info('DEFAULT_VERSION_HOSTNAME not present')
 
   # Fall back to APPLICATION_ID.
-  logging.debug('Checking APPLICATION_ID')
+  logging.info('Checking APPLICATION_ID')
   if 'APPLICATION_ID' in os.environ:
     app_id = app_identity.get_application_id()
-    logging.debug('APPLICATION_ID is %s', app_id)
+    logging.info('APPLICATION_ID is %s', app_id)
     for env in _ALL_ENVS:
       if env.PROJECT_ID == app_id:
         return env
   else:
-    logging.debug('APPLICATION_ID not present')
+    logging.info('APPLICATION_ID not present')
 
   # Well shit...
   logging.warning('Unable to determine the current environment')

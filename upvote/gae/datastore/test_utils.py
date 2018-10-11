@@ -24,12 +24,13 @@ import mock
 from google.appengine.api import users
 from google.appengine.ext import ndb
 
-from upvote.gae.datastore import utils as model_utils
+from upvote.gae.datastore import utils as datastore_utils
 from upvote.gae.datastore.models import base
 from upvote.gae.datastore.models import bit9
 from upvote.gae.datastore.models import exemption as exemption_models
 from upvote.gae.datastore.models import santa
 from upvote.gae.datastore.models import user as user_models
+from upvote.gae.datastore.models import vote as vote_models
 from upvote.gae.shared.common import settings
 from upvote.gae.shared.common import user_map
 from upvote.gae.utils import env_utils
@@ -334,8 +335,8 @@ def CreateVote(blockable, **kwargs):
   }
   defaults.update(kwargs)
 
-  vote = base.Vote(**defaults)
-  vote.key = base.Vote.GetKey(
+  vote = vote_models.Vote(**defaults)
+  vote.key = vote_models.Vote.GetKey(
       blockable.key, ndb.Key(user_models.User, defaults['user_email']))
   vote.put()
   return vote
@@ -672,7 +673,7 @@ def CreateTestEntities(email_addr):
   for santa_host in santa_hosts:
     for santa_blockable in CreateSantaBlockables(5):
 
-      parent_key = model_utils.ConcatenateKeys(
+      parent_key = datastore_utils.ConcatenateKeys(
           user.key, santa_host.key, santa_blockable.key)
       CreateSantaEvent(
           santa_blockable,
@@ -688,7 +689,7 @@ def CreateTestEntities(email_addr):
   for bit9_host in bit9_hosts:
     for bit9_binary in CreateBit9Binaries(5):
 
-      parent_key = model_utils.ConcatenateKeys(
+      parent_key = datastore_utils.ConcatenateKeys(
           user.key, bit9_host.key, bit9_binary.key)
       CreateBit9Event(
           bit9_binary,

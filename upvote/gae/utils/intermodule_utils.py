@@ -32,7 +32,7 @@ def _FetchWithRedirects(url, redirect_attempts=_REDIRECT_ATTEMPTS, **kwargs):
   if not redirect_attempts:
     raise urlfetch.Error('Too many redirects')
 
-  logging.debug(
+  logging.info(
       'Fetching with %s redirects remaining: %s', redirect_attempts, url)
   try:
     response = urlfetch.fetch(url, **kwargs)

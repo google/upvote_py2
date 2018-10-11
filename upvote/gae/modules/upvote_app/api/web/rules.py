@@ -21,7 +21,7 @@ from webapp2_extras import routes
 
 from google.appengine.ext import ndb
 
-from upvote.gae.datastore import utils
+from upvote.gae.datastore import utils as datastore_utils
 from upvote.gae.datastore.models import base as base_models
 from upvote.gae.datastore.models import santa as santa_models
 from upvote.gae.modules.upvote_app.api import monitoring
@@ -64,8 +64,8 @@ class RuleHandler(base.BaseHandler):
 
   @base.RequireCapability(constants.PERMISSIONS.VIEW_RULES)
   def get(self, rule_key):
-    logging.debug('Rule handler get method called with key: %s', rule_key)
-    key = utils.GetKeyFromUrlsafe(rule_key)
+    logging.info('Rule handler get method called with key: %s', rule_key)
+    key = datastore_utils.GetKeyFromUrlsafe(rule_key)
     if not key:
       self.abort(
           httplib.BAD_REQUEST,

@@ -26,7 +26,7 @@ from google.appengine.api import datastore_types
 from google.appengine.ext import ndb
 
 from upvote.gae.datastore import test_utils
-from upvote.gae.datastore import utils
+from upvote.gae.datastore import utils as datastore_utils
 from upvote.gae.datastore.models import santa as santa_models
 from upvote.gae.datastore.models import user as user_models
 from upvote.gae.lib.testing import basetest
@@ -948,7 +948,7 @@ class EventUploadHandlerTest(SantaApiTestCase):
       def fake_put_multi_async(seq):
         result = ndb.put_multi(seq)
         # Return an ndb.Future that is guaranteed to be done.
-        return utils.GetNoOpFuture(result)
+        return datastore_utils.GetNoOpFuture(result)
       put_multi_mock.side_effect = fake_put_multi_async
 
       request_json = {EVENT_UPLOAD.EVENTS: [event1, event2]}
@@ -1165,7 +1165,7 @@ class EventUploadHandlerTest(SantaApiTestCase):
     self.assertIsNotNone(bundle)
 
     # Should have created the bundle member.
-    expected_binary_key = utils.ConcatenateKeys(
+    expected_binary_key = datastore_utils.ConcatenateKeys(
         bundle.key, ndb.Key(santa_models.SantaBundleBinary, 'HashToUpload'))
     self.assertIsNotNone(expected_binary_key.get())
     self.assertEqual(
@@ -1231,7 +1231,7 @@ class EventUploadHandlerTest(SantaApiTestCase):
     self.assertIsNotNone(bundle)
 
     # Should have created the bundle member.
-    expected_binary_key = utils.ConcatenateKeys(
+    expected_binary_key = datastore_utils.ConcatenateKeys(
         bundle.key, ndb.Key(santa_models.SantaBundleBinary, 'HashToUpload'))
     self.assertIsNotNone(expected_binary_key.get())
     self.assertEqual(

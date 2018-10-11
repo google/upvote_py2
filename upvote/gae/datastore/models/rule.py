@@ -14,7 +14,7 @@
 
 """Models and functions for defining whitelist/blacklist rules."""
 
-from upvote.gae.datastore.models import santa
+from upvote.gae.datastore.models import santa as santa_models
 from upvote.shared import constants
 
 
@@ -22,20 +22,21 @@ def EnsureCriticalRules(sha256_list):
   """Pre-populates Datastore with any critical Rule entities."""
   for sha256 in sha256_list:
 
-    cert = santa.SantaCertificate.get_by_id(sha256)
+    cert = santa_models.SantaCertificate.get_by_id(sha256)
 
     if not cert:
-      cert = santa.SantaCertificate(id=sha256, id_type=constants.ID_TYPE.SHA256)
+      cert = santa_models.SantaCertificate(
+          id=sha256, id_type=constants.ID_TYPE.SHA256)
       cert.put()
       cert.InsertBigQueryRow(constants.BLOCK_ACTION.FIRST_SEEN)
 
     # Check for at least one matching SantaRule.
-    rule_missing = santa.SantaRule.query(
+    rule_missing = santa_models.SantaRule.query(
         ancestor=cert.key).get(keys_only=True) is None
 
     # Doesn't exist? Add it!
     if rule_missing:
-      santa.SantaRule(
+      santa_models.SantaRule(
           parent=cert.key,
           rule_type=constants.RULE_TYPE.CERTIFICATE,
           policy=constants.RULE_POLICY.WHITELIST).put()

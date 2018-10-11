@@ -41,12 +41,12 @@ class Settings(base.BaseHandler):
   @handlers.RecordRequest
   def get(self, setting):  # pylint: disable=g-bad-name
     """Get handler for settings."""
-    logging.debug('Setting requested: %s', setting)
+    logging.info('Setting requested: %s', setting)
     try:
       formatted_setting = string_utils.CamelToSnakeCase(setting)
       value = getattr(settings, formatted_setting.upper())
     except AttributeError as e:
-      logging.debug('Unable to retrieve setting.')
+      logging.info('Unable to retrieve setting.')
       self.abort(httplib.NOT_FOUND, explanation=str(e))
     else:
       self.respond_json(value)

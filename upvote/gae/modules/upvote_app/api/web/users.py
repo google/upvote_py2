@@ -46,7 +46,7 @@ class UserHandler(base.BaseHandler):
   """Handler for interacting with individual users."""
 
   def get(self, user_id=None):  # pylint: disable=g-bad-name
-    logging.debug('UserHandler GET method called with ID: %s', user_id)
+    logging.info('UserHandler GET method called with ID: %s', user_id)
     if not user_id or self.user.email == user_id:
       user = self.user
     else:

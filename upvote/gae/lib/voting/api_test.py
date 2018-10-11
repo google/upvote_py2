@@ -19,11 +19,12 @@ import mock
 from google.appengine.ext import ndb
 
 from upvote.gae.datastore import test_utils
-from upvote.gae.datastore import utils
+from upvote.gae.datastore import utils as datastore_utils
 from upvote.gae.datastore.models import base
 from upvote.gae.datastore.models import bit9
 from upvote.gae.datastore.models import santa
 from upvote.gae.datastore.models import user as user_models
+from upvote.gae.datastore.models import vote as vote_models
 from upvote.gae.lib.testing import basetest
 from upvote.gae.lib.voting import api
 from upvote.gae.shared.common import settings
@@ -36,7 +37,7 @@ TABLE = constants.BIGQUERY_TABLE  # Done for the sake of brevity.
 def CreateEvent(blockable, host, user):
   return test_utils.CreateSantaEvent(
       blockable, host_id=host.key.id(), executing_user=user.nickname,
-      parent=utils.ConcatenateKeys(user.key, host.key, blockable.key))
+      parent=datastore_utils.ConcatenateKeys(user.key, host.key, blockable.key))
 
 
 class GetBlockableTest(basetest.UpvoteTestCase):
@@ -159,7 +160,7 @@ class BallotBoxTest(basetest.UpvoteTestCase):
     self.assertEqual(1, len(changes))
     self.assertSameElements([rules[0].key], changes[0].rule_keys)
     self.assertEqual(constants.RULE_POLICY.WHITELIST, changes[0].change_type)
-    self.assertTrue(utils.KeyHasAncestor(changes[0].key, binary.key))
+    self.assertTrue(datastore_utils.KeyHasAncestor(changes[0].key, binary.key))
 
     self.assertTaskCount(constants.TASK_QUEUE.BIT9_COMMIT_CHANGE, 1)
 
@@ -319,7 +320,7 @@ class BallotBoxTest(basetest.UpvoteTestCase):
     # Create several inactive yes votes.
     vote.was_yes_vote = True
     for _ in xrange(10):
-      vote.key = base.Vote.GetKey(
+      vote.key = vote_models.Vote.GetKey(
           self.santa_blockable1.key, user.key, in_effect=False)
       vote.put()
 
@@ -358,7 +359,7 @@ class BallotBoxTest(basetest.UpvoteTestCase):
 
     self.assertEqual(blockable.score, new_weight)
 
-    votes = base.Vote.query(ancestor=self.santa_blockable1.key).fetch()
+    votes = vote_models.Vote.query(ancestor=self.santa_blockable1.key).fetch()
     self.assertEqual(2, len(votes))
 
     old_vote = next(vote for vote in votes if not vote.in_effect)
@@ -860,8 +861,8 @@ class BallotBoxTest(basetest.UpvoteTestCase):
       # Verify that the key is in the expected structure.
       expected_key = ndb.Key(
           base.Blockable, self.santa_blockable1.key.id(),
-          user_models.User, user.email, base.Vote,
-          base.Vote._IN_EFFECT_KEY_NAME)
+          user_models.User, user.email, vote_models.Vote,
+          vote_models._IN_EFFECT_KEY_NAME)
       self.assertEqual(new_vote, expected_key.get())
 
     self.assertBigQueryInsertions([TABLE.VOTE, TABLE.BINARY])
@@ -890,7 +891,7 @@ class BallotBoxTest(basetest.UpvoteTestCase):
     # The user changes their vote on the blockable.
     ballot_box.Vote(False, user)
 
-    votes = base.Vote.query(ancestor=self.santa_blockable1.key).fetch()
+    votes = vote_models.Vote.query(ancestor=self.santa_blockable1.key).fetch()
     self.assertTrue(any(vote for vote in votes if vote.in_effect))
     self.assertTrue(any(vote for vote in votes if not vote.in_effect))
     self.assertEqual(len(votes), 2)
@@ -899,8 +900,8 @@ class BallotBoxTest(basetest.UpvoteTestCase):
     new_vote = [vote for vote in votes if vote.in_effect][0]
     new_score = self.santa_blockable1.key.get().score
 
-    self.assertNotEqual(base.Vote._IN_EFFECT_KEY_NAME, old_vote.key.id())
-    self.assertEqual(base.Vote._IN_EFFECT_KEY_NAME, new_vote.key.id())
+    self.assertNotEqual(vote_models._IN_EFFECT_KEY_NAME, old_vote.key.id())
+    self.assertEqual(vote_models._IN_EFFECT_KEY_NAME, new_vote.key.id())
     self.assertGreater(new_vote.recorded_dt, old_vote.recorded_dt)
     self.assertEqual(new_score, -1 * orig_score)
     self.assertIsNotNone(new_vote.key.id())
@@ -912,12 +913,12 @@ class BallotBoxTest(basetest.UpvoteTestCase):
 
     ballot_box = api.SantaBallotBox(self.santa_blockable1.key.id())
 
-    existing_count = base.Vote.query().count()
+    existing_count = vote_models.Vote.query().count()
 
     # The user upvotes the blockable.
     ballot_box.Vote(True, user)
 
-    num_created = base.Vote.query().count() - existing_count
+    num_created = vote_models.Vote.query().count() - existing_count
 
     # New Vote = 1 created
     self.assertEqual(1, num_created)
@@ -925,7 +926,7 @@ class BallotBoxTest(basetest.UpvoteTestCase):
     # The user changes their vote on the blockable.
     ballot_box.Vote(False, user)
 
-    num_created = base.Vote.query().count() - existing_count
+    num_created = vote_models.Vote.query().count() - existing_count
 
     # New Vote + Saved old Vote = 2 created
     self.assertEqual(2, num_created)
@@ -1019,7 +1020,7 @@ class BallotBoxTest(basetest.UpvoteTestCase):
         santa_blockable, user_email=user.email, was_yes_vote=False)
     archived_vote.key.delete()
     for _ in xrange(4):
-      archived_vote.key = base.Vote.GetKey(
+      archived_vote.key = vote_models.Vote.GetKey(
           santa_blockable.key, user.key, in_effect=False)
       archived_vote.put()
 
@@ -1044,7 +1045,7 @@ class BallotBoxTest(basetest.UpvoteTestCase):
 
     change_made = ballot_box._AuditBlockableState()
 
-    self.assertEqual(base.Vote.query().count(), 1)
+    self.assertEqual(vote_models.Vote.query().count(), 1)
     self.assertFalse(change_made)
 
   def testSuspectWithoutNoVote(self):
@@ -1069,7 +1070,7 @@ class BallotBoxTest(basetest.UpvoteTestCase):
                            return_value=True, autospec=True):
       change_made = ballot_box._AuditBlockableState()
 
-    self.assertEqual(base.Vote.query().count(), 2)
+    self.assertEqual(vote_models.Vote.query().count(), 2)
     self.assertTrue(change_made)
 
   def testSuspectWithoutNoVoteFromAppropriateUser(self):
@@ -1091,7 +1092,7 @@ class BallotBoxTest(basetest.UpvoteTestCase):
       change_made = ballot_box._AuditBlockableState()
       ballot_box._CheckAndSetBlockableState.assert_called_once_with(-1)
 
-    self.assertEqual(base.Vote.query().count(), 1)
+    self.assertEqual(vote_models.Vote.query().count(), 1)
     self.assertTrue(change_made)
 
   def testBlockableWithLocalWhitelistRulesUntrusted(self):
@@ -1388,7 +1389,7 @@ class ResetTest(basetest.UpvoteTestCase):
 
     self.assertEqual(constants.STATE.UNTRUSTED, blockable.key.get().state)
 
-    total_votes = base.Vote.query()
+    total_votes = vote_models.Vote.query()
     retrieved_rules = base.Rule.query(ancestor=blockable.key)
     # pylint: disable=g-explicit-bool-comparison, singleton-comparison
     retrieved_in_effect_rules = base.Rule.query(

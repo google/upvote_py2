@@ -30,7 +30,7 @@ class Emergency(base.BaseHandler):
   @base.RequireCapability(constants.PERMISSIONS.CHANGE_SETTINGS)
   def get(self):  # pylint: disable=g-bad-name
     """Get handler for emergency controls."""
-    logging.debug('Emergency handler get method called.')
+    logging.info('Emergency handler get method called.')
     big_red_button = big_red.BigRedButton()
     self.respond_json(big_red_button.get_button_status())
 
@@ -38,7 +38,7 @@ class Emergency(base.BaseHandler):
   @xsrf_utils.RequireToken
   def post(self):
     """Post handler for emergency controls."""
-    logging.debug('Emergency handler post method called.')
+    logging.info('Emergency handler post method called.')
     big_red_button = big_red.BigRedButton()
 
     # The handler expects only one emergency value each time it's called.

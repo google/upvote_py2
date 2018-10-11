@@ -324,7 +324,7 @@ def Pull(batch_size=_PULL_BATCH_SIZE):
         # server too hard.
         time.sleep(0.25)
   except datastore_locks.AcquireLockError:
-    logging.debug('Unable to acquire datastore lock')
+    logging.info('Unable to acquire datastore lock')
 
 
 def Dispatch():
@@ -403,7 +403,7 @@ def Process(host_id):
     logging.info('Processed %d event(s)', total_process_count)
 
   except datastore_locks.AcquireLockError:
-    logging.debug('Unable to acquire datastore lock')
+    logging.info('Unable to acquire datastore lock')
 
 
 def _PersistBit9Certificates(signing_chain):

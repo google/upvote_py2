@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Tests for model utils."""
+"""Unit tests for datastore_utils.py."""
 
 import datetime
 import itertools
@@ -24,7 +24,7 @@ from google.appengine.api import datastore_errors
 from google.appengine.ext import ndb
 from google.appengine.ext.ndb import polymodel
 
-from upvote.gae.datastore import utils
+from upvote.gae.datastore import utils as datastore_utils
 from upvote.gae.lib.testing import basetest
 from upvote.shared import constants
 
@@ -43,7 +43,7 @@ class CopyEntityTest(basetest.UpvoteTestCase):
     inst = self.default_model(a='abc')
     inst.put()
 
-    new = utils.CopyEntity(inst, a='xyz')
+    new = datastore_utils.CopyEntity(inst, a='xyz')
     new.put()
 
     self.assertEqual('abc', inst.a)
@@ -56,8 +56,8 @@ class CopyEntityTest(basetest.UpvoteTestCase):
 
     inst = A()
     inst.put()
-    with self.assertRaises(utils.PropertyError):
-      utils.CopyEntity(
+    with self.assertRaises(datastore_utils.PropertyError):
+      datastore_utils.CopyEntity(
           inst, a=datetime.datetime.utcnow())
 
   def testFailToSet_ComputedProperty(self):
@@ -70,8 +70,8 @@ class CopyEntityTest(basetest.UpvoteTestCase):
 
     self.assertEqual('x', inst.b)
 
-    with self.assertRaises(utils.PropertyError):
-      utils.CopyEntity(inst, b='a')
+    with self.assertRaises(datastore_utils.PropertyError):
+      datastore_utils.CopyEntity(inst, b='a')
 
   def testModelWithComputedProperty(self):
     class A(ndb.Model):
@@ -83,13 +83,13 @@ class CopyEntityTest(basetest.UpvoteTestCase):
 
     self.assertEqual('x', inst.b)
 
-    new = utils.CopyEntity(inst, a='abc')
+    new = datastore_utils.CopyEntity(inst, a='abc')
     new.put()
 
     self.assertEqual('a', new.b)
 
   def testPolyModel(self):
-    class A(utils.polymodel.PolyModel):
+    class A(datastore_utils.polymodel.PolyModel):
       a = ndb.StringProperty()
 
     class B(A):
@@ -98,21 +98,21 @@ class CopyEntityTest(basetest.UpvoteTestCase):
     inst = B(a='abc')
     inst.put()
 
-    new = utils.CopyEntity(inst, a='xyz')
+    new = datastore_utils.CopyEntity(inst, a='xyz')
     new.put()
 
     self.assertEqual('xyz', new.a)
     self.assertIsInstance(new, B)
 
   def testPolyModel_NoClass(self):
-    class A(utils.polymodel.PolyModel):
+    class A(datastore_utils.polymodel.PolyModel):
       a = ndb.StringProperty()
 
     class B(A):
       pass
 
     inst = B(a='abc')
-    a_copy = utils.CopyEntity(inst, a='xyz')
+    a_copy = datastore_utils.CopyEntity(inst, a='xyz')
     a_copy.put()
     inst.put()
 
@@ -123,7 +123,7 @@ class CopyEntityTest(basetest.UpvoteTestCase):
     inst = self.default_model(a='abc')
     inst.put()
 
-    new = utils.CopyEntity(inst, id='an_id')
+    new = datastore_utils.CopyEntity(inst, id='an_id')
     new.put()
 
     self.assertEqual('abc', new.a)
@@ -135,7 +135,7 @@ class CopyEntityTest(basetest.UpvoteTestCase):
 
     parent = ndb.Key('C', 'c', 'B', 'b')
     expected = ndb.Key('C', 'c', 'B', 'b', 'A', 'an_id')
-    new = utils.CopyEntity(
+    new = datastore_utils.CopyEntity(
         inst, new_parent=parent, id='an_id')
     new.put()
 
@@ -146,7 +146,7 @@ class CopyEntityTest(basetest.UpvoteTestCase):
     inst.put()
 
     with self.assertRaises(datastore_errors.BadArgumentError):
-      utils.CopyEntity(
+      datastore_utils.CopyEntity(
           inst, new_key=ndb.Key('A', 'a_key'), id='an_id')
 
   def testParentWithKey(self):
@@ -155,14 +155,15 @@ class CopyEntityTest(basetest.UpvoteTestCase):
 
     parent = ndb.Key('C', 'c', 'B', 'b')
     with self.assertRaises(datastore_errors.BadArgumentError):
-      utils.CopyEntity(inst, new_key=ndb.Key('A', 'a_key'), new_parent=parent)
+      datastore_utils.CopyEntity(
+          inst, new_key=ndb.Key('A', 'a_key'), new_parent=parent)
 
   def testUnknownProperty(self):
     inst = self.default_model(a='abc')
     inst.put()
 
-    with self.assertRaises(utils.PropertyError):
-      utils.CopyEntity(inst, not_a_property='a')
+    with self.assertRaises(datastore_utils.PropertyError):
+      datastore_utils.CopyEntity(inst, not_a_property='a')
 
   def testDeletedProperty(self):
     inst = self.default_model(a='abc')
@@ -173,7 +174,7 @@ class CopyEntityTest(basetest.UpvoteTestCase):
 
     inst = inst.key.get(use_cache=False)
 
-    copy = utils.CopyEntity(inst)
+    copy = datastore_utils.CopyEntity(inst)
     self.assertFalse(hasattr(copy, 'a'))
 
 
@@ -196,7 +197,7 @@ class DeletePropertyTest(basetest.UpvoteTestCase):
     self.assertIsNotNone(inst.b)
 
     # Delete the property and save the entity
-    utils.DeleteProperty(inst, 'b')
+    datastore_utils.DeleteProperty(inst, 'b')
     inst.put()
     inst = A.get_by_id(inst.key.id())
 
@@ -215,13 +216,13 @@ class DeletePropertyTest(basetest.UpvoteTestCase):
     inst.put()
 
     # Delete the property and save the entity
-    utils.DeleteProperty(inst, 'b')
+    datastore_utils.DeleteProperty(inst, 'b')
     inst.put()
 
     # Create a new instance and verify that the 'b' hasn't disappeared
     new = A(a='abc', b='def')
     new.put()
-    self.assertTrue(utils.HasProperty(new, 'b'))
+    self.assertTrue(datastore_utils.HasProperty(new, 'b'))
 
   def testSameSchema_RepeatedProperty(self):
 
@@ -237,7 +238,7 @@ class DeletePropertyTest(basetest.UpvoteTestCase):
     self.assertIsNotNone(inst.b)
 
     # Delete the property and save the entity
-    utils.DeleteProperty(inst, 'b')
+    datastore_utils.DeleteProperty(inst, 'b')
     inst.put()
     inst = A.get_by_id(inst.key.id())
 
@@ -267,7 +268,7 @@ class DeletePropertyTest(basetest.UpvoteTestCase):
     self.assertIsNotNone(inst.b)
 
     # Delete the property and save the entity
-    utils.DeleteProperty(inst, 'b')
+    datastore_utils.DeleteProperty(inst, 'b')
     inst.put()
     inst = A.get_by_id(inst.key.id())
 
@@ -297,7 +298,7 @@ class DeletePropertyTest(basetest.UpvoteTestCase):
     self.assertIsNotNone(inst.b)
 
     # Delete the property and save the entity
-    utils.DeleteProperty(inst, 'b')
+    datastore_utils.DeleteProperty(inst, 'b')
     inst.put()
     inst = A.get_by_id(inst.key.id())
 
@@ -312,7 +313,7 @@ class DeletePropertyTest(basetest.UpvoteTestCase):
     inst = A(a='abc')
     inst.put()
 
-    utils.DeleteProperty(inst, 'b')
+    datastore_utils.DeleteProperty(inst, 'b')
     inst.put()
     inst = A.get_by_id(inst.key.id())
 
@@ -347,7 +348,7 @@ class DeletePropertyTest(basetest.UpvoteTestCase):
     self.assertIsNotNone(inst.b)
 
     # Delete the property and save the entity
-    utils.DeleteProperty(inst, 'b')
+    datastore_utils.DeleteProperty(inst, 'b')
     inst.put()
     inst = A.get_by_id(inst.key.id())
 
@@ -371,7 +372,7 @@ class DeletePropertyValueTest(basetest.UpvoteTestCase):
     self.assertIsNotNone(inst.b)
 
     # Delete the property and save the entity
-    utils.DeletePropertyValue(inst, 'b')
+    datastore_utils.DeletePropertyValue(inst, 'b')
     inst.put()
     inst = A.get_by_id(inst.key.id())
 
@@ -390,10 +391,10 @@ class DeletePropertyValueTest(basetest.UpvoteTestCase):
     inst.put()
 
     # Delete the property and save the entity
-    utils.DeletePropertyValue(inst, 'b')
+    datastore_utils.DeletePropertyValue(inst, 'b')
     inst.put()
 
-    self.assertTrue(utils.HasProperty(inst, 'b'))
+    self.assertTrue(datastore_utils.HasProperty(inst, 'b'))
     self.assertIsNotNone(inst.b)
 
   def testRepeatedProperty(self):
@@ -410,7 +411,7 @@ class DeletePropertyValueTest(basetest.UpvoteTestCase):
     self.assertIsNotNone(inst.b)
 
     # Delete the property and save the entity
-    utils.DeletePropertyValue(inst, 'b')
+    datastore_utils.DeletePropertyValue(inst, 'b')
     inst.put()
     inst = A.get_by_id(inst.key.id())
 
@@ -429,7 +430,7 @@ class DeletePropertyValueTest(basetest.UpvoteTestCase):
     inst.put()
 
     # Delete the property and save the entity
-    utils.DeletePropertyValue(inst, 'b')
+    datastore_utils.DeletePropertyValue(inst, 'b')
     # Property required but no longer has a value.
     with self.assertRaises(Exception):
       inst.put()
@@ -442,7 +443,7 @@ class DeletePropertyValueTest(basetest.UpvoteTestCase):
     inst = A(a='abc')
     inst.put()
 
-    utils.DeletePropertyValue(inst, 'b')
+    datastore_utils.DeletePropertyValue(inst, 'b')
     inst.put()
     inst = A.get_by_id(inst.key.id())
 
@@ -458,16 +459,16 @@ class HasValueTest(basetest.UpvoteTestCase):
       b = ndb.StringProperty()
 
     foo = Foo()
-    self.assertFalse(utils.HasValue(foo, 'a'))
-    self.assertFalse(utils.HasValue(foo, 'b'))
+    self.assertFalse(datastore_utils.HasValue(foo, 'a'))
+    self.assertFalse(datastore_utils.HasValue(foo, 'b'))
 
     foo.b = 'b'
-    self.assertFalse(utils.HasValue(foo, 'a'))
-    self.assertTrue(utils.HasValue(foo, 'b'))
+    self.assertFalse(datastore_utils.HasValue(foo, 'a'))
+    self.assertTrue(datastore_utils.HasValue(foo, 'b'))
 
     foo.put()
-    self.assertTrue(utils.HasValue(foo, 'a'))
-    self.assertTrue(utils.HasValue(foo, 'b'))
+    self.assertTrue(datastore_utils.HasValue(foo, 'a'))
+    self.assertTrue(datastore_utils.HasValue(foo, 'b'))
 
 
 class GetLocalComputedPropertyValueTest(basetest.UpvoteTestCase):
@@ -482,35 +483,44 @@ class GetLocalComputedPropertyValueTest(basetest.UpvoteTestCase):
     self.inst = A(a='xyz')
 
   def testNormal(self):
-    self.assertIsNone(utils.GetLocalComputedPropertyValue(self.inst, 'b'))
+    self.assertIsNone(
+        datastore_utils.GetLocalComputedPropertyValue(self.inst, 'b'))
     self.inst.put()
-    self.assertEqual('x', utils.GetLocalComputedPropertyValue(self.inst, 'b'))
+    self.assertEqual(
+        'x', datastore_utils.GetLocalComputedPropertyValue(self.inst, 'b'))
     self.inst.a = 'cdg'
-    self.assertEqual('x', utils.GetLocalComputedPropertyValue(self.inst, 'b'))
+    self.assertEqual(
+        'x', datastore_utils.GetLocalComputedPropertyValue(self.inst, 'b'))
     self.inst.put()
-    self.assertEqual('c', utils.GetLocalComputedPropertyValue(self.inst, 'b'))
+    self.assertEqual(
+        'c', datastore_utils.GetLocalComputedPropertyValue(self.inst, 'b'))
 
   def testUnknownProperty(self):
-    with self.assertRaises(utils.PropertyError):
-      utils.GetLocalComputedPropertyValue(self.inst, 'NotARealProperty')
+    with self.assertRaises(datastore_utils.PropertyError):
+      datastore_utils.GetLocalComputedPropertyValue(
+          self.inst, 'NotARealProperty')
 
   def testNotComputedProperty(self):
-    with self.assertRaises(utils.PropertyError):
-      utils.GetLocalComputedPropertyValue(self.inst, 'a')
+    with self.assertRaises(datastore_utils.PropertyError):
+      datastore_utils.GetLocalComputedPropertyValue(self.inst, 'a')
 
 
 class KeyHasAncestorTest(basetest.UpvoteTestCase):
 
   def testKeyHasAncestor(self):
-    self.assertFalse(utils.KeyHasAncestor(ndb.Key('A', 1), ndb.Key('A', 1)))
-    self.assertTrue(
-        utils.KeyHasAncestor(ndb.Key('A', 1, 'B', 2), ndb.Key('A', 1)))
     self.assertFalse(
-        utils.KeyHasAncestor(ndb.Key('A', 1, 'B', 2), ndb.Key('A', 2)))
-    self.assertFalse(
-        utils.KeyHasAncestor(ndb.Key('A', 1, 'B', 2), ndb.Key('A', 1, 'B', 2)))
+        datastore_utils.KeyHasAncestor(ndb.Key('A', 1), ndb.Key('A', 1)))
     self.assertTrue(
-        utils.KeyHasAncestor(
+        datastore_utils.KeyHasAncestor(
+            ndb.Key('A', 1, 'B', 2), ndb.Key('A', 1)))
+    self.assertFalse(
+        datastore_utils.KeyHasAncestor(
+            ndb.Key('A', 1, 'B', 2), ndb.Key('A', 2)))
+    self.assertFalse(
+        datastore_utils.KeyHasAncestor(
+            ndb.Key('A', 1, 'B', 2), ndb.Key('A', 1, 'B', 2)))
+    self.assertTrue(
+        datastore_utils.KeyHasAncestor(
             ndb.Key('A', 1, 'B', 2, 'C', 3), ndb.Key('A', 1, 'B', 2)))
 
 
@@ -519,20 +529,21 @@ class ConcatenateKeysTest(basetest.UpvoteTestCase):
   def testSuccess(self):
     keys = [ndb.Key('A', 1, 'B', 2), ndb.Key('C', 3)]
     self.assertEqual(
-        ndb.Key('A', 1, 'B', 2, 'C', 3), utils.ConcatenateKeys(*keys))
+        ndb.Key('A', 1, 'B', 2, 'C', 3), datastore_utils.ConcatenateKeys(*keys))
 
   def testEmpty(self):
-    self.assertIsNone(utils.ConcatenateKeys())
+    self.assertIsNone(datastore_utils.ConcatenateKeys())
 
 
 class GetKeyFromUrlsafeTest(basetest.UpvoteTestCase):
 
   def testSuccess(self):
     key = ndb.Key('A', 'a', 'B', 'b')
-    self.assertEqual(key, utils.GetKeyFromUrlsafe(key.urlsafe()))
+    self.assertEqual(key, datastore_utils.GetKeyFromUrlsafe(key.urlsafe()))
 
   def testError(self):
-    self.assertIsNone(utils.GetKeyFromUrlsafe('not a real ndb key string'))
+    self.assertIsNone(
+        datastore_utils.GetKeyFromUrlsafe('not a real ndb key string'))
 
 
 class FutureFactoryTest(basetest.UpvoteTestCase):
@@ -542,7 +553,7 @@ class FutureFactoryTest(basetest.UpvoteTestCase):
       self.assertTrue(ndb.in_transaction())
 
     def RunAssert():
-      fut = utils.GetNoOpFuture()
+      fut = datastore_utils.GetNoOpFuture()
       fut.add_callback(AssertInTxn)
       fut.add_immediate_callback(AssertInTxn)
       fut.get_result()
@@ -553,13 +564,13 @@ class FutureFactoryTest(basetest.UpvoteTestCase):
 class GetNoOpFutureTest(basetest.UpvoteTestCase):
 
   def testNone(self):
-    future = utils.GetNoOpFuture()
+    future = datastore_utils.GetNoOpFuture()
     self.assertTrue(future.done())
     self.assertIsNone(future.get_result())
 
   def testResult(self):
     result = 'foobar'
-    future = utils.GetNoOpFuture(result)
+    future = datastore_utils.GetNoOpFuture(result)
     self.assertTrue(future.done())
     self.assertEqual(result, future.get_result())
 
@@ -567,12 +578,12 @@ class GetNoOpFutureTest(basetest.UpvoteTestCase):
 class GetMultiFutureTest(basetest.UpvoteTestCase):
 
   def testNoInput(self):
-    mf = utils.GetMultiFuture([])
+    mf = datastore_utils.GetMultiFuture([])
     self.assertTrue(mf.done())
 
   def testSingleFuture(self):
     f = ndb.Future()
-    mf = utils.GetMultiFuture([f])
+    mf = datastore_utils.GetMultiFuture([f])
 
     self.assertFalse(f.done())
     self.assertFalse(mf.done())
@@ -589,7 +600,7 @@ class GetMultiFutureTest(basetest.UpvoteTestCase):
 
   def testManyFutures(self):
     futures = [ndb.Future() for _ in xrange(3)]
-    mf = utils.GetMultiFuture(futures)
+    mf = datastore_utils.GetMultiFuture(futures)
 
     self.assertFalse(any(f.done() for f in futures))
     self.assertFalse(mf.done())
@@ -607,7 +618,7 @@ class GetMultiFutureTest(basetest.UpvoteTestCase):
 
   def testCantModifyResult(self):
     f = ndb.Future()
-    mf = utils.GetMultiFuture([f])
+    mf = datastore_utils.GetMultiFuture([f])
     with self.assertRaises(RuntimeError):
       mf.add_dependent(ndb.Future())
 
@@ -657,7 +668,8 @@ class PaginateTest(basetest.UpvoteTestCase):
       CreateEntities(entity_count)
 
       # Verify that we get the expected number of pages.
-      pages = list(utils.Paginate(TestModel.query(), page_size=page_size))
+      pages = list(
+          datastore_utils.Paginate(TestModel.query(), page_size=page_size))
       expected_page_count = int(math.ceil(float(entity_count) / page_size))
       self.assertEqual(expected_page_count, len(pages))
 
@@ -678,7 +690,7 @@ class QueuedPaginatedBatchApply(basetest.UpvoteTestCase):
 
   def testSuccess(self):
     entities = CreateEntities(3)
-    utils.QueuedPaginatedBatchApply(
+    datastore_utils.QueuedPaginatedBatchApply(
         TestModel.query(), CallMock, page_size=2)
 
     for _ in xrange(3):
@@ -693,7 +705,7 @@ class QueuedPaginatedBatchApply(basetest.UpvoteTestCase):
 
   def testExtraArgs(self):
     entities = CreateEntities(1)
-    utils.QueuedPaginatedBatchApply(
+    datastore_utils.QueuedPaginatedBatchApply(
         TestModel.query(), CallMock, extra_args=['a', 'b'],
         extra_kwargs={'c': 'c'})
 

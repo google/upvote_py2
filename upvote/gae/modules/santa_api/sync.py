@@ -122,7 +122,7 @@ class BaseSantaApiHandler(handlers.UpvoteRequestHandler):
         self.parsed_json = json.loads(body)
       except ValueError:
         logging.info('Rejecting client: failed to parse JSON.')
-        logging.debug('Malformed JSON: "%s"', body)
+        logging.info('Malformed JSON: "%s"', body)
         self.abort(httplib.BAD_REQUEST, explanation='Bad JSON body')
 
     super(BaseSantaApiHandler, self).dispatch()
@@ -980,7 +980,7 @@ class RuleDownloadHandler(BaseSantaApiHandler):
         # with a policy type matching that of the PACKAGE rule.
         binary_ids = rule.bundle_binary_ids
         binary_count = len(binary_ids)
-        logging.debug('Syncing %s bundle rules', binary_ids)
+        logging.info('Syncing %s bundle rules', binary_ids)
         for id_ in binary_ids:
           dict_ = rule_dict.copy()
           dict_.update({

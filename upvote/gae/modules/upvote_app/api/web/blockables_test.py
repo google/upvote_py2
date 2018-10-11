@@ -22,7 +22,7 @@ import webapp2
 from google.appengine.ext import ndb
 
 from upvote.gae.datastore import test_utils
-from upvote.gae.datastore import utils
+from upvote.gae.datastore import utils as datastore_utils
 from upvote.gae.datastore.models import base
 from upvote.gae.datastore.models import bit9
 from upvote.gae.datastore.models import santa
@@ -112,8 +112,8 @@ class BlockableQueryHandlerTest(BlockablesTest):
         self.bit9_blockable,
         executing_user=user_2.nickname,
         host_id='a_host_id',
-        parent=utils.ConcatenateKeys(user_2.key, ndb.Key('Host', 'a_host_id'),
-                                     self.santa_blockable.key))
+        parent=datastore_utils.ConcatenateKeys(
+            user_2.key, ndb.Key('Host', 'a_host_id'), self.santa_blockable.key))
     host_id = 'AAAAAAAA-1111-BBBB-2222-CCCCCCCCCCCC'
     test_utils.CreateSantaEvent(
         self.santa_blockable,
@@ -124,8 +124,8 @@ class BlockableQueryHandlerTest(BlockablesTest):
         host_id=host_id,
         last_blocked_dt=datetime.datetime(2015, 4, 1, 1, 0, 0),
         first_blocked_dt=datetime.datetime(2015, 4, 1, 1, 0, 0),
-        parent=utils.ConcatenateKeys(user_2.key, ndb.Key('Host', host_id),
-                                     self.santa_blockable.key))
+        parent=datastore_utils.ConcatenateKeys(
+            user_2.key, ndb.Key('Host', host_id), self.santa_blockable.key))
     # Create one event for another user. This should not be included in
     # the results when fetching blockables for user_2.
     test_utils.CreateBit9Event(
@@ -136,8 +136,8 @@ class BlockableQueryHandlerTest(BlockablesTest):
         host_id='a_host_id',
         last_blocked_dt=datetime.datetime(2015, 5, 1, 1, 0, 0),
         first_blocked_dt=datetime.datetime(2015, 5, 1, 1, 0, 0),
-        parent=utils.ConcatenateKeys(user_1.key, ndb.Key('Host', 'a_host_id'),
-                                     self.santa_blockable.key))
+        parent=datastore_utils.ConcatenateKeys(
+            user_1.key, ndb.Key('Host', 'a_host_id'), self.santa_blockable.key))
 
     params = {'filter': 'own'}
     with self.LoggedInUser(user=user_2):

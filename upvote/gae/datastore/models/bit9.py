@@ -77,12 +77,6 @@ class Bit9Host(mixin.Bit9, base.Host):
   users = ndb.StringProperty(repeated=True)
 
   @classmethod
-  def GetAssociatedHostIds(cls, user):
-    """Returns the IDs of each host associated with the given user."""
-    host_query = cls.query(cls.users == user.nickname)
-    return [key.id() for key in host_query.fetch(keys_only=True)]
-
-  @classmethod
   @ndb.transactional
   def ChangePolicyKey(cls, host_id, new_policy_key):
     host = cls.get_by_id(host_id)

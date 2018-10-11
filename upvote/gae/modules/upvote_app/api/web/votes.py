@@ -22,8 +22,9 @@ from webapp2_extras import routes
 
 from google.appengine.ext import ndb
 
-from upvote.gae.datastore import utils
+from upvote.gae.datastore import utils as datastore_utils
 from upvote.gae.datastore.models import base as base_models
+from upvote.gae.datastore.models import vote as vote_models
 from upvote.gae.lib.voting import api as voting_api
 from upvote.gae.modules.upvote_app.api import monitoring
 from upvote.gae.modules.upvote_app.api.web import base
@@ -45,7 +46,7 @@ def _PopulateCandidateId(votes):
 class VoteQueryHandler(base.BaseQueryHandler):
   """Handler for querying votes."""
 
-  MODEL_CLASS = base_models.Vote
+  MODEL_CLASS = vote_models.Vote
 
   @property
   def RequestCounter(self):
@@ -64,7 +65,7 @@ class VoteQueryHandler(base.BaseQueryHandler):
     query = super(VoteQueryHandler, self)._QueryModel(
         search_dict, ancestor=ancestor_key)
 
-    return query.filter(base_models.Vote.in_effect == True)  # pylint: disable=g-explicit-bool-comparison, singleton-comparison
+    return query.filter(vote_models.Vote.in_effect == True)  # pylint: disable=g-explicit-bool-comparison, singleton-comparison
 
 
 class VoteHandler(base.BaseHandler):
@@ -72,8 +73,8 @@ class VoteHandler(base.BaseHandler):
 
   @base.RequireCapability(constants.PERMISSIONS.VIEW_VOTES)
   def get(self, vote_key):
-    logging.debug('Vote handler get method called with key: %s', vote_key)
-    key = utils.GetKeyFromUrlsafe(vote_key)
+    logging.info('Vote handler get method called with key: %s', vote_key)
+    key = datastore_utils.GetKeyFromUrlsafe(vote_key)
     if not key:
       self.abort(
           httplib.BAD_REQUEST,
@@ -149,13 +150,13 @@ class VoteCastHandler(base.BaseHandler):
 
   def get(self, blockable_id):
     """Gets user's vote for the given blockable."""
-    logging.debug('Vote handler get method called for %s.', blockable_id)
+    logging.info('Vote handler get method called for %s.', blockable_id)
 
-    ancestor_key = utils.ConcatenateKeys(
+    ancestor_key = datastore_utils.ConcatenateKeys(
         ndb.Key(base_models.Blockable, blockable_id), self.user.key)
     # pylint: disable=g-explicit-bool-comparison, singleton-comparison
-    vote = base_models.Vote.query(
-        base_models.Vote.in_effect == True, ancestor=ancestor_key).get()
+    vote = vote_models.Vote.query(
+        vote_models.Vote.in_effect == True, ancestor=ancestor_key).get()
     # pylint: enable=g-explicit-bool-comparison, singleton-comparison
     self.respond_json(vote)
 

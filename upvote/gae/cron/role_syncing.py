@@ -125,7 +125,7 @@ class ClientModeChangeHandler(webapp2.RequestHandler):
 
     group_client = group_utils.GroupManager()
     roster = group_client.AllMembers(group)
-    logging.debug('Fetched %d user(s) from group %s', len(roster), group)
+    logging.info('Fetched %d user(s) from group %s', len(roster), group)
 
     # Generate the NDB Keys for all users in the roster.
     user_keys = [
@@ -173,7 +173,7 @@ def _ChangeModeForHosts(mode, user_keys, honor_lock=True):
     updated_hosts.append(host)
 
   ndb.put_multi(updated_hosts)
-  logging.debug(
+  logging.info(
       'Client mode changed to %s for %d host(s)', mode, len(updated_hosts))
 
 
@@ -216,7 +216,7 @@ def _SpiderBite(host_keys):
     host.client_mode = constants.SANTA_CLIENT_MODE.LOCKDOWN
 
   ndb.put_multi(hosts)
-  logging.debug(
+  logging.info(
       'Client mode changed to LOCKDOWN for %d host(s)', len(hosts))
 
 

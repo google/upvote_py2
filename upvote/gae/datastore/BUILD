@@ -26,6 +26,7 @@ py_appengine_library(
         "//upvote/gae/datastore/models:exemption",
         "//upvote/gae/datastore/models:santa",
         "//upvote/gae/datastore/models:user",
+        "//upvote/gae/datastore/models:vote",
         "//upvote/gae/shared/common:settings",
         "//upvote/gae/shared/common:user_map",
         "//upvote/gae/utils:env_utils",

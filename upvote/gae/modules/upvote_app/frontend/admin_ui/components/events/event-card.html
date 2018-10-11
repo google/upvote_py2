@@ -2,7 +2,7 @@
   <md-card-content>
     <h3>Filename: {{ card.fileName }}</h3>
     <div>
-      Date: {{ card.occurredDt | date:'mediumDate' }} - {{ card.occurredDt | timeSince }}
+      Date: {{ card.recordedDt | date:'mediumDate' }} - {{ card.recordedDt | timeSince }}
     </div>
     <div>
       Type: {{ card.eventType }}

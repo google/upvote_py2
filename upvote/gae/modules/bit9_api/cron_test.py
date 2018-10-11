@@ -30,7 +30,7 @@ from common import datastore_locks
 
 from absl.testing import absltest
 from upvote.gae.datastore import test_utils
-from upvote.gae.datastore import utils as model_utils
+from upvote.gae.datastore import utils as datastore_utils
 
 from upvote.gae.datastore.models import base as base_models
 from upvote.gae.datastore.models import bit9 as bit9_models
@@ -611,7 +611,7 @@ class ProcessTest(SyncTestCase):
         '_PersistBit9Binary', '_PersistBanNote',
         '_PersistBit9Host', '_PersistBit9Events']
     for method in methods:
-      self.Patch(cron, method, return_value=model_utils.GetNoOpFuture())
+      self.Patch(cron, method, return_value=datastore_utils.GetNoOpFuture())
 
     cron.Process(event.computer_id)
 
@@ -627,7 +627,7 @@ class ProcessTest(SyncTestCase):
         '_PersistBit9Certificates', '_PersistBit9Binary',
         '_PersistBanNote', '_PersistBit9Host']
     for method in methods:
-      self.Patch(cron, method, return_value=model_utils.GetNoOpFuture())
+      self.Patch(cron, method, return_value=datastore_utils.GetNoOpFuture())
 
     cron.Process(host_id)
 
@@ -645,7 +645,7 @@ class ProcessTest(SyncTestCase):
         '_PersistBit9Host', '_PersistBit9Events'
     ]
     for method in methods:
-      self.Patch(cron, method, return_value=model_utils.GetNoOpFuture())
+      self.Patch(cron, method, return_value=datastore_utils.GetNoOpFuture())
 
     cron.Process(host_id)
 
@@ -670,7 +670,7 @@ class ProcessTest(SyncTestCase):
         '_PersistBit9Host', '_PersistBit9Events'
     ]
     for method in methods:
-      self.Patch(cron, method, return_value=model_utils.GetNoOpFuture())
+      self.Patch(cron, method, return_value=datastore_utils.GetNoOpFuture())
 
     cron.Process(12345)
 

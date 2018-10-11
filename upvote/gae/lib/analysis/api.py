@@ -46,10 +46,10 @@ def _PerformLookup(name, lookup_func, metric, *args, **kwargs):
     LookupFailure: if the call to the lookup service fails for any reason.
   """
   try:
-    logging.debug('Submitting binary health query to %s...', name)
+    logging.info('Submitting binary health query to %s...', name)
     response_dict = lookup_func(*args, **kwargs)
     metric.Success()
-    logging.debug('Binary health query to %s returned: %s', name, response_dict)
+    logging.info('Binary health query to %s returned: %s', name, response_dict)
     return response_dict
   except Exception as e:  # pylint: disable=broad-except
     logging.exception(e)

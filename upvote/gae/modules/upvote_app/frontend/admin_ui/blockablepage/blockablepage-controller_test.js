@@ -14,6 +14,7 @@
 
 goog.setTestOnly();
 
+goog.require('goog.dom.safe');
 goog.require('upvote.admin.blockablepage.BlockableController');
 goog.require('upvote.admin.blockables.module');
 goog.require('upvote.admin.votes.module');
@@ -22,7 +23,7 @@ goog.require('upvote.shared.Page');
 
 describe('BlockableController', () => {
   let blockableResource, blockableQueryResource, voteCastResource, errorService,
-      location, window, httpBackend, q, routeParams, rootScope, page;
+      location, httpBackend, q, routeParams, rootScope, page;
 
   beforeEach(() => {
     module(upvote.admin.blockables.module.name);
@@ -31,14 +32,13 @@ describe('BlockableController', () => {
 
     inject(
         (_blockableResource_, _blockableQueryResource_, _voteCastResource_,
-         _errorService_, $location, $window, $httpBackend, $q, $rootScope) => {
+         _errorService_, $location, $httpBackend, $q, $rootScope) => {
           // Store injected components.
           blockableResource = _blockableResource_;
           blockableQueryResource = _blockableQueryResource_;
           voteCastResource = _voteCastResource_;
           errorService = _errorService_;
           location = $location;
-          window = $window;
           httpBackend = $httpBackend;
           q = $q;
           rootScope = $rootScope;
@@ -52,7 +52,7 @@ describe('BlockableController', () => {
           spyOn(voteCastResource, 'voteNo');
           errorService.createDialogFromError =
               jasmine.createSpy('createDialogFromError');
-          spyOn(window, 'open');
+          spyOn(goog.dom.safe, 'openInWindow');
 
           routeParams = {'id': ''};
         });
@@ -66,8 +66,7 @@ describe('BlockableController', () => {
   let buildController = () =>
       new upvote.admin.blockablepage.BlockableController(
           blockableResource, blockableQueryResource, voteCastResource,
-          errorService, routeParams, rootScope, rootScope, location, window,
-          page);
+          errorService, routeParams, rootScope, rootScope, location, page);
 
   let resourcePromiseValue = (value) => {
     return {'$promise': q.when(value)};
@@ -132,8 +131,8 @@ describe('BlockableController', () => {
       rootScope.$apply();
       ctrl.goToBlockable(true);
 
-      expect(window.open)
-          .toHaveBeenCalledWith('/admin/blockables/' + fakeId, '_blank');
+      expect(goog.dom.safe.openInWindow)
+          .toHaveBeenCalledWith('/admin/blockables/' + fakeId);
     });
 
     it('for users', () => {
@@ -141,8 +140,8 @@ describe('BlockableController', () => {
       rootScope.$apply();
       ctrl.goToBlockable(false);
 
-      expect(window.open)
-          .toHaveBeenCalledWith('/blockables/' + fakeId, '_blank');
+      expect(goog.dom.safe.openInWindow)
+          .toHaveBeenCalledWith('/blockables/' + fakeId);
     });
   });
 
@@ -152,6 +151,6 @@ describe('BlockableController', () => {
 
     ctrl.goToBlockable(false);
 
-    expect(window.open).not.toHaveBeenCalled();
+    expect(goog.dom.safe.openInWindow).not.toHaveBeenCalled();
   });
 });

@@ -398,28 +398,6 @@ class SantaHost(mixin.Santa, base.Host):
             if entity.executing_user != constants.LOCAL_ADMIN.MACOS]
 
   @classmethod
-  def GetAssociatedHostIds(cls, user):
-    """Returns the IDs of each host associated with the given user."""
-
-    hosts_query = SantaHost.query(SantaHost.primary_user == user.nickname)
-    hosts_future = hosts_query.fetch_async(keys_only=True)
-
-    # If a user has been logged in to a Host when an Event was registered, they
-    # are associated with that Host.
-    events_query = SantaEvent.query(
-        ancestor=user.key,
-        projection=[SantaEvent.host_id],
-        distinct=True)
-    events_future = events_query.fetch_async()
-
-    ids_where_primary_user = set(
-        host_key.id() for host_key in hosts_future.get_result())
-    ids_when_logged_in = set(
-        event.host_id for event in events_future.get_result())
-
-    return list(ids_where_primary_user | ids_when_logged_in)
-
-  @classmethod
   @ndb.transactional
   def ChangeClientMode(cls, host_id, new_client_mode):
     host = cls.get_by_id(host_id)

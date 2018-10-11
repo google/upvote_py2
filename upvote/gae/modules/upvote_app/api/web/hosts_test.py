@@ -20,7 +20,7 @@ import httplib
 import webapp2
 
 from upvote.gae.datastore import test_utils
-from upvote.gae.datastore import utils
+from upvote.gae.datastore import utils as datastore_utils
 from upvote.gae.datastore.models import bit9
 from upvote.gae.datastore.models import exemption
 from upvote.gae.datastore.models import santa
@@ -159,7 +159,7 @@ class HostHandlerTest(HostsTest):
       test_utils.CreateSantaEvent(
           blockable, host_id=self.santa_host_1.key.id(),
           executing_user=user.nickname,
-          parent=utils.ConcatenateKeys(
+          parent=datastore_utils.ConcatenateKeys(
               user.key, self.santa_host_1.key, blockable.key))
       self.assertTrue(self.santa_host_1.IsAssociatedWithUser(user))
       response = self.testapp.get(self.ROUTE % self.santa_host_1.key.id())
@@ -260,7 +260,7 @@ class AssociatedHostHandlerTest(HostsTest):
         primary_user=user.nickname).key
     santa_host_id = santa_host_key.id()
     blockable = test_utils.CreateSantaBlockable()
-    event_parent_key = utils.ConcatenateKeys(
+    event_parent_key = datastore_utils.ConcatenateKeys(
         user.key, santa_host_key, blockable.key)
     test_utils.CreateSantaEvent(
         blockable, host_id=santa_host_id, parent=event_parent_key)
@@ -369,7 +369,7 @@ class HostExceptionHandlerTest(HostsTest):
         self.santa_blockable,
         host_id=self.santa_host_3.key.id(),
         executing_user=self.user.nickname,
-        parent=utils.ConcatenateKeys(
+        parent=datastore_utils.ConcatenateKeys(
             self.user.key, self.santa_host_3.key,
             self.santa_blockable.key))
 
@@ -581,7 +581,7 @@ class LockdownHandlerTest(HostsTest):
     self.santa_event = test_utils.CreateSantaEvent(
         self.santa_blockable,
         host_id=self.santa_host_3.key.id(),
-        parent=utils.ConcatenateKeys(
+        parent=datastore_utils.ConcatenateKeys(
             self.user.key, self.santa_host_3.key, self.santa_blockable.key))
 
     self.santa_blockable.put()

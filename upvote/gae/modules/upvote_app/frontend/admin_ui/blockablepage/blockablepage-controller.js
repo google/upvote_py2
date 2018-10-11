@@ -14,6 +14,7 @@
 
 goog.provide('upvote.admin.blockablepage.BlockableController');
 
+goog.require('goog.dom.safe');
 goog.require('upvote.admin.app.constants');
 goog.require('upvote.admin.lib.controllers.ModelController');
 goog.require('upvote.app.constants');
@@ -34,13 +35,12 @@ upvote.admin.blockablepage.BlockableController = class extends ModelController {
    * @param {!angular.Scope} $scope
    * @param {!angular.Scope} $rootScope
    * @param {!angular.$location} $location
-   * @param {!angular.$window} $window
    * @param {!upvote.shared.Page} page Details about the active webpage
    * @ngInject
    */
   constructor(
       blockableResource, blockableQueryResource, voteCastResource, errorService,
-      $routeParams, $scope, $rootScope, $location, $window, page) {
+      $routeParams, $scope, $rootScope, $location, page) {
     super(
         blockableResource, blockableQueryResource, $routeParams, $scope,
         $location);
@@ -49,8 +49,6 @@ upvote.admin.blockablepage.BlockableController = class extends ModelController {
     this.voteCastResource_ = voteCastResource;
     /** @private {!upvote.errornotifier.ErrorService} */
     this.errorService_ = errorService;
-    /** @private {!angular.$window} */
-    this.window_ = $window;
     /** @export {!angular.Scope} */
     this.rootScope = $rootScope;
 
@@ -127,7 +125,7 @@ upvote.admin.blockablepage.BlockableController = class extends ModelController {
                                   upvote.app.constants.URL_PREFIX;
 
       // Open url in a new window
-      this.window_.open(appPrefix + 'blockables/' + this.id, '_blank');
+      goog.dom.safe.openInWindow(appPrefix + 'blockables/' + this.id);
     }
   }
 

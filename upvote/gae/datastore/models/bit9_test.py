@@ -19,7 +19,7 @@ import datetime
 from google.appengine.ext import ndb
 
 from upvote.gae.datastore import test_utils
-from upvote.gae.datastore import utils
+from upvote.gae.datastore import utils as datastore_utils
 from upvote.gae.datastore.models import bit9
 from upvote.gae.lib.testing import basetest
 from upvote.gae.shared.common import settings
@@ -37,13 +37,6 @@ class Bit9HostTest(basetest.UpvoteTestCase):
     self.bit9_policy = test_utils.CreateBit9Policy()
     self.bit9_host = test_utils.CreateBit9Host(
         policy_key=self.bit9_policy.key, users=[self.user.nickname])
-
-  def testGetAssociatedHostIds(self):
-    # Create a diversion...
-    test_utils.CreateBit9Host(users=[self.admin.nickname])
-
-    associated_hosts = bit9.Bit9Host.GetAssociatedHostIds(self.user)
-    self.assertListEqual([self.bit9_host.key.id()], associated_hosts)
 
   def testChangePolicyKey(self):
 
@@ -91,7 +84,7 @@ class Bit9EventTest(basetest.UpvoteTestCase):
         first_blocked_dt=now,
         last_blocked_dt=now,
         id='1',
-        parent=utils.ConcatenateKeys(
+        parent=datastore_utils.ConcatenateKeys(
             self.user.key, self.bit9_host.key,
             self.bit9_binary.key))
 
@@ -106,7 +99,7 @@ class Bit9EventTest(basetest.UpvoteTestCase):
 
   def testDedupe(self):
     earlier_dt = self.bit9_event.last_blocked_dt - datetime.timedelta(hours=1)
-    earlier_bit9_event = utils.CopyEntity(
+    earlier_bit9_event = datastore_utils.CopyEntity(
         self.bit9_event,
         first_blocked_dt=earlier_dt,
         last_blocked_dt=earlier_dt,
@@ -115,17 +108,17 @@ class Bit9EventTest(basetest.UpvoteTestCase):
 
     # Always choose the larger ID.
 
-    more_recent_deduped = utils.CopyEntity(earlier_bit9_event)
+    more_recent_deduped = datastore_utils.CopyEntity(earlier_bit9_event)
     more_recent_deduped.Dedupe(self.bit9_event)
     self.assertEquals(self.bit9_event.bit9_id, more_recent_deduped.bit9_id)
 
-    earlier_deduped = utils.CopyEntity(self.bit9_event)
+    earlier_deduped = datastore_utils.CopyEntity(self.bit9_event)
     earlier_deduped.Dedupe(earlier_bit9_event)
     self.assertEquals(self.bit9_event.bit9_id, earlier_deduped.bit9_id)
 
   def testDedupe_OutOfOrder(self):
     earlier_dt = self.bit9_event.last_blocked_dt - datetime.timedelta(hours=1)
-    earlier_bit9_event = utils.CopyEntity(
+    earlier_bit9_event = datastore_utils.CopyEntity(
         self.bit9_event,
         first_blocked_dt=earlier_dt,
         last_blocked_dt=earlier_dt,
@@ -134,11 +127,11 @@ class Bit9EventTest(basetest.UpvoteTestCase):
 
     # Always choose the larger ID.
 
-    more_recent_deduped = utils.CopyEntity(earlier_bit9_event)
+    more_recent_deduped = datastore_utils.CopyEntity(earlier_bit9_event)
     more_recent_deduped.Dedupe(self.bit9_event)
     self.assertEquals(self.bit9_event.bit9_id + 1, more_recent_deduped.bit9_id)
 
-    earlier_deduped = utils.CopyEntity(self.bit9_event)
+    earlier_deduped = datastore_utils.CopyEntity(self.bit9_event)
     earlier_deduped.Dedupe(earlier_bit9_event)
     self.assertEquals(self.bit9_event.bit9_id + 1, earlier_deduped.bit9_id)
 

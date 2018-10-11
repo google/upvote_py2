@@ -36,5 +36,5 @@ def RunningInProd():
 def RunningLocally():
   is_local = os.environ.get('SERVER_SOFTWARE', '').startswith('Development')
   verb = 'is' if is_local else 'is not'
-  logging.debug('Application environment %s local', verb)
+  logging.info('Application environment %s local', verb)
   return is_local

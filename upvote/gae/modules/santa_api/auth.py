@@ -20,5 +20,5 @@ import logging
 def ValidateClient(all_headers, uuid):
   # <YOUR CODE HERE>
   del all_headers, uuid  # Unused.
-  logging.debug('No santa client authentication performed')
+  logging.info('No santa client authentication performed')
   return True

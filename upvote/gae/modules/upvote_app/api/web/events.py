@@ -21,11 +21,12 @@ from webapp2_extras import routes
 
 from google.appengine.ext import ndb
 
-from upvote.gae.datastore import utils as model_utils
+from upvote.gae.datastore import utils as datastore_utils
 from upvote.gae.datastore.models import base as base_models
 from upvote.gae.datastore.models import bit9 as bit9_models
 from upvote.gae.datastore.models import santa as santa_models
 from upvote.gae.datastore.models import user as user_models
+from upvote.gae.datastore.models import vote as vote_models
 from upvote.gae.modules.upvote_app.api import monitoring
 from upvote.gae.modules.upvote_app.api.web import base
 from upvote.gae.shared.common import handlers
@@ -57,7 +58,7 @@ def _GetEventContext(events):
   blockable_futures = ndb.get_multi_async(
       event.blockable_key for event in events)
   vote_futures = ndb.get_multi_async(
-      base_models.Vote.GetKey(event.blockable_key, event.user_key)
+      vote_models.Vote.GetKey(event.blockable_key, event.user_key)
       for event in events)
 
   # Fetch the entities associated with SantaEvent.bundle_key.
@@ -65,11 +66,11 @@ def _GetEventContext(events):
       lambda e: isinstance(e, santa_models.SantaEvent) and e.bundle_key)
   bundle_futures = [
       (event.bundle_key.get_async()
-       if has_bundle(event) else model_utils.GetNoOpFuture())
+       if has_bundle(event) else datastore_utils.GetNoOpFuture())
       for event in events]
   bundle_vote_futures = [
-      (base_models.Vote.GetKey(event.bundle_key, event.user_key).get_async()
-       if has_bundle(event) else model_utils.GetNoOpFuture())
+      (vote_models.Vote.GetKey(event.bundle_key, event.user_key).get_async()
+       if has_bundle(event) else datastore_utils.GetNoOpFuture())
       for event in events]
 
   # Fetch the Certificate associated with the Event.
@@ -81,7 +82,7 @@ def _GetEventContext(events):
       cert_future = ndb.Key(
           santa_models.SantaCertificate, event.cert_sha256).get_async()
     else:
-      cert_future = model_utils.GetNoOpFuture()
+      cert_future = datastore_utils.GetNoOpFuture()
     cert_futures.append(cert_future)
 
   # Merge all Event context entities into their associated dicts.

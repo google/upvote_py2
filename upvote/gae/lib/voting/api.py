@@ -20,11 +20,12 @@ import logging
 from google.appengine.ext import ndb
 
 from upvote.gae.bigquery import tables
-from upvote.gae.datastore import utils as model_utils
+from upvote.gae.datastore import utils as datastore_utils
 from upvote.gae.datastore.models import base
 from upvote.gae.datastore.models import bit9
 from upvote.gae.datastore.models import santa
 from upvote.gae.datastore.models import user as user_models
+from upvote.gae.datastore.models import vote as vote_models
 from upvote.gae.lib.analysis import metrics
 from upvote.gae.lib.bit9 import change_set
 from upvote.gae.shared.common import settings
@@ -72,10 +73,10 @@ def _GetPlatform(blockable):
 
 def _GetUpvoters(blockable):
   # pylint: disable=g-explicit-bool-comparison, singleton-comparison
-  upvotes_query = base.Vote.query(
-      base.Vote.was_yes_vote == True,
-      base.Vote.in_effect == True,
-      projection=[base.Vote.user_email],
+  upvotes_query = vote_models.Vote.query(
+      vote_models.Vote.was_yes_vote == True,
+      vote_models.Vote.in_effect == True,
+      projection=[vote_models.Vote.user_email],
       ancestor=blockable.key)
   # pylint: enable=g-explicit-bool-comparison, singleton-comparison
   return {ndb.Key(user_models.User, vote.user_email)
@@ -90,9 +91,9 @@ def _CheckBlockableFlagStatus(blockable):
   # may have been changed within the transaction but the index not yet
   # updated. This means there's a possibility that was_yes_vote is True.
   # pylint: disable=g-explicit-bool-comparison, singleton-comparison
-  maybe_down_votes = base.Vote.query(
-      base.Vote.was_yes_vote == False,
-      base.Vote.in_effect == True,
+  maybe_down_votes = vote_models.Vote.query(
+      vote_models.Vote.was_yes_vote == False,
+      vote_models.Vote.in_effect == True,
       ancestor=blockable.key).fetch()
   # pylint: enable=g-explicit-bool-comparison, singleton-comparison
   down_votes_exist = any(not vote.was_yes_vote for vote in maybe_down_votes)
@@ -102,9 +103,9 @@ def _CheckBlockableFlagStatus(blockable):
   if down_votes_exist and not blockable.flagged:
     # This needs to determine if the blockable should be flagged or not.
     # pylint: disable=g-explicit-bool-comparison, singleton-comparison
-    all_votes = base.Vote.query(
-        base.Vote.in_effect == True,
-        ancestor=blockable.key).order(-base.Vote.recorded_dt)
+    all_votes = vote_models.Vote.query(
+        vote_models.Vote.in_effect == True,
+        ancestor=blockable.key).order(-vote_models.Vote.recorded_dt)
     # pylint: enable=g-explicit-bool-comparison, singleton-comparison
     for vote in all_votes:
       if vote.was_yes_vote:
@@ -353,7 +354,7 @@ class BallotBox(object):
 
   def _CreateOrUpdateVote(self, was_yes_vote, vote_weight):
     """Creates a new vote or updates an existing one."""
-    vote_key = base.Vote.GetKey(self.blockable.key, self.user.key)
+    vote_key = vote_models.Vote.GetKey(self.blockable.key, self.user.key)
     self.old_vote = vote_key.get()
 
     # If user has already voted, archive the previous vote.
@@ -364,11 +365,11 @@ class BallotBox(object):
                 self.user.email, was_yes_vote, self.blockable.key.id()))
 
       # Archive the previous vote.
-      self.old_vote.key = base.Vote.GetKey(
+      self.old_vote.key = vote_models.Vote.GetKey(
           self.blockable.key, self.user.key, in_effect=False)
       self.old_vote.put()
 
-    self.new_vote = base.Vote(
+    self.new_vote = vote_models.Vote(
         key=vote_key,
         user_email=self.user.email,
         was_yes_vote=was_yes_vote,
@@ -490,7 +491,7 @@ class BallotBox(object):
     # deactivated so they won't be counted towards the blockable's score.
     archived_votes = votes
     for vote in archived_votes:
-      vote.key = base.Vote.GetKey(
+      vote.key = vote_models.Vote.GetKey(
           vote.blockable_key, vote.user_key, in_effect=False)
     ndb.put_multi_async(archived_votes)
 
@@ -954,9 +955,9 @@ class Bit9BallotBox(BallotBox):
       removal_rules.append(removal_rule)
       removal_rule.InsertBigQueryRow()
     put_futures = ndb.put_multi_async(removal_rules)
-    future = model_utils.GetMultiFuture(put_futures)
+    future = datastore_utils.GetMultiFuture(put_futures)
     future.add_callback(
-        self._CreateRuleChangeSet, model_utils.GetNoOpFuture(removal_rules),
+        self._CreateRuleChangeSet, datastore_utils.GetNoOpFuture(removal_rules),
         constants.RULE_POLICY.REMOVE)
 
 

@@ -22,7 +22,7 @@ import webapp2
 from google.appengine.ext import ndb
 
 from upvote.gae.datastore import test_utils
-from upvote.gae.datastore import utils
+from upvote.gae.datastore import utils as datastore_utils
 from upvote.gae.lib.testing import basetest
 from upvote.gae.modules.upvote_app.api.web import events
 from upvote.gae.shared.common import user_map
@@ -75,7 +75,7 @@ class EventsTest(basetest.UpvoteTestCase):
         host_id=self.santa_host1.key.id(),
         last_blocked_dt=datetime.datetime(2015, 3, 1, 1, 0, 0),
         first_blocked_dt=datetime.datetime(2015, 3, 1, 1, 0, 0),
-        parent=utils.ConcatenateKeys(
+        parent=datastore_utils.ConcatenateKeys(
             self.user_1.key, self.santa_host1.key, self.santa_blockable1.key))
 
     self.santa_event2_from_user1 = test_utils.CreateSantaEvent(
@@ -89,7 +89,7 @@ class EventsTest(basetest.UpvoteTestCase):
         host_id=self.santa_host2.key.id(),
         last_blocked_dt=datetime.datetime(2015, 4, 1, 1, 0, 0),
         first_blocked_dt=datetime.datetime(2015, 4, 1, 1, 0, 0),
-        parent=utils.ConcatenateKeys(
+        parent=datastore_utils.ConcatenateKeys(
             self.user_1.key, self.santa_host2.key, self.santa_blockable1.key))
 
     self.santa_event3_from_user1 = test_utils.CreateSantaEvent(
@@ -101,7 +101,7 @@ class EventsTest(basetest.UpvoteTestCase):
         host_id=self.santa_host1.key.id(),
         last_blocked_dt=datetime.datetime(2015, 5, 1, 1, 0, 0),
         first_blocked_dt=datetime.datetime(2015, 5, 1, 1, 0, 0),
-        parent=utils.ConcatenateKeys(
+        parent=datastore_utils.ConcatenateKeys(
             self.user_1.key, self.santa_host1.key, self.santa_blockable2.key))
 
     self.santa_event1_from_user2 = test_utils.CreateSantaEvent(
@@ -113,7 +113,7 @@ class EventsTest(basetest.UpvoteTestCase):
         host_id=self.santa_host2.key.id(),
         last_blocked_dt=datetime.datetime(2015, 3, 1, 1, 0, 0),
         first_blocked_dt=datetime.datetime(2015, 3, 1, 1, 0, 0),
-        parent=utils.ConcatenateKeys(
+        parent=datastore_utils.ConcatenateKeys(
             self.user_2.key, self.santa_host2.key,
             self.santa_blockable1.key))
 
@@ -125,7 +125,7 @@ class EventsTest(basetest.UpvoteTestCase):
         host_id=self.bit9_host1.key.id(),
         last_blocked_dt=datetime.datetime(2015, 6, 1, 1, 0, 0),
         first_blocked_dt=datetime.datetime(2015, 6, 1, 1, 0, 0),
-        parent=utils.ConcatenateKeys(
+        parent=datastore_utils.ConcatenateKeys(
             self.user_1.key, self.bit9_host1.key, self.bit9_blockable1.key))
 
     self.bit9_event1_from_user2 = test_utils.CreateBit9Event(
@@ -136,7 +136,7 @@ class EventsTest(basetest.UpvoteTestCase):
         host_id=self.bit9_host2.key.id(),
         last_blocked_dt=datetime.datetime(2015, 4, 1, 1, 0, 0),
         first_blocked_dt=datetime.datetime(2015, 4, 1, 1, 0, 0),
-        parent=utils.ConcatenateKeys(
+        parent=datastore_utils.ConcatenateKeys(
             self.user_2.key, self.bit9_host2.key, self.bit9_blockable1.key))
 
     self.PatchValidateXSRFToken()
@@ -471,7 +471,7 @@ class EventHandlerTest(EventsTest):
         host_id=self.santa_host1.key.id(),
         last_blocked_dt=datetime.datetime(2015, 3, 1, 1, 0, 0),
         first_blocked_dt=datetime.datetime(2015, 3, 1, 1, 0, 0),
-        parent=utils.ConcatenateKeys(
+        parent=datastore_utils.ConcatenateKeys(
             self.user_1.key, self.santa_host1.key, bundle.key))
     test_utils.CreateVote(bundle, user_email=self.user_1.email)
 
@@ -556,7 +556,7 @@ class RecentEventHandlerTest(EventsTest):
         host_id=self.santa_host1.key.id(),
         last_blocked_dt=datetime.datetime(2015, 3, 1, 1, 0, 0),
         first_blocked_dt=datetime.datetime(2015, 3, 1, 1, 0, 0),
-        parent=utils.ConcatenateKeys(
+        parent=datastore_utils.ConcatenateKeys(
             self.user_1.key, self.santa_host1.key, bundle.key))
 
     with self.LoggedInUser(user=self.user_1):

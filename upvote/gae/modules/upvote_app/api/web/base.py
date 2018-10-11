@@ -19,7 +19,7 @@ import logging
 from google.appengine.datastore.datastore_query import Cursor
 from google.appengine.ext import ndb
 
-from upvote.gae.datastore import utils as model_utils
+from upvote.gae.datastore import utils as datastore_utils
 from upvote.gae.datastore.models import user as user_models
 from upvote.gae.shared.common import handlers
 from upvote.gae.utils import env_utils
@@ -68,7 +68,7 @@ def _CoerceQueryParam(field, query_param):
       raise QueryTypeError(
           'Query param "%s" could not be converted to boolean' % query_param)
   elif isinstance(field, ndb.KeyProperty):
-    key = model_utils.GetKeyFromUrlsafe(query_param)
+    key = datastore_utils.GetKeyFromUrlsafe(query_param)
     if not key:
       raise QueryTypeError(
           'Query param "%s" could not be converted to ndb.Key' % query_param)
@@ -311,7 +311,7 @@ class BaseQueryHandler(BaseHandler):
       # Check for the property on the model itself (as opposed to, say, catching
       # a getattr exception) to ensure that the field being accessed is an ndb
       # property as opposed to a Python attribute.
-      if not model_utils.HasProperty(self.MODEL_CLASS, field_name):
+      if not datastore_utils.HasProperty(self.MODEL_CLASS, field_name):
         raise QueryError('Invalid searchBase %s' % field_name)
 
       field = getattr(self.MODEL_CLASS, field_name)

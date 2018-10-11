@@ -42,12 +42,12 @@ class Constant(base.BaseHandler):
     Args:
       constant: str. The name of the constant being requested.
     """
-    logging.debug('Constants handler get method called.')
+    logging.info('Constants handler get method called.')
     if constant.lower() == 'userrole':
       constant_value = {'UserRole': constants.USER_ROLE.SET_ALL}
       self.respond_json(constant_value)
     else:
-      logging.debug('Unknown constant requested: %s', constant)
+      logging.info('Unknown constant requested: %s', constant)
       self.abort(httplib.NOT_FOUND, explanation='Unknown constant requested')
 
 

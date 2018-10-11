@@ -21,8 +21,9 @@ import mock
 from google.appengine.ext import ndb
 
 from upvote.gae.datastore import test_utils
-from upvote.gae.datastore import utils
+from upvote.gae.datastore import utils as datastore_utils
 from upvote.gae.datastore.models import base
+from upvote.gae.datastore.models import vote as vote_models
 from upvote.gae.lib.testing import basetest
 from upvote.gae.shared.common import user_map
 from upvote.shared import constants
@@ -100,7 +101,7 @@ class EventTest(basetest.UpvoteTestCase):
     self.assertEqual(2, self.event_1.count)
 
   def testDedupe_NoCount(self):
-    utils.DeleteProperty(self.event_2, 'count')
+    datastore_utils.DeleteProperty(self.event_2, 'count')
 
     self.event_1.Dedupe(self.event_2)
 
@@ -117,7 +118,7 @@ class EventTest(basetest.UpvoteTestCase):
     usernames = ['foo', 'bar']
     with mock.patch.object(
         base.Event, 'run_by_local_admin', return_value=True):
-      event = utils.CopyEntity(self.event_1)
+      event = datastore_utils.CopyEntity(self.event_1)
       keys = event.GetKeysToInsert(usernames, [])
 
     self.assertEqual(2, len(keys))
@@ -150,17 +151,17 @@ class EventTest(basetest.UpvoteTestCase):
 
   def testDedupeMultiple(self):
     keys = self.event_1.GetKeysToInsert(['foo'], [])
-    event1 = utils.CopyEntity(
+    event1 = datastore_utils.CopyEntity(
         self.event_1,
         new_key=keys[0],
         first_blocked_dt=self.middle,
         last_blocked_dt=self.middle)
-    event2 = utils.CopyEntity(
+    event2 = datastore_utils.CopyEntity(
         self.event_1,
         new_key=keys[0],
         first_blocked_dt=self.earlier,
         last_blocked_dt=self.later)
-    event3 = utils.CopyEntity(
+    event3 = datastore_utils.CopyEntity(
         self.event_1,
         new_key=keys[0],
         first_blocked_dt=self.middle,
@@ -229,11 +230,11 @@ class BlockableTest(basetest.UpvoteTestCase):
 
     self.assertEqual(2, len(self.blockable_1.GetVotes()))
 
-    votes = base.Vote.query().fetch()
+    votes = vote_models.Vote.query().fetch()
     new_votes = []
     for vote in votes:
       new_key = ndb.Key(flat=vote.key.flat()[:-1] + (None,))
-      new_votes.append(utils.CopyEntity(vote, new_key=new_key))
+      new_votes.append(datastore_utils.CopyEntity(vote, new_key=new_key))
     ndb.delete_multi(vote.key for vote in votes)
     ndb.put_multi(new_votes)
 
@@ -434,85 +435,9 @@ class HostTest(basetest.UpvoteTestCase):
     self.user1 = test_utils.CreateUser()
     self.user2 = test_utils.CreateUser()
 
-  def testGetAssociatedHostIds(self):
-    with self.assertRaises(NotImplementedError):
-      base.Host.GetAssociatedHostIds(self.user1)
-
   def testIsAssociatedWithUser(self):
     with self.assertRaises(NotImplementedError):
       self.host.IsAssociatedWithUser(self.user1)
-
-
-class VoteTest(basetest.UpvoteTestCase):
-
-  def setUp(self):
-    super(VoteTest, self).setUp()
-    self.blockable = test_utils.CreateBlockable()
-    self.user = test_utils.CreateUser()
-
-  def testSetKey(self):
-    expected_key = ndb.Key(flat=(
-        self.blockable.key.flat() + self.user.key.flat() +
-        ('Vote', base.Vote._IN_EFFECT_KEY_NAME)))
-    key = base.Vote.GetKey(self.blockable.key, self.user.key)
-    self.assertEqual(expected_key, key)
-
-  def testSetKey_NotInEffect(self):
-    expected_key = ndb.Key(flat=(
-        self.blockable.key.flat() + self.user.key.flat() +
-        ('Vote', None)))
-    key = base.Vote.GetKey(
-        self.blockable.key, self.user.key, in_effect=False)
-    self.assertEqual(expected_key, key)
-
-    # Putting the vote results in a random ID being generated.
-    vote = test_utils.CreateVote(self.blockable)
-    vote.key = key
-    vote.put()
-    self.assertIsNotNone(vote.key.id())
-
-  def testBlockableKey(self):
-    vote = test_utils.CreateVote(
-        self.blockable, user_email=self.user.email)
-    vote.key = base.Vote.GetKey(self.blockable.key, self.user.key)
-    self.assertEqual(self.blockable.key, vote.blockable_key)
-
-  def testBlockableKey_MultiPartKey(self):
-    vote = test_utils.CreateVote(
-        self.blockable, user_email=self.user.email)
-    # Add another test_blockable key to simulate a length-two blockable key.
-    vote.key = utils.ConcatenateKeys(
-        self.blockable.key,
-        base.Vote.GetKey(self.blockable.key, self.user.key))
-
-    self.assertIsNotNone(vote.blockable_key)
-    self.assertEqual(2, len(vote.blockable_key.pairs()))
-    self.assertEqual(self.blockable.key, vote.blockable_key.parent())
-
-  def testBlockableKey_NoKey(self):
-    vote = test_utils.CreateVote(
-        self.blockable, user_email=self.user.email)
-    vote.key = None
-    self.assertIsNone(vote.blockable_key)
-
-  def testBlockableKey_BadKey(self):
-    vote = test_utils.CreateVote(
-        self.blockable, user_email=self.user.email)
-    # Take out User key section.
-    vote.key = utils.ConcatenateKeys(
-        self.blockable.key, ndb.Key(base.Vote, vote.key.id()))
-    self.assertIsNone(vote.blockable_key)
-
-  def testUserKey(self):
-    vote = test_utils.CreateVote(
-        self.blockable, user_email=self.user.email)
-    self.assertEqual(self.user.key, vote.user_key)
-
-  def testInEffect(self):
-    vote = test_utils.CreateVote(self.blockable)
-    self.assertTrue(vote.in_effect)
-    vote.key = None
-    self.assertFalse(vote.in_effect)
 
 
 class RuleTest(basetest.UpvoteTestCase):

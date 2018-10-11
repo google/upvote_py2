@@ -71,7 +71,7 @@ def _ChangeLocalStates(blockable, local_rules, new_state):
     return
 
   for local_rule in local_rules:
-    logging.debug(
+    logging.info(
         'Locally marking %s as %s on host %s', blockable.key.id(),
         bit9_constants.APPROVAL_STATE.MAP_TO_STR[new_state], local_rule.host_id)
 
@@ -93,7 +93,7 @@ def _ChangeLocalStates(blockable, local_rules, new_state):
 
 
 def _ChangeGlobalState(blockable, new_state):
-  logging.debug(
+  logging.info(
       'Globally marking %s as %s', blockable.key.id(),
       bit9_constants.APPROVAL_STATE.MAP_TO_STR[new_state])
 
@@ -157,7 +157,7 @@ def _ChangeInstallerState(blockable, rules):
   global_rule = _GetGlobalRule(rules)
   assert global_rule is not None
 
-  logging.debug(
+  logging.info(
       'Changing Installer state of %s to %s', blockable.key.id(),
       global_rule.policy)
 

@@ -29,6 +29,7 @@ from upvote.gae.datastore.models import exemption as exemption_models
 from upvote.gae.datastore.models import santa as santa_models
 from upvote.gae.datastore.models import tickets as tickets_models
 from upvote.gae.datastore.models import user as user_models
+from upvote.gae.datastore.models import utils as model_utils
 from upvote.gae.modules.upvote_app.api import monitoring
 from upvote.gae.modules.upvote_app.api.web import base
 from upvote.gae.shared.common import handlers
@@ -62,7 +63,7 @@ class HostHandler(base.BaseHandler):
 
   def get(self, host_id):
     host_id = base_models.Host.NormalizeId(host_id)
-    logging.debug('Host handler get method called with ID=%s.', host_id)
+    logging.info('Host handler get method called with ID=%s.', host_id)
     host = base_models.Host.get_by_id(host_id)
     if host is None:
       self.abort(httplib.NOT_FOUND, explanation='Host not found')
@@ -74,7 +75,7 @@ class HostHandler(base.BaseHandler):
   @xsrf_utils.RequireToken
   def post(self, host_id):
     host_id = base_models.Host.NormalizeId(host_id)
-    logging.debug('Host handler post method called with ID=%s.', host_id)
+    logging.info('Host handler post method called with ID=%s.', host_id)
 
     host = base_models.Host.get_by_id(host_id)
     if host is None:
@@ -97,11 +98,8 @@ class AssociatedHostHandler(base.BaseHandler):
   """Handler for interacting with specific hosts."""
 
   def _GetAssociatedHosts(self, user):
-    bit9_ids = bit9_models.Bit9Host.GetAssociatedHostIds(user)
-    santa_ids = santa_models.SantaHost.GetAssociatedHostIds(user)
-    host_ids = bit9_ids + santa_ids
-    hosts = ndb.get_multi(
-        ndb.Key(base_models.Host, host_id) for host_id in host_ids)
+    host_keys = model_utils.GetHostKeysForUser(user)
+    hosts = ndb.get_multi(host_keys)
     hosts = filter(None, hosts)
 
     # If Santa hosts have never synced rules or Bit9 hosts never reported an
@@ -118,7 +116,7 @@ class AssociatedHostHandler(base.BaseHandler):
 
   @base.RequireCapability(constants.PERMISSIONS.VIEW_OTHER_HOSTS)
   def GetByUserId(self, user_id):
-    logging.debug('Getting associated Hosts for user_id=%s', user_id)
+    logging.info('Getting associated Hosts for user_id=%s', user_id)
     user = user_models.User.GetById(user_id)
     if user is None:
       self.abort(httplib.NOT_FOUND, explanation='User not found')
@@ -127,7 +125,7 @@ class AssociatedHostHandler(base.BaseHandler):
     self.respond_json(hosts)
 
   def GetSelf(self):
-    logging.debug('Getting associated Hosts for self (%s)', self.user.email)
+    logging.info('Getting associated Hosts for self (%s)', self.user.email)
     hosts = self._GetAssociatedHosts(self.user)
     self.respond_json(hosts)
 
@@ -137,7 +135,7 @@ class HostExceptionHandler(base.BaseHandler):
 
   def get(self, host_id):
     host_id = base_models.Host.NormalizeId(host_id)
-    logging.debug('Host exception handler GET called with ID=%s.', host_id)
+    logging.info('Host exception handler GET called with ID=%s.', host_id)
 
     host = base_models.Host.get_by_id(host_id)
     if host is None:
@@ -174,7 +172,7 @@ class HostExceptionHandler(base.BaseHandler):
   @xsrf_utils.RequireToken
   def post(self, host_id):
     host_id = base_models.Host.NormalizeId(host_id)
-    logging.debug('Host exception handler POST called with ID=%s.', host_id)
+    logging.info('Host exception handler POST called with ID=%s.', host_id)
 
     host = base_models.Host.get_by_id(host_id)
     if host is None:
@@ -239,7 +237,7 @@ class LockdownHandler(base.BaseHandler):
   @xsrf_utils.RequireToken
   def post(self, host_id):
     host_id = base_models.Host.NormalizeId(host_id)
-    logging.debug('Lockdown handler POST called with ID=%s.', host_id)
+    logging.info('Lockdown handler POST called with ID=%s.', host_id)
 
     host = base_models.Host.get_by_id(host_id)
     if host is None:

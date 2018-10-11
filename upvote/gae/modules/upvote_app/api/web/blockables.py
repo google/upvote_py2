@@ -119,13 +119,13 @@ class BlockableQueryHandler(base.BaseQueryHandler):
     """Implement a filtering interface with ACLs for blockable queries."""
     query_filter = self.request.get('filter')
     if query_filter == 'flagged':
-      logging.debug('Filtering for flagged blockables.')
+      logging.info('Filtering for flagged blockables.')
       query = self._FlaggedBlockablesQuery()
     elif query_filter == 'suspect':
-      logging.debug('Filtering for suspect blockables.')
+      logging.info('Filtering for suspect blockables.')
       query = self._SuspectBlockablesQuery()
     elif query_filter == 'own':
-      logging.debug('Filtering for own blockables.')
+      logging.info('Filtering for own blockables.')
       own_events = base_models.Event.query(ancestor=self.user.key)
       blockable_keys = [e.blockable_key for e in own_events]
 
@@ -136,7 +136,7 @@ class BlockableQueryHandler(base.BaseQueryHandler):
         return
       query = self._BlockablesByKeysQuery(blockable_keys)
     else:
-      logging.debug('Returning unfiltered blockable list.')
+      logging.info('Returning unfiltered blockable list.')
       query = self._UnfilteredBlockablesQuery()
     return query
 
@@ -170,7 +170,7 @@ class BlockableHandler(base.BaseHandler):
   def get(self, blockable_id):  # pylint: disable=g-bad-name
     """View of single blockable, accessible to anyone with URL."""
     blockable_id = blockable_id.lower()
-    logging.debug(
+    logging.info(
         'Blockable handler get method called with ID: %s', blockable_id)
     blockable = base_models.Blockable.get_by_id(blockable_id)
     if not blockable:
@@ -182,7 +182,7 @@ class BlockableHandler(base.BaseHandler):
   def post(self, blockable_id):  # pylint: disable=g-bad-name
     """Post handler for blockables."""
     blockable_id = blockable_id.lower()
-    logging.debug('Blockable handler POST input: %s', self.request.arguments())
+    logging.info('Blockable handler POST input: %s', self.request.arguments())
     if self.request.get('recount').lower() == 'recount':
       try:
         voting_api.Recount(blockable_id)

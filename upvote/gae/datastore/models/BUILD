@@ -40,6 +40,7 @@ py_appengine_library(
     deps = [
         ":mixin",
         ":user",
+        ":vote",
         "//upvote/gae/bigquery:tables",
         "//upvote/gae/datastore:utils",
         "//upvote/gae/shared/common:settings",
@@ -143,11 +144,32 @@ py_appengine_library(
 )
 
 py_appengine_library(
+    name = "utils",
+    srcs = ["utils.py"],
+    deps = [
+        ":bit9",
+        ":exemption",
+        ":santa",
+        "//upvote/shared:constants",
+    ],
+)
+
+py_appengine_library(
     name = "virustotal",
     srcs = ["virustotal.py"],
     deps = [
         "//common/cloud_kms:kms_ndb",
         "//upvote/gae/datastore/models:singleton",
+    ],
+)
+
+py_appengine_library(
+    name = "vote",
+    srcs = ["vote.py"],
+    deps = [
+        ":user",
+        "//upvote/gae/datastore:utils",
+        "//upvote/shared:constants",
     ],
 )
 
@@ -171,6 +193,7 @@ upvote_appengine_test(
     srcs = ["base_test.py"],
     deps = [
         ":base",
+        ":vote",
         "//common/testing:basetest",
         "//external:mock",
         "//upvote/gae/bigquery:tables",
@@ -291,6 +314,35 @@ upvote_appengine_test(
         "//upvote/gae/lib/testing:basetest",
         "//upvote/gae/shared/common:settings",
         "//upvote/shared:constants",
+        "@absl_git//absl/testing:absltest",
+    ],
+)
+
+upvote_appengine_test(
+    name = "utils_test",
+    size = "small",
+    srcs = ["utils_test.py"],
+    deps = [
+        ":utils",
+        "//upvote/gae/datastore:test_utils",
+        "//upvote/gae/datastore:utils",
+        "//upvote/gae/lib/testing:basetest",
+        "//upvote/shared:constants",
+        "@absl_git//absl/testing:absltest",
+    ],
+)
+
+upvote_appengine_test(
+    name = "vote_test",
+    size = "small",
+    srcs = ["vote_test.py"],
+    deps = [
+        ":mixin",
+        ":vote",
+        "//external:mock",
+        "//upvote/gae/datastore:test_utils",
+        "//upvote/gae/datastore:utils",
+        "//upvote/gae/lib/testing:basetest",
         "@absl_git//absl/testing:absltest",
     ],
 )

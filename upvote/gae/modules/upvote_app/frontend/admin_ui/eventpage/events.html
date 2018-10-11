@@ -72,14 +72,14 @@
       <listing-body>
         <uv-listing-row on-select="eventCtrl.selectItem(item.key)" ng-repeat="item in eventCtrl.content">
           <uv-listing-cell>{{item.fileName}}</uv-listing-cell>
-          <uv-listing-cell>{{item.occurredDt | date:'mediumDate'}}</uv-listing-cell>
+          <uv-listing-cell>{{item.recordedDt | date:'mediumDate'}}</uv-listing-cell>
           <uv-listing-cell>{{item.eventType}}</uv-listing-cell>
           <uv-listing-cell>{{item.executingUser}}</uv-listing-cell>
           <uv-listing-cell>{{item.publisher}}</uv-listing-cell>
           <md-tooltip layout="column">
             Filename: {{item.fileName}},
-            Date: {{item.occurredDt | date:'mediumDate'}},
-            {{item.occurredDt | timeSince}},
+            Date: {{item.recordedDt | date:'mediumDate'}},
+            {{item.recordedDt | timeSince}},
             Type: {{item.eventType}},
             Host ID: {{item.hostId | prettifyUuid}},
             Path: {{item.filePath}},

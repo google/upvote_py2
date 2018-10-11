@@ -22,8 +22,8 @@ import webapp2
 from google.appengine.ext import ndb
 
 from upvote.gae.datastore import test_utils
-from upvote.gae.datastore import utils
-from upvote.gae.datastore.models import base as base_models
+from upvote.gae.datastore import utils as datastore_utils
+from upvote.gae.datastore.models import vote as vote_models
 from upvote.gae.lib.testing import basetest
 from upvote.gae.lib.voting import api as voting_api
 from upvote.gae.modules.upvote_app.api.web import votes
@@ -88,10 +88,11 @@ class VoteQueryHandlerTest(VotesTest):
 
   def testAdminGetList_OnlyInEffect(self):
     inactive_key = ndb.Key(flat=self.vote_1.key.flat()[:-1] + (None,))
-    inactive_vote = utils.CopyEntity(self.vote_1, new_key=inactive_key)
+    inactive_vote = datastore_utils.CopyEntity(
+        self.vote_1, new_key=inactive_key)
     inactive_vote.put()
 
-    self.assertEqual(4, base_models.Vote.query().count())
+    self.assertEqual(4, vote_models.Vote.query().count())
 
     with self.LoggedInUser(admin=True):
       response = self.testapp.get(self.ROUTE)
@@ -118,7 +119,7 @@ class VoteQueryHandlerTest(VotesTest):
     self.assertIsInstance(output, dict)
     self.assertEqual(len(output['content']), 3)
 
-    key = utils.GetKeyFromUrlsafe(output['content'][0]['key'])
+    key = datastore_utils.GetKeyFromUrlsafe(output['content'][0]['key'])
     self.assertEqual(key.flat()[1], output['content'][0]['candidateId'])
 
   def testUserGetQueryNoPermissions(self):
@@ -336,7 +337,8 @@ class VoteCastHandlerTest(VotesTest):
   def testGet_User(self):
     """Normal user reads a vote."""
     inactive_key = ndb.Key(flat=self.vote_2.key.flat()[:-1] + (None,))
-    inactive_vote = utils.CopyEntity(self.vote_2, new_key=inactive_key)
+    inactive_vote = datastore_utils.CopyEntity(
+        self.vote_2, new_key=inactive_key)
     inactive_vote.put()
 
     self.assertFalse(inactive_vote.in_effect)
