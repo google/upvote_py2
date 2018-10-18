@@ -2,6 +2,9 @@ load("//upvote:builddefs.bzl", "py_appengine_library")
 
 package(default_visibility = ["//upvote"])
 
+# AppEngine Libraries
+# ==============================================================================
+
 py_appengine_library(
     name = "basetest",
     testonly = 1,
@@ -15,9 +18,31 @@ py_appengine_library(
         "//external:webtest",
         "//upvote/gae/bigquery:tables",
         "//upvote/gae/datastore:test_utils",
-        "//upvote/gae/shared/common:handlers",
         "//upvote/gae/shared/common:settings",
         "//upvote/gae/shared/common:settings_utils",
+        "//upvote/gae/utils:handler_utils",
+        "//upvote/gae/utils:xsrf_utils",
+        "//upvote/shared:constants",
+    ],
+)
+
+py_appengine_library(
+    name = "bit9test",
+    testonly = 1,
+    srcs = ["bit9test.py"],
+    deps = [
+        ":basetest",
+        "//common/testing:basetest",
+        "//external:mock",
+        "//external:oauth2client",
+        "//external:webob",
+        "//external:webtest",
+        "//upvote/gae/bigquery:tables",
+        "//upvote/gae/datastore:test_utils",
+        "//upvote/gae/lib/bit9:utils",
+        "//upvote/gae/shared/common:settings",
+        "//upvote/gae/shared/common:settings_utils",
+        "//upvote/gae/utils:handler_utils",
         "//upvote/gae/utils:xsrf_utils",
         "//upvote/shared:constants",
     ],

@@ -19,10 +19,7 @@ dispatch:
   # NOTE #2: Rules are evaluated in-order and the first matching rule is used.
 
   - url: "*/api/santa/*"
-    module: santa-api
-
-  - url: "*/api/bit9/*"
-    module: bit9-api
+    service: santa-api
 
   - url: "*/api/web/*"
-    module: default
+    service: default

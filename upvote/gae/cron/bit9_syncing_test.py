@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Tests for bit9_api cron jobs."""
+"""Unit tests for bit9_syncing.py."""
 
 import datetime
 import httplib
@@ -28,7 +28,7 @@ from google.appengine.ext import ndb
 
 from common import datastore_locks
 
-from absl.testing import absltest
+from upvote.gae.cron import bit9_syncing
 from upvote.gae.datastore import test_utils
 from upvote.gae.datastore import utils as datastore_utils
 
@@ -43,11 +43,12 @@ from upvote.gae.lib.bit9 import monitoring
 from upvote.gae.lib.bit9 import test_utils as bit9_test_utils
 from upvote.gae.lib.bit9 import utils as bit9_utils
 from upvote.gae.lib.testing import basetest
-from upvote.gae.modules.bit9_api import cron
+from upvote.gae.lib.testing import bit9test
 from upvote.gae.shared.common import settings
 from upvote.gae.shared.common import user_map
 from upvote.gae.utils import time_utils
 from upvote.shared import constants
+from absl.testing import absltest
 
 
 def _CreateEventsAndCerts(
@@ -133,7 +134,7 @@ def _CreateUnsyncedEvents(host_count=1, events_per_host=-1):
         random.randint(1, 5) if events_per_host == -1 else events_per_host)
     for _ in xrange(event_count):
       event, _ = _CreateEventAndCert(computer_kwargs={'id': computer_id})
-      cron._UnsyncedEvent.Generate(event, []).put()
+      bit9_syncing._UnsyncedEvent.Generate(event, []).put()
 
   return computer_ids
 
@@ -170,7 +171,7 @@ class UnsyncedEventTest(basetest.UpvoteTestCase):
     event, cert = _CreateEventAndCert()
     file_catalog = event.get_expand(api.Event.file_catalog_id)
 
-    key = cron._UnsyncedEvent.Generate(event, [cert]).put()
+    key = bit9_syncing._UnsyncedEvent.Generate(event, [cert]).put()
     entity = key.get()
 
     self.assertEqual(1, len(entity.signing_chain))
@@ -185,25 +186,25 @@ class BuildEventSubtypeFilterTest(basetest.UpvoteTestCase):
 
   def testSuccess(self):
     expected_expression = 'subtype:801|802|837|838|839'
-    actual_expression = str(cron.BuildEventSubtypeFilter())
+    actual_expression = str(bit9_syncing.BuildEventSubtypeFilter())
     self.assertEqual(expected_expression, actual_expression)
 
 
 class GetCertificateTest(basetest.UpvoteTestCase):
 
-  @mock.patch.object(cron.api.Certificate, 'get', side_effect=Exception)
+  @mock.patch.object(bit9_syncing.api.Certificate, 'get', side_effect=Exception)
   def testApiError(self, mock_get):
 
     cert_id = 12345
-    memcache_key = cron._CERT_MEMCACHE_KEY % cert_id
+    memcache_key = bit9_syncing._CERT_MEMCACHE_KEY % cert_id
     self.assertIsNone(memcache.get(memcache_key))
 
     with self.assertRaises(Exception):
-      cron._GetCertificate(cert_id)
+      bit9_syncing._GetCertificate(cert_id)
 
     self.assertIsNone(memcache.get(memcache_key))
 
-  @mock.patch.object(cron.api.Certificate, 'get')
+  @mock.patch.object(bit9_syncing.api.Certificate, 'get')
   def testMalformed_SuccessfulRetry(self, mock_get):
 
     bad_cert = bit9_test_utils.CreateCertificate(
@@ -212,10 +213,10 @@ class GetCertificateTest(basetest.UpvoteTestCase):
     mock_get.side_effect = [bad_cert, good_cert]
 
     cert_id = 12345
-    memcache_key = cron._CERT_MEMCACHE_KEY % cert_id
+    memcache_key = bit9_syncing._CERT_MEMCACHE_KEY % cert_id
     self.assertIsNone(memcache.get(memcache_key))
 
-    actual_cert = cron._GetCertificate(cert_id)
+    actual_cert = bit9_syncing._GetCertificate(cert_id)
 
     self.assertEqual(good_cert, actual_cert)
     self.assertEqual(2, mock_get.call_count)
@@ -224,23 +225,23 @@ class GetCertificateTest(basetest.UpvoteTestCase):
     cached_cert = memcache.get(memcache_key)
     self.assertEqual(good_cert, cached_cert)
 
-  @mock.patch.object(cron.api.Certificate, 'get')
+  @mock.patch.object(bit9_syncing.api.Certificate, 'get')
   def testMalformed_UnsuccessfulRetries(self, mock_get):
 
     bad_cert = bit9_test_utils.CreateCertificate(
         thumbprint=None, valid_to=None)
-    mock_get.side_effect = [bad_cert] * cron._GET_CERT_ATTEMPTS
+    mock_get.side_effect = [bad_cert] * bit9_syncing._GET_CERT_ATTEMPTS
 
     cert_id = 12345
-    memcache_key = cron._CERT_MEMCACHE_KEY % cert_id
+    memcache_key = bit9_syncing._CERT_MEMCACHE_KEY % cert_id
     self.assertIsNone(memcache.get(memcache_key))
 
-    with self.assertRaises(cron.MalformedCertificate):
-      cron._GetCertificate(cert_id)
+    with self.assertRaises(bit9_syncing.MalformedCertificate):
+      bit9_syncing._GetCertificate(cert_id)
 
     self.assertIsNone(memcache.get(memcache_key))
 
-  @mock.patch.object(cron.api.Certificate, 'get')
+  @mock.patch.object(bit9_syncing.api.Certificate, 'get')
   def testSuccess(self, mock_get):
 
     expected_cert = bit9_test_utils.CreateCertificate()
@@ -248,11 +249,11 @@ class GetCertificateTest(basetest.UpvoteTestCase):
 
     # The key shouldn't initially be in memcache.
     cert_id = 12345
-    memcache_key = cron._CERT_MEMCACHE_KEY % cert_id
+    memcache_key = bit9_syncing._CERT_MEMCACHE_KEY % cert_id
     self.assertIsNone(memcache.get(memcache_key))
 
     # The first call should actually trigger an API query.
-    actual_cert = cron._GetCertificate(cert_id)
+    actual_cert = bit9_syncing._GetCertificate(cert_id)
     self.assertEqual(expected_cert, actual_cert)
     self.assertEqual(1, mock_get.call_count)
     mock_get.reset_mock()
@@ -262,14 +263,14 @@ class GetCertificateTest(basetest.UpvoteTestCase):
     self.assertEqual(expected_cert, cached_cert)
 
     # Additional calls shouldn't hit the API.
-    actual_cert = cron._GetCertificate(cert_id)
+    actual_cert = bit9_syncing._GetCertificate(cert_id)
     self.assertEqual(expected_cert, actual_cert)
     self.assertEqual(0, mock_get.call_count)
 
 
 class GetSigningChainTest(basetest.UpvoteTestCase):
 
-  @mock.patch.object(cron, '_GetCertificate')
+  @mock.patch.object(bit9_syncing, '_GetCertificate')
   def testSuccess(self, mock_get_certificate):
 
     cert_root = bit9_test_utils.CreateCertificate()
@@ -281,7 +282,7 @@ class GetSigningChainTest(basetest.UpvoteTestCase):
     expected = [cert_leaf, cert_intermediate, cert_root]
     mock_get_certificate.side_effect = expected
 
-    actual = cron._GetSigningChain(cert_leaf.id)
+    actual = bit9_syncing._GetSigningChain(cert_leaf.id)
 
     self.assertListEqual(expected, actual)
 
@@ -290,7 +291,7 @@ class GetEventsTest(SyncTestCase):
 
   def setUp(self):
     super(GetEventsTest, self).setUp()
-    self.Patch(cron.monitoring, 'events_skipped')
+    self.Patch(bit9_syncing.monitoring, 'events_skipped')
 
   def testFileCatalogMissing(self):
 
@@ -303,9 +304,9 @@ class GetEventsTest(SyncTestCase):
 
     self._AppendMockApiResults(event, signing_chain)
 
-    results = cron.GetEvents(0)
+    results = bit9_syncing.GetEvents(0)
     self.assertEqual(0, len(results))
-    self.assertTrue(cron.monitoring.events_skipped.Increment.called)
+    self.assertTrue(bit9_syncing.monitoring.events_skipped.Increment.called)
 
   def testFileCatalogMalformed(self):
 
@@ -322,9 +323,9 @@ class GetEventsTest(SyncTestCase):
 
     self._AppendMockApiResults(event, signing_chain)
 
-    results = cron.GetEvents(0)
+    results = bit9_syncing.GetEvents(0)
     self.assertEqual(0, len(results))
-    self.assertTrue(cron.monitoring.events_skipped.Increment.called)
+    self.assertTrue(bit9_syncing.monitoring.events_skipped.Increment.called)
 
   def testComputerMissing(self):
 
@@ -339,11 +340,11 @@ class GetEventsTest(SyncTestCase):
 
     self._AppendMockApiResults(event, signing_chain)
 
-    results = cron.GetEvents(0)
+    results = bit9_syncing.GetEvents(0)
     self.assertEqual(0, len(results))
-    self.assertTrue(cron.monitoring.events_skipped.Increment.called)
+    self.assertTrue(bit9_syncing.monitoring.events_skipped.Increment.called)
 
-  @mock.patch.object(cron.monitoring, 'events_skipped')
+  @mock.patch.object(bit9_syncing.monitoring, 'events_skipped')
   def testDuplicateEventsFromHost(self, mock_events_skipped):
 
     events, certs = _CreateEventsAndCerts(
@@ -355,14 +356,14 @@ class GetEventsTest(SyncTestCase):
 
     self._AppendMockApiResults(events, *certs)
 
-    results = cron.GetEvents(0)
+    results = bit9_syncing.GetEvents(0)
     self.assertEqual(1, len(results))
     self.assertEqual(expected_event_id, results[0][0].id)
     self.assertEqual(expected_cert_id, results[0][1][0].id)
 
     self.assertEqual(99, mock_events_skipped.Increment.call_count)
 
-  @mock.patch.object(cron, '_GetSigningChain')
+  @mock.patch.object(bit9_syncing, '_GetSigningChain')
   def testSigningChainException(self, mock_get_signing_chain):
 
     # Create a properly-formed event that will be returned.
@@ -404,11 +405,12 @@ class GetEventsTest(SyncTestCase):
 
     self._AppendMockApiResults([event_1, event_2, event_3], cert_3, cert_1)
     mock_get_signing_chain.side_effect = [
-        signing_chain_3, cron.MalformedCertificate, signing_chain_1]
+        signing_chain_3, bit9_syncing.MalformedCertificate, signing_chain_1
+    ]
 
-    results = cron.GetEvents(0)
+    results = bit9_syncing.GetEvents(0)
     self.assertEqual(2, len(results))
-    self.assertTrue(cron.monitoring.events_skipped.Increment.called)
+    self.assertTrue(bit9_syncing.monitoring.events_skipped.Increment.called)
 
     actual_event_1, actual_signing_chain_1 = results[0]
     self.assertEqual(1, len(actual_signing_chain_1))
@@ -420,7 +422,7 @@ class GetEventsTest(SyncTestCase):
     self.assertEqual(303, actual_event_3.id)
     self.assertEqual(301, actual_signing_chain_3[0].id)
 
-  @mock.patch.object(cron, '_GetSigningChain')
+  @mock.patch.object(bit9_syncing, '_GetSigningChain')
   def testOtherException(self, mock_get_signing_chain):
 
     # Create a properly-formed event that will be returned.
@@ -464,9 +466,9 @@ class GetEventsTest(SyncTestCase):
     mock_get_signing_chain.side_effect = [
         signing_chain_3, Exception, signing_chain_1]
 
-    results = cron.GetEvents(0)
+    results = bit9_syncing.GetEvents(0)
     self.assertEqual(2, len(results))
-    self.assertTrue(cron.monitoring.events_skipped.Increment.called)
+    self.assertTrue(bit9_syncing.monitoring.events_skipped.Increment.called)
 
     actual_event_1, actual_signing_chain_1 = results[0]
     self.assertEqual(1, len(actual_signing_chain_1))
@@ -505,7 +507,7 @@ class GetEventsTest(SyncTestCase):
 
     self._AppendMockApiResults([event_1, event_2], cert_2, cert_1)
 
-    results = cron.GetEvents(0)
+    results = bit9_syncing.GetEvents(0)
     self.assertEqual(2, len(results))
     self.assertListEqual([103, 203], [e.id for e, _ in results])
     self.assertListEqual(
@@ -525,10 +527,10 @@ class PullTest(SyncTestCase):
     self._AppendMockApiResults([event_1], cert_1, [event_2], cert_2)
     self.Patch(time_utils, 'TimeRemains', side_effect=[True, True, False])
 
-    cron.Pull(batch_size=1)
+    bit9_syncing.Pull(batch_size=1)
 
-    events = (cron._UnsyncedEvent.query()
-              .order(cron._UnsyncedEvent.bit9_id)
+    events = (bit9_syncing._UnsyncedEvent.query()
+              .order(bit9_syncing._UnsyncedEvent.bit9_id)
               .fetch())
     self.assertEqual(2, len(events))
     self.assertEqual(event_1._obj_dict, events[0].event)
@@ -546,9 +548,10 @@ class PullTest(SyncTestCase):
 
     self.Patch(time_utils, 'TimeRemains', side_effect=[True, True, True, False])
 
-    cron.Pull(batch_size=events_per_batch)
+    bit9_syncing.Pull(batch_size=events_per_batch)
 
-    self.assertEntityCount(cron._UnsyncedEvent, batch_count * events_per_batch)
+    self.assertEntityCount(
+        bit9_syncing._UnsyncedEvent, batch_count * events_per_batch)
     self.assertEqual(
         batch_count, self.mock_events_pulled.IncrementBy.call_count)
 
@@ -562,10 +565,10 @@ class PullTest(SyncTestCase):
     self._AppendMockApiResults([event, broken_event], cert)
     self.Patch(time_utils, 'TimeRemains', side_effect=[True, True, False])
 
-    cron.Pull()
+    bit9_syncing.Pull()
 
-    events = (cron._UnsyncedEvent.query()
-              .order(cron._UnsyncedEvent.bit9_id)
+    events = (bit9_syncing._UnsyncedEvent.query()
+              .order(bit9_syncing._UnsyncedEvent.bit9_id)
               .fetch())
     self.assertEqual(1, len(events))
     self.assertEqual(event._obj_dict, events[0].event)
@@ -577,7 +580,7 @@ class DispatchTest(SyncTestCase):
     expected_host_count = 5
     expected_host_ids = _CreateUnsyncedEvents(host_count=expected_host_count)
 
-    cron.Dispatch()
+    bit9_syncing.Dispatch()
 
     # Verify that a deferred task was created for each unique host_id.
     self.assertTaskCount(
@@ -596,7 +599,8 @@ class ProcessTest(SyncTestCase):
     self.mock_lock.__enter__ = mock.Mock(return_value=self.mock_lock)
     self.mock_lock.__exit__ = mock.Mock()
     self.Patch(
-        cron.datastore_locks, 'DatastoreLock', return_value=self.mock_lock)
+        bit9_syncing.datastore_locks, 'DatastoreLock',
+        return_value=self.mock_lock)
 
     self.mock_events_processed = self.Patch(monitoring, 'events_processed')
 
@@ -604,16 +608,17 @@ class ProcessTest(SyncTestCase):
 
   def testInsertsCertificateRow(self):
     event, cert = _CreateEventAndCert()
-    cron._UnsyncedEvent.Generate(event, [cert]).put()
+    bit9_syncing._UnsyncedEvent.Generate(event, [cert]).put()
 
     # Patch out the all methods except _PersistBit9Certificates.
     methods = [
         '_PersistBit9Binary', '_PersistBanNote',
         '_PersistBit9Host', '_PersistBit9Events']
     for method in methods:
-      self.Patch(cron, method, return_value=datastore_utils.GetNoOpFuture())
+      self.Patch(
+          bit9_syncing, method, return_value=datastore_utils.GetNoOpFuture())
 
-    cron.Process(event.computer_id)
+    bit9_syncing.Process(event.computer_id)
 
     # Should be 1 Task for the CertificateRow caused by the event.
     self.assertBigQueryInsertions([constants.BIGQUERY_TABLE.CERTIFICATE])
@@ -627,9 +632,10 @@ class ProcessTest(SyncTestCase):
         '_PersistBit9Certificates', '_PersistBit9Binary',
         '_PersistBanNote', '_PersistBit9Host']
     for method in methods:
-      self.Patch(cron, method, return_value=datastore_utils.GetNoOpFuture())
+      self.Patch(
+          bit9_syncing, method, return_value=datastore_utils.GetNoOpFuture())
 
-    cron.Process(host_id)
+    bit9_syncing.Process(host_id)
 
     # Should be 3 ExecutionRows since 3 Unsynced Events were created.
     self.assertBigQueryInsertions(
@@ -645,20 +651,22 @@ class ProcessTest(SyncTestCase):
         '_PersistBit9Host', '_PersistBit9Events'
     ]
     for method in methods:
-      self.Patch(cron, method, return_value=datastore_utils.GetNoOpFuture())
+      self.Patch(
+          bit9_syncing, method, return_value=datastore_utils.GetNoOpFuture())
 
-    cron.Process(host_id)
+    bit9_syncing.Process(host_id)
 
     # Verify all usage of the DatastoreLock.
     self.assertTrue(self.mock_lock.__enter__.called)
     self.assertTrue(self.mock_lock.__exit__.called)
 
     # Verify everything was persisted.
-    self.assertEqual(event_count, cron._PersistBit9Certificates.call_count)
-    self.assertEqual(event_count, cron._PersistBit9Binary.call_count)
-    self.assertEqual(event_count, cron._PersistBanNote.call_count)
-    self.assertEqual(event_count, cron._PersistBit9Host.call_count)
-    self.assertEqual(event_count, cron._PersistBit9Events.call_count)
+    self.assertEqual(
+        event_count, bit9_syncing._PersistBit9Certificates.call_count)
+    self.assertEqual(event_count, bit9_syncing._PersistBit9Binary.call_count)
+    self.assertEqual(event_count, bit9_syncing._PersistBanNote.call_count)
+    self.assertEqual(event_count, bit9_syncing._PersistBit9Host.call_count)
+    self.assertEqual(event_count, bit9_syncing._PersistBit9Events.call_count)
 
     self.assertEqual(
         event_count, self.mock_events_processed.Increment.call_count)
@@ -670,27 +678,28 @@ class ProcessTest(SyncTestCase):
         '_PersistBit9Host', '_PersistBit9Events'
     ]
     for method in methods:
-      self.Patch(cron, method, return_value=datastore_utils.GetNoOpFuture())
+      self.Patch(
+          bit9_syncing, method, return_value=datastore_utils.GetNoOpFuture())
 
-    cron.Process(12345)
+    bit9_syncing.Process(12345)
 
     # Verify all usage of the DatastoreLock.
     self.assertTrue(self.mock_lock.__enter__.called)
     self.assertTrue(self.mock_lock.__exit__.called)
 
     # Verify everything was persisted.
-    self.assertEqual(0, cron._PersistBit9Certificates.call_count)
-    self.assertEqual(0, cron._PersistBit9Binary.call_count)
-    self.assertEqual(0, cron._PersistBanNote.call_count)
-    self.assertEqual(0, cron._PersistBit9Host.call_count)
-    self.assertEqual(0, cron._PersistBit9Events.call_count)
+    self.assertEqual(0, bit9_syncing._PersistBit9Certificates.call_count)
+    self.assertEqual(0, bit9_syncing._PersistBit9Binary.call_count)
+    self.assertEqual(0, bit9_syncing._PersistBanNote.call_count)
+    self.assertEqual(0, bit9_syncing._PersistBit9Host.call_count)
+    self.assertEqual(0, bit9_syncing._PersistBit9Events.call_count)
 
     self.assertEqual(0, self.mock_events_processed.Increment.call_count)
 
   def testAcquireLockError(self):
     self.mock_lock.__enter__.side_effect = datastore_locks.AcquireLockError()
 
-    cron.Process(12345)
+    bit9_syncing.Process(12345)
 
     # Verify all usage of the DatastoreLock.
     self.assertTrue(self.mock_lock.__enter__.called)
@@ -704,7 +713,7 @@ class PersistBit9CertificatesTest(basetest.UpvoteTestCase):
 
   def testNoSigningChain(self):
     self.assertEntityCount(bit9_models.Bit9Certificate, 0)
-    cron._PersistBit9Certificates([]).wait()
+    bit9_syncing._PersistBit9Certificates([]).wait()
     self.assertEntityCount(bit9_models.Bit9Certificate, 0)
 
   def testDupeCerts(self):
@@ -717,7 +726,7 @@ class PersistBit9CertificatesTest(basetest.UpvoteTestCase):
     bit9_test_utils.LinkSigningChain(*signing_chain)
 
     self.assertEntityCount(bit9_models.Bit9Certificate, 3)
-    cron._PersistBit9Certificates(signing_chain).wait()
+    bit9_syncing._PersistBit9Certificates(signing_chain).wait()
     self.assertEntityCount(bit9_models.Bit9Certificate, 3)
 
   def testNewCerts(self):
@@ -730,7 +739,7 @@ class PersistBit9CertificatesTest(basetest.UpvoteTestCase):
     bit9_test_utils.LinkSigningChain(*signing_chain)
 
     self.assertEntityCount(bit9_models.Bit9Certificate, 3)
-    cron._PersistBit9Certificates(signing_chain).wait()
+    bit9_syncing._PersistBit9Certificates(signing_chain).wait()
     self.assertEntityCount(bit9_models.Bit9Certificate, 7)
 
     self.assertBigQueryInsertions(
@@ -747,10 +756,10 @@ class GetCertKeyTest(basetest.UpvoteTestCase):
 
     expected_key = ndb.Key(
         bit9_models.Bit9Certificate, signing_chain[0].thumbprint)
-    self.assertEqual(expected_key, cron._GetCertKey(signing_chain))
+    self.assertEqual(expected_key, bit9_syncing._GetCertKey(signing_chain))
 
   def testWithoutSigningChain(self):
-    self.assertIsNone(cron._GetCertKey([]))
+    self.assertIsNone(bit9_syncing._GetCertKey([]))
 
 
 class PersistBit9BinaryTest(basetest.UpvoteTestCase):
@@ -766,7 +775,7 @@ class PersistBit9BinaryTest(basetest.UpvoteTestCase):
 
     self.assertEntityCount(bit9_models.Bit9Binary, 0)
 
-    changed = cron._PersistBit9Binary(
+    changed = bit9_syncing._PersistBit9Binary(
         event, file_catalog, [cert], datetime.datetime.utcnow()).get_result()
 
     self.assertTrue(changed)
@@ -787,7 +796,7 @@ class PersistBit9BinaryTest(basetest.UpvoteTestCase):
     self.assertEntityCount(bit9_models.Bit9Binary, 0)
     self.assertEntityCount(bit9_models.Bit9Rule, 0)
 
-    changed = cron._PersistBit9Binary(
+    changed = bit9_syncing._PersistBit9Binary(
         event, file_catalog, [cert], datetime.datetime.utcnow()).get_result()
 
     self.assertTrue(changed)
@@ -815,7 +824,7 @@ class PersistBit9BinaryTest(basetest.UpvoteTestCase):
     event, cert = _CreateEventAndCert(file_catalog_kwargs=file_catalog_kwargs)
     file_catalog = event.get_expand(api.Event.file_catalog_id)
 
-    changed = cron._PersistBit9Binary(
+    changed = bit9_syncing._PersistBit9Binary(
         event, file_catalog, [cert], datetime.datetime.utcnow()).get_result()
 
     self.assertTrue(changed)
@@ -833,7 +842,7 @@ class PersistBit9BinaryTest(basetest.UpvoteTestCase):
     event, cert = _CreateEventAndCert(file_catalog_kwargs=file_catalog_kwargs)
     file_catalog = event.get_expand(api.Event.file_catalog_id)
 
-    changed = cron._PersistBit9Binary(
+    changed = bit9_syncing._PersistBit9Binary(
         event, file_catalog, [cert], datetime.datetime.utcnow()).get_result()
 
     self.assertTrue(changed)
@@ -853,7 +862,7 @@ class PersistBit9BinaryTest(basetest.UpvoteTestCase):
         event_kwargs=event_kwargs, file_catalog_kwargs=file_catalog_kwargs)
     file_catalog = event.get_expand(api.Event.file_catalog_id)
 
-    changed = cron._PersistBit9Binary(
+    changed = bit9_syncing._PersistBit9Binary(
         event, file_catalog, [cert], datetime.datetime.utcnow()).get_result()
 
     self.assertTrue(changed)
@@ -879,7 +888,7 @@ class PersistBit9BinaryTest(basetest.UpvoteTestCase):
     event, cert = _CreateEventAndCert(file_catalog_kwargs=file_catalog_kwargs)
     file_catalog = event.get_expand(api.Event.file_catalog_id)
 
-    changed = cron._PersistBit9Binary(
+    changed = bit9_syncing._PersistBit9Binary(
         event, file_catalog, [cert], datetime.datetime.utcnow()).get_result()
 
     self.assertFalse(changed)
@@ -903,7 +912,7 @@ class PersistBit9BinaryTest(basetest.UpvoteTestCase):
     event, cert = _CreateEventAndCert(file_catalog_kwargs=file_catalog_kwargs)
     file_catalog = event.get_expand(api.Event.file_catalog_id)
 
-    changed = cron._PersistBit9Binary(
+    changed = bit9_syncing._PersistBit9Binary(
         event, file_catalog, [cert], datetime.datetime.utcnow()).get_result()
 
     self.assertTrue(changed)
@@ -921,7 +930,7 @@ class PersistBit9BinaryTest(basetest.UpvoteTestCase):
     event, cert = _CreateEventAndCert(file_catalog_kwargs=file_catalog_kwargs)
     file_catalog = event.get_expand(api.Event.file_catalog_id)
 
-    changed = cron._PersistBit9Binary(
+    changed = bit9_syncing._PersistBit9Binary(
         event, file_catalog, [cert], datetime.datetime.utcnow()).get_result()
 
     self.assertFalse(changed)
@@ -942,7 +951,7 @@ class PersistBanNoteTest(basetest.UpvoteTestCase):
         publisher_state=bit9_constants.APPROVAL_STATE.APPROVED)
 
     self.assertEntityCount(base_models.Note, 0)
-    cron._PersistBanNote(file_catalog).wait()
+    bit9_syncing._PersistBanNote(file_catalog).wait()
     self.assertEntityCount(base_models.Note, 0)
 
   def testNewBan(self):
@@ -957,7 +966,7 @@ class PersistBanNoteTest(basetest.UpvoteTestCase):
         publisher_state=bit9_constants.APPROVAL_STATE.APPROVED)
 
     self.assertEntityCount(base_models.Note, 0)
-    cron._PersistBanNote(file_catalog).wait()
+    bit9_syncing._PersistBanNote(file_catalog).wait()
     self.assertEntityCount(base_models.Note, 1)
 
   def testDupeBan(self):
@@ -971,9 +980,9 @@ class PersistBanNoteTest(basetest.UpvoteTestCase):
         publisher_state=bit9_constants.APPROVAL_STATE.APPROVED)
 
     self.assertEntityCount(base_models.Note, 0)
-    cron._PersistBanNote(file_catalog).wait()
+    bit9_syncing._PersistBanNote(file_catalog).wait()
     self.assertEntityCount(base_models.Note, 1)
-    cron._PersistBanNote(file_catalog).wait()
+    bit9_syncing._PersistBanNote(file_catalog).wait()
     self.assertEntityCount(base_models.Note, 1)
 
 
@@ -1013,7 +1022,7 @@ class CopyLocalRulesTest(basetest.UpvoteTestCase):
 
     self.assertNoBigQueryInsertions()
 
-    cron._CopyLocalRules(user.key, host_3.key.id()).get_result()
+    bit9_syncing._CopyLocalRules(user.key, host_3.key.id()).get_result()
 
     # Verify all the rule counts again.
     self.assertEntityCount(bit9_models.Bit9Rule, binary_count * 3)
@@ -1046,7 +1055,7 @@ class PersistBit9HostTest(basetest.UpvoteTestCase):
 
     self.assertEntityCount(bit9_models.Bit9Host, 0)
 
-    cron._PersistBit9Host(host, occurred_dt).wait()
+    bit9_syncing._PersistBit9Host(host, occurred_dt).wait()
 
     self.assertEntityCount(bit9_models.Bit9Host, 1)
     self.assertBigQueryInsertions(
@@ -1067,7 +1076,7 @@ class PersistBit9HostTest(basetest.UpvoteTestCase):
         policy_id=100,
         users='{0}\\{1},{0}\\{2}'.format(settings.AD_DOMAIN, *users))
 
-    cron._PersistBit9Host(host, now_dt).wait()
+    bit9_syncing._PersistBit9Host(host, now_dt).wait()
 
     bit9_host = bit9_models.Bit9Host.get_by_id('12345')
     self.assertEqual(now_dt, bit9_host.last_event_dt)
@@ -1088,7 +1097,7 @@ class PersistBit9HostTest(basetest.UpvoteTestCase):
         users='{0}\\{1},{0}\\{2}'.format(settings.AD_DOMAIN, *users))
     occurred_dt = datetime.datetime.utcnow()
 
-    cron._PersistBit9Host(host, occurred_dt).wait()
+    bit9_syncing._PersistBit9Host(host, occurred_dt).wait()
 
     bit9_host = bit9_models.Bit9Host.get_by_id('12345')
     self.assertEqual(bit9_utils.ExpandHostname('hostname2'), bit9_host.hostname)
@@ -1107,7 +1116,7 @@ class PersistBit9HostTest(basetest.UpvoteTestCase):
         users='{0}\\{1},{0}\\{2}'.format(settings.AD_DOMAIN, *users))
     occurred_dt = datetime.datetime.utcnow()
 
-    cron._PersistBit9Host(host, occurred_dt).wait()
+    bit9_syncing._PersistBit9Host(host, occurred_dt).wait()
 
     bit9_host = bit9_models.Bit9Host.get_by_id('11111')
     new_policy_key = ndb.Key(bit9_models.Bit9Policy, '33333')
@@ -1128,7 +1137,7 @@ class PersistBit9HostTest(basetest.UpvoteTestCase):
         users='{0}\\{1},{0}\\{2}'.format(settings.AD_DOMAIN, *new_users))
     occurred_dt = datetime.datetime.utcnow()
 
-    cron._PersistBit9Host(host, occurred_dt).wait()
+    bit9_syncing._PersistBit9Host(host, occurred_dt).wait()
 
     # Verify that the users were updated in Datastore.
     host = bit9_models.Bit9Host.get_by_id('12345')
@@ -1151,7 +1160,7 @@ class PersistBit9HostTest(basetest.UpvoteTestCase):
         users=r'Window Manager\DWM-999')
     occurred_dt = datetime.datetime.utcnow()
 
-    cron._PersistBit9Host(host, occurred_dt).wait()
+    bit9_syncing._PersistBit9Host(host, occurred_dt).wait()
 
     # Verify that the user didn't get updated.
     host = bit9_models.Bit9Host.get_by_id('12345')
@@ -1172,7 +1181,7 @@ class PersistBit9HostTest(basetest.UpvoteTestCase):
         id=12345, policy_id=22222, users='')
     occurred_dt = datetime.datetime.utcnow()
 
-    cron._PersistBit9Host(host, occurred_dt).wait()
+    bit9_syncing._PersistBit9Host(host, occurred_dt).wait()
 
     # Verify that the users weren't updated in Datastore.
     host = bit9_models.Bit9Host.get_by_id('12345')
@@ -1194,7 +1203,8 @@ class CheckAndResolveAnomalousBlockTest(basetest.UpvoteTestCase):
         is_fulfilled=True,
         host_id='12345')
 
-    result = cron._CheckAndResolveAnomalousBlock(bit9_binary.key, '12345')
+    result = bit9_syncing._CheckAndResolveAnomalousBlock(
+        bit9_binary.key, '12345')
     self.assertFalse(result)
     self.assertFalse(self.mock_defer.called)
 
@@ -1230,7 +1240,8 @@ class CheckAndResolveAnomalousBlockTest(basetest.UpvoteTestCase):
     # Verify a RuleChangeSet doesn't yet exist.
     self.assertEntityCount(bit9_models.RuleChangeSet, 0)
 
-    result = cron._CheckAndResolveAnomalousBlock(bit9_binary.key, '12345')
+    result = bit9_syncing._CheckAndResolveAnomalousBlock(
+        bit9_binary.key, '12345')
     self.assertTrue(result)
 
     # Verify that all Rules except the most recent have been fulfilled.
@@ -1254,7 +1265,8 @@ class PersistBit9EventsTest(basetest.UpvoteTestCase):
 
   def setUp(self):
     super(PersistBit9EventsTest, self).setUp()
-    self.Patch(cron, '_CheckAndResolveAnomalousBlock', return_value=False)
+    self.Patch(
+        bit9_syncing, '_CheckAndResolveAnomalousBlock', return_value=False)
 
   def testSuccess_ExecutingUser(self):
     event, cert = _CreateEventAndCert()
@@ -1262,7 +1274,7 @@ class PersistBit9EventsTest(basetest.UpvoteTestCase):
     computer = event.get_expand(api.Event.computer_id)
 
     self.assertEntityCount(bit9_models.Bit9Event, 0)
-    cron._PersistBit9Events(
+    bit9_syncing._PersistBit9Events(
         event, file_catalog, computer, [cert]).wait()
     self.assertEntityCount(bit9_models.Bit9Event, 1)
 
@@ -1278,38 +1290,22 @@ class PersistBit9EventsTest(basetest.UpvoteTestCase):
     file_catalog = event.get_expand(api.Event.file_catalog_id)
 
     self.assertEntityCount(bit9_models.Bit9Event, 0)
-    cron._PersistBit9Events(
+    bit9_syncing._PersistBit9Events(
         event, file_catalog, computer, [cert]).wait()
     self.assertEntityCount(bit9_models.Bit9Event, 2)
 
     self.assertBigQueryInsertions([constants.BIGQUERY_TABLE.EXECUTION])
 
 
-class CronTest(basetest.UpvoteTestCase):
+class CommitAllChangeSetsTest(bit9test.Bit9TestCase):
 
-  def setUp(self, **kwargs):
-    super(CronTest, self).setUp(**kwargs)
-    self.Patch(bit9_utils, 'CONTEXT')
-
-  def _PatchApiRequests(self, *results):
-    requests = []
-    for batch in results:
-      if isinstance(batch, list):
-        requests.append([obj.to_raw_dict() for obj in batch])
-      else:
-        requests.append(batch.to_raw_dict())
-    bit9_utils.CONTEXT.ExecuteRequest.side_effect = requests
-
-
-class CommitAllChangeSetsTest(CronTest):
+  ROUTE = '/bit9/commit-pending-change-sets'
 
   def setUp(self):
-    app = webapp2.WSGIApplication([
-        webapp2.Route(
-            '/', handler=cron.CommitAllChangeSets)])
+    app = webapp2.WSGIApplication(routes=[bit9_syncing.ROUTES])
     super(CommitAllChangeSetsTest, self).setUp(wsgi_app=app)
 
-  @mock.patch.object(cron.monitoring, 'pending_changes')
+  @mock.patch.object(bit9_syncing.monitoring, 'pending_changes')
   def testAll(self, mock_metric):
     binary = test_utils.CreateBit9Binary()
     change = test_utils.CreateRuleChangeSet(binary.key)
@@ -1319,7 +1315,7 @@ class CommitAllChangeSetsTest(CronTest):
     unused_change = test_utils.CreateRuleChangeSet(other_binary.key)
     self.assertTrue(real_change.recorded_dt < unused_change.recorded_dt)
 
-    self.testapp.get('/')
+    self.testapp.get(self.ROUTE)
 
     self.assertEqual(2, mock_metric.Set.call_args_list[0][0][0])
     self.assertTaskCount(constants.TASK_QUEUE.BIT9_COMMIT_CHANGE, 2)
@@ -1331,26 +1327,19 @@ class CommitAllChangeSetsTest(CronTest):
 
 
 
-class UpdateBit9PoliciesTest(CronTest):
+class UpdateBit9PoliciesTest(bit9test.Bit9TestCase):
+
+  ROUTE = '/bit9/update-policies'
 
   def setUp(self):
-    app = webapp2.WSGIApplication([('/', cron.UpdateBit9Policies)])
+    app = webapp2.WSGIApplication(routes=[bit9_syncing.ROUTES])
     super(UpdateBit9PoliciesTest, self).setUp(wsgi_app=app)
-
-  def _PatchApiRequests(self, *results):
-    requests = []
-    for batch in results:
-      if isinstance(batch, list):
-        requests.append([obj.to_raw_dict() for obj in batch])
-      else:
-        requests.append(obj.to_raw_dict())
-    bit9_utils.CONTEXT.ExecuteRequest.side_effect = requests
 
   def testGet_CreateNewPolicy(self):
     policy = api.Policy(id=1, name='foo', enforcement_level=20)
-    self._PatchApiRequests([policy])
+    self.PatchApiRequests([policy])
 
-    self.testapp.get('/')
+    self.testapp.get(self.ROUTE)
 
     policies = bit9_models.Bit9Policy.query().fetch()
     self.assertEqual(1, len(policies))
@@ -1376,9 +1365,9 @@ class UpdateBit9PoliciesTest(CronTest):
 
     policy1 = api.Policy(id=1, name='foo', enforcement_level=30)
     policy2 = api.Policy(id=2, name='baz', enforcement_level=20)
-    self._PatchApiRequests([policy1, policy2])
+    self.PatchApiRequests([policy1, policy2])
 
-    self.testapp.get('/')
+    self.testapp.get(self.ROUTE)
 
     self.assertEqual(2, bit9_models.Bit9Policy.query().count())
 
@@ -1402,75 +1391,83 @@ class UpdateBit9PoliciesTest(CronTest):
 
     # Updated to an unknown enforcement level.
     policy = api.Policy(id=1, name='bar', enforcement_level=25)
-    self._PatchApiRequests([policy])
+    self.PatchApiRequests([policy])
 
-    self.testapp.get('/')
+    self.testapp.get(self.ROUTE)
 
     # Policy name should _not_ be updated.
     updated_policy = bit9_models.Bit9Policy.get_by_id('1')
     self.assertEqual('foo', updated_policy.name)
 
 
-class CountEventsToPullTest(CronTest):
+class CountEventsToPullTest(bit9test.Bit9TestCase):
+
+  ROUTE = '/bit9/count-events-to-pull'
 
   def setUp(self):
-    app = webapp2.WSGIApplication([('/', cron.CountEventsToPull)])
+    app = webapp2.WSGIApplication(routes=[bit9_syncing.ROUTES])
     super(CountEventsToPullTest, self).setUp(wsgi_app=app)
 
-  @mock.patch.object(cron.monitoring, 'events_to_pull')
+  @mock.patch.object(bit9_syncing.monitoring, 'events_to_pull')
   def testSuccess(self, mock_metric):
     bit9_utils.CONTEXT.ExecuteRequest.return_value = {'count': 20}
 
-    self.testapp.get('/')
+    self.testapp.get(self.ROUTE)
 
     actual_length = mock_metric.Set.call_args_list[0][0][0]
     self.assertEqual(20, actual_length)
 
 
-class PullEventsTest(CronTest):
+class PullEventsTest(bit9test.Bit9TestCase):
+
+  ROUTE = '/bit9/pull-events'
 
   def setUp(self):
-    app = webapp2.WSGIApplication([('/', cron.PullEvents)])
+    app = webapp2.WSGIApplication(routes=[bit9_syncing.ROUTES])
     super(PullEventsTest, self).setUp(wsgi_app=app)
 
   def testQueueFills(self):
-    for i in xrange(1, cron._PULL_MAX_QUEUE_SIZE + 20):
-      response = self.testapp.get('/')
+    for i in xrange(1, bit9_syncing._PULL_MAX_QUEUE_SIZE + 20):
+      response = self.testapp.get(self.ROUTE)
       self.assertEqual(httplib.OK, response.status_int)
-      expected_queue_size = min(i, cron._PULL_MAX_QUEUE_SIZE)
+      expected_queue_size = min(i, bit9_syncing._PULL_MAX_QUEUE_SIZE)
       self.assertTaskCount(constants.TASK_QUEUE.BIT9_PULL, expected_queue_size)
 
 
-class CountEventsToProcessTest(CronTest):
+class CountEventsToProcessTest(bit9test.Bit9TestCase):
+
+  ROUTE = '/bit9/count-events-to-process'
 
   def setUp(self):
-    app = webapp2.WSGIApplication([('/', cron.CountEventsToProcess)])
+    app = webapp2.WSGIApplication(routes=[bit9_syncing.ROUTES])
     super(CountEventsToProcessTest, self).setUp(wsgi_app=app)
 
-  @mock.patch.object(cron.monitoring, 'events_to_process')
+  @mock.patch.object(bit9_syncing.monitoring, 'events_to_process')
   def testSuccess(self, mock_metric):
     expected_length = 5
     for _ in xrange(expected_length):
-      cron._UnsyncedEvent().put()
+      bit9_syncing._UnsyncedEvent().put()
 
-    response = self.testapp.get('/')
+    response = self.testapp.get(self.ROUTE)
 
     self.assertEqual(httplib.OK, response.status_int)
     actual_length = mock_metric.Set.call_args_list[0][0][0]
     self.assertEqual(expected_length, actual_length)
 
 
-class ProcessEventsTest(CronTest):
+class ProcessEventsTest(bit9test.Bit9TestCase):
+
+  ROUTE = '/bit9/process-events'
 
   def setUp(self):
-    app = webapp2.WSGIApplication([('/', cron.ProcessEvents)])
+    app = webapp2.WSGIApplication(routes=[bit9_syncing.ROUTES])
     super(ProcessEventsTest, self).setUp(wsgi_app=app)
 
   def testQueueFills(self):
-    for i in xrange(1, cron._DISPATCH_MAX_QUEUE_SIZE + 20):
-      response = self.testapp.get('/')
+    for i in xrange(1, bit9_syncing._DISPATCH_MAX_QUEUE_SIZE + 20):
+      response = self.testapp.get(self.ROUTE)
       self.assertEqual(httplib.OK, response.status_int)
-      expected_queue_size = min(i, cron._DISPATCH_MAX_QUEUE_SIZE)
+      expected_queue_size = min(i, bit9_syncing._DISPATCH_MAX_QUEUE_SIZE)
       self.assertTaskCount(
           constants.TASK_QUEUE.BIT9_DISPATCH, expected_queue_size)
 

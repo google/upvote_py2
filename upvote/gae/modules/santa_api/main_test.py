@@ -17,7 +17,7 @@
 from upvote.gae.lib.testing import basetest
 
 
-class RouteTest(basetest.UpvoteTestCase):
+class MainTest(basetest.UpvoteTestCase):
 
   def testImport(self):
     # pylint: disable=g-import-not-at-top, unused-variable

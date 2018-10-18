@@ -51,42 +51,42 @@ cron:
 
 #### END:santa ####
 #### BEGIN:bit9 ####
-# Cron jobs handled by the bit9_api module.
+# Cron jobs that drive Bit9 syncing.
 - description: Sync host policies from Bit9.
-  url: /api/bit9/cron/update-policies
+  url: /cron/bit9/update-policies
   schedule: every 1 hours
-  target: bit9-api
+  target: upvote-app
 
 - description: Attempt to commit any uncommitted/failing change sets.
-  url: /api/bit9/cron/commit-pending-change-sets
+  url: /cron/bit9/commit-pending-change-sets
   schedule: every 5 minutes
-  target: bit9-api
+  target: upvote-app
 
 - description: Counts the number of Bit9 events to be pulled.
-  url: /api/bit9/cron/count-events-to-pull
+  url: /cron/bit9/count-events-to-pull
   schedule: every 1 minutes
   retry_parameters:
     job_retry_limit: 0
-  target: bit9-api
+  target: upvote-app
 
 - description: Pulls events from Bit9.
-  url: /api/bit9/cron/pull-events
+  url: /cron/bit9/pull-events
   schedule: every 1 minutes
   retry_parameters:
     job_retry_limit: 0
-  target: bit9-api
+  target: upvote-app
 
 - description: Counts the number of _UnsyncedEvents to be processed.
-  url: /api/bit9/cron/count-events-to-process
+  url: /cron/bit9/count-events-to-process
   schedule: every 1 minutes
   retry_parameters:
     job_retry_limit: 0
-  target: bit9-api
+  target: upvote-app
 
 - description: Processes _UnsyncedEvents.
-  url: /api/bit9/cron/process-events
+  url: /cron/bit9/process-events
   schedule: every 1 minutes
   retry_parameters:
     job_retry_limit: 0
-  target: bit9-api
+  target: upvote-app
 #### END:bit9 ####

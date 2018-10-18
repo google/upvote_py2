@@ -21,10 +21,10 @@ import webapp2
 from webob import exc
 
 from upvote.gae.lib.testing import basetest
-from upvote.gae.shared.common import handlers
+from upvote.gae.utils import handler_utils
 
 
-class TestHandler(handlers.UpvoteRequestHandler):
+class TestHandler(handler_utils.UpvoteRequestHandler):
 
   def get(self):
     self.response.status_int = httplib.OK
@@ -112,8 +112,8 @@ class UpvoteRequestHandlerTest(basetest.UpvoteTestCase):
     self.assertEqual(1, mock_metric.Increment.call_count)
     self.assertEqual(httplib.FORBIDDEN, mock_metric.Increment.call_args[0][0])
 
-  @mock.patch.object(handlers.UpvoteRequestHandler, 'handle_exception')
-  @mock.patch.object(handlers.UpvoteRequestHandler, 'dispatch')
+  @mock.patch.object(handler_utils.UpvoteRequestHandler, 'handle_exception')
+  @mock.patch.object(handler_utils.UpvoteRequestHandler, 'dispatch')
   def testErrorHandling_UpvoteRequestHandler_WithoutRequestCounter(
       self, mock_dispatch, mock_handle_exception):
 

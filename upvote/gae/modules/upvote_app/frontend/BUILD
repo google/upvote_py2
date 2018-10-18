@@ -1,6 +1,6 @@
 package(default_visibility = ["//upvote"])
 
-load("@io_bazel_rules_closure//closure:defs.bzl", "closure_js_library", "closure_js_binary", "closure_js_test", "closure_css_library", "closure_css_binary")
+load("@io_bazel_rules_closure//closure:defs.bzl", "closure_css_binary", "closure_css_library", "closure_js_binary", "closure_js_library", "closure_js_test")
 
 closure_css_library(
     name = "css_lib",
@@ -38,6 +38,7 @@ closure_js_library(
         ":ui_templates",
         "@io_bazel_rules_closure//closure/library/array",
         "@io_bazel_rules_closure//closure/library/asserts",
+        "@io_bazel_rules_closure//closure/library/dom:safe",
         "@io_bazel_rules_closure//closure/library/uri",
         "@material_steppers",
     ],

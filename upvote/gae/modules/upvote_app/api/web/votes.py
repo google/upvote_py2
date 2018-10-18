@@ -26,10 +26,10 @@ from upvote.gae.datastore import utils as datastore_utils
 from upvote.gae.datastore.models import base as base_models
 from upvote.gae.datastore.models import vote as vote_models
 from upvote.gae.lib.voting import api as voting_api
-from upvote.gae.modules.upvote_app.api import monitoring
 from upvote.gae.modules.upvote_app.api.web import base
-from upvote.gae.shared.common import handlers
+from upvote.gae.modules.upvote_app.api.web import monitoring
 from upvote.gae.shared.common import settings
+from upvote.gae.utils import handler_utils
 from upvote.gae.utils import xsrf_utils
 from upvote.shared import constants
 
@@ -53,7 +53,7 @@ class VoteQueryHandler(base.BaseQueryHandler):
     return monitoring.vote_requests
 
   @base.RequireCapability(constants.PERMISSIONS.VIEW_VOTES)
-  @handlers.RecordRequest
+  @handler_utils.RecordRequest
   def get(self):
     self._Query(callback=_PopulateCandidateId)
 

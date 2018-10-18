@@ -28,9 +28,9 @@ from upvote.gae.datastore.models import bit9 as bit9_models
 from upvote.gae.datastore.models import santa as santa_models
 from upvote.gae.lib.bit9 import change_set
 from upvote.gae.lib.voting import api as voting_api
-from upvote.gae.modules.upvote_app.api import monitoring
 from upvote.gae.modules.upvote_app.api.web import base
-from upvote.gae.shared.common import handlers
+from upvote.gae.modules.upvote_app.api.web import monitoring
+from upvote.gae.utils import handler_utils
 from upvote.gae.utils import xsrf_utils
 from upvote.shared import constants
 
@@ -82,7 +82,7 @@ class BlockableQueryHandler(base.BaseQueryHandler):
   def RequestCounter(self):
     return monitoring.blockable_requests
 
-  @handlers.RecordRequest
+  @handler_utils.RecordRequest
   def get(self, platform, blockable_type):
     normalized_platform = platform.lower()
     normalized_blockable_type = blockable_type.lower()

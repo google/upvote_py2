@@ -379,7 +379,7 @@ class HostExceptionHandlerTest(HostsTest):
     self.PatchEnv(settings.ProdEnv, ENABLE_BIGQUERY_STREAMING=True)
 
   def testCreateHostException_Success(self):
-    params = {'reason': constants.HOST_EXEMPTION_REASON.DEVELOPER_MACOS}
+    params = {'reason': constants.EXEMPTION_REASON.DEVELOPER_MACOS}
     with self.LoggedInUser(user=self.user):
       response = self.testapp.post(
           self.ROUTE % self.santa_host_3.key.id(), params)
@@ -394,7 +394,7 @@ class HostExceptionHandlerTest(HostsTest):
     self.assertEqual(self.santa_host_3.key.id(), ticket.host_id)
     self.assertEqual(self.user.email, ticket.user_id)
     self.assertEqual(
-        constants.HOST_EXEMPTION_REASON.DEVELOPER_MACOS, ticket.reason)
+        constants.EXEMPTION_REASON.DEVELOPER_MACOS, ticket.reason)
     self.assertIsNone(ticket.other_text)
 
     updated_host = self.santa_host_3.key.get()
@@ -404,7 +404,7 @@ class HostExceptionHandlerTest(HostsTest):
 
   def testCreateHostException_ReRequest(self):
 
-    params = {'reason': constants.HOST_EXEMPTION_REASON.DEVELOPER_MACOS}
+    params = {'reason': constants.EXEMPTION_REASON.DEVELOPER_MACOS}
     with self.LoggedInUser(user=self.user):
       response = self.testapp.post(
           self.ROUTE % self.santa_host_3.key.id(), params)
@@ -426,7 +426,7 @@ class HostExceptionHandlerTest(HostsTest):
     host.put()
 
     # Request again.
-    params = {'reason': constants.HOST_EXEMPTION_REASON.DEVELOPER_MACOS}
+    params = {'reason': constants.EXEMPTION_REASON.DEVELOPER_MACOS}
     with self.LoggedInUser(user=self.user):
       response = self.testapp.post(
           self.ROUTE % self.santa_host_3.key.id(), params)
@@ -441,7 +441,7 @@ class HostExceptionHandlerTest(HostsTest):
         constants.SANTA_CLIENT_MODE.MONITOR, host.client_mode)
 
   def testCreateHostException_OtherReason(self):
-    params = {'reason': constants.HOST_EXEMPTION_REASON.OTHER,
+    params = {'reason': constants.EXEMPTION_REASON.OTHER,
               'otherText': 'foo'}
     with self.LoggedInUser(user=self.user):
       self.testapp.post(self.ROUTE % self.santa_host_3.key.id(), params)
@@ -451,7 +451,7 @@ class HostExceptionHandlerTest(HostsTest):
     ])
 
     ticket = tickets.HostExceptionTicket.query().get()
-    self.assertEqual(constants.HOST_EXEMPTION_REASON.OTHER, ticket.reason)
+    self.assertEqual(constants.EXEMPTION_REASON.OTHER, ticket.reason)
     self.assertEqual('foo', ticket.other_text)
 
     updated_host = self.santa_host_3.key.get()
@@ -460,7 +460,7 @@ class HostExceptionHandlerTest(HostsTest):
         constants.SANTA_CLIENT_MODE.MONITOR, updated_host.client_mode)
 
   def testCreateHostException_UnknownHost(self):
-    params = {'reason': constants.HOST_EXEMPTION_REASON.DEVELOPER_MACOS}
+    params = {'reason': constants.EXEMPTION_REASON.DEVELOPER_MACOS}
     with self.LoggedInUser(user=self.user):
       self.testapp.post(
           self.ROUTE % 'NotAHost', params, status=httplib.NOT_FOUND)
@@ -469,7 +469,7 @@ class HostExceptionHandlerTest(HostsTest):
     with self.LoggedInUser(admin=True) as admin:
       self.assertFalse(self.santa_host_3.IsAssociatedWithUser(admin))
 
-      params = {'reason': constants.HOST_EXEMPTION_REASON.DEVELOPER_MACOS}
+      params = {'reason': constants.EXEMPTION_REASON.DEVELOPER_MACOS}
       response = self.testapp.post(
           self.ROUTE % self.santa_host_3.key.id(), params)
 
@@ -483,14 +483,14 @@ class HostExceptionHandlerTest(HostsTest):
   def testCreateHostException_UnownedHost(self):
     superuser = test_utils.CreateUser(
         roles=[constants.USER_ROLE.SUPERUSER])
-    params = {'reason': constants.HOST_EXEMPTION_REASON.DEVELOPER_MACOS}
+    params = {'reason': constants.EXEMPTION_REASON.DEVELOPER_MACOS}
     with self.LoggedInUser(user=superuser):
       self.testapp.post(
           self.ROUTE % self.santa_host_2.key.id(), params,
           status=httplib.FORBIDDEN)
 
   def testCreateHostException_ExistingTicket(self):
-    params = {'reason': constants.HOST_EXEMPTION_REASON.DEVELOPER_MACOS}
+    params = {'reason': constants.EXEMPTION_REASON.DEVELOPER_MACOS}
     with self.LoggedInUser(user=self.user):
       response = self.testapp.post(
           self.ROUTE % self.santa_host_3.key.id(), params)
@@ -514,7 +514,7 @@ class HostExceptionHandlerTest(HostsTest):
           status=httplib.BAD_REQUEST)
 
   def testCreateHostException_NoOtherReason(self):
-    params = {'reason': constants.HOST_EXEMPTION_REASON.OTHER}
+    params = {'reason': constants.EXEMPTION_REASON.OTHER}
     with self.LoggedInUser(user=self.user):
       self.testapp.post(
           self.ROUTE % self.santa_host_3.key.id(), params,

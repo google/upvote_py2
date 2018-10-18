@@ -21,8 +21,8 @@ from google.appengine.ext import ndb
 
 from upvote.gae.datastore import utils as datastore_utils
 from upvote.gae.datastore.models import user as user_models
-from upvote.gae.shared.common import handlers
 from upvote.gae.utils import env_utils
+from upvote.gae.utils import handler_utils
 from upvote.gae.utils import json_utils
 from upvote.gae.utils import string_utils
 from upvote.gae.utils import xsrf_utils
@@ -97,7 +97,7 @@ def RequireCapability(capability):
   return _CheckCapability
 
 
-class BaseHandler(handlers.UpvoteRequestHandler):
+class BaseHandler(handler_utils.UpvoteRequestHandler):
   """Base handler class."""
 
   def initialize(self, request, response):

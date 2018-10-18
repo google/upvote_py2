@@ -25,6 +25,15 @@ py_appengine_library(
 )
 
 py_appengine_library(
+    name = "handler_utils",
+    srcs = ["handler_utils.py"],
+    deps = [
+        ":env_utils",
+        ":json_utils",
+    ],
+)
+
+py_appengine_library(
     name = "iter_utils",
     srcs = ["iter_utils.py"],
 )
@@ -92,6 +101,20 @@ upvote_appengine_test(
         "//upvote/gae/lib/testing:basetest",
         "//upvote/gae/shared/common:settings",
         "//upvote/gae/shared/common:settings_utils",
+    ],
+)
+
+upvote_appengine_test(
+    name = "handler_utils_test",
+    size = "small",
+    srcs = ["handler_utils_test.py"],
+    deps = [
+        ":handler_utils",
+        "//common/testing:basetest",
+        "//external:mock",
+        "//external:webob",
+        "//external:webtest",
+        "//upvote/gae/lib/testing:basetest",
     ],
 )
 

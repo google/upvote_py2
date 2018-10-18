@@ -108,7 +108,7 @@ To enable this feature:
 
 1.  Set `ENABLE_BIGQUERY_STREAMING` to `True` in settings
 2.  `bazel run upvote/gae:monolith_binary.deploy -- ${PROJ_ID} app.yaml
-    santa_api.yaml bit9_api.yaml`
+    santa_api.yaml`
 
 Done! You should start seeing entries at
 "`https://bigquery.cloud.google.com/dataset/<my-app>:gae_streaming`".
@@ -189,13 +189,13 @@ After that configuration is complete, all that's necessary is to redeploy the
 app:
 
 ```shell
-bazel run upvote/gae:monolith_binary.deploy -- ${PROJ_ID} app.yaml bit9_api.yaml
+bazel run upvote/gae:monolith_binary.deploy -- ${PROJ_ID} app.yaml
 ```
 
 ##### Proxy
 
 If your connection to Bit9 requires a proxy, you can set the `HTTPS_PROXY` env
-variable [bit9_api.yaml](../upvote/gae/bit9_api.yaml):
+variable [app.yaml](../upvote/gae/app.yaml):
 
 ```yaml
 env_variables:

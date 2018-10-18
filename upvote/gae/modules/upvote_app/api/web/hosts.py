@@ -30,9 +30,9 @@ from upvote.gae.datastore.models import santa as santa_models
 from upvote.gae.datastore.models import tickets as tickets_models
 from upvote.gae.datastore.models import user as user_models
 from upvote.gae.datastore.models import utils as model_utils
-from upvote.gae.modules.upvote_app.api import monitoring
 from upvote.gae.modules.upvote_app.api.web import base
-from upvote.gae.shared.common import handlers
+from upvote.gae.modules.upvote_app.api.web import monitoring
+from upvote.gae.utils import handler_utils
 from upvote.gae.utils import xsrf_utils
 from upvote.shared import constants
 
@@ -47,7 +47,7 @@ class HostQueryHandler(base.BaseQueryHandler):
     return monitoring.host_requests
 
   @base.RequireCapability(constants.PERMISSIONS.VIEW_OTHER_HOSTS)
-  @handlers.RecordRequest
+  @handler_utils.RecordRequest
   def get(self):
     self._Query()
 
@@ -168,7 +168,7 @@ class HostExceptionHandler(base.BaseHandler):
 
     self.respond_json(ticket)
 
-  @base.RequireCapability(constants.PERMISSIONS.REQUEST_HOST_EXEMPTION)
+  @base.RequireCapability(constants.PERMISSIONS.REQUEST_EXEMPTION)
   @xsrf_utils.RequireToken
   def post(self, host_id):
     host_id = base_models.Host.NormalizeId(host_id)
@@ -193,11 +193,11 @@ class HostExceptionHandler(base.BaseHandler):
     other_text = self.request.get('otherText') or None
     if not reason:
       self.abort(httplib.BAD_REQUEST, explanation='No reason provided')
-    elif reason not in constants.HOST_EXEMPTION_REASON.SET_ALL:
+    elif reason not in constants.EXEMPTION_REASON.SET_ALL:
       self.abort(
           httplib.BAD_REQUEST,
           explanation='Invalid reason provided: %s' % reason)
-    elif reason == constants.HOST_EXEMPTION_REASON.OTHER and not other_text:
+    elif reason == constants.EXEMPTION_REASON.OTHER and not other_text:
       self.abort(
           httplib.BAD_REQUEST,
           explanation='No explanation for "Other" reason provided')

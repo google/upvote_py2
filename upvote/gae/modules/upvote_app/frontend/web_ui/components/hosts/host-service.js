@@ -70,7 +70,7 @@ upvote.hosts.SearchParams;
 
 /**
  * Representations of the valid reasons for requesting a host exception.
- * These should mirror those in shared.constants.HOST_EXEMPTION_REASON
+ * These should mirror those in shared.constants.EXEMPTION_REASON
  * @enum {string}
  * @export
  */

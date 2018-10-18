@@ -18,9 +18,9 @@ import logging
 
 import webapp2
 
-from upvote.gae.modules.upvote_app.api import monitoring
 from upvote.gae.modules.upvote_app.api.web import base
-from upvote.gae.shared.common import handlers
+from upvote.gae.modules.upvote_app.api.web import monitoring
+from upvote.gae.utils import handler_utils
 from upvote.shared import constants
 
 
@@ -32,7 +32,7 @@ class Constant(base.BaseHandler):
     return monitoring.constant_requests
 
   @base.RequireCapability(constants.PERMISSIONS.VIEW_CONSTANTS)
-  @handlers.RecordRequest
+  @handler_utils.RecordRequest
   def get(self, constant):  # pylint: disable=g-bad-name
     """Get handler for single setting.
 

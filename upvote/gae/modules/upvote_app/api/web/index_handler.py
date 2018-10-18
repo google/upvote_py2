@@ -18,11 +18,11 @@ import httplib
 
 from google.appengine.api import users
 
-from upvote.gae.shared.common import handlers
 from upvote.gae.shared.common import template_utils
+from upvote.gae.utils import handler_utils
 
 
-class IndexHandler(handlers.UpvoteRequestHandler):
+class IndexHandler(handler_utils.UpvoteRequestHandler):
   """The handler for the main Angular template."""
 
   class IndexPageVersion(object):
@@ -51,4 +51,3 @@ class IndexHandler(handlers.UpvoteRequestHandler):
 
   def GetUser(self, *args, **kwargs):
     return self._Get(self.IndexPageVersion.USER)
-

@@ -35,16 +35,16 @@ from upvote.gae.modules.santa_api import auth
 from upvote.gae.modules.santa_api import constants as santa_const
 from upvote.gae.modules.santa_api import monitoring
 from upvote.gae.shared.common import big_red
-from upvote.gae.shared.common import handlers
 from upvote.gae.shared.common import settings
 from upvote.gae.shared.common import user_map
+from upvote.gae.utils import handler_utils
 from upvote.gae.utils import xsrf_utils
 from upvote.shared import constants as common_const
 
 _SANTA_ACTION = 'santa_action'
 
 
-class XsrfHandler(handlers.UpvoteRequestHandler):
+class XsrfHandler(handler_utils.UpvoteRequestHandler):
   """Simple handler to provide XSRF tokens to clients."""
 
   def post(self, uuid):
@@ -53,7 +53,7 @@ class XsrfHandler(handlers.UpvoteRequestHandler):
     self.response.set_status(httplib.OK)
 
 
-class BaseSantaApiHandler(handlers.UpvoteRequestHandler):
+class BaseSantaApiHandler(handler_utils.UpvoteRequestHandler):
   """Base class for Santa API handlers.
 
   Before calling the handler method, does the following:
@@ -144,6 +144,8 @@ def _CopyLocalRules(user_key, dest_host_id):
   if src_host is None:
     logging.warning('User %s has no hosts to copy from', username)
     return datastore_utils.GetNoOpFuture()
+  else:
+    logging.info('Copying local rules from %s', src_host.key.id())
 
   # Query for all SantaRules for the given user on the chosen host.
   query = santa_models.SantaRule.query(
@@ -154,6 +156,7 @@ def _CopyLocalRules(user_key, dest_host_id):
   new_rules = []
   for src_rules in datastore_utils.Paginate(query):
     for src_rule in src_rules:
+      logging.info('Copying local rule for %s', src_rule.key.parent().id())
       new_rule = datastore_utils.CopyEntity(
           src_rule, new_parent=src_rule.key.parent(), host_id=dest_host_id,
           user_key=user_key)
@@ -173,7 +176,7 @@ class PreflightHandler(BaseSantaApiHandler):
   def RequestCounter(self):
     return monitoring.preflight_requests
 
-  @handlers.RecordRequest
+  @handler_utils.RecordRequest
   def post(self, uuid):
     futures = []
 
@@ -188,6 +191,7 @@ class PreflightHandler(BaseSantaApiHandler):
     # Create a SantaHost on the first preflight.
     first_preflight = not self.host
     if first_preflight:
+      logging.info('Host %s is syncing for the first time', uuid)
       self.host = santa_models.SantaHost(key=self.host_key)
       self.host.client_mode = settings.SANTA_DEFAULT_CLIENT_MODE
       futures.append(_CopyLocalRules(user.key, uuid))
@@ -787,7 +791,7 @@ class EventUploadHandler(BaseSantaApiHandler):
     raise ndb.Return(bundles_to_upload)
 
   @ndb.toplevel  # ensure all async puts complete before handler returns.
-  @handlers.RecordRequest
+  @handler_utils.RecordRequest
   def post(self, uuid):
     # If the host doesn't have any rules, ignore all the events it generated.
     if not self.host.last_postflight_dt:
@@ -896,7 +900,7 @@ class LogUploadHandler(
     return monitoring.log_upload_requests
 
   @ndb.toplevel  # ensure all async puts complete before handler returns.
-  @handlers.RecordRequest
+  @handler_utils.RecordRequest
   def post(self, uuid):
     upload_files = self.get_uploads('files')
     now = datetime.datetime.utcnow()
@@ -922,7 +926,7 @@ class BinaryUploadHandler(
     return monitoring.binary_upload_requests
 
   @ndb.toplevel
-  @handlers.RecordRequest
+  @handler_utils.RecordRequest
   def post(self, uuid):
     upload_files = self.get_uploads('files')
 
@@ -942,7 +946,7 @@ class RuleDownloadHandler(BaseSantaApiHandler):
   def RequestCounter(self):
     return monitoring.rule_download_requests
 
-  @handlers.RecordRequest
+  @handler_utils.RecordRequest
   def post(self, uuid):
     # Prepare the query
     cursor = self.parsed_json.get(santa_const.RULE_DOWNLOAD.CURSOR)
@@ -1011,7 +1015,7 @@ class PostflightHandler(BaseSantaApiHandler):
   def RequestCounter(self):
     return monitoring.postflight_requests
 
-  @handlers.RecordRequest
+  @handler_utils.RecordRequest
   def post(self, uuid):
     self.host.last_postflight_dt = datetime.datetime.utcnow()
     self.host.rule_sync_dt = self.host.last_preflight_dt

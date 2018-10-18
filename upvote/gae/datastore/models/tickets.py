@@ -46,7 +46,7 @@ class HostExceptionTicket(Ticket):
   """
   user_id = ndb.StringProperty()
   host_id = ndb.StringProperty()
-  reason = ndb.StringProperty(choices=constants.HOST_EXEMPTION_REASON.SET_ALL)
+  reason = ndb.StringProperty(choices=constants.EXEMPTION_REASON.SET_ALL)
   other_text = ndb.StringProperty(indexed=False)
 
   @classmethod

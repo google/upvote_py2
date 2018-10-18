@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Main module including WSGI URL mappings for the main Upvote module."""
+"""WSGIApplication definition for Upvote's web-facing API."""
 
 import webapp2
 
@@ -30,19 +30,18 @@ from upvote.gae.modules.upvote_app.api.web import rules
 from upvote.gae.modules.upvote_app.api.web import settings
 from upvote.gae.modules.upvote_app.api.web import users
 from upvote.gae.modules.upvote_app.api.web import votes
-from upvote.gae.shared.common import handlers
-
+from upvote.gae.utils import handler_utils
 
 _ALL_ROUTES = [
 
     # Warmup
-    webapp2.Route('/_ah/warmup', handler=handlers.AckHandler),
+    webapp2.Route('/_ah/warmup', handler=handler_utils.AckHandler),
 
     # API handlers
     routes.PathPrefixRoute(
         '/api/web',
         [
-            webapp2.Route('/ack', handler=handlers.AckHandler),
+            webapp2.Route('/ack', handler=handler_utils.AckHandler),
             alerts.ROUTES,
             blockables.ROUTES,
             constants.ROUTES,
@@ -70,4 +69,4 @@ _ALL_ROUTES = [
 ]
 
 app = webapp2.WSGIApplication(routes=_ALL_ROUTES)
-handlers.CreateErrorHandlersForApplications([app])
+handler_utils.CreateErrorHandlersForApplications([app])

@@ -20,9 +20,9 @@ import webapp2
 from webapp2_extras import routes
 
 from upvote.gae.datastore.models import user as user_models
-from upvote.gae.modules.upvote_app.api import monitoring
 from upvote.gae.modules.upvote_app.api.web import base
-from upvote.gae.shared.common import handlers
+from upvote.gae.modules.upvote_app.api.web import monitoring
+from upvote.gae.utils import handler_utils
 from upvote.shared import constants
 
 
@@ -37,7 +37,7 @@ class UserQueryHandler(base.BaseQueryHandler):
     return monitoring.user_requests
 
   @base.RequireCapability(constants.PERMISSIONS.VIEW_OTHER_USERS)
-  @handlers.RecordRequest
+  @handler_utils.RecordRequest
   def get(self):
     self._Query()
 

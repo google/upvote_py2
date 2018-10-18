@@ -25,7 +25,6 @@ import mock
 from oauth2client.contrib import xsrfutil
 import webapp2
 from webapp2_extras import routes
-from webob import exc
 import webtest
 
 from google.appengine.api import memcache
@@ -36,9 +35,9 @@ from common.testing import basetest
 
 from upvote.gae.bigquery import tables
 from upvote.gae.datastore import test_utils
-from upvote.gae.shared.common import handlers
 from upvote.gae.shared.common import settings
 from upvote.gae.shared.common import settings_utils
+from upvote.gae.utils import handler_utils
 from upvote.gae.utils import xsrf_utils
 from upvote.shared import constants
 
@@ -80,7 +79,7 @@ class UpvoteTestCase(basetest.AppEngineTestCase):
       for route in _ExtractRoutes(wsgi_app):
         logging.info('Registering route %s', route.template)
 
-      handlers.CreateErrorHandlersForApplications([wsgi_app])
+      handler_utils.CreateErrorHandlersForApplications([wsgi_app])
       self.testapp = webtest.TestApp(wsgi_app)
     else:
       self.testapp = None
@@ -180,25 +179,6 @@ class UpvoteTestCase(basetest.AppEngineTestCase):
 
   def assertMemcacheLacks(self, key, namespace=None):
     self.assertIsNone(memcache.get(key, namespace=namespace))
-
-  def assertRoutesDefined(self, *args):
-    if self.testapp is None:
-      self.fail('No test WSGIApplication defined')
-
-    for url in args:
-      request = self.testapp.app.request_class.blank(url)
-
-      # Attempt to match the URL against a Route. The Webapp2 documentation
-      # seems to indicate that a non-match could be indicated by either a return
-      # value of None, or an HTTPNotFound, hence the weird implementation here.
-      match = None
-      try:
-        match = self.testapp.app.router.default_matcher(request)
-      except exc.HTTPNotFound:
-        pass
-
-      if match is None:
-        self.fail('Route "%s" is not defined' % url)
 
   def assertBigQueryInsertions(self, table_names, reset_mock=True):
     """Verifies that all outstanding BigQuery insertions match expectations.

@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Handler for bit9_api cron jobs."""
+"""Cron handlers responsible for all Bit9 syncing."""
 
 import datetime
 import httplib
@@ -20,6 +20,9 @@ import logging
 import random
 import re
 import time
+
+import webapp2
+from webapp2_extras import routes
 
 from google.appengine.ext import deferred
 from google.appengine.ext import ndb
@@ -38,9 +41,9 @@ from upvote.gae.lib.bit9 import change_set
 from upvote.gae.lib.bit9 import constants as bit9_constants
 from upvote.gae.lib.bit9 import monitoring
 from upvote.gae.lib.bit9 import utils as bit9_utils
-from upvote.gae.shared.common import handlers
 from upvote.gae.shared.common import user_map
 from upvote.gae.taskqueue import utils as taskqueue_utils
+from upvote.gae.utils import handler_utils
 from upvote.gae.utils import time_utils
 from upvote.shared import constants
 
@@ -946,7 +949,7 @@ def _PersistBit9Event(event, key):
   yield event_copy.put_async()
 
 
-class CommitAllChangeSets(handlers.UpvoteRequestHandler):
+class CommitAllChangeSets(handler_utils.UpvoteRequestHandler):
   """Attempt a deferred commit for each Blockable with pending change sets."""
 
   def get(self):
@@ -985,7 +988,7 @@ class CommitAllChangeSets(handlers.UpvoteRequestHandler):
           selected_key, countdown=countdown)
 
 
-class UpdateBit9Policies(handlers.UpvoteRequestHandler):
+class UpdateBit9Policies(handler_utils.UpvoteRequestHandler):
   """Ensures locally cached policies are up-to-date."""
 
   def get(self):
@@ -1028,7 +1031,7 @@ class UpdateBit9Policies(handlers.UpvoteRequestHandler):
       ndb.put_multi(policies_to_update)
 
 
-class CountEventsToPull(handlers.UpvoteRequestHandler):
+class CountEventsToPull(handler_utils.UpvoteRequestHandler):
 
   def get(self):
     queue_length = (
@@ -1040,14 +1043,14 @@ class CountEventsToPull(handlers.UpvoteRequestHandler):
     monitoring.events_to_pull.Set(queue_length)
 
 
-class PullEvents(handlers.UpvoteRequestHandler):
+class PullEvents(handler_utils.UpvoteRequestHandler):
 
   def get(self):
     taskqueue_utils.CappedDefer(
         Pull, _PULL_MAX_QUEUE_SIZE, queue=constants.TASK_QUEUE.BIT9_PULL)
 
 
-class CountEventsToProcess(handlers.UpvoteRequestHandler):
+class CountEventsToProcess(handler_utils.UpvoteRequestHandler):
 
   def get(self):
     events_to_process = _UnsyncedEvent.query().count()  # pylint: disable=protected-access
@@ -1055,9 +1058,19 @@ class CountEventsToProcess(handlers.UpvoteRequestHandler):
     monitoring.events_to_process.Set(events_to_process)
 
 
-class ProcessEvents(handlers.UpvoteRequestHandler):
+class ProcessEvents(handler_utils.UpvoteRequestHandler):
 
   def get(self):
     taskqueue_utils.CappedDefer(
         Dispatch, _DISPATCH_MAX_QUEUE_SIZE,
         queue=constants.TASK_QUEUE.BIT9_DISPATCH)
+
+
+ROUTES = routes.PathPrefixRoute('/bit9', [
+    webapp2.Route('/commit-pending-change-sets', handler=CommitAllChangeSets),
+    webapp2.Route('/update-policies', handler=UpdateBit9Policies),
+    webapp2.Route('/count-events-to-pull', handler=CountEventsToPull),
+    webapp2.Route('/pull-events', handler=PullEvents),
+    webapp2.Route('/count-events-to-process', handler=CountEventsToProcess),
+    webapp2.Route('/process-events', handler=ProcessEvents),
+])

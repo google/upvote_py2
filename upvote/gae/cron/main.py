@@ -18,6 +18,7 @@ import webapp2
 
 from webapp2_extras import routes
 
+from upvote.gae.cron import bit9_syncing
 from upvote.gae.cron import datastore_backup
 from upvote.gae.cron import role_syncing
 
@@ -25,6 +26,7 @@ _ALL_ROUTES = [
     routes.PathPrefixRoute(
         '/cron',
         [
+            bit9_syncing.ROUTES,
             datastore_backup.ROUTES,
             role_syncing.ROUTES
         ]),

@@ -12,29 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Unit tests for routes.py."""
+"""Unit tests for main.py."""
 
 from upvote.gae.lib.testing import basetest
-from upvote.gae.modules.bit9_api import main
 
 
 class MainTest(basetest.UpvoteTestCase):
 
-  def setUp(self):
-    super(MainTest, self).setUp(wsgi_app=main.app)
-
-  def testRoutes(self):
-    self.assertRoutesDefined(
-        '/_ah/warmup',
-
-        '/api/bit9/ack',
-
-        '/api/bit9/cron/commit-pending-change-sets',
-        '/api/bit9/cron/update-policies',
-        '/api/bit9/cron/count-events-to-pull',
-        '/api/bit9/cron/pull-events',
-        '/api/bit9/cron/count-events-to-process',
-        '/api/bit9/cron/process-events')
+  def testImport(self):
+    # pylint: disable=g-import-not-at-top, unused-variable
+    from upvote.gae.modules.upvote_app.api.web import main
+    # pylint: enable=g-import-not-at-top, unused-variable
 
 
 if __name__ == '__main__':

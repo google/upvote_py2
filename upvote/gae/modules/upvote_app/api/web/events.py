@@ -27,10 +27,10 @@ from upvote.gae.datastore.models import bit9 as bit9_models
 from upvote.gae.datastore.models import santa as santa_models
 from upvote.gae.datastore.models import user as user_models
 from upvote.gae.datastore.models import vote as vote_models
-from upvote.gae.modules.upvote_app.api import monitoring
 from upvote.gae.modules.upvote_app.api.web import base
-from upvote.gae.shared.common import handlers
+from upvote.gae.modules.upvote_app.api.web import monitoring
 from upvote.gae.shared.common import user_map
+from upvote.gae.utils import handler_utils
 from upvote.shared import constants
 
 
@@ -119,7 +119,7 @@ class EventQueryHandler(base.BaseQueryHandler):
   def RequestCounter(self):
     return monitoring.event_requests
 
-  @handlers.RecordRequest
+  @handler_utils.RecordRequest
   def get(self):
     # Determine whether Event should be returned with context.
     with_context = self.request.get('withContext').lower() == 'true'

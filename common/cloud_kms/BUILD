@@ -2,12 +2,6 @@ package(default_visibility = ["//visibility:public"])
 
 load("//upvote:builddefs.bzl", "upvote_appengine_test")
 
-# To keep build_cleaner happy.
-py_library(
-    name = "__init__",
-    srcs = ["__init__.py"],
-)
-
 py_library(
     name = "cloud_kms",
     srcs = ["cloud_kms.py"],

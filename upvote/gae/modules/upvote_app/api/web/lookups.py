@@ -24,9 +24,9 @@ from upvote.gae.datastore.models import base as base_models
 from upvote.gae.datastore.models import santa as santa_models
 from upvote.gae.lib.analysis import api as analysis_api
 from upvote.gae.lib.analysis.virustotal import constants as vt_constants
-from upvote.gae.modules.upvote_app.api import monitoring
 from upvote.gae.modules.upvote_app.api.web import base
-from upvote.gae.shared.common import handlers
+from upvote.gae.modules.upvote_app.api.web import monitoring
+from upvote.gae.utils import handler_utils
 
 
 class Lookup(base.BaseHandler):
@@ -36,7 +36,7 @@ class Lookup(base.BaseHandler):
   def RequestCounter(self):
     return monitoring.event_requests
 
-  @handlers.RecordRequest
+  @handler_utils.RecordRequest
   def check_virus_total(self, blockable_id):
     blockable = base_models.Blockable.get_by_id(blockable_id)
     if not blockable:

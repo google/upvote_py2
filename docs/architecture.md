@@ -20,10 +20,6 @@ On App Engine, Upvote is divided into three modules:
 2.  `santa_api`: The sync server API for Santa.
     *   Hosts the Santa API at `/api/santa/...` (defined
         [here](../upvote/gae/modules/santa_api/main.py))
-3.  `bit9_api`: The syncing logic for Bit9.
-    *   Hosts the Bit9 API at `/api/bit9/...` (defined
-        [here](../upvote/gae/modules/bit9_api/routes.py))
-        *   Mostly self-contained in crons so not much interface is exposed.
 
 ![Upvote architecture diagram](images/architecture.png)
 

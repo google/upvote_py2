@@ -41,49 +41,6 @@ class FakeBackup(db.Model):
     return '_AE_Backup_Information'
 
 
-class TestHandler(datastore_backup.BaseHandler):
-
-  def get(self):
-    pass
-
-
-class BaseHandlerTest(basetest.UpvoteTestCase):
-
-  def setUp(self):
-    app = webapp2.WSGIApplication([('/', TestHandler)])
-    super(BaseHandlerTest, self).setUp(wsgi_app=app)
-
-  def testInProd_Cron(self):
-    self.Patch(datastore_backup.env_utils, 'RunningInProd', return_value=True)
-    self.Logout()  # Ensures that get_current_user() returns None.
-    self.testapp.get('/', status=httplib.OK)
-
-  def testInProd_AuthorizedUser(self):
-    self.Patch(datastore_backup.env_utils, 'RunningInProd', return_value=True)
-    with self.LoggedInUser(admin=True):
-      self.testapp.get('/', status=httplib.OK)
-
-  def testInProd_UnauthorizedUser(self):
-    self.Patch(datastore_backup.env_utils, 'RunningInProd', return_value=True)
-    with self.LoggedInUser():
-      self.testapp.get('/', expect_errors=True, status=httplib.FORBIDDEN)
-
-  def testNotInProd_Cron(self):
-    self.Patch(datastore_backup.env_utils, 'RunningInProd', return_value=False)
-    self.Logout()  # Ensures that get_current_user() returns None.
-    self.testapp.get('/', expect_errors=True, status=httplib.FORBIDDEN)
-
-  def testNotInProd_Authorized(self):
-    self.Patch(datastore_backup.env_utils, 'RunningInProd', return_value=False)
-    with self.LoggedInUser(admin=True):
-      self.testapp.get('/', status=httplib.OK)
-
-  def testNotInProd_Unauthorized(self):
-    self.Patch(datastore_backup.env_utils, 'RunningInProd', return_value=False)
-    with self.LoggedInUser():
-      self.testapp.get('/', expect_errors=True, status=httplib.FORBIDDEN)
-
-
 class DatastoreBackupTest(basetest.UpvoteTestCase):
 
   ROUTE = '/datastore/backup'
@@ -97,6 +54,36 @@ class DatastoreBackupTest(basetest.UpvoteTestCase):
     todaystr2 = self.date2.strftime('%Y_%m_%d')
     self.expected_name1 = '%s_%s' % (datastore_backup._BACKUP_PREFIX, todaystr1)
     self.expected_name2 = '%s_%s' % (datastore_backup._BACKUP_PREFIX, todaystr2)
+
+  def testInProd_Cron(self):
+    self.Patch(datastore_backup.env_utils, 'RunningInProd', return_value=True)
+    self.Logout()  # Ensures that get_current_user() returns None.
+    self.testapp.get(self.ROUTE, status=httplib.OK)
+
+  def testInProd_AuthorizedUser(self):
+    self.Patch(datastore_backup.env_utils, 'RunningInProd', return_value=True)
+    with self.LoggedInUser(admin=True):
+      self.testapp.get(self.ROUTE, status=httplib.OK)
+
+  def testInProd_UnauthorizedUser(self):
+    self.Patch(datastore_backup.env_utils, 'RunningInProd', return_value=True)
+    with self.LoggedInUser():
+      self.testapp.get(self.ROUTE, expect_errors=True, status=httplib.FORBIDDEN)
+
+  def testNotInProd_Cron(self):
+    self.Patch(datastore_backup.env_utils, 'RunningInProd', return_value=False)
+    self.Logout()  # Ensures that get_current_user() returns None.
+    self.testapp.get(self.ROUTE, expect_errors=True, status=httplib.FORBIDDEN)
+
+  def testNotInProd_Authorized(self):
+    self.Patch(datastore_backup.env_utils, 'RunningInProd', return_value=False)
+    with self.LoggedInUser(admin=True):
+      self.testapp.get(self.ROUTE, status=httplib.OK)
+
+  def testNotInProd_Unauthorized(self):
+    self.Patch(datastore_backup.env_utils, 'RunningInProd', return_value=False)
+    with self.LoggedInUser():
+      self.testapp.get(self.ROUTE, expect_errors=True, status=httplib.FORBIDDEN)
 
   def testNoDailyBackupExists(self):
     self.assertFalse(datastore_backup._DailyBackupExists())

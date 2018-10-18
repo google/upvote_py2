@@ -18,19 +18,19 @@ import webapp2
 from webapp2_extras import routes
 
 from upvote.gae.modules.santa_api import sync
-from upvote.gae.shared.common import handlers
+from upvote.gae.utils import handler_utils
 
 
 UUID_RE = r'[0-9A-F]{8}-[A-F0-9]{4}-[A-F0-9]{4}-[A-F0-9]{4}-[A-F0-9]{12}'
 
 app = webapp2.WSGIApplication([
     # Warmup
-    webapp2.Route(r'/_ah/warmup', handlers.AckHandler),
+    webapp2.Route(r'/_ah/warmup', handler_utils.AckHandler),
     routes.PathPrefixRoute(
         r'/api/santa',
         [
             # Verifies the module is reachable.
-            webapp2.Route(r'/ack', handlers.AckHandler),
+            webapp2.Route(r'/ack', handler_utils.AckHandler),
 
             # Santa API. All handlers expect a UUID in the URL
             webapp2.Route(r'/xsrf/<:%s>' % UUID_RE, sync.XsrfHandler),
@@ -47,4 +47,4 @@ app = webapp2.WSGIApplication([
         ]),
 ])
 
-handlers.CreateErrorHandlersForApplications([app])
+handler_utils.CreateErrorHandlersForApplications([app])

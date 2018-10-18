@@ -185,6 +185,7 @@ upvote_appengine_test(
         "//upvote/gae/datastore:test_utils",
         "//upvote/gae/datastore/models:bit9",
         "//upvote/gae/lib/testing:basetest",
+        "//upvote/gae/lib/testing:bit9test",
     ],
 )
 

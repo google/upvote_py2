@@ -79,7 +79,7 @@ class ExemptionTest(basetest.UpvoteTestCase):
     host_id = 'valid_host_id'
     actual_key = exemption.Exemption.Insert(
         host_id, datetime.datetime.utcnow(),
-        constants.HOST_EXEMPTION_REASON.DEVELOPER_MACOS)
+        constants.EXEMPTION_REASON.DEVELOPER_MACOS)
 
     expected_key = exemption.Exemption.CreateKey(host_id)
     self.assertEqual(expected_key, actual_key)
@@ -95,7 +95,7 @@ class ExemptionTest(basetest.UpvoteTestCase):
     host_id = 'valid_host_id'
     exemption.Exemption.Insert(
         host_id, datetime.datetime.utcnow(),
-        constants.HOST_EXEMPTION_REASON.DEVELOPER_MACOS)
+        constants.EXEMPTION_REASON.DEVELOPER_MACOS)
 
     self.assertEntityCount(exemption.Exemption, 1)
     self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.EXEMPTION)
@@ -104,7 +104,7 @@ class ExemptionTest(basetest.UpvoteTestCase):
     with self.assertRaises(exemption.AlreadyExists):
       exemption.Exemption.Insert(
           host_id, datetime.datetime.utcnow(),
-          constants.HOST_EXEMPTION_REASON.DEVELOPER_MACOS)
+          constants.EXEMPTION_REASON.DEVELOPER_MACOS)
 
   def testChangeState_InvalidExemption(self):
     exm_key = exemption.Exemption.CreateKey('invalid_host_id')
@@ -117,7 +117,7 @@ class ExemptionTest(basetest.UpvoteTestCase):
     host_id = 'valid_host_id'
     exm_key = exemption.Exemption.Insert(
         host_id, datetime.datetime.utcnow(),
-        constants.HOST_EXEMPTION_REASON.DEVELOPER_MACOS)
+        constants.EXEMPTION_REASON.DEVELOPER_MACOS)
 
     self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.EXEMPTION)
 
@@ -133,7 +133,7 @@ class ExemptionTest(basetest.UpvoteTestCase):
     exm_key = exemption.Exemption.Insert(
         host_id,
         datetime.datetime.utcnow(),
-        constants.HOST_EXEMPTION_REASON.OTHER,
+        constants.EXEMPTION_REASON.OTHER,
         other_text='Test')
 
     self.assertEntityCount(exemption.Exemption, 1)

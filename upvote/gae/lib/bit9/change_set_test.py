@@ -15,13 +15,10 @@
 """Tests for RuleChangeSet commitment."""
 
 import datetime
-import os
 
 import mock
 
 from google.appengine.ext import deferred
-
-from common import context
 
 from absl.testing import absltest
 
@@ -31,6 +28,7 @@ from upvote.gae.lib.bit9 import api
 from upvote.gae.lib.bit9 import change_set
 from upvote.gae.lib.bit9 import constants as bit9_constants
 from upvote.gae.lib.testing import basetest
+from upvote.gae.lib.testing import bit9test
 from upvote.shared import constants
 
 
@@ -80,47 +78,14 @@ class ChangeLocalStatesTest(basetest.UpvoteTestCase):
     self.assertFalse(mock_metric.Record.called)
 
 
-class CommitBlockableChangeSetTest(basetest.UpvoteTestCase):
+class CommitBlockableChangeSetTest(bit9test.Bit9TestCase):
 
   def setUp(self):
     super(CommitBlockableChangeSetTest, self).setUp()
 
-    # Set up a fake Bit9ApiAuth entity in Datastore.
-    os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = os.path.join(
-        absltest.get_default_test_srcdir(),
-        'upvote/gae/lib/bit9',
-        'fake_credentials.json')
-    self.Patch(
-        change_set.bit9_utils.bit9.kms_ndb.EncryptedBlobProperty, '_Encrypt',
-        return_value='blah')
-    self.Patch(
-        change_set.bit9_utils.bit9.kms_ndb.EncryptedBlobProperty, '_Decrypt',
-        return_value='blah')
-    bit9.Bit9ApiAuth.SetInstance(api_key='blah')
-
-    self.mock_ctx = mock.Mock(
-        spec=change_set.bit9_utils.api.Context)
-    self.Patch(
-        change_set.bit9_utils.api, 'Context',
-        return_value=self.mock_ctx)
-
     self.binary = test_utils.CreateBit9Binary(file_catalog_id='1234')
     self.local_rule = test_utils.CreateBit9Rule(self.binary.key, host_id='5678')
     self.global_rule = test_utils.CreateBit9Rule(self.binary.key)
-
-  def tearDown(self):
-    # We have to reset the LazyProxy in utils, otherwise utils.CONTEXT will
-    # cache the mock context and break subsequent tests.
-    context.ResetLazyProxies()
-
-  def _PatchApiRequests(self, *results):
-    requests = []
-    for batch in results:
-      if isinstance(batch, list):
-        requests.append([obj.to_raw_dict() for obj in batch])
-      else:
-        requests.append(batch.to_raw_dict())
-    self.mock_ctx.ExecuteRequest.side_effect = requests
 
   def testWhitelist_LocalRule_Fulfilled(self):
     change = test_utils.CreateRuleChangeSet(
@@ -133,7 +98,7 @@ class CommitBlockableChangeSetTest(basetest.UpvoteTestCase):
         file_catalog_id=int(self.binary.file_catalog_id),
         computer_id=int(self.local_rule.host_id),
         local_state=bit9_constants.APPROVAL_STATE.UNAPPROVED)
-    self._PatchApiRequests([fi], fi)
+    self.PatchApiRequests([fi], fi)
 
     change_set._CommitBlockableChangeSet(self.binary.key)
 
@@ -160,7 +125,7 @@ class CommitBlockableChangeSetTest(basetest.UpvoteTestCase):
         change_type=constants.RULE_POLICY.WHITELIST)
     computer = api.Computer(id=5678, sync_percent=100)
     computer.last_poll_date = datetime.datetime.utcnow()
-    self._PatchApiRequests([], computer)
+    self.PatchApiRequests([], computer)
 
     change_set._CommitBlockableChangeSet(self.binary.key)
 
@@ -194,7 +159,7 @@ class CommitBlockableChangeSetTest(basetest.UpvoteTestCase):
         self.binary.key,
         rule_keys=[self.global_rule.key],
         change_type=constants.RULE_POLICY.WHITELIST)
-    self._PatchApiRequests(api.Computer(id=5678))
+    self.PatchApiRequests(api.Computer(id=5678))
 
     change_set._CommitBlockableChangeSet(self.binary.key)
 
@@ -214,7 +179,7 @@ class CommitBlockableChangeSetTest(basetest.UpvoteTestCase):
         rule_keys=[global_rule.key],
         change_type=constants.RULE_POLICY.WHITELIST)
     api_cert = api.Certificate(id=9012, thumbprint='1a2b', certificate_state=1)
-    self._PatchApiRequests([api_cert], api_cert)
+    self.PatchApiRequests([api_cert], api_cert)
 
     change_set._CommitBlockableChangeSet(cert.key)
 
@@ -250,7 +215,7 @@ class CommitBlockableChangeSetTest(basetest.UpvoteTestCase):
         local_state=bit9_constants.APPROVAL_STATE.UNAPPROVED)
     rule = api.FileRule(
         file_catalog_id=1234, file_state=bit9_constants.APPROVAL_STATE.APPROVED)
-    self._PatchApiRequests([fi1], fi1, [fi2], fi2, rule)
+    self.PatchApiRequests([fi1], fi1, [fi2], fi2, rule)
 
     change_set._CommitBlockableChangeSet(self.binary.key)
 
@@ -295,7 +260,7 @@ class CommitBlockableChangeSetTest(basetest.UpvoteTestCase):
     rule = api.FileRule(
         file_catalog_id=1234,
         file_state=bit9_constants.APPROVAL_STATE.UNAPPROVED)
-    self._PatchApiRequests(rule)
+    self.PatchApiRequests(rule)
 
     change_set._CommitBlockableChangeSet(self.binary.key)
 
@@ -346,7 +311,7 @@ class CommitBlockableChangeSetTest(basetest.UpvoteTestCase):
         local_state=bit9_constants.APPROVAL_STATE.APPROVED)
     rule = api.FileRule(
         file_catalog_id=1234, file_state=bit9_constants.APPROVAL_STATE.APPROVED)
-    self._PatchApiRequests([fi1], fi1, [fi2], fi2, rule)
+    self.PatchApiRequests([fi1], fi1, [fi2], fi2, rule)
 
     change_set._CommitBlockableChangeSet(self.binary.key)
 

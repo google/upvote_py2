@@ -28,11 +28,11 @@ from google.appengine.api import datastore
 from google.appengine.api import taskqueue
 from google.appengine.api import users
 from google.appengine.ext.ndb import metadata
-from upvote.gae.shared.common import handlers
 from upvote.gae.shared.common import settings
 from upvote.gae.datastore.models import user as user_models
 from upvote.shared import constants
 from upvote.gae.utils import env_utils
+from upvote.gae.utils import handler_utils
 
 
 _BACKUP_PREFIX = 'datastore_backup'
@@ -51,7 +51,13 @@ def _DailyBackupExists():
   return query.Get(1)
 
 
-class BaseHandler(handlers.UpvoteRequestHandler):
+class DatastoreBackup(handler_utils.UpvoteRequestHandler):
+  """Handler for performing Datastore backups.
+
+  NOTE: This backup does not pause writes to datastore during processing so the
+  resulting backup does not reflect a snapshot of a single point in time. As
+  such, there may be inconsistencies in the data across entity types.
+  """
 
   def dispatch(self):
 
@@ -80,18 +86,9 @@ class BaseHandler(handlers.UpvoteRequestHandler):
           appengine_user.email(), '' if user_has_permission else ' not')
 
     if prod_cron_export or user_has_permission:
-      super(BaseHandler, self).dispatch()
+      super(DatastoreBackup, self).dispatch()
     else:
       self.abort(httplib.FORBIDDEN)
-
-
-class DatastoreBackup(BaseHandler):
-  """Handler for performing Datastore backups.
-
-  NOTE: This backup does not pause writes to datastore during processing so the
-  resulting backup does not reflect a snapshot of a single point in time. As
-  such, there may be inconsistencies in the data across entity types.
-  """
 
   def get(self):  # pylint: disable=g-bad-name
 
