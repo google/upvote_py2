@@ -88,15 +88,6 @@ class Bit9EventTest(basetest.UpvoteTestCase):
             self.user.key, self.bit9_host.key,
             self.bit9_binary.key))
 
-  def testGetKeysToInsert_Superuser(self):
-    self.bit9_event.executing_user = constants.LOCAL_ADMIN.WINDOWS
-    self.bit9_event.put()
-
-    users = [self.user.nickname]
-    self.assertEquals(
-        [self.bit9_event.key],
-        self.bit9_event.GetKeysToInsert(users, users))
-
   def testDedupe(self):
     earlier_dt = self.bit9_event.last_blocked_dt - datetime.timedelta(hours=1)
     earlier_bit9_event = datastore_utils.CopyEntity(

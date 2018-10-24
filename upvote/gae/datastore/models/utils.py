@@ -16,9 +16,14 @@
 
 from google.appengine.ext import ndb
 
+from upvote.gae.datastore.models import base as base_models
 from upvote.gae.datastore.models import bit9 as bit9_models
 from upvote.gae.datastore.models import exemption as exemption_models
 from upvote.gae.datastore.models import santa as santa_models
+from upvote.gae.datastore.models import user as user_models
+from upvote.gae.shared.common import settings
+from upvote.gae.shared.common import user_map
+from upvote.shared import constants
 
 
 def GetBit9HostKeysForUser(user):
@@ -86,3 +91,26 @@ def GetExemptionsForUser(user, state=None):
   if state:
     exms = [exm for exm in exms if exm.state == state]
   return exms
+
+
+def GetEventKeysToInsert(event, logged_in_users, host_owners):
+  """Returns the list of keys with which this Event should be inserted."""
+  if settings.EVENT_CREATION == constants.EVENT_CREATION.EXECUTING_USER:
+    if event.run_by_local_admin:
+      usernames = logged_in_users
+    else:
+      usernames = [event.executing_user] if event.executing_user else []
+  else:  # HOST_OWNERS
+    usernames = host_owners
+
+  emails = [user_map.UsernameToEmail(username) for username in usernames]
+
+  keys = []
+  for email in emails:
+    key_pairs = [
+        (user_models.User, email.lower()),
+        (base_models.Host, event.host_id)]
+    key_pairs += event.blockable_key.pairs()
+    key_pairs += [(base_models.Event, '1')]
+    keys.append(ndb.Key(pairs=key_pairs))
+  return keys

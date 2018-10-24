@@ -135,7 +135,7 @@ def RandomDatastoreEntity(model_cls, **kwargs):
     else:
       value_func = _NDB_PROPERTY_VALUE_FUNCS.get(property_cls)
 
-    if value_func is not None and property_name is not 'class':
+    if value_func is not None and property_name != 'class':
 
       if prop._choices and prop._repeated:
         random_value = [random.choice(list(prop._choices)) for _ in xrange(3)]

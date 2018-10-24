@@ -12,12 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Unit tests for model_utils.py."""
+"""Unit tests for utils.py."""
+
+import datetime
+
+import mock
+
+from google.appengine.ext import ndb
 
 from upvote.gae.datastore import test_utils
 from upvote.gae.datastore import utils as datastore_utils
+from upvote.gae.datastore.models import base as base_models
 from upvote.gae.datastore.models import utils as model_utils
 from upvote.gae.lib.testing import basetest
+from upvote.gae.shared.common import user_map
 from upvote.shared import constants
 
 
@@ -131,6 +139,83 @@ class GetExemptionsForUserTest(basetest.UpvoteTestCase):
     actual_exms = sorted(
         model_utils.GetExemptionsForUser(user, state=_STATE.APPROVED))
     self.assertListEqual([exm_1], actual_exms)
+
+
+class GetEventKeysToInsertTest(basetest.UpvoteTestCase):
+
+  def setUp(self):
+    super(GetEventKeysToInsertTest, self).setUp()
+
+    now = datetime.datetime.utcnow()
+    self.user = test_utils.CreateUser()
+    self.event = test_utils.CreateEvent(
+        test_utils.CreateBlockable(), first_blocked_dt=now,
+        last_blocked_dt=now, executing_user=self.user.nickname)
+
+    self.PatchSetting('EVENT_CREATION', constants.EVENT_CREATION.EXECUTING_USER)
+
+  def testGetEventKeysToInsert(self):
+    keys = model_utils.GetEventKeysToInsert(self.event, ['foo', 'bar'], [])
+
+    self.assertEqual(1, len(keys))
+    expected_email = user_map.UsernameToEmail(self.event.executing_user)
+    self.assertEqual(expected_email, keys[0].pairs()[0][1])
+
+  def testGetEventKeysToInsert_Admin(self):
+    usernames = ['foo', 'bar']
+    with mock.patch.object(
+        base_models.Event, 'run_by_local_admin', return_value=True):
+      event = datastore_utils.CopyEntity(self.event)
+      keys = model_utils.GetEventKeysToInsert(event, usernames, [])
+
+    self.assertEqual(2, len(keys))
+    key_usernames = [user_map.EmailToUsername(key.flat()[1]) for key in keys]
+    self.assertSameElements(usernames, key_usernames)
+
+  def testGetEventKeysToInsert_BlockableKey(self):
+    old_key = self.event.blockable_key
+    self.event.blockable_key = ndb.Key(
+        'bar', 'baz', parent=old_key)
+    keys = model_utils.GetEventKeysToInsert(self.event, ['foo', 'bar'], [])
+
+    self.assertEqual(5, len(keys[0].pairs()))
+    self.assertEqual(old_key.pairs()[0], keys[0].pairs()[2])
+    self.assertEqual(('bar', 'baz'), keys[0].pairs()[3])
+
+  def testGetEventKeysToInsert_RelatedBinary(self):
+    self.event.executing_user = None
+    keys = model_utils.GetEventKeysToInsert(self.event, [], [])
+
+    self.assertEqual([], keys)
+
+  def testGetEventKeysToInsert_HostOwner(self):
+    self.PatchSetting('EVENT_CREATION', constants.EVENT_CREATION.HOST_OWNER)
+    keys = model_utils.GetEventKeysToInsert(self.event, [], ['foo'])
+
+    self.assertEqual(1, len(keys))
+    key_usernames = [user_map.EmailToUsername(key.flat()[1]) for key in keys]
+    self.assertSameElements(['foo'], key_usernames)
+
+  def testGetEventKeysToInsert_Superuser(self):
+
+    bit9_host = test_utils.CreateBit9Host()
+    bit9_binary = test_utils.CreateBit9Binary()
+    now = test_utils.Now()
+
+    bit9_event = test_utils.CreateBit9Event(
+        bit9_binary,
+        host_id=bit9_host.key.id(),
+        executing_user=constants.LOCAL_ADMIN.WINDOWS,
+        first_blocked_dt=now,
+        last_blocked_dt=now,
+        id='1',
+        parent=datastore_utils.ConcatenateKeys(
+            self.user.key, bit9_host.key, bit9_binary.key))
+
+    users = [self.user.nickname]
+    self.assertEquals(
+        [bit9_event.key],
+        model_utils.GetEventKeysToInsert(bit9_event, users, users))
 
 
 if __name__ == '__main__':

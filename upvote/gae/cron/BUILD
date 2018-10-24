@@ -29,6 +29,7 @@ py_appengine_library(
         "//upvote/gae/datastore/models:base",
         "//upvote/gae/datastore/models:bit9",
         "//upvote/gae/datastore/models:user",
+        "//upvote/gae/datastore/models:utils",
         "//upvote/gae/lib/analysis:metrics",
         "//upvote/gae/lib/bit9:api",
         "//upvote/gae/lib/bit9:change_set",

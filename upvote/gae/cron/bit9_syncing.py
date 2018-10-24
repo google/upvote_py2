@@ -35,6 +35,7 @@ from upvote.gae.datastore import utils as datastore_utils
 from upvote.gae.datastore.models import base
 from upvote.gae.datastore.models import bit9
 from upvote.gae.datastore.models import user as user_models
+from upvote.gae.datastore.models import utils as model_utils
 from upvote.gae.lib.analysis import metrics
 from upvote.gae.lib.bit9 import api
 from upvote.gae.lib.bit9 import change_set
@@ -934,7 +935,8 @@ def _PersistBit9Events(event, file_catalog, computer, signing_chain):
       associated_users=host_users,
       decision=new_event.event_type)
 
-  keys_to_insert = new_event.GetKeysToInsert(host_users, host_users)
+  keys_to_insert = model_utils.GetEventKeysToInsert(
+      new_event, host_users, host_users)
 
   futures = [_PersistBit9Event(new_event, key) for key in keys_to_insert]
   return datastore_utils.GetMultiFuture(futures)

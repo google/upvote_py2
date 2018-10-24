@@ -72,7 +72,6 @@ class SantaEvent(mixin.Santa, base.Event):
     """Updates if the related Event is more recent than the current one."""
     super(SantaEvent, self)._DedupeMoreRecentEvent(more_recent_event)
 
-    self.event_type = more_recent_event.event_type
     self.bundle_path = more_recent_event.bundle_path
     # Keep the newest non-null quarantine information
     if more_recent_event.quarantine:

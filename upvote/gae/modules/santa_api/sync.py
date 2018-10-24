@@ -30,6 +30,7 @@ from upvote.gae.bigquery import tables
 from upvote.gae.datastore import utils as datastore_utils
 from upvote.gae.datastore.models import santa as santa_models
 from upvote.gae.datastore.models import user as user_models
+from upvote.gae.datastore.models import utils as model_utils
 from upvote.gae.lib.analysis import metrics
 from upvote.gae.modules.santa_api import auth
 from upvote.gae.modules.santa_api import constants as santa_const
@@ -474,9 +475,11 @@ class EventUploadHandler(BaseSantaApiHandler):
         associated_users=usernames,
         decision=dbevent.event_type)
 
+    event_keys = model_utils.GetEventKeysToInsert(
+        dbevent, usernames, [host.primary_user])
     return [
-        datastore_utils.CopyEntity(dbevent, new_key=key)
-        for key in dbevent.GetKeysToInsert(usernames, [host.primary_user])]
+        datastore_utils.CopyEntity(dbevent, new_key=event_key)
+        for event_key in event_keys]
 
   @classmethod
   @ndb.tasklet

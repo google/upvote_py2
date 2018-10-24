@@ -232,13 +232,13 @@ class SantaEventTest(SantaModelTest):
   def testDedupeSantaEvent(self):
     later_dt = (
         self.santa_event.last_blocked_dt + datetime.timedelta(seconds=1))
-    new_event = datastore_utils.CopyEntity(
+    later_event = datastore_utils.CopyEntity(
         self.santa_event,
         quarantine=None,
         event_type=constants.EVENT_TYPE.BLOCK_CERTIFICATE,
         last_blocked_dt=later_dt)
 
-    self.santa_event.Dedupe(new_event)
+    self.santa_event.Dedupe(later_event)
 
     self.assertEqual(
         constants.EVENT_TYPE.BLOCK_CERTIFICATE, self.santa_event.event_type)
@@ -251,13 +251,16 @@ class SantaEventTest(SantaModelTest):
 
     earlier_dt = (
         self.santa_event.first_blocked_dt - datetime.timedelta(seconds=1))
-    new_event = datastore_utils.CopyEntity(
+    earlier_event = datastore_utils.CopyEntity(
         self.santa_event,
         quarantine=quarantine,
+        event_type=constants.EVENT_TYPE.BLOCK_CERTIFICATE,
         first_blocked_dt=earlier_dt)
 
-    self.santa_event.Dedupe(new_event)
+    self.santa_event.Dedupe(earlier_event)
 
+    self.assertNotEqual(
+        constants.EVENT_TYPE.BLOCK_CERTIFICATE, self.santa_event.event_type)
     self.assertIsNotNone(self.santa_event.quarantine)
 
   def testDedupeSantaEvent_AddNewerQuarantineData(self):
@@ -266,12 +269,12 @@ class SantaEventTest(SantaModelTest):
 
     later_dt = (
         self.santa_event.last_blocked_dt + datetime.timedelta(seconds=1))
-    new_event = datastore_utils.CopyEntity(
+    later_event = datastore_utils.CopyEntity(
         self.santa_event,
         quarantine=new_quarantine,
         last_blocked_dt=later_dt)
 
-    self.santa_event.Dedupe(new_event)
+    self.santa_event.Dedupe(later_event)
 
     self.assertEqual(
         'http://3vil.com', self.santa_event.quarantine.data_url)

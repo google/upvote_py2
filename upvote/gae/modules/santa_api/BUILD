@@ -28,6 +28,7 @@ py_appengine_library(
         "//upvote/gae/datastore:utils",
         "//upvote/gae/datastore/models:santa",
         "//upvote/gae/datastore/models:user",
+        "//upvote/gae/datastore/models:utils",
         "//upvote/gae/lib/analysis:metrics",
         "//upvote/gae/shared/common:big_red",
         "//upvote/gae/shared/common:settings",

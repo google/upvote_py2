@@ -23,6 +23,7 @@ from google.appengine.ext import ndb
 from upvote.gae.datastore import test_utils
 from upvote.gae.datastore import utils as datastore_utils
 from upvote.gae.datastore.models import base
+from upvote.gae.datastore.models import utils as model_utils
 from upvote.gae.datastore.models import vote as vote_models
 from upvote.gae.lib.testing import basetest
 from upvote.gae.shared.common import user_map
@@ -57,7 +58,7 @@ class EventTest(basetest.UpvoteTestCase):
     self.assertFalse(self.event_1.run_by_local_admin)
 
   def testUserKey(self):
-    keys = self.event_1.GetKeysToInsert([], [])
+    keys = model_utils.GetEventKeysToInsert(self.event_1, [], [])
     self.event_1.key = keys[0]
     self.event_1.put()
 
@@ -107,50 +108,8 @@ class EventTest(basetest.UpvoteTestCase):
 
     self.assertEqual(2, self.event_1.count)
 
-  def testGetKeysToInsert(self):
-    keys = self.event_1.GetKeysToInsert(['foo', 'bar'], [])
-
-    self.assertEqual(1, len(keys))
-    expected_email = user_map.UsernameToEmail(self.event_1.executing_user)
-    self.assertEqual(expected_email, keys[0].pairs()[0][1])
-
-  def testGetKeysToInsert_Admin(self):
-    usernames = ['foo', 'bar']
-    with mock.patch.object(
-        base.Event, 'run_by_local_admin', return_value=True):
-      event = datastore_utils.CopyEntity(self.event_1)
-      keys = event.GetKeysToInsert(usernames, [])
-
-    self.assertEqual(2, len(keys))
-    key_usernames = [user_map.EmailToUsername(key.flat()[1]) for key in keys]
-    self.assertSameElements(usernames, key_usernames)
-
-  def testGetKeysToInsert_BlockableKey(self):
-    old_key = self.event_1.blockable_key
-    self.event_1.blockable_key = ndb.Key(
-        'bar', 'baz', parent=old_key)
-    keys = self.event_1.GetKeysToInsert(['foo', 'bar'], [])
-
-    self.assertEqual(5, len(keys[0].pairs()))
-    self.assertEqual(old_key.pairs()[0], keys[0].pairs()[2])
-    self.assertEqual(('bar', 'baz'), keys[0].pairs()[3])
-
-  def testGetKeysToInsert_RelatedBinary(self):
-    self.event_1.executing_user = None
-    keys = self.event_1.GetKeysToInsert([], [])
-
-    self.assertEqual([], keys)
-
-  def testGetKeysToInsert_HostOwner(self):
-    self.PatchSetting('EVENT_CREATION', constants.EVENT_CREATION.HOST_OWNER)
-    keys = self.event_1.GetKeysToInsert([], ['foo'])
-
-    self.assertEqual(1, len(keys))
-    key_usernames = [user_map.EmailToUsername(key.flat()[1]) for key in keys]
-    self.assertSameElements(['foo'], key_usernames)
-
   def testDedupeMultiple(self):
-    keys = self.event_1.GetKeysToInsert(['foo'], [])
+    keys = model_utils.GetEventKeysToInsert(self.event_1, ['foo'], [])
     event1 = datastore_utils.CopyEntity(
         self.event_1,
         new_key=keys[0],

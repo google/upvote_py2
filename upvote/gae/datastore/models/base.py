@@ -25,7 +25,6 @@ from upvote.gae.datastore import utils as datastore_utils
 from upvote.gae.datastore.models import mixin
 from upvote.gae.datastore.models import user as user_models
 from upvote.gae.datastore.models import vote as vote_models
-from upvote.gae.shared.common import settings
 from upvote.gae.shared.common import user_map
 from upvote.shared import constants
 
@@ -101,17 +100,17 @@ class Event(mixin.Base, polymodel.PolyModel):
       return None
     return ndb.Key(flat=self.key.pairs()[0])
 
-  def _DedupeEarlierEvent(self, earlier_event):
-    """Updates if the related Event occurred earlier than the current one."""
-    self.first_blocked_dt = earlier_event.first_blocked_dt
-    self.event_type = earlier_event.event_type
-
   def _DedupeMoreRecentEvent(self, more_recent_event):
     """Updates if the related Event is more recent than the current one."""
     self.last_blocked_dt = more_recent_event.last_blocked_dt
     self.file_name = more_recent_event.file_name
     self.file_path = more_recent_event.file_path
     self.executing_user = more_recent_event.executing_user
+    self.event_type = more_recent_event.event_type
+
+  def _DedupeEarlierEvent(self, earlier_event):
+    """Updates if the related Event occurred earlier than the current one."""
+    self.first_blocked_dt = earlier_event.first_blocked_dt
 
   def Dedupe(self, related_event):
     """Updates the current Event state with another, related Event."""
@@ -125,27 +124,6 @@ class Event(mixin.Base, polymodel.PolyModel):
     # recorded date
     if self.last_blocked_dt < related_event.last_blocked_dt:
       self._DedupeMoreRecentEvent(related_event)
-
-  def GetKeysToInsert(self, logged_in_users, host_owners):
-    """Returns the list of keys with which this event should be inserted."""
-    if settings.EVENT_CREATION == constants.EVENT_CREATION.EXECUTING_USER:
-      if self.run_by_local_admin:
-        usernames = logged_in_users
-      else:
-        usernames = [self.executing_user] if self.executing_user else []
-    else:  # HOST_OWNERS
-      usernames = host_owners
-
-    emails = [user_map.UsernameToEmail(username) for username in usernames]
-
-    keys = []
-    for email in emails:
-      key_pairs = [
-          (user_models.User, email.lower()), (Host, self.host_id)]
-      key_pairs += self.blockable_key.pairs()
-      key_pairs += [(Event, '1')]
-      keys.append(ndb.Key(pairs=key_pairs))
-    return keys
 
   @classmethod
   def DedupeMultiple(cls, events):
