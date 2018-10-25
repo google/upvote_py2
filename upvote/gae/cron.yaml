@@ -17,7 +17,7 @@ cron:
 #### BEGIN:daily_backup ####
 # Cron jobs handled by the upvote_app module.
 - description: daily datastore backup
-  url: /cron/export/datastore-to-gcs
+  url: /cron/datastore/backup
   schedule: every day 22:00
   retry_parameters:
     job_retry_limit: 3
