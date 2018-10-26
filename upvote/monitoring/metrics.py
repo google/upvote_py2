@@ -53,6 +53,11 @@ class UpvoteNamespace(Namespace):
     super(UpvoteNamespace, self).__init__(UPVOTE + prefix, tuples)
 
 
+DATASTORE = UpvoteNamespace('datastore/', [
+    ('backups', 'Datastore Backups'),
+])
+
+
 SANTA_API = UpvoteNamespace('santa_api/', [
     ('preflight_requests', 'Preflight Requests'),
     ('event_upload_requests', 'Event Upload Requests'),

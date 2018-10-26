@@ -28,6 +28,9 @@ class MetricTest(absltest.TestCase):
 
 class MetricNamespaceTest(absltest.TestCase):
 
+  def testDatastore(self):
+    self.assertEqual(1, len(metrics.DATASTORE.ALL))
+
   def testSantaApi(self):
     self.assertEqual(6, len(metrics.SANTA_API.ALL))
 

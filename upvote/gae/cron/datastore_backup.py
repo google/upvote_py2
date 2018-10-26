@@ -31,9 +31,13 @@ from google.appengine.ext.ndb import metadata
 from upvote.gae.shared.common import settings
 from upvote.gae.datastore.models import user as user_models
 from upvote.shared import constants
+from upvote.gae.shared.common import monitoring
 from upvote.gae.utils import env_utils
 from upvote.gae.utils import handler_utils
+from upvote.monitoring import metrics
 
+
+_DATASTORE_BACKUPS = monitoring.Counter(metrics.DATASTORE.BACKUPS)
 
 _BACKUP_PREFIX = 'datastore_backup'
 
@@ -111,11 +115,14 @@ class DatastoreBackup(handler_utils.UpvoteRequestHandler):
     # Dump the backup onto a task queue. Don't worry about catching Exceptions,
     # anything that gets raised will be dealt with in UpvoteRequestHandler and
     # reported as a 500.
+    logging.info('Starting a new Datastore backup')
     taskqueue.add(
         url='/_ah/datastore_admin/backup.create',
         params=params,
         target='ah-builtin-python-bundle',
         queue_name=constants.TASK_QUEUE.BACKUP)
+
+    _DATASTORE_BACKUPS.Increment()
 
 
 ROUTES = routes.PathPrefixRoute('/datastore', [

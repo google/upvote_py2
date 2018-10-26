@@ -51,6 +51,7 @@ py_appengine_library(
     srcs = ["datastore_backup.py"],
     deps = [
         "//upvote/gae/datastore/models:user",
+        "//upvote/gae/shared/common:monitoring",
         "//upvote/gae/shared/common:settings",
         "//upvote/gae/utils:env_utils",
         "//upvote/gae/utils:handler_utils",

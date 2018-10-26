@@ -41,56 +41,72 @@ class FakeBackup(db.Model):
     return '_AE_Backup_Information'
 
 
+class DailyBackupExistsTest(basetest.UpvoteTestCase):
+
+  def testDoesNotExist(self):
+    self.assertFalse(datastore_backup._DailyBackupExists())
+
+  def testExists(self):
+
+    now = datetime.datetime.utcnow()
+    today_str = now.strftime('%Y_%m_%d')
+    expected_name = '%s_%s' % (datastore_backup._BACKUP_PREFIX, today_str)
+
+    FakeBackup(name=expected_name, complete_time=now).put()
+    self.assertTrue(datastore_backup._DailyBackupExists())
+
+
 class DatastoreBackupTest(basetest.UpvoteTestCase):
 
   ROUTE = '/datastore/backup'
 
   def setUp(self):
+
     app = webapp2.WSGIApplication(routes=[datastore_backup.ROUTES])
     super(DatastoreBackupTest, self).setUp(wsgi_app=app)
-    self.date1 = datetime.datetime.utcnow()
-    self.date2 = datetime.datetime(2012, 12, 12, 8, 45)
-    todaystr1 = self.date1.strftime('%Y_%m_%d')
-    todaystr2 = self.date2.strftime('%Y_%m_%d')
-    self.expected_name1 = '%s_%s' % (datastore_backup._BACKUP_PREFIX, todaystr1)
-    self.expected_name2 = '%s_%s' % (datastore_backup._BACKUP_PREFIX, todaystr2)
+
+    self.mock_metric = mock.Mock(spec=datastore_backup.monitoring.Counter)
+    patcher = mock.patch.dict(
+        datastore_backup.__dict__,
+        _DATASTORE_BACKUPS=self.mock_metric)
+    self.addCleanup(patcher.stop)
+    patcher.start()
 
   def testInProd_Cron(self):
     self.Patch(datastore_backup.env_utils, 'RunningInProd', return_value=True)
     self.Logout()  # Ensures that get_current_user() returns None.
     self.testapp.get(self.ROUTE, status=httplib.OK)
+    self.mock_metric.Increment.assert_called_once()
 
   def testInProd_AuthorizedUser(self):
     self.Patch(datastore_backup.env_utils, 'RunningInProd', return_value=True)
     with self.LoggedInUser(admin=True):
       self.testapp.get(self.ROUTE, status=httplib.OK)
+    self.mock_metric.Increment.assert_called_once()
 
   def testInProd_UnauthorizedUser(self):
     self.Patch(datastore_backup.env_utils, 'RunningInProd', return_value=True)
     with self.LoggedInUser():
       self.testapp.get(self.ROUTE, expect_errors=True, status=httplib.FORBIDDEN)
+    self.mock_metric.Increment.assert_not_called()
 
   def testNotInProd_Cron(self):
     self.Patch(datastore_backup.env_utils, 'RunningInProd', return_value=False)
     self.Logout()  # Ensures that get_current_user() returns None.
     self.testapp.get(self.ROUTE, expect_errors=True, status=httplib.FORBIDDEN)
+    self.mock_metric.Increment.assert_not_called()
 
   def testNotInProd_Authorized(self):
     self.Patch(datastore_backup.env_utils, 'RunningInProd', return_value=False)
     with self.LoggedInUser(admin=True):
       self.testapp.get(self.ROUTE, status=httplib.OK)
+    self.mock_metric.Increment.assert_called_once()
 
   def testNotInProd_Unauthorized(self):
     self.Patch(datastore_backup.env_utils, 'RunningInProd', return_value=False)
     with self.LoggedInUser():
       self.testapp.get(self.ROUTE, expect_errors=True, status=httplib.FORBIDDEN)
-
-  def testNoDailyBackupExists(self):
-    self.assertFalse(datastore_backup._DailyBackupExists())
-
-  def testDailyBackupExists(self):
-    FakeBackup(name=self.expected_name1, complete_time=self.date1).put()
-    self.assertTrue(datastore_backup._DailyBackupExists())
+    self.mock_metric.Increment.assert_not_called()
 
   @mock.patch.object(taskqueue, 'add')
   @mock.patch.object(datastore_backup, '_DailyBackupExists', return_value=True)
@@ -100,6 +116,7 @@ class DatastoreBackupTest(basetest.UpvoteTestCase):
   def testBackupExists(self, mock_prod, mock_user, mock_exists, mock_add):
     self.testapp.get(self.ROUTE, status=httplib.OK)
     self.assertEqual(0, mock_add.call_count)
+    self.mock_metric.Increment.assert_not_called()
 
   @mock.patch.object(taskqueue, 'add')
   @mock.patch.object(
@@ -112,6 +129,7 @@ class DatastoreBackupTest(basetest.UpvoteTestCase):
       self, mock_prod, mock_user, mock_exists, mock_env, mock_add):
     self.testapp.get(self.ROUTE, status=httplib.OK)
     self.assertEqual(1, mock_add.call_count)
+    self.mock_metric.Increment.assert_called_once()
 
 
 if __name__ == '__main__':
