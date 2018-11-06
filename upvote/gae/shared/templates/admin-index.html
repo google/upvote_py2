@@ -24,12 +24,6 @@
     <md-content id="uv-all-content" layout="row" flex>
       <uv-sidenav is-open="main.isSidenavOpen" is-admin="true">
         <uv-nav-button
-          uv-href="/admin"
-          ng-show="currentUser.permissions.includes('VIEW_DASHBOARD')"
-          icon="dashboard"
-          title="Dashboard">
-        </uv-nav-button>
-        <uv-nav-button
           uv-href="/admin/blockables"
           ng-show="currentUser.permissions.includes('VIEW_OTHER_BLOCKABLES')"
           icon="apps"

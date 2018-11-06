@@ -25,27 +25,45 @@ from upvote.gae.shared.common import template_utils
 
 class IndexHandlerTest(basetest.UpvoteTestCase):
 
-  @mock.patch.object(template_utils, 'GetTemplate')
-  def testGetAdmin(self, mock_get_template):
-    mock_get_template.return_value.render.return_value = 'content'
-    handler = index_handler.IndexHandler(
-        webapp2.Request.blank('/admin/'), webapp2.Response())
-    handler.GetAdmin()
-    mock_get_template.assert_called_once_with(
-        index_handler.IndexHandler.IndexPageVersion.ADMIN)
-    self.assertEqual(httplib.OK, handler.response.status_int)
-    self.assertEqual('content', handler.response.body)
+  def setUp(self):
+    app = webapp2.WSGIApplication(routes=[
+        index_handler.ADMIN_ROUTE, index_handler.USER_ROUTE])
+    super(IndexHandlerTest, self).setUp(wsgi_app=app)
 
   @mock.patch.object(template_utils, 'GetTemplate')
-  def testGetUser(self, mock_get_template):
-    mock_get_template.return_value.render.return_value = 'content'
-    handler = index_handler.IndexHandler(
-        webapp2.Request.blank('/admin/'), webapp2.Response())
-    handler.GetUser()
+  def testGetAdminConsole_AsAdmin(self, mock_get_template):
+
+    with self.LoggedInUser(admin=True):
+      self.testapp.get('/admin', status=httplib.OK)
+
+    mock_get_template.assert_called_once_with(
+        index_handler.IndexHandler.IndexPageVersion.ADMIN)
+
+  @mock.patch.object(template_utils, 'GetTemplate')
+  def testGetAdminConsole_AsUser(self, mock_get_template):
+
+    with self.LoggedInUser(admin=False):
+      self.testapp.get('/admin', status=httplib.FORBIDDEN)
+
+    mock_get_template.assert_not_called()
+
+  @mock.patch.object(template_utils, 'GetTemplate')
+  def testGetBlockableList_AsAdmin(self, mock_get_template):
+
+    with self.LoggedInUser(admin=True):
+      self.testapp.get('/blockables', status=httplib.OK)
+
     mock_get_template.assert_called_once_with(
         index_handler.IndexHandler.IndexPageVersion.USER)
-    self.assertEqual(httplib.OK, handler.response.status_int)
-    self.assertEqual('content', handler.response.body)
+
+  @mock.patch.object(template_utils, 'GetTemplate')
+  def testGetBlockableList_AsUser(self, mock_get_template):
+
+    with self.LoggedInUser(admin=False):
+      self.testapp.get('/blockables', status=httplib.OK)
+
+    mock_get_template.assert_called_once_with(
+        index_handler.IndexHandler.IndexPageVersion.USER)
 
 
 if __name__ == '__main__':

@@ -218,9 +218,11 @@ py_appengine_library(
     name = "index_handler",
     srcs = ["index_handler.py"],
     deps = [
+        ":base",
         "//upvote/gae/shared/common:template_utils",
         "//upvote/gae/utils:handler_utils",
         "//upvote/gae/utils:xsrf_utils",
+        "//upvote/shared:constants",
     ],
 )
 

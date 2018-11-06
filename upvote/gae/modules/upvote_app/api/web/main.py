@@ -55,17 +55,8 @@ _ALL_ROUTES = [
             votes.ROUTES
         ]),
 
-    # Index handler
-    webapp2.Route(
-        r'/admin<:/?><:.*>',
-        handler=index_handler.IndexHandler,
-        handler_method='GetAdmin',
-        methods=['GET']),
-    webapp2.Route(
-        r'/<:/?><:.*>',
-        handler=index_handler.IndexHandler,
-        handler_method='GetUser',
-        methods=['GET']),
+    index_handler.ADMIN_ROUTE,
+    index_handler.USER_ROUTE,
 ]
 
 app = webapp2.WSGIApplication(routes=_ALL_ROUTES)

@@ -15,14 +15,16 @@
 """A module for the index handler."""
 
 import httplib
+import webapp2
 
 from google.appengine.api import users
 
+from upvote.gae.modules.upvote_app.api.web import base
 from upvote.gae.shared.common import template_utils
-from upvote.gae.utils import handler_utils
+from upvote.shared import constants
 
 
-class IndexHandler(handler_utils.UpvoteRequestHandler):
+class IndexHandler(base.BaseHandler):
   """The handler for the main Angular template."""
 
   class IndexPageVersion(object):
@@ -46,8 +48,22 @@ class IndexHandler(handler_utils.UpvoteRequestHandler):
 
     self.response.write(response_string)
 
+  @base.RequireCapability(constants.PERMISSIONS.VIEW_ADMIN_CONSOLE)
   def GetAdmin(self, *args, **kwargs):
     return self._Get(self.IndexPageVersion.ADMIN)
 
   def GetUser(self, *args, **kwargs):
     return self._Get(self.IndexPageVersion.USER)
+
+
+ADMIN_ROUTE = webapp2.Route(
+    r'/admin<:/?><:.*>',
+    handler=IndexHandler,
+    handler_method='GetAdmin',
+    methods=['GET'])
+
+USER_ROUTE = webapp2.Route(
+    r'/<:/?><:.*>',
+    handler=IndexHandler,
+    handler_method='GetUser',
+    methods=['GET'])
