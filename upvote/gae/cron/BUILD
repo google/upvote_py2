@@ -68,6 +68,7 @@ py_appengine_library(
         "//upvote/gae/datastore/models:user",
         "//upvote/gae/shared/common:user_map",
         "//upvote/gae/utils:group_utils",
+        "//upvote/gae/utils:handler_utils",
         "//upvote/gae/utils:iter_utils",
     ],
 )

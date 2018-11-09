@@ -27,7 +27,6 @@ from upvote.gae.datastore.models import bit9 as bit9_models
 from upvote.gae.datastore.models import santa as santa_models
 from upvote.gae.datastore.models import user as user_models
 from upvote.gae.datastore.models import vote as vote_models
-from upvote.gae.modules.upvote_app.api.web import base
 from upvote.gae.modules.upvote_app.api.web import monitoring
 from upvote.gae.shared.common import user_map
 from upvote.gae.utils import handler_utils
@@ -110,7 +109,7 @@ def _GetEventContext(events):
   return events_with_context
 
 
-class EventQueryHandler(base.BaseQueryHandler):
+class EventQueryHandler(handler_utils.UserFacingQueryHandler):
   """Handler for querying events."""
 
   MODEL_CLASS = base_models.Event
@@ -162,7 +161,7 @@ class SantaEventQueryHandler(EventQueryHandler):
   MODEL_CLASS = santa_models.SantaEvent
 
 
-class EventHandler(base.BaseHandler):
+class EventHandler(handler_utils.UserFacingHandler):
   """Handler for interacting with individual events."""
 
   def get(self, event_key):  # pylint: disable=g-bad-name
@@ -187,7 +186,7 @@ class EventHandler(base.BaseHandler):
         self.abort(httplib.NOT_FOUND, explanation='Event not found')
 
 
-class RecentEventHandler(base.BaseHandler):
+class RecentEventHandler(handler_utils.UserFacingHandler):
   """Handler for getting the most recent Event for a blockable, for a user."""
 
   def get(self, blockable_id):  # pylint: disable=g-bad-name

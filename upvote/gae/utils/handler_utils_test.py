@@ -19,12 +19,19 @@ import httplib
 import mock
 import webapp2
 from webob import exc
+import webtest
+
+from google.appengine.ext import ndb
+
+from common.testing import basetest as gae_basetest
 
 from upvote.gae.lib.testing import basetest
 from upvote.gae.utils import handler_utils
+from upvote.gae.utils import xsrf_utils
+from upvote.shared import constants
 
 
-class TestHandler(handler_utils.UpvoteRequestHandler):
+class FakeUpvoteRequestHandler(handler_utils.UpvoteRequestHandler):
 
   def get(self):
     self.response.status_int = httplib.OK
@@ -37,14 +44,14 @@ class UpvoteRequestHandlerTest(basetest.UpvoteTestCase):
 
   def setUp(self):
     self.app = webapp2.WSGIApplication([
-        webapp2.Route(r'/err/<msg>', handler=TestHandler,
+        webapp2.Route(r'/err/<msg>', handler=FakeUpvoteRequestHandler,
                       handler_method='error'),
-        webapp2.Route(r'/', handler=TestHandler)])
+        webapp2.Route(r'/', handler=FakeUpvoteRequestHandler)])
     super(UpvoteRequestHandlerTest, self).setUp(wsgi_app=self.app)
 
-  @mock.patch.object(TestHandler, 'RequestCounter',
+  @mock.patch.object(FakeUpvoteRequestHandler, 'RequestCounter',
                      new_callable=mock.PropertyMock)
-  @mock.patch.object(TestHandler, 'get')
+  @mock.patch.object(FakeUpvoteRequestHandler, 'get')
   def testHandleException_WithRequestCounter(self, mock_get, mock_grc):
     # Essentially what abort() does
     mock_get.side_effect = exc.HTTPBadRequest(explanation='foo')
@@ -61,7 +68,8 @@ class UpvoteRequestHandlerTest(basetest.UpvoteTestCase):
     self.assertEqual(1, mock_metric.Increment.call_count)
     self.assertEqual(httplib.BAD_REQUEST, mock_metric.Increment.call_args[0][0])
 
-  @mock.patch.object(TestHandler, 'get', side_effect=exc.HTTPBadRequest)
+  @mock.patch.object(
+      FakeUpvoteRequestHandler, 'get', side_effect=exc.HTTPBadRequest)
   def testHandleException_WithoutRequestCounter(self, mock_get):
 
     response = self.testapp.get('/', expect_errors=True)
@@ -69,7 +77,8 @@ class UpvoteRequestHandlerTest(basetest.UpvoteTestCase):
     self.assertEqual(httplib.BAD_REQUEST, response.status_int)
     self.assertEqual(1, mock_get.call_count)
 
-  @mock.patch.object(TestHandler, 'get', side_effect=exc.HTTPBadRequest)
+  @mock.patch.object(
+      FakeUpvoteRequestHandler, 'get', side_effect=exc.HTTPBadRequest)
   def testHandleException_WithoutExplanation(self, _):
     default_explanation = (
         'The server could not comply with the request since '
@@ -79,7 +88,7 @@ class UpvoteRequestHandlerTest(basetest.UpvoteTestCase):
 
     self.assertEqual(default_explanation, response.body)
 
-  @mock.patch.object(TestHandler, 'get', side_effect=KeyError)
+  @mock.patch.object(FakeUpvoteRequestHandler, 'get', side_effect=KeyError)
   def testHandleException_ApplicationError(self, mock_get):
 
     response = self.testapp.get('/', expect_errors=True)
@@ -87,10 +96,10 @@ class UpvoteRequestHandlerTest(basetest.UpvoteTestCase):
     self.assertEqual(httplib.INTERNAL_SERVER_ERROR, response.status_int)
     self.assertEqual(1, mock_get.call_count)
 
-  @mock.patch.object(TestHandler, 'RequestCounter',
+  @mock.patch.object(FakeUpvoteRequestHandler, 'RequestCounter',
                      new_callable=mock.PropertyMock)
-  @mock.patch.object(TestHandler, 'handle_exception')
-  @mock.patch.object(TestHandler, 'dispatch')
+  @mock.patch.object(FakeUpvoteRequestHandler, 'handle_exception')
+  @mock.patch.object(FakeUpvoteRequestHandler, 'dispatch')
   def testErrorHandling_UpvoteRequestHandler_WithRequestCounter(
       self, mock_dispatch, mock_handle_exception, mock_grc):
 
@@ -147,6 +156,149 @@ class UpvoteRequestHandlerTest(basetest.UpvoteTestCase):
     self.assertEqual(
         '&lt;img onerror=&#39;alert(&quot;1&quot;)&#39;&gt;',
         response.body)
+
+
+class FakeCronJobHandler(handler_utils.CronJobHandler):
+
+  def get(self):
+    self.response.status_int = httplib.OK
+
+
+class CronJobHandlerTest(basetest.UpvoteTestCase):
+
+  def setUp(self):
+    route = webapp2.Route('/do-cron-thing', handler=FakeCronJobHandler)
+    wsgi_app = webapp2.WSGIApplication(routes=[route])
+    super(CronJobHandlerTest, self).setUp(wsgi_app=wsgi_app)
+
+  def testHeaderMissing(self):
+    self.Logout()  # Ensure there's not a human logged in.
+    self.testapp.get('/do-cron-thing', status=httplib.FORBIDDEN)
+
+  def testSuccess(self):
+    self.Logout()  # Ensure there's not a human logged in.
+    self.testapp.get(
+        '/do-cron-thing', headers={'X-AppEngine-Cron': 'true'},
+        status=httplib.OK)
+
+
+class FakeUserFacingHandler(handler_utils.UserFacingHandler):
+
+  @handler_utils.RequireCapability(constants.PERMISSIONS.CHANGE_SETTINGS)
+  def get(self):
+    """Simple function to test RequireCapability decorator."""
+    self.response.write('Content.')
+
+
+class UserFacingHandlerTest(basetest.UpvoteTestCase):
+
+  def setUp(self):
+    app = webapp2.WSGIApplication([('/', FakeUserFacingHandler)])
+    super(UserFacingHandlerTest, self).setUp(wsgi_app=app)
+    self.PatchValidateXSRFToken()
+
+  @handler_utils.RequireCapability(constants.PERMISSIONS.CHANGE_SETTINGS)
+  def BadObject(self):
+    """Test function to test non-handler call to decorator."""
+    return 'This should not run.'
+
+  @mock.patch.object(xsrf_utils, 'GenerateToken')
+  def testAuthorityCheckPass(self, mock_generate_token):
+    """Check if an admin is an admin."""
+    mock_generate_token.return_value = 'token'
+    with self.LoggedInUser(admin=True):
+      response = self.testapp.get('/')
+
+    self.assertEqual(response.status_int, httplib.OK)
+    self.assertEqual(response.body, 'Content.')
+    mock_generate_token.assert_called_once_with()
+
+  def testAuthorityCheckFail(self):
+    """Check if a non-admin is an admin."""
+    with self.LoggedInUser():
+      response = self.testapp.get('/', status=httplib.FORBIDDEN)
+
+    self.assertEqual(response.status_int, httplib.FORBIDDEN)
+
+  def testAuthorityCheckWithBadObject(self):
+    """Check for ValueError if passed a non-handler."""
+
+    with self.assertRaises(ValueError):
+      self.BadObject()
+
+
+class UserFacingQueryHandlerTest(basetest.UpvoteTestCase):
+
+  def testMetaclass_Success(self):
+    class GoodQueryHandler(handler_utils.UserFacingQueryHandler):  # pylint: disable=unused-variable
+      MODEL_CLASS = ndb.Model
+
+  def testMetaclass_ModelClassOmitted(self):
+    with self.assertRaises(NotImplementedError):
+
+      class BadQueryHandler(handler_utils.UserFacingQueryHandler):  # pylint: disable=unused-variable
+        pass
+
+  def testMetaclass_ModelClassNotAModel(self):
+    with self.assertRaises(NotImplementedError):
+
+      class BadQueryHandler(handler_utils.UserFacingQueryHandler):  # pylint: disable=unused-variable
+        # Not a ndb.Model
+        MODEL_CLASS = UserFacingHandlerTest
+
+  def testQueryModel_TranslatePropertyQuery(self):
+    class Foo(ndb.Model):
+      foo = ndb.StringProperty()
+
+      @classmethod
+      def TranslatePropertyQuery(cls, field, term):
+        return 'foo', 'bar'
+
+    class FooQueryHandler(handler_utils.UserFacingQueryHandler):
+      MODEL_CLASS = Foo
+
+    # Request a nonsense query to be ignored by TranslatePropertyQuery.
+    with self.LoggedInUser():
+      q = FooQueryHandler()._QueryModel({'bar': 'baz'})
+    # Create an entity satisfying the translated query.
+    Foo(foo='bar').put()
+    # Ensure the translated query finds the created entity.
+    self.assertIsNotNone(q.get())
+
+  def testQueryModel_TranslatePropertyQuery_NotPresent(self):
+    class Foo(ndb.Model):
+      foo = ndb.StringProperty()
+
+    class FooQueryHandler(handler_utils.UserFacingQueryHandler):
+      MODEL_CLASS = Foo
+
+    # Ensure that, without the translation mechanism defined, a bogus query will
+    # raise an error.
+    with self.assertRaises(handler_utils.QueryError):
+      with self.LoggedInUser():
+        FooQueryHandler()._QueryModel({'bar': 'baz'})
+
+
+class FakeAdminOnlyHandler(handler_utils.AdminOnlyHandler):
+
+  def get(self):
+    self.response.status_int = httplib.OK
+
+
+class AdminOnlyHandlerTest(basetest.UpvoteTestCase):
+
+  def setUp(self):
+    route = webapp2.Route('/do-admin-thing', handler=FakeAdminOnlyHandler)
+    wsgi_app = webapp2.WSGIApplication(routes=[route])
+    super(AdminOnlyHandlerTest, self).setUp(wsgi_app=wsgi_app)
+
+  def testUser(self):
+    with self.LoggedInUser():
+      self.testapp.get('/do-admin-thing', status=httplib.FORBIDDEN)
+
+  def testAdmin(self):
+    with self.LoggedInUser(admin=True):
+      self.testapp.get('/do-admin-thing', status=httplib.OK)
 
 
 if __name__ == '__main__':

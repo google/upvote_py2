@@ -25,7 +25,7 @@ from google.appengine.api import memcache
 from google.appengine.ext import ndb
 
 from upvote.gae.datastore.models import alert as alert_models
-from upvote.gae.modules.upvote_app.api.web import base
+from upvote.gae.utils import handler_utils
 from upvote.gae.utils import xsrf_utils
 from upvote.shared import constants
 
@@ -44,7 +44,7 @@ def _CreateMemcacheKey(scope, platform):
   return '_'.join(p.lower() for p in pieces if p)
 
 
-class AlertHandler(base.BaseHandler):
+class AlertHandler(handler_utils.UserFacingHandler):
   """Handler for interacting with user-facing alert messages."""
 
   def _ValidateRouteParams(self, scope, platform):
@@ -138,7 +138,7 @@ class AlertHandler(base.BaseHandler):
         if date_str else None)
 
   @xsrf_utils.RequireToken
-  @base.RequireCapability(constants.PERMISSIONS.EDIT_ALERTS)
+  @handler_utils.RequireCapability(constants.PERMISSIONS.EDIT_ALERTS)
   def post(self, scope, platform):
 
     scope, platform = self._ValidateRouteParams(scope, platform)

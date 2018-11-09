@@ -72,49 +72,19 @@ class DatastoreBackupTest(basetest.UpvoteTestCase):
     self.addCleanup(patcher.stop)
     patcher.start()
 
-  def testInProd_Cron(self):
-    self.Patch(datastore_backup.env_utils, 'RunningInProd', return_value=True)
-    self.Logout()  # Ensures that get_current_user() returns None.
-    self.testapp.get(self.ROUTE, status=httplib.OK)
-    self.mock_metric.Increment.assert_called_once()
-
-  def testInProd_AuthorizedUser(self):
-    self.Patch(datastore_backup.env_utils, 'RunningInProd', return_value=True)
-    with self.LoggedInUser(admin=True):
-      self.testapp.get(self.ROUTE, status=httplib.OK)
-    self.mock_metric.Increment.assert_called_once()
-
-  def testInProd_UnauthorizedUser(self):
-    self.Patch(datastore_backup.env_utils, 'RunningInProd', return_value=True)
-    with self.LoggedInUser():
-      self.testapp.get(self.ROUTE, expect_errors=True, status=httplib.FORBIDDEN)
-    self.mock_metric.Increment.assert_not_called()
-
-  def testNotInProd_Cron(self):
+  def testNotInProd(self):
     self.Patch(datastore_backup.env_utils, 'RunningInProd', return_value=False)
-    self.Logout()  # Ensures that get_current_user() returns None.
-    self.testapp.get(self.ROUTE, expect_errors=True, status=httplib.FORBIDDEN)
-    self.mock_metric.Increment.assert_not_called()
-
-  def testNotInProd_Authorized(self):
-    self.Patch(datastore_backup.env_utils, 'RunningInProd', return_value=False)
-    with self.LoggedInUser(admin=True):
-      self.testapp.get(self.ROUTE, status=httplib.OK)
-    self.mock_metric.Increment.assert_called_once()
-
-  def testNotInProd_Unauthorized(self):
-    self.Patch(datastore_backup.env_utils, 'RunningInProd', return_value=False)
-    with self.LoggedInUser():
-      self.testapp.get(self.ROUTE, expect_errors=True, status=httplib.FORBIDDEN)
+    self.testapp.get(
+        self.ROUTE, headers={'X-AppEngine-Cron': 'true'}, expect_errors=True,
+        status=httplib.FORBIDDEN)
     self.mock_metric.Increment.assert_not_called()
 
   @mock.patch.object(taskqueue, 'add')
   @mock.patch.object(datastore_backup, '_DailyBackupExists', return_value=True)
-  @mock.patch.object(
-      datastore_backup.users, 'get_current_user', return_value=None)
   @mock.patch.object(env_utils, 'RunningInProd', return_value=True)
-  def testBackupExists(self, mock_prod, mock_user, mock_exists, mock_add):
-    self.testapp.get(self.ROUTE, status=httplib.OK)
+  def testBackupExists(self, mock_prod, mock_exists, mock_add):
+    self.testapp.get(
+        self.ROUTE, headers={'X-AppEngine-Cron': 'true'}, status=httplib.OK)
     self.assertEqual(0, mock_add.call_count)
     self.mock_metric.Increment.assert_not_called()
 
@@ -122,12 +92,11 @@ class DatastoreBackupTest(basetest.UpvoteTestCase):
   @mock.patch.object(
       settings_utils, 'CurrentEnvironment', return_value=settings.ProdEnv)
   @mock.patch.object(datastore_backup, '_DailyBackupExists', return_value=False)
-  @mock.patch.object(
-      datastore_backup.users, 'get_current_user', return_value=None)
   @mock.patch.object(env_utils, 'RunningInProd', return_value=True)
   def testSuccessfulBackup(
-      self, mock_prod, mock_user, mock_exists, mock_env, mock_add):
-    self.testapp.get(self.ROUTE, status=httplib.OK)
+      self, mock_prod, mock_exists, mock_env, mock_add):
+    self.testapp.get(
+        self.ROUTE, headers={'X-AppEngine-Cron': 'true'}, status=httplib.OK)
     self.assertEqual(1, mock_add.call_count)
     self.mock_metric.Increment.assert_called_once()
 

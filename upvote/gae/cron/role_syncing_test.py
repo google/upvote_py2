@@ -73,7 +73,8 @@ class SyncRolesTest(basetest.UpvoteTestCase):
     self.VerifyUser(user1.email, [USER])
     self.VerifyUser(user2.email, [USER])
 
-    response = self.testapp.get(self.ROUTE, expect_errors=True)
+    response = self.testapp.get(
+        self.ROUTE, headers={'X-AppEngine-Cron': 'true'}, expect_errors=True)
     self.assertEqual(httplib.NOT_FOUND, response.status_int)
 
     self.VerifyUser(user1.email, [USER])
@@ -95,7 +96,8 @@ class SyncRolesTest(basetest.UpvoteTestCase):
     self.VerifyUser(user1.email, [USER])
     self.VerifyUser(user2.email, [USER])
 
-    response = self.testapp.get(self.ROUTE)
+    response = self.testapp.get(
+        self.ROUTE, headers={'X-AppEngine-Cron': 'true'})
     self.assertEqual(httplib.OK, response.status_int)
 
     self.VerifyUser(user1.email, [USER, TRUSTED_USER])
@@ -120,7 +122,8 @@ class SyncRolesTest(basetest.UpvoteTestCase):
     self.VerifyUser(user1.email, [USER, TRUSTED_USER])
     self.VerifyUser(user2.email, [USER, TRUSTED_USER])
 
-    response = self.testapp.get(self.ROUTE)
+    response = self.testapp.get(
+        self.ROUTE, headers={'X-AppEngine-Cron': 'true'})
     self.assertEqual(httplib.OK, response.status_int)
 
     self.VerifyUser(user1.email, [USER, TRUSTED_USER, SUPERUSER])
@@ -147,7 +150,8 @@ class SyncRolesTest(basetest.UpvoteTestCase):
     self.VerifyUser(user2.email, [USER, TRUSTED_USER])
     self.VerifyUser(user3.email, [USER])
 
-    response = self.testapp.get(self.ROUTE)
+    response = self.testapp.get(
+        self.ROUTE, headers={'X-AppEngine-Cron': 'true'})
     self.assertEqual(httplib.OK, response.status_int)
 
     self.VerifyUser(user1.email, [USER, TRUSTED_USER])
@@ -172,7 +176,8 @@ class SyncRolesTest(basetest.UpvoteTestCase):
     self.VerifyUser(user1.email, [USER, TRUSTED_USER, SUPERUSER])
     self.VerifyUser(user2.email, [USER, TRUSTED_USER, SUPERUSER])
 
-    response = self.testapp.get(self.ROUTE)
+    response = self.testapp.get(
+        self.ROUTE, headers={'X-AppEngine-Cron': 'true'})
     self.assertEqual(httplib.OK, response.status_int)
 
     self.VerifyUser(user1.email, [USER, TRUSTED_USER])
@@ -198,7 +203,8 @@ class SyncRolesTest(basetest.UpvoteTestCase):
     self.VerifyUser(user2.email, [USER, TRUSTED_USER])
     self.VerifyUser(user3.email, [USER, TRUSTED_USER])
 
-    response = self.testapp.get(self.ROUTE)
+    response = self.testapp.get(
+        self.ROUTE, headers={'X-AppEngine-Cron': 'true'})
     self.assertEqual(httplib.OK, response.status_int)
 
     self.VerifyUser(user1.email, [USER, TRUSTED_USER])
@@ -225,7 +231,8 @@ class SyncRolesTest(basetest.UpvoteTestCase):
     self.VerifyUser(user2.email, [USER, TRUSTED_USER])
     self.VerifyUser(user3.email, [USER])
 
-    response = self.testapp.get(self.ROUTE)
+    response = self.testapp.get(
+        self.ROUTE, headers={'X-AppEngine-Cron': 'true'})
     self.assertEqual(httplib.OK, response.status_int)
 
     self.VerifyUser(user1.email, [USER, TRUSTED_USER])
@@ -252,7 +259,8 @@ class SyncRolesTest(basetest.UpvoteTestCase):
     self.VerifyUser(user2.email, [USER, TRUSTED_USER])
     self.VerifyUser(user3.email, [USER, TRUSTED_USER])
 
-    response = self.testapp.get(self.ROUTE)
+    response = self.testapp.get(
+        self.ROUTE, headers={'X-AppEngine-Cron': 'true'})
     self.assertEqual(httplib.OK, response.status_int)
 
     self.VerifyUser(user1.email, [USER, TRUSTED_USER])
@@ -276,7 +284,8 @@ class SyncRolesTest(basetest.UpvoteTestCase):
     self.VerifyUser(user1.email, [USER, ADMINISTRATOR])
     self.VerifyUser(user2.email, [USER, ADMINISTRATOR])
 
-    response = self.testapp.get(self.ROUTE)
+    response = self.testapp.get(
+        self.ROUTE, headers={'X-AppEngine-Cron': 'true'})
     self.assertEqual(httplib.OK, response.status_int)
 
     self.VerifyUser(user1.email, [USER, ADMINISTRATOR])
@@ -318,7 +327,7 @@ class ClientModeChangeHandlerTest(basetest.UpvoteTestCase):
     mock_ctor.return_value.AllMembers.return_value = [
         user.key.id() for user in users]
 
-    response = self.testapp.get('')
+    response = self.testapp.get('', headers={'X-AppEngine-Cron': 'true'})
 
     self.assertEqual(httplib.OK, response.status_int)
 
@@ -342,7 +351,7 @@ class ClientModeChangeHandlerTest(basetest.UpvoteTestCase):
     mock_ctor.return_value.AllMembers.return_value = [
         user.key.id() for user in users]
 
-    response = self.testapp.get('')
+    response = self.testapp.get('', headers={'X-AppEngine-Cron': 'true'})
 
     self.assertEqual(httplib.OK, response.status_int)
 
@@ -354,13 +363,9 @@ class ClientModeChangeHandlerTest(basetest.UpvoteTestCase):
 
   @mock.patch.object(role_syncing.group_utils, 'GroupManager')
   def testChangeModeForGroup_NoUsers(self, mock_ctor):
-
     mock_ctor.return_value.AllMembers.return_value = []
-
-    response = self.testapp.get('')
-
+    response = self.testapp.get('', headers={'X-AppEngine-Cron': 'true'})
     self.assertEqual(httplib.OK, response.status_int)
-
     self.assertTaskCount(constants.TASK_QUEUE.DEFAULT, 0)
 
 
@@ -368,7 +373,6 @@ class ChangeModeForHostsTest(basetest.UpvoteTestCase):
 
   def setUp(self):
     super(ChangeModeForHostsTest, self).setUp()
-
     self.user = test_utils.CreateUser()
 
   def testNoHosts(self):
@@ -430,7 +434,8 @@ class LockSpiderTest(basetest.UpvoteTestCase):
 
   @mock.patch.object(role_syncing.datastore_utils, 'QueuedPaginatedBatchApply')
   def testLockSpider(self, mock_query_util):
-    response = self.testapp.get(self.ROUTE)
+    response = self.testapp.get(
+        self.ROUTE, headers={'X-AppEngine-Cron': 'true'})
 
     self.assertEqual(httplib.OK, response.status_int)
     self.assertEqual(1, mock_query_util.call_count)

@@ -22,7 +22,6 @@ from webapp2_extras import routes
 
 from upvote.gae.datastore.models import bit9
 from upvote.gae.datastore.models import virustotal
-from upvote.gae.modules.upvote_app.api.web import base
 from upvote.gae.modules.upvote_app.api.web import monitoring
 from upvote.gae.shared.common import settings
 from upvote.gae.utils import handler_utils
@@ -31,7 +30,7 @@ from upvote.gae.utils import xsrf_utils
 from upvote.shared import constants
 
 
-class Settings(base.BaseHandler):
+class Settings(handler_utils.UserFacingHandler):
   """Get or set the value of a setting."""
 
   @property
@@ -52,11 +51,11 @@ class Settings(base.BaseHandler):
       self.respond_json(value)
 
 
-class ApiKeys(base.BaseHandler):
+class ApiKeys(handler_utils.AdminOnlyHandler):
   """Set/update the value of an API key."""
 
   @xsrf_utils.RequireToken
-  @base.RequireCapability(constants.PERMISSIONS.CHANGE_SETTINGS)
+  @handler_utils.RequireCapability(constants.PERMISSIONS.CHANGE_SETTINGS)
   def post(self, key_name):  # pylint: disable=g-bad-name
     """Post handler for a single API key."""
 

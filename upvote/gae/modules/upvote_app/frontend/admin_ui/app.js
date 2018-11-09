@@ -22,7 +22,6 @@ goog.require('upvote.admin.app.routeProvider');
 goog.require('upvote.admin.blockablepage.BlockableController');
 goog.require('upvote.admin.blockables.module');
 goog.require('upvote.admin.common.module');
-goog.require('upvote.admin.constants.module');
 goog.require('upvote.admin.dashboard.DashboardController');
 goog.require('upvote.admin.emergency.module');
 goog.require('upvote.admin.emergencypage.EmergencyController');
@@ -53,7 +52,6 @@ goog.scope(() => {
 upvote.admin.app.module = angular.module('upvote.admin.app', [
   upvote.admin.blockables.module.name,
   upvote.admin.common.module.name,
-  upvote.admin.constants.module.name,
   upvote.admin.emergency.module.name,
   upvote.admin.events.module.name,
   upvote.admin.hosts.module.name,

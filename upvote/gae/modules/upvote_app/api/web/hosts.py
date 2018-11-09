@@ -30,14 +30,13 @@ from upvote.gae.datastore.models import santa as santa_models
 from upvote.gae.datastore.models import tickets as tickets_models
 from upvote.gae.datastore.models import user as user_models
 from upvote.gae.datastore.models import utils as model_utils
-from upvote.gae.modules.upvote_app.api.web import base
 from upvote.gae.modules.upvote_app.api.web import monitoring
 from upvote.gae.utils import handler_utils
 from upvote.gae.utils import xsrf_utils
 from upvote.shared import constants
 
 
-class HostQueryHandler(base.BaseQueryHandler):
+class HostQueryHandler(handler_utils.UserFacingQueryHandler):
   """Handler for querying hosts."""
 
   MODEL_CLASS = base_models.Host
@@ -46,7 +45,7 @@ class HostQueryHandler(base.BaseQueryHandler):
   def RequestCounter(self):
     return monitoring.host_requests
 
-  @base.RequireCapability(constants.PERMISSIONS.VIEW_OTHER_HOSTS)
+  @handler_utils.RequireCapability(constants.PERMISSIONS.VIEW_OTHER_HOSTS)
   @handler_utils.RecordRequest
   def get(self):
     self._Query()
@@ -58,7 +57,7 @@ class SantaHostQueryHandler(HostQueryHandler):
   MODEL_CLASS = santa_models.SantaHost
 
 
-class HostHandler(base.BaseHandler):
+class HostHandler(handler_utils.UserFacingHandler):
   """Handler for interacting with specific hosts."""
 
   def get(self, host_id):
@@ -71,7 +70,7 @@ class HostHandler(base.BaseHandler):
       self.RequireCapability(constants.PERMISSIONS.VIEW_OTHER_HOSTS)
     self.respond_json(host)
 
-  @base.RequireCapability(constants.PERMISSIONS.EDIT_HOSTS)
+  @handler_utils.RequireCapability(constants.PERMISSIONS.EDIT_HOSTS)
   @xsrf_utils.RequireToken
   def post(self, host_id):
     host_id = base_models.Host.NormalizeId(host_id)
@@ -94,7 +93,7 @@ class HostHandler(base.BaseHandler):
     self.respond_json(host)
 
 
-class AssociatedHostHandler(base.BaseHandler):
+class AssociatedHostHandler(handler_utils.UserFacingHandler):
   """Handler for interacting with specific hosts."""
 
   def _GetAssociatedHosts(self, user):
@@ -114,7 +113,7 @@ class AssociatedHostHandler(base.BaseHandler):
 
     return sorted(hosts, key=ByFreshness, reverse=True)
 
-  @base.RequireCapability(constants.PERMISSIONS.VIEW_OTHER_HOSTS)
+  @handler_utils.RequireCapability(constants.PERMISSIONS.VIEW_OTHER_HOSTS)
   def GetByUserId(self, user_id):
     logging.info('Getting associated Hosts for user_id=%s', user_id)
     user = user_models.User.GetById(user_id)
@@ -130,7 +129,7 @@ class AssociatedHostHandler(base.BaseHandler):
     self.respond_json(hosts)
 
 
-class HostExceptionHandler(base.BaseHandler):
+class HostExceptionHandler(handler_utils.UserFacingHandler):
   """Handler for interacting with host exceptions."""
 
   def get(self, host_id):
@@ -168,7 +167,7 @@ class HostExceptionHandler(base.BaseHandler):
 
     self.respond_json(ticket)
 
-  @base.RequireCapability(constants.PERMISSIONS.REQUEST_EXEMPTION)
+  @handler_utils.RequireCapability(constants.PERMISSIONS.REQUEST_EXEMPTION)
   @xsrf_utils.RequireToken
   def post(self, host_id):
     host_id = base_models.Host.NormalizeId(host_id)
@@ -231,7 +230,7 @@ class HostExceptionHandler(base.BaseHandler):
     self.respond_json(host)
 
 
-class LockdownHandler(base.BaseHandler):
+class LockdownHandler(handler_utils.UserFacingHandler):
   """Handler for enrolling a host in Lockdown."""
 
   @xsrf_utils.RequireToken
@@ -269,7 +268,7 @@ class LockdownHandler(base.BaseHandler):
     self.respond_json(host)
 
 
-class VisibilityHandler(base.BaseHandler):
+class VisibilityHandler(handler_utils.UserFacingHandler):
   """Handler for changing the hidden attribute of a host."""
 
   @xsrf_utils.RequireToken

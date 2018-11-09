@@ -24,13 +24,12 @@ from google.appengine.ext import ndb
 from upvote.gae.datastore import utils as datastore_utils
 from upvote.gae.datastore.models import base as base_models
 from upvote.gae.datastore.models import santa as santa_models
-from upvote.gae.modules.upvote_app.api.web import base
 from upvote.gae.modules.upvote_app.api.web import monitoring
 from upvote.gae.utils import handler_utils
 from upvote.shared import constants
 
 
-class RuleQueryHandler(base.BaseQueryHandler):
+class RuleQueryHandler(handler_utils.UserFacingQueryHandler):
   """Handler for querying rules."""
 
   MODEL_CLASS = base_models.Rule
@@ -39,7 +38,7 @@ class RuleQueryHandler(base.BaseQueryHandler):
   def RequestCounter(self):
     return monitoring.rule_requests
 
-  @base.RequireCapability(constants.PERMISSIONS.VIEW_RULES)
+  @handler_utils.RequireCapability(constants.PERMISSIONS.VIEW_RULES)
   @handler_utils.RecordRequest
   def get(self):
     self._Query()
@@ -59,10 +58,10 @@ class SantaRuleQueryHandler(RuleQueryHandler):
   MODEL_CLASS = santa_models.SantaRule
 
 
-class RuleHandler(base.BaseHandler):
+class RuleHandler(handler_utils.UserFacingHandler):
   """Handler for interacting with individual rules."""
 
-  @base.RequireCapability(constants.PERMISSIONS.VIEW_RULES)
+  @handler_utils.RequireCapability(constants.PERMISSIONS.VIEW_RULES)
   def get(self, rule_key):
     logging.info('Rule handler get method called with key: %s', rule_key)
     key = datastore_utils.GetKeyFromUrlsafe(rule_key)

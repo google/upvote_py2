@@ -26,7 +26,6 @@ from upvote.gae.datastore import utils as datastore_utils
 from upvote.gae.datastore.models import base as base_models
 from upvote.gae.datastore.models import vote as vote_models
 from upvote.gae.lib.voting import api as voting_api
-from upvote.gae.modules.upvote_app.api.web import base
 from upvote.gae.modules.upvote_app.api.web import monitoring
 from upvote.gae.shared.common import settings
 from upvote.gae.utils import handler_utils
@@ -43,7 +42,7 @@ def _PopulateCandidateId(votes):
   return vote_dicts
 
 
-class VoteQueryHandler(base.BaseQueryHandler):
+class VoteQueryHandler(handler_utils.UserFacingQueryHandler):
   """Handler for querying votes."""
 
   MODEL_CLASS = vote_models.Vote
@@ -52,7 +51,7 @@ class VoteQueryHandler(base.BaseQueryHandler):
   def RequestCounter(self):
     return monitoring.vote_requests
 
-  @base.RequireCapability(constants.PERMISSIONS.VIEW_VOTES)
+  @handler_utils.RequireCapability(constants.PERMISSIONS.VIEW_VOTES)
   @handler_utils.RecordRequest
   def get(self):
     self._Query(callback=_PopulateCandidateId)
@@ -68,10 +67,10 @@ class VoteQueryHandler(base.BaseQueryHandler):
     return query.filter(vote_models.Vote.in_effect == True)  # pylint: disable=g-explicit-bool-comparison, singleton-comparison
 
 
-class VoteHandler(base.BaseHandler):
+class VoteHandler(handler_utils.UserFacingHandler):
   """Handler for viewing individual votes."""
 
-  @base.RequireCapability(constants.PERMISSIONS.VIEW_VOTES)
+  @handler_utils.RequireCapability(constants.PERMISSIONS.VIEW_VOTES)
   def get(self, vote_key):
     logging.info('Vote handler get method called with key: %s', vote_key)
     key = datastore_utils.GetKeyFromUrlsafe(vote_key)
@@ -89,7 +88,7 @@ class VoteHandler(base.BaseHandler):
       self.abort(httplib.NOT_FOUND, explanation='Vote not found.')
 
 
-class VoteCastHandler(base.BaseHandler):
+class VoteCastHandler(handler_utils.UserFacingHandler):
   """Handler for casting votes."""
 
   def _GetVoteWeight(self, role):

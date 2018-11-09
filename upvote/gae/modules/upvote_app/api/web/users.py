@@ -20,13 +20,12 @@ import webapp2
 from webapp2_extras import routes
 
 from upvote.gae.datastore.models import user as user_models
-from upvote.gae.modules.upvote_app.api.web import base
 from upvote.gae.modules.upvote_app.api.web import monitoring
 from upvote.gae.utils import handler_utils
 from upvote.shared import constants
 
 
-class UserQueryHandler(base.BaseQueryHandler):
+class UserQueryHandler(handler_utils.UserFacingQueryHandler):
   """Handler for querying users."""
 
   MODEL_CLASS = user_models.User
@@ -36,13 +35,13 @@ class UserQueryHandler(base.BaseQueryHandler):
   def RequestCounter(self):
     return monitoring.user_requests
 
-  @base.RequireCapability(constants.PERMISSIONS.VIEW_OTHER_USERS)
+  @handler_utils.RequireCapability(constants.PERMISSIONS.VIEW_OTHER_USERS)
   @handler_utils.RecordRequest
   def get(self):
     self._Query()
 
 
-class UserHandler(base.BaseHandler):
+class UserHandler(handler_utils.UserFacingHandler):
   """Handler for interacting with individual users."""
 
   def get(self, user_id=None):  # pylint: disable=g-bad-name
@@ -62,7 +61,7 @@ class UserHandler(base.BaseHandler):
     else:
       self.abort(httplib.NOT_FOUND, explanation='User not found')
 
-  @base.RequireCapability(constants.PERMISSIONS.VIEW_OTHER_USERS)
+  @handler_utils.RequireCapability(constants.PERMISSIONS.VIEW_OTHER_USERS)
   def _get_another_user(self, user_id):
     return user_models.User.GetById(user_id)
 

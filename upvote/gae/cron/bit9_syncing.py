@@ -951,7 +951,7 @@ def _PersistBit9Event(event, key):
   yield event_copy.put_async()
 
 
-class CommitAllChangeSets(handler_utils.UpvoteRequestHandler):
+class CommitAllChangeSets(handler_utils.CronJobHandler):
   """Attempt a deferred commit for each Blockable with pending change sets."""
 
   def get(self):
@@ -990,7 +990,7 @@ class CommitAllChangeSets(handler_utils.UpvoteRequestHandler):
           selected_key, countdown=countdown)
 
 
-class UpdateBit9Policies(handler_utils.UpvoteRequestHandler):
+class UpdateBit9Policies(handler_utils.CronJobHandler):
   """Ensures locally cached policies are up-to-date."""
 
   def get(self):
@@ -1033,7 +1033,7 @@ class UpdateBit9Policies(handler_utils.UpvoteRequestHandler):
       ndb.put_multi(policies_to_update)
 
 
-class CountEventsToPull(handler_utils.UpvoteRequestHandler):
+class CountEventsToPull(handler_utils.CronJobHandler):
 
   def get(self):
     queue_length = (
@@ -1045,14 +1045,14 @@ class CountEventsToPull(handler_utils.UpvoteRequestHandler):
     monitoring.events_to_pull.Set(queue_length)
 
 
-class PullEvents(handler_utils.UpvoteRequestHandler):
+class PullEvents(handler_utils.CronJobHandler):
 
   def get(self):
     taskqueue_utils.CappedDefer(
         Pull, _PULL_MAX_QUEUE_SIZE, queue=constants.TASK_QUEUE.BIT9_PULL)
 
 
-class CountEventsToProcess(handler_utils.UpvoteRequestHandler):
+class CountEventsToProcess(handler_utils.CronJobHandler):
 
   def get(self):
     events_to_process = _UnsyncedEvent.query().count()  # pylint: disable=protected-access
@@ -1060,7 +1060,7 @@ class CountEventsToProcess(handler_utils.UpvoteRequestHandler):
     monitoring.events_to_process.Set(events_to_process)
 
 
-class ProcessEvents(handler_utils.UpvoteRequestHandler):
+class ProcessEvents(handler_utils.CronJobHandler):
 
   def get(self):
     taskqueue_utils.CappedDefer(

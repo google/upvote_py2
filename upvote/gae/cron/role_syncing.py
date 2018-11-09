@@ -29,6 +29,7 @@ from upvote.gae.datastore.models import user as user_models
 from upvote.gae.shared.common import settings
 from upvote.gae.shared.common import user_map
 from upvote.gae.utils import group_utils
+from upvote.gae.utils import handler_utils
 from upvote.gae.utils import iter_utils
 from upvote.shared import constants
 
@@ -36,7 +37,7 @@ from upvote.shared import constants
 BATCH_SIZE = 1000
 
 
-class SyncRoles(webapp2.RequestHandler):
+class SyncRoles(handler_utils.CronJobHandler):
   """Handler for syncing roles."""
 
   def get(self):  # pylint: disable=g-bad-name
@@ -106,7 +107,7 @@ class SyncRoles(webapp2.RequestHandler):
           role, additions, removals)
 
 
-class ClientModeChangeHandler(webapp2.RequestHandler):
+class ClientModeChangeHandler(handler_utils.CronJobHandler):
   """Generic parent class for setting client mode for hosts."""
 
   def _ChangeModeForGroup(self, mode, group, honor_lock=True):
@@ -197,7 +198,7 @@ class MonitorIt(ClientModeChangeHandler):
         honor_lock=False)
 
 
-class LockSpider(webapp2.RequestHandler):
+class LockSpider(handler_utils.CronJobHandler):
   """Crawls through host entities and locks them down if they are not locked."""
 
   def get(self):  # pylint: disable=g-bad-name

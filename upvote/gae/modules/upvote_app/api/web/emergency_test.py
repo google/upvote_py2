@@ -14,6 +14,7 @@
 
 """Unit tests for emergency.py."""
 
+import httplib
 import mock
 
 import webapp2
@@ -30,6 +31,10 @@ class EmergencyTest(basetest.UpvoteTestCase):
     super(EmergencyTest, self).setUp(wsgi_app=app)
 
     self.PatchValidateXSRFToken()
+
+  def testForbidden(self):
+    with self.LoggedInUser():
+      self.testapp.get('/emergency', status=httplib.FORBIDDEN)
 
   def testGet(self):
     mock_brb = mock.MagicMock()

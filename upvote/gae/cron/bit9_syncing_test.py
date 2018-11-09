@@ -1315,7 +1315,7 @@ class CommitAllChangeSetsTest(bit9test.Bit9TestCase):
     unused_change = test_utils.CreateRuleChangeSet(other_binary.key)
     self.assertTrue(real_change.recorded_dt < unused_change.recorded_dt)
 
-    self.testapp.get(self.ROUTE)
+    self.testapp.get(self.ROUTE, headers={'X-AppEngine-Cron': 'true'})
 
     self.assertEqual(2, mock_metric.Set.call_args_list[0][0][0])
     self.assertTaskCount(constants.TASK_QUEUE.BIT9_COMMIT_CHANGE, 2)
@@ -1339,7 +1339,7 @@ class UpdateBit9PoliciesTest(bit9test.Bit9TestCase):
     policy = api.Policy(id=1, name='foo', enforcement_level=20)
     self.PatchApiRequests([policy])
 
-    self.testapp.get(self.ROUTE)
+    self.testapp.get(self.ROUTE, headers={'X-AppEngine-Cron': 'true'})
 
     policies = bit9_models.Bit9Policy.query().fetch()
     self.assertEqual(1, len(policies))
@@ -1367,7 +1367,7 @@ class UpdateBit9PoliciesTest(bit9test.Bit9TestCase):
     policy2 = api.Policy(id=2, name='baz', enforcement_level=20)
     self.PatchApiRequests([policy1, policy2])
 
-    self.testapp.get(self.ROUTE)
+    self.testapp.get(self.ROUTE, headers={'X-AppEngine-Cron': 'true'})
 
     self.assertEqual(2, bit9_models.Bit9Policy.query().count())
 
@@ -1393,7 +1393,7 @@ class UpdateBit9PoliciesTest(bit9test.Bit9TestCase):
     policy = api.Policy(id=1, name='bar', enforcement_level=25)
     self.PatchApiRequests([policy])
 
-    self.testapp.get(self.ROUTE)
+    self.testapp.get(self.ROUTE, headers={'X-AppEngine-Cron': 'true'})
 
     # Policy name should _not_ be updated.
     updated_policy = bit9_models.Bit9Policy.get_by_id('1')
@@ -1412,7 +1412,7 @@ class CountEventsToPullTest(bit9test.Bit9TestCase):
   def testSuccess(self, mock_metric):
     bit9_utils.CONTEXT.ExecuteRequest.return_value = {'count': 20}
 
-    self.testapp.get(self.ROUTE)
+    self.testapp.get(self.ROUTE, headers={'X-AppEngine-Cron': 'true'})
 
     actual_length = mock_metric.Set.call_args_list[0][0][0]
     self.assertEqual(20, actual_length)
@@ -1428,7 +1428,8 @@ class PullEventsTest(bit9test.Bit9TestCase):
 
   def testQueueFills(self):
     for i in xrange(1, bit9_syncing._PULL_MAX_QUEUE_SIZE + 20):
-      response = self.testapp.get(self.ROUTE)
+      response = self.testapp.get(
+          self.ROUTE, headers={'X-AppEngine-Cron': 'true'})
       self.assertEqual(httplib.OK, response.status_int)
       expected_queue_size = min(i, bit9_syncing._PULL_MAX_QUEUE_SIZE)
       self.assertTaskCount(constants.TASK_QUEUE.BIT9_PULL, expected_queue_size)
@@ -1448,7 +1449,8 @@ class CountEventsToProcessTest(bit9test.Bit9TestCase):
     for _ in xrange(expected_length):
       bit9_syncing._UnsyncedEvent().put()
 
-    response = self.testapp.get(self.ROUTE)
+    response = self.testapp.get(
+        self.ROUTE, headers={'X-AppEngine-Cron': 'true'})
 
     self.assertEqual(httplib.OK, response.status_int)
     actual_length = mock_metric.Set.call_args_list[0][0][0]
@@ -1465,7 +1467,8 @@ class ProcessEventsTest(bit9test.Bit9TestCase):
 
   def testQueueFills(self):
     for i in xrange(1, bit9_syncing._DISPATCH_MAX_QUEUE_SIZE + 20):
-      response = self.testapp.get(self.ROUTE)
+      response = self.testapp.get(
+          self.ROUTE, headers={'X-AppEngine-Cron': 'true'})
       self.assertEqual(httplib.OK, response.status_int)
       expected_queue_size = min(i, bit9_syncing._DISPATCH_MAX_QUEUE_SIZE)
       self.assertTaskCount(

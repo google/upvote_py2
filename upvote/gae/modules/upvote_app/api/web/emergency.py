@@ -18,23 +18,23 @@ import logging
 
 import webapp2
 
-from upvote.gae.modules.upvote_app.api.web import base
 from upvote.gae.shared.common import big_red
+from upvote.gae.utils import handler_utils
 from upvote.gae.utils import xsrf_utils
 from upvote.shared import constants
 
 
-class Emergency(base.BaseHandler):
+class Emergency(handler_utils.AdminOnlyHandler):
   """Handlers related to emergency controls."""
 
-  @base.RequireCapability(constants.PERMISSIONS.CHANGE_SETTINGS)
+  @handler_utils.RequireCapability(constants.PERMISSIONS.CHANGE_SETTINGS)
   def get(self):  # pylint: disable=g-bad-name
     """Get handler for emergency controls."""
     logging.info('Emergency handler get method called.')
     big_red_button = big_red.BigRedButton()
     self.respond_json(big_red_button.get_button_status())
 
-  @base.RequireCapability(constants.PERMISSIONS.CHANGE_SETTINGS)
+  @handler_utils.RequireCapability(constants.PERMISSIONS.CHANGE_SETTINGS)
   @xsrf_utils.RequireToken
   def post(self):
     """Post handler for emergency controls."""

@@ -30,6 +30,9 @@ py_appengine_library(
     deps = [
         ":env_utils",
         ":json_utils",
+        ":string_utils",
+        "//upvote/gae/datastore:utils",
+        "//upvote/gae/datastore/models:user",
     ],
 )
 

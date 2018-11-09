@@ -15,55 +15,57 @@
 """A module for the index handler."""
 
 import httplib
+import logging
 import webapp2
 
 from google.appengine.api import users
 
-from upvote.gae.modules.upvote_app.api.web import base
 from upvote.gae.shared.common import template_utils
+from upvote.gae.utils import handler_utils
 from upvote.shared import constants
 
 
-class IndexHandler(base.BaseHandler):
-  """The handler for the main Angular template."""
+class IndexHandler(handler_utils.UserFacingHandler):
+  """Base class for all index handlers."""
 
-  class IndexPageVersion(object):
-    ADMIN = 'admin-index.html'
-    USER = 'user-index.html'
+  def _Get(self):
 
-  def _Get(self, template_name):
-    debug_text = self.request.get('debug', '0')
+    # Enable debugging if requested.
     try:
-      debug = bool(int(debug_text))
+      debug = bool(int(self.request.get('debug', '0')))
     except ValueError:
       debug = False
+    logging.info('Debugging is %s', 'enabled' if debug else 'disabled')
+
+    # Write the jinja2 template rendering to the handler's repsonse.
     template_context = {
         'debug': debug,
-        'username': users.get_current_user(),
-    }
-    # Write the jinja2 template rendering to the handler's repsonse.
-    response_string = template_utils.GetTemplate(
-        template_name).render(template_context)
+        'username': users.get_current_user()}
+    template = template_utils.GetTemplate(self.TEMPLATE_NAME)
+    response_string = template.render(template_context)
     self.response.set_status(httplib.OK)
-
     self.response.write(response_string)
 
-  @base.RequireCapability(constants.PERMISSIONS.VIEW_ADMIN_CONSOLE)
-  def GetAdmin(self, *args, **kwargs):
-    return self._Get(self.IndexPageVersion.ADMIN)
 
-  def GetUser(self, *args, **kwargs):
-    return self._Get(self.IndexPageVersion.USER)
+class AdminIndexHandler(IndexHandler):
+
+  TEMPLATE_NAME = 'admin-index.html'
+
+  @handler_utils.RequireCapability(constants.PERMISSIONS.VIEW_ADMIN_CONSOLE)
+  def get(self, *args, **kwargs):
+    return self._Get()
+
+
+class UserIndexHandler(IndexHandler):
+
+  TEMPLATE_NAME = 'user-index.html'
+
+  def get(self, *args, **kwargs):
+    return self._Get()
 
 
 ADMIN_ROUTE = webapp2.Route(
-    r'/admin<:/?><:.*>',
-    handler=IndexHandler,
-    handler_method='GetAdmin',
-    methods=['GET'])
+    r'/admin<:/?><:.*>', handler=AdminIndexHandler)
 
 USER_ROUTE = webapp2.Route(
-    r'/<:/?><:.*>',
-    handler=IndexHandler,
-    handler_method='GetUser',
-    methods=['GET'])
+    r'/<:/?><:.*>', handler=UserIndexHandler)

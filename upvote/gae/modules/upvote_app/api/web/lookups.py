@@ -24,12 +24,11 @@ from upvote.gae.datastore.models import base as base_models
 from upvote.gae.datastore.models import santa as santa_models
 from upvote.gae.lib.analysis import api as analysis_api
 from upvote.gae.lib.analysis.virustotal import constants as vt_constants
-from upvote.gae.modules.upvote_app.api.web import base
 from upvote.gae.modules.upvote_app.api.web import monitoring
 from upvote.gae.utils import handler_utils
 
 
-class Lookup(base.BaseHandler):
+class Lookup(handler_utils.UserFacingHandler):
   """Handler for looking up binary info."""
 
   @property
