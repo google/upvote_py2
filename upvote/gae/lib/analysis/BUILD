@@ -20,10 +20,10 @@ py_appengine_library(
     deps = [
         ":api",
         ":monitoring",
+        "//upvote/gae:settings",
         "//upvote/gae/datastore/models:base",
         "//upvote/gae/datastore/models:metrics",
         "//upvote/gae/lib/analysis/virustotal:constants",
-        "//upvote/gae/shared/common:settings",
         "//upvote/shared:constants",
     ],
 )

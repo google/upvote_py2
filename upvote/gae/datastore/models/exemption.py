@@ -19,7 +19,7 @@ import logging
 from google.appengine.ext import ndb
 from google.appengine.ext.ndb import polymodel
 from upvote.gae.bigquery import tables
-from upvote.gae.datastore.models import base
+from upvote.gae.datastore.models import host as host_models
 from upvote.gae.datastore.models import mixin
 from upvote.shared import constants
 
@@ -28,19 +28,19 @@ class Error(Exception):
   """Base error class for the module."""
 
 
-class AlreadyExists(Error):
+class AlreadyExistsError(Error):
   """Raised when attempting to create a second Exemption entity for a host."""
 
 
-class InvalidExemption(Error):
+class InvalidExemptionError(Error):
   """Raised when attempting an operation on an Exemption that doesn't exist."""
 
 
-class InvalidStateChange(Error):
+class InvalidStateChangeError(Error):
   """Raised when attempting to change an Exemption to an invalid state."""
 
 
-class UnknownPlatform(Error):
+class UnknownPlatformError(Error):
   """Raised if the platform of an Exemption cannot be determined."""
 
 
@@ -87,7 +87,7 @@ class Exemption(mixin.Base, polymodel.PolyModel):
 
   @classmethod
   def CreateKey(cls, host_id):
-    return ndb.Key(base.Host, host_id, cls, '1')
+    return ndb.Key(host_models.Host, host_id, cls, '1')
 
   @classmethod
   def Get(cls, host_id):
@@ -104,7 +104,7 @@ class Exemption(mixin.Base, polymodel.PolyModel):
     if platform not in constants.PLATFORM.SET_ALL:
       message = 'Host %s has an unknown platform: %s' % (
           host.key.id(), platform)
-      raise UnknownPlatform(message)
+      raise UnknownPlatformError(message)
     return platform
 
   @classmethod
@@ -126,12 +126,12 @@ class Exemption(mixin.Base, polymodel.PolyModel):
       The NDB Key of the newly-created Exemption.
 
     Raises:
-      AlreadyExists: when attempting to create a second Exemption for a given
-          host_id.
+      AlreadyExistsError: when attempting to create a second Exemption for a
+          given host_id.
     """
     # Make sure that an Exemption doesn't already exist before calling put().
     if cls.Exists(host_id):
-      raise AlreadyExists('Exemption already exists for host %s' % host_id)
+      raise AlreadyExistsError('Exemption already exists for host %s' % host_id)
 
     # Compose a new entity and persist it.
     exm_key = cls.CreateKey(host_id)
@@ -159,20 +159,21 @@ class Exemption(mixin.Base, polymodel.PolyModel):
       details: A list of strings that can justify the change.
 
     Raises:
-      InvalidExemption: If the Key doesn't correspond to an actual Exemption.
-      InvalidStateChange: If the desired state cannot be transitioned to from
-          the current state.
+      InvalidExemptionError: If the Key doesn't correspond to an actual
+          Exemption.
+      InvalidStateChangeError: If the desired state cannot be transitioned to
+          from the current state.
     """
     host_id = exm_key.parent().id()
 
     # Verify that we're trying to change state on a valid Exemption.
     exm = exm_key.get()
     if not exm:
-      raise InvalidExemption('No Exemption exists for host %s' % host_id)
+      raise InvalidExemptionError('No Exemption exists for host %s' % host_id)
 
     # Verify that the desired state can be reached from the current state.
     if not exm.CanChangeToState(new_state):
-      raise InvalidStateChange('%s to %s' % (exm.state, new_state))
+      raise InvalidStateChangeError('%s to %s' % (exm.state, new_state))
 
     if details is None:
       details = []

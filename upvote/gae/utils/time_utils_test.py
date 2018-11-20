@@ -17,9 +17,8 @@
 import datetime
 import mock
 
-from absl.testing import absltest
-
 from upvote.gae.utils import time_utils
+from absl.testing import absltest
 
 
 class TimeUtilsTest(absltest.TestCase):

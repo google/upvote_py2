@@ -25,7 +25,7 @@ class Error(Exception):
   """Base Exception class."""
 
 
-class InvalidName(Error):
+class InvalidNameError(Error):
   """Raised when referencing an invalid Namespace name."""
 
 
@@ -120,7 +120,7 @@ class Namespace(object):
 
     name = name.upper()
     if name not in self._names:
-      raise InvalidName(name)
+      raise InvalidNameError(name)
 
     return getattr(self, name)
 
@@ -189,8 +189,7 @@ PERMISSIONS.DefineSet('ADMINISTRATOR', PERMISSIONS.SET_SECURITY.union([
     PERMISSIONS.REQUEST_EXEMPTION]))
 
 
-ID_TYPE = UppercaseNamespace([
-    'SHA1', 'SHA256', 'SHA512', 'MD5', 'FUZZY_SHA256', 'SANTA_BUNDLE'])
+ID_TYPE = UppercaseNamespace(['SHA1', 'SHA256', 'FUZZY_SHA256', 'SANTA_BUNDLE'])
 
 EVENT_TYPE = UppercaseNamespace([
     'ALLOW_UNKNOWN', 'ALLOW_BINARY', 'ALLOW_CERTIFICATE', 'ALLOW_SCOPE',

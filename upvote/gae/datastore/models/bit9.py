@@ -14,7 +14,6 @@
 
 """Models specific to Bit9."""
 
-import datetime
 import logging
 
 from google.appengine.ext import ndb
@@ -37,63 +36,6 @@ class Bit9ApiAuth(singleton.Singleton):
   Bit9 API key associated with a project.
   """
   api_key = kms_ndb.EncryptedBlobProperty(_KEY_NAME, _KEY_RING, _KEY_LOC)
-
-
-class Bit9Policy(mixin.Bit9, ndb.Model):
-  """A Host policy in Bit9.
-
-  Corresponds to Bit9's "policy" object.
-
-  key = The **string** id of the Bit9 policy object
-
-  Attributes:
-    name: str, The name of the policy.
-    enforcement_level: BIT9_ENFORCEMENT_LEVEL, The 'target enforcement level'
-        (i.e. strictness) associated with the policy. More restrictive policies
-        have 'higher' enforcement levels.
-    updated_dt: datetime, The time the policy was modified last.
-  """
-  name = ndb.StringProperty()
-  enforcement_level = ndb.StringProperty(
-      choices=constants.BIT9_ENFORCEMENT_LEVEL.SET_ALL)
-  updated_dt = ndb.DateTimeProperty(auto_now=True)
-
-
-class Bit9Host(mixin.Bit9, base.Host):
-  """A Host in Bit9.
-
-  Corresponds to Bit9's "computer" object.
-
-  key = The **string** id of the Bit9 computer object
-
-  Attributes:
-    last_event_dt: datetime, The time of the last event blocked on the host.
-    policy_key: Key, The policy currently applied to this host.
-    users: list<str>, The list of **usernames** associated with this host.
-  """
-  last_event_dt = ndb.DateTimeProperty(
-      default=datetime.datetime.utcfromtimestamp(0))
-  policy_key = ndb.KeyProperty()
-  users = ndb.StringProperty(repeated=True)
-
-  @classmethod
-  @ndb.transactional
-  def ChangePolicyKey(cls, host_id, new_policy_key):
-    host = cls.get_by_id(host_id)
-    host.policy_key = new_policy_key
-    host.put()
-
-  def IsAssociatedWithUser(self, user):
-    """Returns whether the given user is associated with this host."""
-    return user.nickname in self.users
-
-  def to_dict(self, include=None, exclude=None):  # pylint: disable=g-bad-name
-    result = super(Bit9Host, self).to_dict(include=include, exclude=exclude)
-
-    if self.policy_key:
-      policy = self.policy_key.get()
-      result['policy_enforcement_level'] = policy.enforcement_level
-    return result
 
 
 class Bit9Event(mixin.Bit9, base.Event):

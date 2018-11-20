@@ -20,13 +20,13 @@ import logging
 import webapp2
 from webapp2_extras import routes
 
-import upvote.gae.shared.common.google_cloud_lib_fixer  # pylint: disable=unused-import
+import upvote.gae.lib.cloud.google_cloud_lib_fixer  # pylint: disable=unused-import
 # pylint: disable=g-bad-import-order,g-import-not-at-top
 
 from google.appengine.api import datastore
 from google.appengine.api import taskqueue
 from google.appengine.ext.ndb import metadata
-from upvote.gae.shared.common import settings
+from upvote.gae import settings
 from upvote.shared import constants
 from upvote.gae.shared.common import monitoring
 from upvote.gae.utils import env_utils

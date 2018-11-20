@@ -22,12 +22,12 @@ from webapp2_extras import routes
 
 from google.appengine.ext import ndb
 
+from upvote.gae import settings
 from upvote.gae.datastore import utils as datastore_utils
 from upvote.gae.datastore.models import base as base_models
 from upvote.gae.datastore.models import vote as vote_models
 from upvote.gae.lib.voting import api as voting_api
 from upvote.gae.modules.upvote_app.api.web import monitoring
-from upvote.gae.shared.common import settings
 from upvote.gae.utils import handler_utils
 from upvote.gae.utils import xsrf_utils
 from upvote.shared import constants
@@ -115,12 +115,8 @@ class VoteCastHandler(handler_utils.UserFacingHandler):
   def post(self, blockable_id):
     """Handle votes from users."""
 
-    # Update the user's last vote date
-    self.user.last_vote_dt = datetime.datetime.utcnow()
-    self.user.put()
-
     was_yes_vote = (self.request.get('wasYesVote') == 'true')
-    role = self.request.get('asRole')
+    role = self.request.get('asRole', default_value=self.user.highest_role)
     vote_weight = self._GetVoteWeight(role)
 
     logging.info(
@@ -130,19 +126,24 @@ class VoteCastHandler(handler_utils.UserFacingHandler):
 
     try:
       vote = voting_api.Vote(self.user, blockable_id, was_yes_vote, vote_weight)
-    except voting_api.BlockableNotFound:
+    except voting_api.BlockableNotFoundError:
       self.abort(httplib.NOT_FOUND, explanation='Application not found')
-    except voting_api.UnsupportedPlatform:
+    except voting_api.UnsupportedPlatformError:
       self.abort(httplib.BAD_REQUEST, explanation='Unsupported platform')
-    except voting_api.InvalidVoteWeight:
+    except voting_api.InvalidVoteWeightError:
       self.abort(httplib.BAD_REQUEST, explanation='Invalid voting weight')
     except voting_api.DuplicateVoteError:
       self.abort(httplib.CONFLICT, explanation='Vote already exists')
-    except voting_api.OperationNotAllowed as e:
+    except voting_api.OperationNotAllowedError as e:
       self.abort(httplib.FORBIDDEN, explanation=e.message)
     except Exception as e:  # pylint: disable=broad-except
       self.abort(httplib.INTERNAL_SERVER_ERROR, explanation=e.message)
     else:
+
+      # Update the user's last vote date
+      self.user.last_vote_dt = datetime.datetime.utcnow()
+      self.user.put()
+
       self.respond_json({
           'blockable': base_models.Blockable.get_by_id(blockable_id),
           'vote': vote})

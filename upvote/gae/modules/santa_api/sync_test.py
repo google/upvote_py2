@@ -25,15 +25,16 @@ import webapp2
 from google.appengine.api import datastore_types
 from google.appengine.ext import ndb
 
+from upvote.gae import settings
 from upvote.gae.datastore import test_utils
 from upvote.gae.datastore import utils as datastore_utils
+from upvote.gae.datastore.models import host as host_models
 from upvote.gae.datastore.models import santa as santa_models
 from upvote.gae.datastore.models import user as user_models
 from upvote.gae.lib.testing import basetest
 from upvote.gae.modules.santa_api import auth
 from upvote.gae.modules.santa_api import constants as santa_const
 from upvote.gae.modules.santa_api import sync
-from upvote.gae.shared.common import settings
 from upvote.gae.shared.common import user_map
 from upvote.shared import constants as common_const
 
@@ -162,7 +163,7 @@ class BaseSantaApiHandlerTest(SantaApiTestCase):
     sync.BaseSantaApiHandler.REQUIRE_HOST_OBJECT = True
     sync.BaseSantaApiHandler.SHOULD_PARSE_JSON = False
 
-    santa_models.SantaHost(key=ndb.Key('Host', 'my-uuid')).put()
+    host_models.SantaHost(key=ndb.Key('Host', 'my-uuid')).put()
 
     self.testapp.post('/my-uuid', {})
 
@@ -289,7 +290,7 @@ class PreflightHandlerTest(SantaApiTestCase):
     self.assertEqual(httplib.OK, response.status_int)
     self.VerifyIncrementCalls(self.mock_metric, httplib.OK)
 
-    self.assertEntityCount(santa_models.SantaHost, 2)
+    self.assertEntityCount(host_models.SantaHost, 2)
     self.assertBigQueryInsertions([TABLE.USER, TABLE.HOST, TABLE.RULE])
 
     self.assertEqual(
@@ -298,7 +299,7 @@ class PreflightHandlerTest(SantaApiTestCase):
     self.assertEqual(42, response.json[PREFLIGHT.BATCH_SIZE])
     self.assertTrue(response.json[PREFLIGHT.CLEAN_SYNC])
 
-    new_host = santa_models.SantaHost.get_by_id('my-uuid')
+    new_host = host_models.SantaHost.get_by_id('my-uuid')
     self.assertEqual('serial', new_host.serial_num)
     self.assertEqual('vogon', new_host.hostname)
     self.assertFalse(new_host.transitive_whitelisting_enabled)
@@ -321,7 +322,7 @@ class PreflightHandlerTest(SantaApiTestCase):
     self.assertEqual(httplib.OK, response.status_int)
     self.VerifyIncrementCalls(self.mock_metric, httplib.OK)
 
-    self.assertEntityCount(santa_models.SantaHost, 2)
+    self.assertEntityCount(host_models.SantaHost, 2)
     self.assertBigQueryInsertions([TABLE.USER, TABLE.HOST])
 
     # Ensure the existing rule wasn't copied from the unsynced host.
@@ -334,7 +335,7 @@ class PreflightHandlerTest(SantaApiTestCase):
     self.assertEqual(httplib.OK, response.status_int)
     self.VerifyIncrementCalls(self.mock_metric, httplib.OK)
 
-    self.assertEntityCount(santa_models.SantaHost, 1)
+    self.assertEntityCount(host_models.SantaHost, 1)
     self.assertBigQueryInsertions([TABLE.USER, TABLE.HOST])
 
     # Ensure no rules were copied because none existed.
@@ -342,17 +343,17 @@ class PreflightHandlerTest(SantaApiTestCase):
 
   def testFirstCheckin_SantaHostCreation(self):
 
-    self.assertEqual(0, santa_models.SantaHost.query().count())
+    self.assertEqual(0, host_models.SantaHost.query().count())
 
     # First checkin should create the SantaHost.
     response = self.testapp.post_json('/my-uuid', self.request_json)
-    self.assertEqual(1, santa_models.SantaHost.query().count())
+    self.assertEqual(1, host_models.SantaHost.query().count())
     self.assertBigQueryInsertions([TABLE.USER, TABLE.HOST])
     self.assertEqual(httplib.OK, response.status_int)
 
     # Next checkin should not.
     response = self.testapp.post_json('/my-uuid', self.request_json)
-    self.assertEqual(1, santa_models.SantaHost.query().count())
+    self.assertEqual(1, host_models.SantaHost.query().count())
     self.assertNoBigQueryInsertions()
     self.assertEqual(httplib.OK, response.status_int)
 
@@ -377,7 +378,7 @@ class PreflightHandlerTest(SantaApiTestCase):
     self.VerifyIncrementCalls(self.mock_metric, httplib.OK, httplib.OK)
 
   def testCheckin_Success(self):
-    santa_models.SantaHost(
+    host_models.SantaHost(
         key=ndb.Key('Host', 'my-uuid'),
         client_mode=common_const.SANTA_CLIENT_MODE.LOCKDOWN,
         directory_whitelist_regex='^/[Bb]uild/.*',
@@ -396,13 +397,13 @@ class PreflightHandlerTest(SantaApiTestCase):
     self.assertEqual(httplib.OK, response.status_int)
     self.VerifyIncrementCalls(self.mock_metric, httplib.OK)
 
-    host = santa_models.SantaHost.get_by_id('my-uuid')
+    host = host_models.SantaHost.get_by_id('my-uuid')
     self.assertEqual('serial', host.serial_num)
 
     self.assertBigQueryInsertion(TABLE.USER)
 
   def testCheckin_DefaultDirectoryRegex(self):
-    santa_models.SantaHost(id='my-uuid').put()
+    host_models.SantaHost(id='my-uuid').put()
     self.PatchSetting('SANTA_DIRECTORY_WHITELIST_REGEX', '^/[Bb]uild/.*')
 
     response = self.testapp.post_json('/my-uuid', self.request_json)
@@ -417,7 +418,7 @@ class PreflightHandlerTest(SantaApiTestCase):
 
   def testCheckin_ShouldUploadLogs(self):
 
-    santa_models.SantaHost(
+    host_models.SantaHost(
         key=ndb.Key('Host', 'my-uuid'), should_upload_logs=True).put()
 
     response = self.testapp.post_json('/my-uuid', self.request_json)
@@ -429,7 +430,7 @@ class PreflightHandlerTest(SantaApiTestCase):
     self.assertBigQueryInsertion(TABLE.USER)
 
   def testCheckin_RequestCleanSync(self):
-    santa_models.SantaHost(
+    host_models.SantaHost(
         key=ndb.Key('Host', 'my-uuid'),
         rule_sync_dt=datetime.datetime.now()).put()
 
@@ -437,7 +438,7 @@ class PreflightHandlerTest(SantaApiTestCase):
 
     response = self.testapp.post_json('/my-uuid', self.request_json)
 
-    host = santa_models.SantaHost.get_by_id('my-uuid')
+    host = host_models.SantaHost.get_by_id('my-uuid')
     self.assertIsNone(host.rule_sync_dt)
     self.assertTrue(response.json[PREFLIGHT.CLEAN_SYNC])
     self.assertEqual(httplib.OK, response.status_int)
@@ -447,7 +448,7 @@ class PreflightHandlerTest(SantaApiTestCase):
 
   def testCheckin_ModeMismatch(self):
 
-    santa_models.SantaHost(
+    host_models.SantaHost(
         key=ndb.Key('Host', 'my-uuid'),
         client_mode=SANTA_CLIENT_MODE.LOCKDOWN).put()
     user = test_utils.CreateUser()
@@ -467,7 +468,7 @@ class PreflightHandlerTest(SantaApiTestCase):
     self.assertBigQueryInsertion(TABLE.HOST)
 
   def testCheckin_ClientModeUnsupported(self):
-    santa_models.SantaHost(
+    host_models.SantaHost(
         key=ndb.Key('Host', 'my-uuid'),
         client_mode=SANTA_CLIENT_MODE.LOCKDOWN).put()
     user = test_utils.CreateUser()
@@ -490,7 +491,7 @@ class PreflightHandlerTest(SantaApiTestCase):
     self.assertEqual(common_const.HOST_MODE.UNKNOWN, calls[0][1].get('mode'))
 
   def testCheckin_ClientModeMissing(self):
-    santa_models.SantaHost(
+    host_models.SantaHost(
         key=ndb.Key('Host', 'my-uuid'),
         client_mode=SANTA_CLIENT_MODE.LOCKDOWN).put()
     user = test_utils.CreateUser()
@@ -525,7 +526,7 @@ class EventUploadHandlerTest(SantaApiTestCase):
 
     now = datetime.datetime.utcnow()
     before = now - datetime.timedelta(seconds=10)
-    self.host = santa_models.SantaHost(
+    self.host = host_models.SantaHost(
         id='my-uuid',
         primary_user='user',
         last_preflight_dt=before,
@@ -633,7 +634,7 @@ class EventUploadHandlerTest(SantaApiTestCase):
     self.assertEqual(1, santa_models.SantaEvent.query().count())
 
     parent = ndb.Key(user_models.User, user_map.UsernameToEmail('user'),
-                     santa_models.SantaHost, 'my-uuid',
+                     host_models.SantaHost, 'my-uuid',
                      santa_models.SantaBlockable, 'the-sha256')
     event = santa_models.SantaEvent.query(ancestor=parent).get()
     self.assertEqual('my-uuid', event.host_id)
@@ -661,7 +662,7 @@ class EventUploadHandlerTest(SantaApiTestCase):
     self.assertEqual(1, santa_models.SantaEvent.query().count())
 
     parent = ndb.Key(user_models.User, user_map.UsernameToEmail('user'),
-                     santa_models.SantaHost, 'my-uuid',
+                     host_models.SantaHost, 'my-uuid',
                      santa_models.SantaBlockable, 'the-sha256')
     event = santa_models.SantaEvent.query(ancestor=parent).get()
     self.assertEqual('my-uuid', event.host_id)
@@ -808,7 +809,7 @@ class EventUploadHandlerTest(SantaApiTestCase):
 
     # Validate the created event.
     parent = ndb.Key(user_models.User, user_map.UsernameToEmail('user'),
-                     santa_models.SantaHost, 'my-uuid',
+                     host_models.SantaHost, 'my-uuid',
                      santa_models.SantaBlockable, 'the-sha256')
     event = santa_models.SantaEvent.query(ancestor=parent).get()
     self.assertEqual('my-uuid', event.host_id)
@@ -926,7 +927,7 @@ class EventUploadHandlerTest(SantaApiTestCase):
     self.assertEqual(1, santa_models.SantaEvent.query().count())
 
     parent = ndb.Key(user_models.User, user_map.UsernameToEmail('user'),
-                     santa_models.SantaHost, 'my-uuid',
+                     host_models.SantaHost, 'my-uuid',
                      santa_models.SantaBlockable, 'the-sha256')
     event = santa_models.SantaEvent.query(ancestor=parent).get()
     expected_time = datetime.datetime.utcfromtimestamp(latest_timestamp)
@@ -979,12 +980,12 @@ class EventUploadHandlerTest(SantaApiTestCase):
     self.assertEqual(2, santa_models.SantaEvent.query().count())
 
     parent = ndb.Key(user_models.User, user_map.UsernameToEmail('user'),
-                     santa_models.SantaHost, 'my-uuid',
+                     host_models.SantaHost, 'my-uuid',
                      santa_models.SantaBlockable, 'the-sha256')
     event = santa_models.SantaEvent.query(ancestor=parent).get()
     self.assertEqual(2, event.count)
     parent = ndb.Key(user_models.User, user_map.UsernameToEmail('other'),
-                     santa_models.SantaHost, 'my-uuid',
+                     host_models.SantaHost, 'my-uuid',
                      santa_models.SantaBlockable, 'the-sha256')
     event = santa_models.SantaEvent.query(ancestor=parent).get()
     self.assertEqual(2, event.count)
@@ -1005,7 +1006,7 @@ class EventUploadHandlerTest(SantaApiTestCase):
     self.assertEqual(1, santa_models.SantaEvent.query().count())
 
     parent = ndb.Key(user_models.User, user_map.UsernameToEmail('user'),
-                     santa_models.SantaHost, 'my-uuid',
+                     host_models.SantaHost, 'my-uuid',
                      santa_models.SantaBlockable, 'the-sha256')
     event = santa_models.SantaEvent.query(ancestor=parent).get()
     self.assertEqual('my-uuid', event.host_id)
@@ -1024,7 +1025,7 @@ class EventUploadHandlerTest(SantaApiTestCase):
     host = test_utils.CreateSantaHost()
 
     event_key = ndb.Key(user_models.User, user.key.id(),
-                        santa_models.SantaHost, host.key.id(),
+                        host_models.SantaHost, host.key.id(),
                         santa_models.SantaBlockable, blockable.key.id(),
                         santa_models.SantaEvent, '1')
 
@@ -1144,9 +1145,11 @@ class EventUploadHandlerTest(SantaApiTestCase):
     self.assertBigQueryInsertions([TABLE.BUNDLE_BINARY] * 2)
 
   def testBundleUpload_PreviouslyUnknownBundle(self):
-    event = self._CreateEvent('HashToUpload')
+    event_hash = test_utils.RandomSHA256()
+    bundle_hash = test_utils.RandomSHA256()
+    event = self._CreateEvent(event_hash)
     event.update({
-        EVENT_UPLOAD.FILE_BUNDLE_HASH: 'UnknownBundle',
+        EVENT_UPLOAD.FILE_BUNDLE_HASH: bundle_hash,
         EVENT_UPLOAD.FILE_BUNDLE_PATH: '/Unknown.app',
         EVENT_UPLOAD.FILE_BUNDLE_BINARY_COUNT: 1,
         EVENT_UPLOAD.FILE_BUNDLE_EXECUTABLE_REL_PATH:
@@ -1161,12 +1164,12 @@ class EventUploadHandlerTest(SantaApiTestCase):
     self.assertEqual(0, santa_models.SantaEvent.query().count())
 
     # Should have created the bundle.
-    bundle = santa_models.SantaBundle.get_by_id('UnknownBundle')
+    bundle = santa_models.SantaBundle.get_by_id(bundle_hash)
     self.assertIsNotNone(bundle)
 
     # Should have created the bundle member.
     expected_binary_key = datastore_utils.ConcatenateKeys(
-        bundle.key, ndb.Key(santa_models.SantaBundleBinary, 'HashToUpload'))
+        bundle.key, ndb.Key(santa_models.SantaBundleBinary, event_hash))
     self.assertIsNotNone(expected_binary_key.get())
     self.assertEqual(
         1, santa_models.SantaBundleBinary.query(ancestor=bundle.key).count())
@@ -1209,9 +1212,11 @@ class EventUploadHandlerTest(SantaApiTestCase):
         [TABLE.BINARY, TABLE.BUNDLE_BINARY, TABLE.EXECUTION])
 
   def testBundleUpload_IndexedValueTooLong(self):
-    event = self._CreateEvent('HashToUpload')
+    event_hash = test_utils.RandomSHA256()
+    bundle_hash = test_utils.RandomSHA256()
+    event = self._CreateEvent(event_hash)
     event.update({
-        EVENT_UPLOAD.FILE_BUNDLE_HASH: 'UnknownBundle',
+        EVENT_UPLOAD.FILE_BUNDLE_HASH: bundle_hash,
         EVENT_UPLOAD.FILE_BUNDLE_PATH: '/Unknown.app',
         EVENT_UPLOAD.FILE_BUNDLE_NAME: 'x' * 2000,
         EVENT_UPLOAD.FILE_BUNDLE_BINARY_COUNT: 1,
@@ -1227,12 +1232,12 @@ class EventUploadHandlerTest(SantaApiTestCase):
     self.assertEqual(0, santa_models.SantaEvent.query().count())
 
     # Should have created the bundle.
-    bundle = santa_models.SantaBundle.get_by_id('UnknownBundle')
+    bundle = santa_models.SantaBundle.get_by_id(bundle_hash)
     self.assertIsNotNone(bundle)
 
     # Should have created the bundle member.
     expected_binary_key = datastore_utils.ConcatenateKeys(
-        bundle.key, ndb.Key(santa_models.SantaBundleBinary, 'HashToUpload'))
+        bundle.key, ndb.Key(santa_models.SantaBundleBinary, event_hash))
     self.assertIsNotNone(expected_binary_key.get())
     self.assertEqual(
         1, santa_models.SantaBundleBinary.query(ancestor=bundle.key).count())
@@ -1306,14 +1311,14 @@ class LogUploadHandlerTest(SantaApiTestCase):
         new_callable=mock.PropertyMock,
         return_value=self.mock_metric)
 
-    self.host = santa_models.SantaHost(id='my-uuid', should_upload_logs=True)
+    self.host = host_models.SantaHost(id='my-uuid', should_upload_logs=True)
     self.host.put()
 
   def testDisabledLogUpload(self):
     response = self.testapp.post('/my-uuid')
 
     self.assertFalse(
-        santa_models.SantaHost.get_by_id('my-uuid').should_upload_logs)
+        host_models.SantaHost.get_by_id('my-uuid').should_upload_logs)
     self.assertEqual(httplib.OK, response.status_int)
     self.VerifyIncrementCalls(self.mock_metric, httplib.OK)
 
@@ -1356,7 +1361,7 @@ class BinaryUploadHandlerTest(SantaApiTestCase):
         new_callable=mock.PropertyMock,
         return_value=self.mock_metric)
 
-    santa_models.SantaHost(key=ndb.Key('Host', 'my-uuid')).put()
+    host_models.SantaHost(key=ndb.Key('Host', 'my-uuid')).put()
 
   def testCreatesLogFileEntity(self):
     # NOTE: Yuck. The Blobstore stub doesn't provide any way to test
@@ -1398,7 +1403,7 @@ class RuleDownloadHandlerTest(SantaApiTestCase):
         new_callable=mock.PropertyMock,
         return_value=self.mock_metric)
 
-    self.host = santa_models.SantaHost(
+    self.host = host_models.SantaHost(
         key=ndb.Key('Host', 'my-uuid'),
         rule_sync_dt=datetime.datetime(2001, 01, 01, 0, 0, 0))
     self.host.put()
@@ -1454,7 +1459,7 @@ class RuleDownloadHandlerTest(SantaApiTestCase):
     self.rule.host_id = 'my-uuid'
     self.rule.put()
 
-    second_comp = santa_models.SantaHost(
+    second_comp = host_models.SantaHost(
         key=ndb.Key('Host', 'my-other-uuid'),
         rule_sync_dt=datetime.datetime(2001, 01, 01, 0, 0, 0))
     second_comp.put()
@@ -1573,7 +1578,7 @@ class PostflightHandlerTest(SantaApiTestCase):
 
     response = self.testapp.post('/%s' % self.host.key.id())
 
-    host = santa_models.SantaHost.get_by_id('MY-UUID')
+    host = host_models.SantaHost.get_by_id('MY-UUID')
     self.assertEqual(host.rule_sync_dt, self.preflight_dt)
     self.assertTrue(host.last_postflight_dt)
     self.assertEqual(httplib.OK, response.status_int)

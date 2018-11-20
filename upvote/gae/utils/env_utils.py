@@ -17,15 +17,15 @@
 import logging
 import os
 
-from upvote.gae.shared.common import settings
-from upvote.gae.shared.common import settings_utils
+from upvote.gae import settings
+from upvote.gae.utils import settings_utils
 
 
 def _IsRunningInEnvironment(expected_env):
   """Determines if the app is running in the given environment."""
   try:
     return settings.ENV.NAME == expected_env.NAME
-  except settings_utils.UnknownEnvironment:
+  except settings_utils.UnknownEnvironmentError:
     return False
 
 

@@ -34,6 +34,7 @@ from upvote.gae.bigquery import tables
 from upvote.gae.datastore import utils as datastore_utils
 from upvote.gae.datastore.models import base
 from upvote.gae.datastore.models import bit9
+from upvote.gae.datastore.models import host as host_models
 from upvote.gae.datastore.models import user as user_models
 from upvote.gae.datastore.models import utils as model_utils
 from upvote.gae.lib.analysis import metrics
@@ -83,7 +84,7 @@ class Error(Exception):
   """Base error."""
 
 
-class MalformedCertificate(Error):
+class MalformedCertificateError(Error):
   """A malformed cert has been received from Bit9."""
 
 
@@ -160,7 +161,7 @@ def _GetCertificate(cert_id):
     else:
       return cert
 
-  raise MalformedCertificate(message)
+  raise MalformedCertificateError(message)
 
 
 def _GetSigningChain(cert_id):
@@ -262,12 +263,12 @@ def GetEvents(last_synced_id, limit=_PULL_BATCH_SIZE):
       logging.info('Retrieving signing chain %s', file_catalog.certificate_id)
       signing_chain = _GetSigningChain(file_catalog.certificate_id)
 
-    # If a MalformedCertificate makes it all the way out here, we've already
-    # retried the retrieval a number of times, and have likely hit another
-    # fileCatalog containing an "embedded signer". We have to skip this
+    # If a MalformedCertificateError makes it all the way out here, we've
+    # already retried the retrieval a number of times, and have likely hit
+    # another fileCatalog containing an "embedded signer". We have to skip this
     # particular event, otherwise event syncing will halt.
-    except MalformedCertificate:
-      logging.warning('Skipping event %s (MalformedCertificate)', event.id)
+    except MalformedCertificateError:
+      logging.warning('Skipping event %s (MalformedCertificateError)', event.id)
       monitoring.events_skipped.Increment()
       continue
 
@@ -670,7 +671,7 @@ def _CopyLocalRules(user_key, dest_host_id):
 
   # Query for a host belonging to the user.
   username = user_map.EmailToUsername(user_key.id())
-  query = bit9.Bit9Host.query(bit9.Bit9Host.users == username)
+  query = host_models.Bit9Host.query(host_models.Bit9Host.users == username)
   src_host = yield query.get_async()
   if src_host is None:
     logging.warning('User %s has no hosts to copy from', username)
@@ -727,7 +728,8 @@ def _PersistBit9Host(computer, occurred_dt):
   host_id = str(computer.id)
   policy = computer.policy_id
   policy_key = (
-      ndb.Key(bit9.Bit9Policy, str(policy)) if policy is not None else None)
+      ndb.Key(host_models.Bit9Policy, str(policy))
+      if policy is not None else None)
   hostname = bit9_utils.ExpandHostname(
       bit9_utils.StripDownLevelDomain(computer.name))
   policy_entity = policy_key.get()
@@ -735,7 +737,7 @@ def _PersistBit9Host(computer, occurred_dt):
           if policy_entity is not None else constants.HOST_MODE.UNKNOWN)
 
   # Grab the corresponding Bit9Host.
-  bit9_host = yield bit9.Bit9Host.get_by_id_async(host_id)
+  bit9_host = yield host_models.Bit9Host.get_by_id_async(host_id)
 
   existing_users = set(bit9_host.users if bit9_host is not None else [])
   extracted_users = list(bit9_utils.ExtractHostUsers(computer.users))
@@ -774,7 +776,7 @@ def _PersistBit9Host(computer, occurred_dt):
   # Doesn't exist? Guess we better fix that.
   if bit9_host is None:
     logging.info('Creating new Bit9Host')
-    bit9_host = bit9.Bit9Host(
+    bit9_host = host_models.Bit9Host(
         id=host_id, hostname=hostname, last_event_dt=occurred_dt,
         policy_key=policy_key, users=sorted(list(incoming_users)))
 
@@ -994,7 +996,7 @@ class UpdateBit9Policies(handler_utils.CronJobHandler):
   """Ensures locally cached policies are up-to-date."""
 
   def get(self):
-    policies_future = bit9.Bit9Policy.query().fetch_async()
+    policies_future = host_models.Bit9Policy.query().fetch_async()
 
     active_policies = (
         api.Policy.query().filter(api.Policy.total_computers > 0)
@@ -1014,7 +1016,7 @@ class UpdateBit9Policies(handler_utils.CronJobHandler):
       local_policy = local_policies.get(str(policy.id))
 
       if local_policy is None:
-        new_policy = bit9.Bit9Policy(
+        new_policy = host_models.Bit9Policy(
             id=str(policy.id), name=policy.name, enforcement_level=level)
         policies_to_update.append(new_policy)
       else:

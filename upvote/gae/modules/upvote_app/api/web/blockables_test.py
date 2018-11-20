@@ -456,8 +456,8 @@ class BlockableHandlerTest(BlockablesTest):
 
   @mock.patch.object(
       blockables.voting_api, 'Recount',
-      side_effect=voting_api.BlockableNotFound)
-  def testPost_Admin_Recount_BlockableNotFound(self, mock_recount):
+      side_effect=voting_api.BlockableNotFoundError)
+  def testPost_Admin_Recount_BlockableNotFoundError(self, mock_recount):
     with self.LoggedInUser(admin=True):
       self.testapp.post(
           self.ROUTE % test_utils.RandomSHA256(),
@@ -466,8 +466,8 @@ class BlockableHandlerTest(BlockablesTest):
 
   @mock.patch.object(
       blockables.voting_api, 'Recount',
-      side_effect=voting_api.UnsupportedPlatform)
-  def testPost_Admin_Recount_UnsupportedPlatform(self, mock_recount):
+      side_effect=voting_api.UnsupportedPlatformError)
+  def testPost_Admin_Recount_UnsupportedPlatformError(self, mock_recount):
     with self.LoggedInUser(admin=True):
       self.testapp.post(
           self.ROUTE % test_utils.RandomSHA256(),
@@ -508,8 +508,9 @@ class BlockableHandlerTest(BlockablesTest):
       self.assertEqual(2, mock_reset.call_count)
 
   @mock.patch.object(
-      blockables.voting_api, 'Reset', side_effect=voting_api.BlockableNotFound)
-  def testPost_Admin_Reset_BlockableNotFound(self, mock_reset):
+      blockables.voting_api, 'Reset',
+      side_effect=voting_api.BlockableNotFoundError)
+  def testPost_Admin_Reset_BlockableNotFoundError(self, mock_reset):
     with self.LoggedInUser(admin=True):
       self.testapp.post(
           self.ROUTE % test_utils.RandomSHA256(),
@@ -518,8 +519,8 @@ class BlockableHandlerTest(BlockablesTest):
 
   @mock.patch.object(
       blockables.voting_api, 'Reset',
-      side_effect=voting_api.UnsupportedPlatform)
-  def testPost_Admin_Reset_UnsupportedPlatform(self, mock_reset):
+      side_effect=voting_api.UnsupportedPlatformError)
+  def testPost_Admin_Reset_UnsupportedPlatformError(self, mock_reset):
     with self.LoggedInUser(admin=True):
       self.testapp.post(
           self.ROUTE % test_utils.RandomSHA256(),
@@ -528,8 +529,8 @@ class BlockableHandlerTest(BlockablesTest):
 
   @mock.patch.object(
       blockables.voting_api, 'Reset',
-      side_effect=voting_api.OperationNotAllowed)
-  def testPost_Admin_Reset_OperationNotAllowed(self, mock_reset):
+      side_effect=voting_api.OperationNotAllowedError)
+  def testPost_Admin_Reset_OperationNotAllowedError(self, mock_reset):
     with self.LoggedInUser(admin=True):
       self.testapp.post(
           self.ROUTE % test_utils.RandomSHA256(),
@@ -586,7 +587,7 @@ class AuthorizedHostCountHandlerTest(BlockablesTest):
 
       self.assertEqual(expected, output)
 
-  def testGet_BlockableNotFound(self):
+  def testGet_BlockableNotFoundError(self):
     with self.LoggedInUser(admin=True):
       self.testapp.get(
           self.ROUTE % 'NoteARealBlockable', status=httplib.NOT_FOUND)
@@ -635,7 +636,7 @@ class UniqueEventCountHandlerTest(BlockablesTest):
 
     self.assertEqual(1, output)
 
-  def testGet_BlockableNotFound(self):
+  def testGet_BlockableNotFoundError(self):
     self.santa_blockable.key.delete()
     with self.LoggedInUser():
       self.testapp.get(

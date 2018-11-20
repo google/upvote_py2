@@ -13,7 +13,7 @@ py_library(
     name = "all",
     deps = [
         ":big_red",
-        ":settings",
+        "//upvote/gae:settings",
         "//upvote/gae/utils:json_utils",
     ],
 )
@@ -22,21 +22,7 @@ py_library(
     name = "user_map",
     srcs = ["user_map.py"],
     deps = [
-        ":settings",
-    ],
-)
-
-py_library(
-    name = "fake_monotonic",
-    srcs = ["fake_monotonic.py"],
-)
-
-py_library(
-    name = "google_cloud_lib_fixer",
-    srcs = ["google_cloud_lib_fixer.py"],
-    deps = [
-        ":fake_monotonic",
-        "//external:requests_toolbelt",
+        "//upvote/gae:settings",
     ],
 )
 
@@ -48,24 +34,6 @@ py_appengine_library(
     srcs = ["big_red.py"],
     deps = [
         "//upvote/gae/datastore/models:cache",
-    ],
-)
-
-py_appengine_library(
-    name = "settings",
-    srcs = ["settings.py"],
-    deps = [
-        ":settings_utils",
-        "//common:context",
-        "//upvote/shared:constants",
-    ],
-)
-
-py_appengine_library(
-    name = "settings_utils",
-    srcs = ["settings_utils.py"],
-    deps = [
-        "//external:six",
     ],
 )
 
@@ -92,17 +60,6 @@ upvote_appengine_test(
         "//upvote/gae/datastore/models:santa",
         "//upvote/gae/lib/testing:basetest",
         "//upvote/shared:constants",
-    ],
-)
-
-upvote_appengine_test(
-    name = "settings_utils_test",
-    size = "small",
-    srcs = ["settings_utils_test.py"],
-    deps = [
-        ":settings",
-        ":settings_utils",
-        "//upvote/gae/lib/testing:basetest",
     ],
 )
 

@@ -20,11 +20,11 @@ import webapp2
 
 from google.appengine.ext import ndb
 
+from upvote.gae import settings
 from upvote.gae.cron import role_syncing
 from upvote.gae.datastore import test_utils
 from upvote.gae.datastore.models import user as user_models
 from upvote.gae.lib.testing import basetest
-from upvote.gae.shared.common import settings
 from upvote.gae.shared.common import user_map
 from upvote.shared import constants
 

@@ -22,10 +22,10 @@ import webapp2
 from google.appengine.api import modules
 from google.appengine.api import urlfetch
 
+from upvote.gae import settings
 from upvote.gae.lib.testing import basetest
-from upvote.gae.shared.common import settings
-from upvote.gae.shared.common import settings_utils
 from upvote.gae.utils import intermodule_utils
+from upvote.gae.utils import settings_utils
 
 _TEST_DOMAIN = 'somemodule.appspot.com'
 

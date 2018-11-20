@@ -35,5 +35,5 @@ warnings.filterwarnings('ignore', message=r'urllib3 is using URLFetch.*')
 
 # Pre-populate the monotonic module so the normal one doesn't try to import
 # ctypes (which isn't available on GAE Standard environment).
-from upvote.gae.shared.common import fake_monotonic
+from upvote.gae.lib.cloud import fake_monotonic
 sys.modules['monotonic'] = fake_monotonic

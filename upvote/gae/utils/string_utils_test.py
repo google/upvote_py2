@@ -18,8 +18,8 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from absl.testing import absltest
 from upvote.gae.utils import string_utils
+from absl.testing import absltest
 
 
 class UtilsTest(absltest.TestCase):

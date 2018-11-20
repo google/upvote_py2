@@ -23,10 +23,10 @@ from webapp2_extras import routes
 from google.appengine.ext import deferred
 from google.appengine.ext import ndb
 
+from upvote.gae import settings
 from upvote.gae.datastore import utils as datastore_utils
-from upvote.gae.datastore.models import santa
+from upvote.gae.datastore.models import host as host_models
 from upvote.gae.datastore.models import user as user_models
-from upvote.gae.shared.common import settings
 from upvote.gae.shared.common import user_map
 from upvote.gae.utils import group_utils
 from upvote.gae.utils import handler_utils
@@ -35,6 +35,9 @@ from upvote.shared import constants
 
 # This number may need tweaking.
 BATCH_SIZE = 1000
+
+# Done for the sake of brevity.
+_SANTA_CLIENT_MODE = constants.SANTA_CLIENT_MODE
 
 
 class SyncRoles(handler_utils.CronJobHandler):
@@ -152,9 +155,9 @@ def _ChangeModeForHosts(mode, user_keys, honor_lock=True):
     honor_lock: bool, whether the client_mode_lock property will be honored.
   """
   predicates = [
-      santa.SantaHost.primary_user == user_map.EmailToUsername(key.id())
+      host_models.SantaHost.primary_user == user_map.EmailToUsername(key.id())
       for key in user_keys]
-  query = santa.SantaHost.query(ndb.OR(*predicates))
+  query = host_models.SantaHost.query(ndb.OR(*predicates))
   hosts = query.fetch()
   updated_hosts = []
 
@@ -183,9 +186,7 @@ class LockItDown(ClientModeChangeHandler):
 
   def get(self):  # pylint: disable=g-bad-name
     self._ChangeModeForGroup(
-        constants.SANTA_CLIENT_MODE.LOCKDOWN,
-        settings.LOCKDOWN_GROUP,
-        honor_lock=False)
+        _SANTA_CLIENT_MODE.LOCKDOWN, settings.LOCKDOWN_GROUP, honor_lock=False)
 
 
 class MonitorIt(ClientModeChangeHandler):
@@ -193,9 +194,7 @@ class MonitorIt(ClientModeChangeHandler):
 
   def get(self):  # pylint: disable=g-bad-name
     self._ChangeModeForGroup(
-        constants.SANTA_CLIENT_MODE.MONITOR,
-        settings.MONITOR_GROUP,
-        honor_lock=False)
+        _SANTA_CLIENT_MODE.MONITOR, settings.MONITOR_GROUP, honor_lock=False)
 
 
 class LockSpider(handler_utils.CronJobHandler):
@@ -203,9 +202,9 @@ class LockSpider(handler_utils.CronJobHandler):
 
   def get(self):  # pylint: disable=g-bad-name
     # pylint: disable=g-explicit-bool-comparison, singleton-comparison
-    query = santa.SantaHost.query(
-        santa.SantaHost.client_mode == constants.SANTA_CLIENT_MODE.MONITOR,
-        santa.SantaHost.client_mode_lock == False)
+    query = host_models.SantaHost.query(
+        host_models.SantaHost.client_mode == _SANTA_CLIENT_MODE.MONITOR,
+        host_models.SantaHost.client_mode_lock == False)
     datastore_utils.QueuedPaginatedBatchApply(
         query, _SpiderBite, page_size=BATCH_SIZE,
         queue=constants.TASK_QUEUE.QUERY, keys_only=True)
@@ -214,7 +213,7 @@ class LockSpider(handler_utils.CronJobHandler):
 def _SpiderBite(host_keys):
   hosts = ndb.get_multi(host_keys)
   for host in hosts:
-    host.client_mode = constants.SANTA_CLIENT_MODE.LOCKDOWN
+    host.client_mode = _SANTA_CLIENT_MODE.LOCKDOWN
 
   ndb.put_multi(hosts)
   logging.info(

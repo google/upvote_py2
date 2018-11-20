@@ -15,9 +15,9 @@
 """Unit tests for constants.py."""
 
 import itertools
-from absl.testing import absltest
 
 from upvote.shared import constants
+from absl.testing import absltest
 
 
 _VOTING_SETS = [
@@ -95,11 +95,11 @@ class NamespaceTest(absltest.TestCase):
     self.assertEqual(111, namespace.Get('AAA'))
     self.assertEqual(111, namespace.Get('Aaa'))
 
-  def testGet_InvalidName(self):
+  def testGet_InvalidNameError(self):
 
     namespace = constants.Namespace(tuples=[('aaa', 111)])
 
-    with self.assertRaises(constants.InvalidName):
+    with self.assertRaises(constants.InvalidNameError):
       namespace.Get('bbb')
 
   def testPrefix(self):

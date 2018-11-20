@@ -32,8 +32,8 @@
 
 Next, there will be a number of settings to review and configure. Upvote
 settings are almost exclusively located in
-[settings.py](../upvote/gae/shared/common/settings.py) (any exceptions will be
-noted) so be sure to look there for any settings mentioned in the docs.
+[settings.py](../upvote/gae/settings.py) (any exceptions will be noted) so be
+sure to look there for any settings mentioned in the docs.
 
 #### User Configuration
 
@@ -77,8 +77,8 @@ bazel run upvote/gae:monolith_binary.deploy -- ${PROJ_ID}
 ```
 
 Once the deploy completes, the `/api/web/cron/roles/sync` cron can be manually
-triggered from the Cloud Console's [cron
-page](https://console.cloud.google.com/appengine/taskqueues/cron). You can
+triggered from the Cloud Console's
+[cron page](https://console.cloud.google.com/appengine/taskqueues/cron). You can
 confirm this was successful when you can access the admin site at
 "`https://<my-app>.appspot.com/admin/settings`".
 
@@ -173,9 +173,9 @@ plist key         | Suggested Value
 `EventDetailText` | "Open in Upvote..."
 <!-- mdformat on -->
 
-See the [Santa docs
-page](https://santa.readthedocs.io/en/latest/deployment/configuration/) for a
-full list of configuration options.
+See the
+[Santa docs page](https://santa.readthedocs.io/en/latest/deployment/configuration/)
+for a full list of configuration options.
 
 #### Bit9
 

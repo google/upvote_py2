@@ -19,7 +19,7 @@ import mock
 
 from google.appengine.ext import ndb
 
-import upvote.gae.shared.common.google_cloud_lib_fixer  # pylint: disable=unused-import
+import upvote.gae.lib.cloud.google_cloud_lib_fixer  # pylint: disable=unused-import
 # pylint: disable=g-bad-import-order,g-import-not-at-top
 from google.cloud import exceptions
 
@@ -200,7 +200,7 @@ class SendToBigQueryTest(basetest.UpvoteTestCase):
     mock_client.insert_rows.return_value = [{'err1': 'xxx'}, {'err2': 'yyy'}]
     self.Patch(tables.bigquery, 'Client', return_value=mock_client)
 
-    with self.assertRaises(tables.StreamingFailure):
+    with self.assertRaises(tables.StreamingFailureError):
       tables._SendToBigQuery(TEST_TABLE, self.row_dict)
 
   def testSuccess(self):
@@ -224,36 +224,36 @@ class BigQueryTableTest(basetest.UpvoteTestCase):
         [column.name for column in TEST_TABLE._columns],
         [column.name for column in TEST_TABLE.schema])
 
-  def testValidateInsertion_UnexpectedColumn(self):
-    with self.assertRaises(tables.UnexpectedColumn):
+  def testValidateInsertion_UnexpectedColumnError(self):
+    with self.assertRaises(tables.UnexpectedColumnError):
       TEST_TABLE._ValidateInsertion(aaa=True, bbb=4, omg='OMG')
 
-  def testValidateInsertion_MissingColumn(self):
-    with self.assertRaises(tables.MissingColumn):
+  def testValidateInsertion_MissingColumnError(self):
+    with self.assertRaises(tables.MissingColumnError):
       TEST_TABLE._ValidateInsertion(aaa=True)
 
-  def testValidateInsertion_UnexpectedNull(self):
-    with self.assertRaises(tables.UnexpectedNull):
+  def testValidateInsertion_UnexpectedNullError(self):
+    with self.assertRaises(tables.UnexpectedNullError):
       TEST_TABLE._ValidateInsertion(aaa=True, bbb=None)
 
-  def testValidateInsertion_InvalidRepeated(self):
-    with self.assertRaises(tables.InvalidRepeated):
+  def testValidateInsertion_InvalidRepeatedError(self):
+    with self.assertRaises(tables.InvalidRepeatedError):
       TEST_TABLE._ValidateInsertion(aaa=True, bbb=4, ccc=5)
 
-  def testValidateInsertion_InvalidType_Required(self):
-    with self.assertRaises(tables.InvalidType):
+  def testValidateInsertion_InvalidTypeError_Required(self):
+    with self.assertRaises(tables.InvalidTypeError):
       TEST_TABLE._ValidateInsertion(aaa='blah', bbb=4)
 
-  def testValidateInsertion_InvalidType_Repeated(self):
-    with self.assertRaises(tables.InvalidType):
+  def testValidateInsertion_InvalidTypeError_Repeated(self):
+    with self.assertRaises(tables.InvalidTypeError):
       TEST_TABLE._ValidateInsertion(aaa=True, bbb=4, ccc=[1, 2, 3, 4])
 
-  def testValidateInsertion_InvalidValue_Single(self):
-    with self.assertRaises(tables.InvalidValue):
+  def testValidateInsertion_InvalidValueError_Single(self):
+    with self.assertRaises(tables.InvalidValueError):
       TEST_TABLE._ValidateInsertion(aaa=True, bbb=4, eee='xyz')
 
-  def testValidateInsertion_InvalidValue_Repeated(self):
-    with self.assertRaises(tables.InvalidValue):
+  def testValidateInsertion_InvalidValueError_Repeated(self):
+    with self.assertRaises(tables.InvalidValueError):
       TEST_TABLE._ValidateInsertion(aaa=True, bbb=4, fff=['f1', 'f2', 'xyz'])
 
   def testValidateInsertion_Nullable_Omitted(self):

@@ -19,16 +19,17 @@ import logging
 
 from google.appengine.ext import ndb
 
+from upvote.gae import settings
 from upvote.gae.bigquery import tables
 from upvote.gae.datastore import utils as datastore_utils
 from upvote.gae.datastore.models import base
 from upvote.gae.datastore.models import bit9
+from upvote.gae.datastore.models import host as host_models
 from upvote.gae.datastore.models import santa
 from upvote.gae.datastore.models import user as user_models
 from upvote.gae.datastore.models import vote as vote_models
 from upvote.gae.lib.analysis import metrics
 from upvote.gae.lib.bit9 import change_set
-from upvote.gae.shared.common import settings
 from upvote.gae.shared.common import user_map
 from upvote.shared import constants
 
@@ -37,15 +38,15 @@ class Error(Exception):
   """Base error class for the voting module."""
 
 
-class BlockableNotFound(Error):
+class BlockableNotFoundError(Error):
   """The SHA256 provided does not correspond to a Blockable entity."""
 
 
-class UnsupportedPlatform(Error):
+class UnsupportedPlatformError(Error):
   """The specified Blockable has an unsupported platform."""
 
 
-class InvalidVoteWeight(Error):
+class InvalidVoteWeightError(Error):
   """The provided vote weight is invalid."""
 
 
@@ -53,21 +54,21 @@ class DuplicateVoteError(Error):
   """Error used when user has already cast a vote for given blockable."""
 
 
-class OperationNotAllowed(Error):
+class OperationNotAllowedError(Error):
   """Error raised when operation not permitted on the given blockable."""
 
 
 def _GetBlockable(sha256):
   blockable = base.Blockable.get_by_id(sha256)
   if blockable is None:
-    raise BlockableNotFound('SHA256: %s' % sha256)
+    raise BlockableNotFoundError('SHA256: %s' % sha256)
   return blockable
 
 
 def _GetPlatform(blockable):
   platform = blockable.GetPlatformName()
   if platform not in constants.PLATFORM.SET_ALL:
-    raise UnsupportedPlatform(platform)
+    raise UnsupportedPlatformError(platform)
   return platform
 
 
@@ -143,14 +144,15 @@ def Vote(user, sha256, upvote, weight):
     The newly-created Vote entity.
 
   Raises:
-    BlockableNotFound: if the target blockable ID is not a known Blockable.
-    UnsupportedPlatform: if the specified Blockable has an unsupported platform.
-    InvalidVoteWeight: if the vote weight is less than zero.
+    BlockableNotFoundError: if the target blockable ID is not a known Blockable.
+    UnsupportedPlatformError: if the specified Blockable has an unsupported
+        platform.
+    InvalidVoteWeightError: if the vote weight is less than zero.
   """
   blockable = _GetBlockable(sha256)
   platform = _GetPlatform(blockable)
   if weight < 0:
-    raise InvalidVoteWeight(weight)
+    raise InvalidVoteWeightError(weight)
 
   ballot_box = _BALLOT_BOX_MAP[platform](sha256)
   ballot_box.Vote(upvote, user, weight)
@@ -164,8 +166,9 @@ def Recount(sha256):
     sha256: The SHA256 of the Blockable to recount.
 
   Raises:
-    BlockableNotFound: if the target blockable ID is not a known Blockable.
-    UnsupportedPlatform: if the specified Blockable has an unsupported platform.
+    BlockableNotFoundError: if the target blockable ID is not a known Blockable.
+    UnsupportedPlatformError: if the specified Blockable has an unsupported
+        platform.
   """
   blockable = _GetBlockable(sha256)
   platform = _GetPlatform(blockable)
@@ -181,9 +184,10 @@ def Reset(sha256):
     sha256: The SHA256 of the Blockable to recount.
 
   Raises:
-    BlockableNotFound: if the target blockable ID is not a known Blockable.
-    UnsupportedPlatform: if the specified Blockable has an unsupported platform.
-    OperationNotAllowed: if a reset is not allowed for some reason.
+    BlockableNotFoundError: if the target blockable ID is not a known Blockable.
+    UnsupportedPlatformError: if the specified Blockable has an unsupported
+        platform.
+    OperationNotAllowedError: if a reset is not allowed for some reason.
   """
   blockable = _GetBlockable(sha256)
   platform = _GetPlatform(blockable)
@@ -219,8 +223,8 @@ class BallotBox(object):
     _TransactionalVoting).
 
     Raises:
-      OperationNotAllowed: The user may not vote on the blockable due to one of
-          the VOTING_PROHIBITED_REASONS.
+      OperationNotAllowedError: The user may not vote on the blockable due to
+          one of the VOTING_PROHIBITED_REASONS.
     """
     if not ndb.in_transaction():
       return
@@ -229,7 +233,7 @@ class BallotBox(object):
     if not allowed:
       message = 'Voting on this Blockable is not allowed (%s)' % reason
       logging.warning(message)
-      raise OperationNotAllowed(message)
+      raise OperationNotAllowedError(message)
 
   def Vote(self, was_yes_vote, user, vote_weight=None):
     """Resolve votes for or against the target blockable.
@@ -251,8 +255,8 @@ class BallotBox(object):
           cast. The weight must be >= 0 (UNTRUSTED_USERs have vote weight 0).
 
     Raises:
-      BlockableNotFound: The target blockable ID is not a known Blockable.
-      OperationNotAllowed: The user may not vote on the blockable. This
+      BlockableNotFoundError: The target blockable ID is not a known Blockable.
+      OperationNotAllowedError: The user may not vote on the blockable. This
           restriction could either be caused by a property of the user (e.g.
           insufficient permissions) or of the blockable (e.g. globally
           whitelisted). The possible causes are enumerated in
@@ -338,7 +342,7 @@ class BallotBox(object):
     self._CheckVotingAllowed()
 
     if isinstance(self.blockable, santa.SantaBundle) and not was_yes_vote:
-      raise OperationNotAllowed('Downvoting not supported for Bundles')
+      raise OperationNotAllowedError('Downvoting not supported for Bundles')
 
     initial_state = self.blockable.state
     logging.info('Initial blockable state: %s', initial_state)
@@ -476,7 +480,7 @@ class BallotBox(object):
     """Resets all policy (i.e. votes, rules, score) for the target blockable.
 
     Raises:
-      BlockableNotFound: The target blockable ID is not a known Blockable.
+      BlockableNotFoundError: The target blockable ID is not a known Blockable.
     """
     logging.info('Resetting blockable: %s', self.blockable_id)
 
@@ -809,8 +813,8 @@ class SantaBallotBox(BallotBox):
     _HasFlagged* checks.
 
     Raises:
-      OperationNotAllowed: The user may not vote on the blockable due to one of
-          the VOTING_PROHIBITED_REASONS.
+      OperationNotAllowedError: The user may not vote on the blockable due to
+          one of the VOTING_PROHIBITED_REASONS.
     """
     if isinstance(self.blockable, santa.SantaBundle):
       allowed, reason = self.blockable.IsVotingAllowed(
@@ -819,7 +823,7 @@ class SantaBallotBox(BallotBox):
       if not allowed:
         message = 'Voting on this Blockable is not allowed (%s)' % reason
         logging.warning(message)
-        raise OperationNotAllowed(message)
+        raise OperationNotAllowedError(message)
     else:
       super(SantaBallotBox, self)._CheckVotingAllowed()
 
@@ -850,7 +854,8 @@ class SantaBallotBox(BallotBox):
       set<str>, IDs of Hosts for which whitelist rules should be created.
     """
     username = user_map.EmailToUsername(user_key.id())
-    query = santa.SantaHost.query(santa.SantaHost.primary_user == username)
+    query = host_models.SantaHost.query(
+        host_models.SantaHost.primary_user == username)
     return {host_key.id() for host_key in query.fetch(keys_only=True)}
 
   def _LocallyWhitelist(self, user_keys=None):
@@ -868,7 +873,7 @@ class SantaBallotBox(BallotBox):
   def Reset(self):
     self.blockable = base.Blockable.get_by_id(self.blockable_id)
     if isinstance(self.blockable, santa.SantaBundle):
-      raise OperationNotAllowed('Resetting not supported for Bundles')
+      raise OperationNotAllowedError('Resetting not supported for Bundles')
 
     super(SantaBallotBox, self).Reset()
 
@@ -930,7 +935,7 @@ class Bit9BallotBox(BallotBox):
       set<str>, IDs of Hosts for which whitelist rules should be created.
     """
     username = user_map.EmailToUsername(user_key.id())
-    query = bit9.Bit9Host.query(bit9.Bit9Host.users == username)
+    query = host_models.Bit9Host.query(host_models.Bit9Host.users == username)
     return {host_key.id() for host_key in query.fetch(keys_only=True)}
 
   def _LocallyWhitelist(self, user_keys=None):

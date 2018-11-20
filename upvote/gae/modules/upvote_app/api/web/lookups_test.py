@@ -19,12 +19,12 @@ import httplib
 import mock
 import webapp2
 
+from upvote.gae import settings
 from upvote.gae.datastore import test_utils
 from upvote.gae.lib.analysis import api as analysis_api
 from upvote.gae.lib.testing import basetest
 from upvote.gae.modules.upvote_app.api.web import lookups
-from upvote.gae.shared.common import settings
-from upvote.gae.shared.common import settings_utils
+from upvote.gae.utils import settings_utils
 from upvote.shared import constants
 
 
@@ -124,7 +124,7 @@ class LookupsTest(basetest.UpvoteTestCase):
   @mock.patch.object(analysis_api, 'VirusTotalLookup')
   def testCheckVirusTotal_SantaBundle_PartialError(self, mock_vt_lookup):
     mock_vt_lookup.side_effect = [
-        analysis_api.LookupFailure,
+        analysis_api.FailedLookupError,
         {
             'response_code': 1,
             'positives': 0,

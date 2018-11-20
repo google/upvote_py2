@@ -26,11 +26,9 @@ import urlparse
 
 import requests
 import six
-
-from absl import logging
-
 from upvote.gae.lib.bit9 import constants
 from upvote.gae.lib.bit9 import exceptions as excs
+from absl import logging
 
 
 # Characters we want to replace with spaces

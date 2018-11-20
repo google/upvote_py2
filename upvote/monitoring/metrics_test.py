@@ -14,8 +14,8 @@
 
 """Unit tests for metrics.py."""
 
-from absl.testing import absltest
 from upvote.monitoring import metrics
+from absl.testing import absltest
 
 
 class MetricTest(absltest.TestCase):

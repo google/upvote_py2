@@ -18,10 +18,10 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from absl.testing import absltest
+from upvote.gae import settings
 from upvote.gae.lib.bit9 import constants as bit9_constants
 from upvote.gae.lib.bit9 import utils
-from upvote.gae.shared.common import settings
+from absl.testing import absltest
 
 
 class CamelToSnakeCaseTest(absltest.TestCase):

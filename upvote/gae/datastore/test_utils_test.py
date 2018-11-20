@@ -14,12 +14,13 @@
 
 """Tests for test_utils.py."""
 
+from upvote.gae import settings
 from upvote.gae.datastore import test_utils
 from upvote.gae.datastore.models import bit9
+from upvote.gae.datastore.models import host as host_models
 from upvote.gae.datastore.models import santa
 from upvote.gae.datastore.models import user
 from upvote.gae.lib.testing import basetest
-from upvote.gae.shared.common import settings
 
 
 class CreateTestEntitiesTest(basetest.UpvoteTestCase):
@@ -29,13 +30,13 @@ class CreateTestEntitiesTest(basetest.UpvoteTestCase):
     self.Patch(test_utils.env_utils, 'RunningLocally', return_value=False)
 
     model_classes = [
-        user.User, santa.SantaHost, santa.SantaBlockable,
-        santa.SantaEvent, bit9.Bit9Host, bit9.Bit9Binary, bit9.Bit9Event]
+        user.User, host_models.SantaHost, santa.SantaBlockable,
+        santa.SantaEvent, host_models.Bit9Host, bit9.Bit9Binary, bit9.Bit9Event]
 
     for model_class in model_classes:
       self.assertNoEntitiesExist(model_class)
 
-    with self.assertRaises(test_utils.NotRunningLocally):
+    with self.assertRaises(test_utils.NotRunningLocallyError):
       test_utils.CreateTestEntities('nobody@foo.com')
 
     for model_class in model_classes:
@@ -47,8 +48,8 @@ class CreateTestEntitiesTest(basetest.UpvoteTestCase):
     self.PatchEnv(settings.ProdEnv, ENABLE_BIGQUERY_STREAMING=False)
 
     model_classes = [
-        user.User, santa.SantaHost, santa.SantaBlockable,
-        santa.SantaEvent, bit9.Bit9Host, bit9.Bit9Binary, bit9.Bit9Event]
+        user.User, host_models.SantaHost, santa.SantaBlockable,
+        santa.SantaEvent, host_models.Bit9Host, bit9.Bit9Binary, bit9.Bit9Event]
 
     for model_class in model_classes:
       self.assertNoEntitiesExist(model_class)

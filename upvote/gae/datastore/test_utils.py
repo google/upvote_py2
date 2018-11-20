@@ -24,14 +24,15 @@ import mock
 from google.appengine.api import users
 from google.appengine.ext import ndb
 
+from upvote.gae import settings
 from upvote.gae.datastore import utils as datastore_utils
 from upvote.gae.datastore.models import base
 from upvote.gae.datastore.models import bit9
 from upvote.gae.datastore.models import exemption as exemption_models
+from upvote.gae.datastore.models import host as host_models
 from upvote.gae.datastore.models import santa
 from upvote.gae.datastore.models import user as user_models
 from upvote.gae.datastore.models import vote as vote_models
-from upvote.gae.shared.common import settings
 from upvote.gae.shared.common import user_map
 from upvote.gae.utils import env_utils
 from upvote.shared import constants
@@ -41,7 +42,7 @@ class Error(Exception):
   """Module-level base Exception."""
 
 
-class NotRunningLocally(Error):
+class NotRunningLocallyError(Error):
   """Raised when calling a method that can only be used on local deployments."""
 
 
@@ -236,8 +237,8 @@ def CreateBit9Binary(**kwargs):
   defaults = {
       'detected_installer': False,
       'file_catalog_id': RandomDigits(5),
-      'md5': RandomHash(32),
-      'sha1': RandomHash(40),
+      'md5': RandomMD5(),
+      'sha1': RandomSHA1(),
       'occurred_dt': Now()}
   defaults.update(kwargs.copy())
 
@@ -487,7 +488,7 @@ def _CreateHost(host_cls, **kwargs):
       'hostname': 'host_%s' % RandomLetters(4)
   }
   defaults.update(kwargs.copy())
-  defaults['id'] = base.Host.NormalizeId(defaults['id'])
+  defaults['id'] = host_models.Host.NormalizeId(defaults['id'])
 
   new_host = host_cls(**defaults)
   new_host.put()
@@ -504,7 +505,7 @@ def CreateSantaHost(**kwargs):
   Returns:
     Newly created SantaHost.
   """
-  return _CreateHost(santa.SantaHost, **kwargs)
+  return _CreateHost(host_models.SantaHost, **kwargs)
 
 
 def CreateBit9Host(**kwargs):
@@ -517,10 +518,10 @@ def CreateBit9Host(**kwargs):
     Newly created Bit9Host.
   """
   id_gen_func = lambda: str(RandomInt(high=100000))
-  defaults = {'id': _GenerateUnusedEntityId(bit9.Bit9Host, id_gen_func)}
+  defaults = {'id': _GenerateUnusedEntityId(host_models.Bit9Host, id_gen_func)}
   defaults.update(kwargs.copy())
 
-  return _CreateHost(bit9.Bit9Host, **defaults)
+  return _CreateHost(host_models.Bit9Host, **defaults)
 
 
 def CreateSantaHosts(count, **kwargs):
@@ -611,12 +612,12 @@ def CreateBit9Policy(**kwargs):
   """
   id_gen_func = lambda: RandomDigits(16)
   defaults = {
-      'id': _GenerateUnusedEntityId(bit9.Bit9Policy, id_gen_func),
+      'id': _GenerateUnusedEntityId(host_models.Bit9Policy, id_gen_func),
       'name': RandomLetters(16),
       'enforcement_level': constants.BIT9_ENFORCEMENT_LEVEL.LOCKDOWN}
   defaults.update(kwargs.copy())
 
-  new_policy = bit9.Bit9Policy(**defaults)
+  new_policy = host_models.Bit9Policy(**defaults)
   new_policy.put()
 
   return new_policy
@@ -655,10 +656,10 @@ def CreateTestEntities(email_addr):
         be created.
 
   Raises:
-    NotRunningLocally: if called anywhere other than a local deployment.
+    NotRunningLocallyError: if called anywhere other than a local deployment.
   """
   if not env_utils.RunningLocally():
-    raise NotRunningLocally
+    raise NotRunningLocallyError
 
   # Create a user entity with all available roles.
   user = user_models.User.GetOrInsert(email_addr=email_addr)

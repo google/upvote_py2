@@ -16,54 +16,12 @@
 
 import datetime
 
-from google.appengine.ext import ndb
-
+from upvote.gae import settings
 from upvote.gae.datastore import test_utils
 from upvote.gae.datastore import utils as datastore_utils
 from upvote.gae.datastore.models import bit9
 from upvote.gae.lib.testing import basetest
-from upvote.gae.shared.common import settings
 from upvote.shared import constants
-
-
-class Bit9HostTest(basetest.UpvoteTestCase):
-
-  def setUp(self):
-    super(Bit9HostTest, self).setUp()
-
-    self.user = test_utils.CreateUser()
-    self.admin = test_utils.CreateUser(admin=True)
-
-    self.bit9_policy = test_utils.CreateBit9Policy()
-    self.bit9_host = test_utils.CreateBit9Host(
-        policy_key=self.bit9_policy.key, users=[self.user.nickname])
-
-  def testChangePolicyKey(self):
-
-    monitor_policy_key = ndb.Key(
-        bit9.Bit9Policy, constants.BIT9_ENFORCEMENT_LEVEL.MONITOR)
-    lockdown_policy_key = ndb.Key(
-        bit9.Bit9Policy, constants.BIT9_ENFORCEMENT_LEVEL.LOCKDOWN)
-    host_key = test_utils.CreateBit9Host(policy_key=monitor_policy_key).key
-
-    self.assertEqual(monitor_policy_key, host_key.get().policy_key)
-    bit9.Bit9Host.ChangePolicyKey(host_key.id(), lockdown_policy_key)
-    self.assertEqual(lockdown_policy_key, host_key.get().policy_key)
-
-  def testIsAssociatedWithUser(self):
-    self.assertTrue(self.bit9_host.IsAssociatedWithUser(self.user))
-    self.assertFalse(self.bit9_host.IsAssociatedWithUser(self.admin))
-
-  def testToDict(self):
-    dict_ = self.bit9_host.to_dict()
-    self.assertEqual(
-        self.bit9_policy.enforcement_level, dict_['policy_enforcement_level'])
-
-    self.bit9_host.policy_key = None
-    self.bit9_host.put()
-
-    dict_ = self.bit9_host.to_dict()
-    self.assertNotIn('policy_enforcement_level', dict_)
 
 
 class Bit9EventTest(basetest.UpvoteTestCase):

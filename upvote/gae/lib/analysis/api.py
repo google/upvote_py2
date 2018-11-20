@@ -24,7 +24,7 @@ class Error(Exception):
   """Module-level base Exception."""
 
 
-class LookupFailure(Error):
+class FailedLookupError(Error):
   """Raised when a binary health lookup fails for some reason."""
 
 
@@ -43,7 +43,7 @@ def _PerformLookup(name, lookup_func, metric, *args, **kwargs):
     about the given binary.
 
   Raises:
-    LookupFailure: if the call to the lookup service fails for any reason.
+    FailedLookupError: if the call to the lookup service fails for any reason.
   """
   try:
     logging.info('Submitting binary health query to %s...', name)
@@ -54,7 +54,8 @@ def _PerformLookup(name, lookup_func, metric, *args, **kwargs):
   except Exception as e:  # pylint: disable=broad-except
     logging.exception(e)
     metric.Failure()
-    raise LookupFailure('Error encountered while performing %s lookup' % name)
+    raise FailedLookupError(
+        'Error encountered while performing %s lookup' % name)
 
 
 
@@ -70,7 +71,7 @@ def VirusTotalLookup(binary_hash):
     given binary.
 
   Raises:
-    LookupFailure: if the call to VirusTotal fails for any reason.
+    FailedLookupError: if the call to VirusTotal fails for any reason.
   """
   return _PerformLookup(
       'VirusTotal', virustotal_client.Lookup, monitoring.virustotal_requests,

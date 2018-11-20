@@ -33,11 +33,11 @@ from google.appengine.datastore import datastore_stub_util
 
 from common.testing import basetest
 
+from upvote.gae import settings
 from upvote.gae.bigquery import tables
 from upvote.gae.datastore import test_utils
-from upvote.gae.shared.common import settings
-from upvote.gae.shared.common import settings_utils
 from upvote.gae.utils import handler_utils
+from upvote.gae.utils import settings_utils
 from upvote.gae.utils import xsrf_utils
 from upvote.shared import constants
 
@@ -87,7 +87,8 @@ class UpvoteTestCase(basetest.AppEngineTestCase):
     # NOTE: PatchEnv() needs to be called before the xsrf_utils bit below. The
     # call to Singleton.SetInstance() eventually imports appengine_config.py,
     # which will attempt to make some BigQuery insertions, which then fail with
-    # UnknownEnvironment unless we've already patched the environment detection.
+    # UnknownEnvironmentError unless we've already patched the environment
+    # detection.
     self._env_patcher = None
     self.PatchEnv(settings.ProdEnv, ENABLE_BIGQUERY_STREAMING=True)
 

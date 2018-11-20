@@ -37,8 +37,18 @@ py_appengine_library(
     name = "appengine_config",
     srcs = ["appengine_config.py"],
     deps = [
+        ":settings",
         "//upvote/gae/datastore/models:rule",
-        "//upvote/gae/shared/common:settings",
+    ],
+)
+
+py_appengine_library(
+    name = "settings",
+    srcs = ["settings.py"],
+    deps = [
+        "//common:context",
+        "//upvote/gae/utils:settings_utils",
+        "//upvote/shared:constants",
     ],
 )
 
@@ -51,8 +61,8 @@ upvote_appengine_test(
     srcs = ["appengine_config_test.py"],
     deps = [
         ":appengine_config",
+        ":settings",
         "//upvote/gae/lib/testing:basetest",
-        "//upvote/gae/shared/common:settings",
         "//upvote/shared:constants",
     ],
 )

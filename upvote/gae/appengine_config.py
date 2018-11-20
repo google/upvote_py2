@@ -17,8 +17,8 @@
 import datetime
 import logging
 
+from upvote.gae import settings
 from upvote.gae.datastore.models import rule
-from upvote.gae.shared.common import settings
 
 
 rule.EnsureCriticalRules(settings.CRITICAL_MAC_OS_CERT_HASHES)

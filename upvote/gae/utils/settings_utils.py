@@ -32,7 +32,7 @@ class Error(Exception):
   """Base exception class."""
 
 
-class UnknownEnvironment(Error):
+class UnknownEnvironmentError(Error):
   """Raised when the current environment cannot be determined."""
 
 
@@ -57,7 +57,7 @@ def CurrentEnvironment():
     The DefaultEnv subclass associated with the current environment.
 
   Raises:
-    UnknownEnvironment: if the environment cannot be determined.
+    UnknownEnvironmentError: if the environment cannot be determined.
   """
   logging.info('Attempting to determine current environment')
 
@@ -85,4 +85,4 @@ def CurrentEnvironment():
 
   # Well shit...
   logging.warning('Unable to determine the current environment')
-  raise UnknownEnvironment
+  raise UnknownEnvironmentError

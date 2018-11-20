@@ -17,6 +17,7 @@
 from google.appengine.ext import deferred
 from google.appengine.ext import ndb
 
+from upvote.gae import settings
 from upvote.gae.datastore.models import base as base_models
 from upvote.gae.datastore.models import bit9 as bit9_models
 from upvote.gae.datastore.models import metrics as metrics_db
@@ -24,7 +25,6 @@ from upvote.gae.datastore.models import santa as santa_models
 from upvote.gae.lib.analysis import api as analysis_api
 from upvote.gae.lib.analysis import monitoring
 from upvote.gae.lib.analysis.virustotal import constants as vt_constants
-from upvote.gae.shared.common import settings
 from upvote.shared import constants
 
 

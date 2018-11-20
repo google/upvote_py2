@@ -23,7 +23,7 @@ import urlparse
 from google.appengine.api import modules
 from google.appengine.api import urlfetch
 
-from upvote.gae.shared.common import settings
+from upvote.gae import settings
 
 _REDIRECT_ATTEMPTS = 5
 

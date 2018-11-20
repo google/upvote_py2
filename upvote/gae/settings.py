@@ -16,7 +16,7 @@
 
 from common import context
 
-from upvote.gae.shared.common import settings_utils
+from upvote.gae.utils import settings_utils
 from upvote.shared import constants
 
 

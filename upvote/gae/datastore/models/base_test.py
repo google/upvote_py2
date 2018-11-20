@@ -339,6 +339,12 @@ class BlockableTest(basetest.UpvoteTestCase):
       self.assertFalse(blockable_dict['is_voting_allowed'])
       self.assertIn('voting_prohibited_reason', blockable_dict)
 
+  def testGetById(self):
+    blockable = test_utils.CreateBlockable()
+    sha256 = blockable.key.id()
+    self.assertIsNotNone(base.Blockable.get_by_id(sha256.lower()))
+    self.assertIsNotNone(base.Blockable.get_by_id(sha256.upper()))
+
 
 class BinaryTest(basetest.UpvoteTestCase):
 
@@ -383,20 +389,6 @@ class BinaryTest(basetest.UpvoteTestCase):
 
   def testToDict(self):
     self.assertIn('cert_id', self.blockable.to_dict())
-
-
-class HostTest(basetest.UpvoteTestCase):
-
-  def setUp(self):
-    super(HostTest, self).setUp()
-    self.host = base.Host(id='bar', hostname='foo')
-    self.blockable = test_utils.CreateBlockable()
-    self.user1 = test_utils.CreateUser()
-    self.user2 = test_utils.CreateUser()
-
-  def testIsAssociatedWithUser(self):
-    with self.assertRaises(NotImplementedError):
-      self.host.IsAssociatedWithUser(self.user1)
 
 
 class RuleTest(basetest.UpvoteTestCase):

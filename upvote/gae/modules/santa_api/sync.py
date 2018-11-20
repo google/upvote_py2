@@ -26,8 +26,10 @@ from google.appengine.ext import blobstore
 from google.appengine.ext import ndb
 from google.appengine.ext.webapp import blobstore_handlers
 
+from upvote.gae import settings
 from upvote.gae.bigquery import tables
 from upvote.gae.datastore import utils as datastore_utils
+from upvote.gae.datastore.models import host as host_models
 from upvote.gae.datastore.models import santa as santa_models
 from upvote.gae.datastore.models import user as user_models
 from upvote.gae.datastore.models import utils as model_utils
@@ -36,7 +38,6 @@ from upvote.gae.modules.santa_api import auth
 from upvote.gae.modules.santa_api import constants as santa_const
 from upvote.gae.modules.santa_api import monitoring
 from upvote.gae.shared.common import big_red
-from upvote.gae.shared.common import settings
 from upvote.gae.shared.common import user_map
 from upvote.gae.utils import handler_utils
 from upvote.gae.utils import xsrf_utils
@@ -138,9 +139,9 @@ def _CopyLocalRules(user_key, dest_host_id):
   # Pick any host owned by the user to copy rules from. Exclude hosts that
   # haven't completed a full sync because they won't have a complete rule set.
   username = user_map.EmailToUsername(user_key.id())
-  query = santa_models.SantaHost.query(
-      santa_models.SantaHost.primary_user == username,
-      santa_models.SantaHost.last_postflight_dt != None)  # pylint: disable=g-equals-none
+  query = host_models.SantaHost.query(
+      host_models.SantaHost.primary_user == username,
+      host_models.SantaHost.last_postflight_dt != None)  # pylint: disable=g-equals-none
   src_host = query.get()
   if src_host is None:
     logging.warning('User %s has no hosts to copy from', username)
@@ -193,7 +194,7 @@ class PreflightHandler(BaseSantaApiHandler):
     first_preflight = not self.host
     if first_preflight:
       logging.info('Host %s is syncing for the first time', uuid)
-      self.host = santa_models.SantaHost(key=self.host_key)
+      self.host = host_models.SantaHost(key=self.host_key)
       self.host.client_mode = settings.SANTA_DEFAULT_CLIENT_MODE
       futures.append(_CopyLocalRules(user.key, uuid))
 
@@ -230,7 +231,7 @@ class PreflightHandler(BaseSantaApiHandler):
           action=common_const.HOST_ACTION.COMMENT,
           hostname=self.host.hostname,
           platform=common_const.PLATFORM.MACOS,
-          users=santa_models.SantaHost.GetAssociatedUsers(uuid),
+          users=model_utils.GetUsersAssociatedWithSantaHost(uuid),
           mode=reported_mode,
           comment=message)
 
@@ -289,7 +290,7 @@ class PreflightHandler(BaseSantaApiHandler):
           action=common_const.HOST_ACTION.FIRST_SEEN,
           hostname=new_host.hostname,
           platform=common_const.PLATFORM.MACOS,
-          users=santa_models.SantaHost.GetAssociatedUsers(uuid),
+          users=model_utils.GetUsersAssociatedWithSantaHost(uuid),
           mode=new_host.client_mode)
 
     self.respond_json(response)
@@ -1031,5 +1032,5 @@ class PostflightHandler(BaseSantaApiHandler):
         action=common_const.HOST_ACTION.FULL_SYNC,
         hostname=self.host.hostname,
         platform=common_const.PLATFORM.MACOS,
-        users=santa_models.SantaHost.GetAssociatedUsers(host_id),
+        users=model_utils.GetUsersAssociatedWithSantaHost(host_id),
         mode=self.host.client_mode)

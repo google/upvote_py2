@@ -82,9 +82,9 @@ py_library(
     deps = [
         "//external:mock",
         "//external:requests",
+        "//upvote/gae:settings",
         "//upvote/gae/lib/bit9:api",
         "//upvote/gae/lib/bit9:constants",
-        "//upvote/gae/shared/common:settings",
     ],
 )
 
@@ -119,9 +119,9 @@ py_appengine_library(
     deps = [
         ":constants",
         "//common:context",
+        "//upvote/gae:settings",
         "//upvote/gae/datastore/models:bit9",
         "//upvote/gae/lib/bit9:api",
-        "//upvote/gae/shared/common:settings",
     ],
 )
 
@@ -205,9 +205,9 @@ upvote_appengine_test(
     srcs = ["utils_test.py"],
     deps = [
         ":utils",
+        "//upvote/gae:settings",
         "//upvote/gae/datastore:test_utils",
         "//upvote/gae/lib/testing:basetest",
-        "//upvote/gae/shared/common:settings",
         "@absl_git//absl/testing:absltest",
     ],
 )

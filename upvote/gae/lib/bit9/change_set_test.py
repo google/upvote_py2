@@ -19,9 +19,6 @@ import datetime
 import mock
 
 from google.appengine.ext import deferred
-
-from absl.testing import absltest
-
 from upvote.gae.datastore import test_utils
 from upvote.gae.datastore.models import bit9
 from upvote.gae.lib.bit9 import api
@@ -30,6 +27,7 @@ from upvote.gae.lib.bit9 import constants as bit9_constants
 from upvote.gae.lib.testing import basetest
 from upvote.gae.lib.testing import bit9test
 from upvote.shared import constants
+from absl.testing import absltest
 
 
 class ChangeLocalStatesTest(basetest.UpvoteTestCase):

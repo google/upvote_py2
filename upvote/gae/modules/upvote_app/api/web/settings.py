@@ -20,10 +20,10 @@ import logging
 import webapp2
 from webapp2_extras import routes
 
+from upvote.gae import settings
 from upvote.gae.datastore.models import bit9
 from upvote.gae.datastore.models import virustotal
 from upvote.gae.modules.upvote_app.api.web import monitoring
-from upvote.gae.shared.common import settings
 from upvote.gae.utils import handler_utils
 from upvote.gae.utils import string_utils
 from upvote.gae.utils import xsrf_utils

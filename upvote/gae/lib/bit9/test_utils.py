@@ -24,9 +24,9 @@ import json
 import mock
 import requests
 
+from upvote.gae import settings
 from upvote.gae.lib.bit9 import api
 from upvote.gae.lib.bit9 import constants as bit9_constants
-from upvote.gae.shared.common import settings
 
 
 def GetTestResponse(data=None, status_code=httplib.OK):

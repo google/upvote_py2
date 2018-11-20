@@ -14,7 +14,7 @@
 
 """Resources for mapping between user emails and host usernames/owners."""
 
-from upvote.gae.shared.common import settings
+from upvote.gae import settings
 
 
 def UsernameToEmail(username):

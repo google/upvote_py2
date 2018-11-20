@@ -15,8 +15,9 @@
 """Tests for the template_utils module."""
 
 import jinja2
-from absl.testing import absltest
+
 from upvote.gae.shared.common import template_utils
+from absl.testing import absltest
 
 
 class TemplateUtilsTest(absltest.TestCase):

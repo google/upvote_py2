@@ -17,7 +17,7 @@
 import datetime
 import httplib
 
-import upvote.gae.shared.common.google_cloud_lib_fixer  # pylint: disable=unused-import
+import upvote.gae.lib.cloud.google_cloud_lib_fixer  # pylint: disable=unused-import
 # pylint: disable=g-bad-import-order,g-import-not-at-top
 
 import mock
@@ -27,8 +27,8 @@ from google.appengine.api import taskqueue
 from google.appengine.ext import db
 from upvote.gae.cron import datastore_backup
 from upvote.gae.lib.testing import basetest
-from upvote.gae.shared.common import settings
-from upvote.gae.shared.common import settings_utils
+from upvote.gae import settings
+from upvote.gae.utils import settings_utils
 from upvote.gae.utils import env_utils
 
 

@@ -22,11 +22,10 @@ import httplib
 
 import mock
 import requests
-
-from absl.testing import absltest
 from upvote.gae.lib.bit9 import context
 from upvote.gae.lib.bit9 import exceptions as excs
 from upvote.gae.lib.bit9 import test_utils
+from absl.testing import absltest
 
 
 class ToAsciiStrTest(absltest.TestCase):

@@ -20,12 +20,11 @@ from __future__ import print_function
 
 import datetime
 
-from absl import logging
-
 from upvote.gae.lib.bit9 import constants
 from upvote.gae.lib.bit9 import exceptions as excs
 from upvote.gae.lib.bit9 import query
 from upvote.gae.lib.bit9 import query_nodes
+from absl import logging
 
 
 class Property(object):

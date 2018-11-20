@@ -12,17 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
 import os
 import mock
 
 from common import context
-
-from absl.testing import absltest
-
 from upvote.gae.datastore.models import bit9 as bit9_models
 from upvote.gae.lib.bit9 import utils as bit9_utils
 from upvote.gae.lib.testing import basetest
+from absl.testing import absltest
 
 
 class Bit9TestCase(basetest.UpvoteTestCase):

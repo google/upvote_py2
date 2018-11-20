@@ -17,14 +17,14 @@
 import datetime
 
 from upvote.gae.datastore import test_utils
-from upvote.gae.datastore.models import base as base_models
 from upvote.gae.datastore.models import exemption
+from upvote.gae.datastore.models import host as host_models
 from upvote.gae.lib.testing import basetest
 
 from upvote.shared import constants
 
 
-class MysteryHost(base_models.Host):
+class MysteryHost(host_models.Host):
   """A Host Model which doesn't implement GetPlatformName()."""
 
 
@@ -51,7 +51,7 @@ class ExemptionTest(basetest.UpvoteTestCase):
 
     host_id = MysteryHost().put().id()
     exm_key = test_utils.CreateExemption(host_id)
-    with self.assertRaises(exemption.UnknownPlatform):
+    with self.assertRaises(exemption.UnknownPlatformError):
       exemption.Exemption.GetPlatform(exm_key)
 
   def testGetPlatform_Success(self):
@@ -88,7 +88,7 @@ class ExemptionTest(basetest.UpvoteTestCase):
     self.assertIsNotNone(expected_key.get())
     self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.EXEMPTION)
 
-  def testInsert_AlreadyExists(self):
+  def testInsert_AlreadyExistsError(self):
 
     self.assertEntityCount(exemption.Exemption, 0)
 
@@ -101,18 +101,18 @@ class ExemptionTest(basetest.UpvoteTestCase):
     self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.EXEMPTION)
 
     # Attempt a duplicate insertion.
-    with self.assertRaises(exemption.AlreadyExists):
+    with self.assertRaises(exemption.AlreadyExistsError):
       exemption.Exemption.Insert(
           host_id, datetime.datetime.utcnow(),
           constants.EXEMPTION_REASON.DEVELOPER_MACOS)
 
-  def testChangeState_InvalidExemption(self):
+  def testChangeState_InvalidExemptionError(self):
     exm_key = exemption.Exemption.CreateKey('invalid_host_id')
-    with self.assertRaises(exemption.InvalidExemption):
+    with self.assertRaises(exemption.InvalidExemptionError):
       exemption.Exemption.ChangeState(
           exm_key, constants.EXEMPTION_STATE.APPROVED)
 
-  def testChangeState_InvalidStateChange(self):
+  def testChangeState_InvalidStateChangeError(self):
 
     host_id = 'valid_host_id'
     exm_key = exemption.Exemption.Insert(
@@ -121,7 +121,7 @@ class ExemptionTest(basetest.UpvoteTestCase):
 
     self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.EXEMPTION)
 
-    with self.assertRaises(exemption.InvalidStateChange):
+    with self.assertRaises(exemption.InvalidStateChangeError):
       exemption.Exemption.ChangeState(
           exm_key, constants.EXEMPTION_STATE.APPROVED)
 

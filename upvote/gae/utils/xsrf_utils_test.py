@@ -22,11 +22,10 @@ from oauth2client.contrib import xsrfutil
 import webapp2
 
 from google.appengine.api import users
-from absl.testing import absltest
-
 from upvote.gae.lib.testing import basetest
 from upvote.gae.shared.common import user_map
 from upvote.gae.utils import xsrf_utils
+from absl.testing import absltest
 
 
 class FakeHandler(webapp2.RequestHandler):

@@ -21,9 +21,9 @@ import random
 from google.appengine.api import users
 from google.appengine.ext import ndb
 
+from upvote.gae import settings
 from upvote.gae.bigquery import tables
 from upvote.gae.datastore.models import mixin
-from upvote.gae.shared.common import settings
 from upvote.gae.shared.common import user_map
 from upvote.shared import constants
 
@@ -42,6 +42,10 @@ class UnknownUserError(Error):
 
 class InvalidUserRoleError(Error):
   """The called function received an invalid user role."""
+
+
+class NoRolesError(Error):
+  """Raised if an User has no assigned roles."""
 
 
 def _ValidateRolloutGroup(unused_prop, value):
@@ -233,6 +237,18 @@ class User(mixin.Base, ndb.Model):
   @property
   def nickname(self):
     return user_map.EmailToUsername(self.key.string_id())
+
+  @property
+  def highest_role(self):
+    """Returns the highest role for the user, by voting weight."""
+    role_set = set(self.roles)
+    for role, _ in sorted(
+        settings.VOTING_WEIGHTS.iteritems(), key=lambda t: t[1], reverse=True):
+      if role in role_set:
+        return role
+
+    # "This should never happen", but you know how that goes...
+    raise NoRolesError
 
   @property
   def is_admin(self):

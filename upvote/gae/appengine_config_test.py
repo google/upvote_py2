@@ -14,9 +14,9 @@
 
 """Unit tests for appengine_config.py."""
 
+from upvote.gae import settings
 from upvote.gae.datastore.models import santa
 from upvote.gae.lib.testing import basetest
-from upvote.gae.shared.common import settings
 from upvote.shared import constants
 
 

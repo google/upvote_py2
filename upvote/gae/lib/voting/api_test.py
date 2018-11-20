@@ -18,16 +18,17 @@ import mock
 
 from google.appengine.ext import ndb
 
+from upvote.gae import settings
 from upvote.gae.datastore import test_utils
 from upvote.gae.datastore import utils as datastore_utils
 from upvote.gae.datastore.models import base
 from upvote.gae.datastore.models import bit9
+from upvote.gae.datastore.models import host as host_models
 from upvote.gae.datastore.models import santa
 from upvote.gae.datastore.models import user as user_models
 from upvote.gae.datastore.models import vote as vote_models
 from upvote.gae.lib.testing import basetest
 from upvote.gae.lib.voting import api
-from upvote.gae.shared.common import settings
 from upvote.shared import constants
 
 
@@ -50,7 +51,7 @@ class GetBlockableTest(basetest.UpvoteTestCase):
   def testNotFound(self):
     sha256 = test_utils.RandomSHA256()
     test_utils.CreateSantaBlockable(id=sha256)
-    with self.assertRaises(api.BlockableNotFound):
+    with self.assertRaises(api.BlockableNotFoundError):
       api._GetBlockable('abcdef')
 
 
@@ -63,16 +64,16 @@ class GetPlatformTest(basetest.UpvoteTestCase):
 
   def testUnsupported(self):
     blockable = test_utils.CreateBlockable()
-    with self.assertRaises(api.UnsupportedPlatform):
+    with self.assertRaises(api.UnsupportedPlatformError):
       api._GetPlatform(blockable)
 
 
 class VoteTest(basetest.UpvoteTestCase):
 
-  def testInvalidVoteWeight(self):
+  def testInvalidVoteWeightError(self):
     sha256 = test_utils.RandomSHA256()
     test_utils.CreateSantaBlockable(id=sha256)
-    with self.assertRaises(api.InvalidVoteWeight):
+    with self.assertRaises(api.InvalidVoteWeightError):
       with self.LoggedInUser() as user:
         api.Vote(user, sha256, True, -1)
 
@@ -227,7 +228,7 @@ class BallotBoxTest(basetest.UpvoteTestCase):
     """Restrict no vote for bundles."""
 
     ballot_box = api.SantaBallotBox(self.santa_bundle.key.id())
-    with self.assertRaises(api.OperationNotAllowed):
+    with self.assertRaises(api.OperationNotAllowedError):
       with self.LoggedInUser() as user:
         ballot_box.Vote(False, user)
 
@@ -380,7 +381,7 @@ class BallotBoxTest(basetest.UpvoteTestCase):
   def testNonexistentBlockable(self):
     """Voting on a blockable that doesn't exist in the datastore."""
     ballot_box = api.SantaBallotBox('bbbbllllfffftttt')
-    with self.assertRaises(api.BlockableNotFound):
+    with self.assertRaises(api.BlockableNotFoundError):
       with self.LoggedInUser() as user:
         ballot_box.Vote(True, user)
 
@@ -590,7 +591,7 @@ class BallotBoxTest(basetest.UpvoteTestCase):
     # Verify all the entities.
     self.assertIsNotNone(base.Blockable.get_by_id(sha))
     self.assertEqual(len(users) - 1, len(blockable.GetVotes()))
-    self.assertEqual(len(users), base.Host.query().count())
+    self.assertEqual(len(users), host_models.Host.query().count())
     self.assertEqual(len(users) - 1, len(blockable.GetRules()))
 
     # Ensure that even with a yes vote, the voter can't globally whitelist the
@@ -1404,7 +1405,7 @@ class ResetTest(basetest.UpvoteTestCase):
     self.assertBigQueryInsertions([TABLE.BINARY, TABLE.RULE])
 
   def testBundles_NotAllowed(self):
-    with self.assertRaises(api.OperationNotAllowed):
+    with self.assertRaises(api.OperationNotAllowedError):
       api.Reset(self.santa_bundle.key.id())
 
   def testBit9(self):

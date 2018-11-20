@@ -50,7 +50,7 @@ class Lookup(handler_utils.UserFacingHandler):
       for key in keys:
         try:
           results = analysis_api.VirusTotalLookup(key.id())
-        except analysis_api.LookupFailure as e:  # pylint: disable=broad-except
+        except analysis_api.FailedLookupError as e:  # pylint: disable=broad-except
           # NOTE: We suppress all errors here because an omitted entry will be
           # considered an error and prevent the response from being considered
           # fully analyzed.
@@ -70,7 +70,7 @@ class Lookup(handler_utils.UserFacingHandler):
     else:
       try:
         results = analysis_api.VirusTotalLookup(blockable_id)
-      except analysis_api.LookupFailure as e:  # pylint: disable=broad-except
+      except analysis_api.FailedLookupError as e:  # pylint: disable=broad-except
         logging.exception(str(e))
         self.abort(httplib.NOT_FOUND)
       else:

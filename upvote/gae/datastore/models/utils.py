@@ -16,12 +16,12 @@
 
 from google.appengine.ext import ndb
 
+from upvote.gae import settings
 from upvote.gae.datastore.models import base as base_models
-from upvote.gae.datastore.models import bit9 as bit9_models
 from upvote.gae.datastore.models import exemption as exemption_models
+from upvote.gae.datastore.models import host as host_models
 from upvote.gae.datastore.models import santa as santa_models
 from upvote.gae.datastore.models import user as user_models
-from upvote.gae.shared.common import settings
 from upvote.gae.shared.common import user_map
 from upvote.shared import constants
 
@@ -35,8 +35,8 @@ def GetBit9HostKeysForUser(user):
   Returns:
     A list of Bit9Host Keys.
   """
-  query = bit9_models.Bit9Host.query(
-      bit9_models.Bit9Host.users == user.nickname)
+  query = host_models.Bit9Host.query(
+      host_models.Bit9Host.users == user.nickname)
   return query.fetch(keys_only=True)
 
 
@@ -53,8 +53,8 @@ def GetSantaHostKeysForUser(user):
   Returns:
     A list of SantaHost Keys.
   """
-  hosts_query = santa_models.SantaHost.query(
-      santa_models.SantaHost.primary_user == user.nickname)
+  hosts_query = host_models.SantaHost.query(
+      host_models.SantaHost.primary_user == user.nickname)
   hosts_future = hosts_query.fetch_async(keys_only=True)
 
   # If a user has been logged in to a Host when an Event was registered, they
@@ -67,7 +67,7 @@ def GetSantaHostKeysForUser(user):
 
   all_keys = set(hosts_future.get_result())
   for event in events_future.get_result():
-    all_keys.add(ndb.Key(santa_models.SantaHost, event.host_id))
+    all_keys.add(ndb.Key(host_models.SantaHost, event.host_id))
   return list(all_keys)
 
 
@@ -109,8 +109,57 @@ def GetEventKeysToInsert(event, logged_in_users, host_owners):
   for email in emails:
     key_pairs = [
         (user_models.User, email.lower()),
-        (base_models.Host, event.host_id)]
+        (host_models.Host, event.host_id)]
     key_pairs += event.blockable_key.pairs()
     key_pairs += [(base_models.Event, '1')]
     keys.append(ndb.Key(pairs=key_pairs))
   return keys
+
+
+def IsBit9HostAssociatedWithUser(host, user):
+  return user.nickname in host.users
+
+
+def IsSantaHostAssociatedWithUser(host, user):
+  """Returns whether the given user is associated with this host."""
+
+  if user.nickname == host.primary_user:
+    return True
+
+  # If a user has been logged in to this Host when an Event was registered,
+  # they are associated with this Host.
+  parent_key = ndb.Key(host_models.SantaHost, host.key.id(), parent=user.key)
+  query = santa_models.SantaEvent.query(ancestor=parent_key)
+  return query.get(keys_only=True) is not None
+
+
+def IsHostAssociatedWithUser(host, user):
+  """Returns whether the given host is associated with a given user.
+
+  NOTE: What consitutes "associated with" is platform-dependent.
+
+  Args:
+    host: The Host entity to test.
+    user: The User entity to test.
+
+  Returns:
+    bool, Whether the host is associated with the user.
+  """
+  if isinstance(host, host_models.Bit9Host):
+    return IsBit9HostAssociatedWithUser(host, user)
+  elif isinstance(host, host_models.SantaHost):
+    return IsSantaHostAssociatedWithUser(host, user)
+  else:
+    raise ValueError('Unsupported Host class: %s' % host.__class__.__name__)
+
+
+def GetUsersAssociatedWithSantaHost(host_id):
+
+  event_query = base_models.Event.query(
+      base_models.Event.host_id == host_id,
+      projection=[base_models.Event.executing_user],
+      distinct=True)
+
+  return [
+      e.executing_user for e in event_query.fetch()
+      if e.executing_user != constants.LOCAL_ADMIN.MACOS]

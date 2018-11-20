@@ -14,10 +14,10 @@
 
 """Unit tests for user.py."""
 
+from upvote.gae import settings
 from upvote.gae.datastore import test_utils
 from upvote.gae.datastore.models import user as user_models
 from upvote.gae.lib.testing import basetest
-from upvote.gae.shared.common import settings
 from upvote.gae.shared.common import user_map
 from upvote.shared import constants
 
@@ -214,6 +214,25 @@ class UserTest(basetest.UpvoteTestCase):
         self._voting_weights[constants.USER_ROLE.USER], user.vote_weight)
 
     self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.USER)
+
+  def testHighestRole_Default(self):
+    user = test_utils.CreateUser()
+    self.assertEqual(constants.USER_ROLE.USER, user.highest_role)
+
+  def testHighestRole_Administrator(self):
+    roles = [
+        constants.USER_ROLE.USER,
+        constants.USER_ROLE.TRUSTED_USER,
+        constants.USER_ROLE.ADMINISTRATOR]
+    user = test_utils.CreateUser(roles=roles)
+    self.assertEqual(constants.USER_ROLE.ADMINISTRATOR, user.highest_role)
+
+  def testHighestRole_NoRolesError(self):
+    user = test_utils.CreateUser()
+    user.roles = []
+    user.put()
+    with self.assertRaises(user_models.NoRolesError):
+      user.highest_role  # pylint: disable=pointless-statement
 
   def testIsAdmin_Nope(self):
     lowly_peon = test_utils.CreateUser(roles=[constants.USER_ROLE.USER])

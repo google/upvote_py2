@@ -369,6 +369,12 @@ class Blockable(mixin.Base, polymodel.PolyModel):
       logging.info('Voting on this Blockable is not allowed (%s)', reason)
     return result
 
+  @classmethod
+  def get_by_id(cls, blockable_id, **kwargs):
+    if isinstance(blockable_id, str):
+      blockable_id = blockable_id.lower()
+    return super(Blockable, cls).get_by_id(blockable_id, **kwargs)
+
 
 class Binary(Blockable):
   """A binary to be blocked.
@@ -443,39 +449,6 @@ class Package(Blockable):
   @property
   def rule_type(self):
     return constants.RULE_TYPE.PACKAGE
-
-
-class Host(mixin.Base, polymodel.PolyModel):
-  """A device running client software and has interacted with Upvote.
-
-  key = Device UUID reported by client.
-
-  Attributes:
-    hostname: str, the hostname at last preflight.
-    recorded_dt: datetime, time of insertion.
-    hidden: boolean, whether the host will be hidden from the user by default.
-  """
-  hostname = ndb.StringProperty()
-  recorded_dt = ndb.DateTimeProperty(auto_now_add=True)
-  hidden = ndb.BooleanProperty(default=False)
-
-  def IsAssociatedWithUser(self, user):
-    """Returns whether the given user is associated with this host.
-
-    NOTE: What consitutes "associated with" is platform-dependent and should be
-    defined for each inheriting class.
-
-    Args:
-      user: User, The user whose association will be tested.
-
-    Returns:
-      bool, Whether the user is associated with this host.
-    """
-    raise NotImplementedError
-
-  @staticmethod
-  def NormalizeId(host_id):
-    return host_id.upper()
 
 
 class Rule(mixin.Base, polymodel.PolyModel):

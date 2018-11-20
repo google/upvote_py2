@@ -20,7 +20,7 @@ import hashlib
 import logging
 import time
 
-import upvote.gae.shared.common.google_cloud_lib_fixer  # pylint: disable=unused-import
+import upvote.gae.lib.cloud.google_cloud_lib_fixer  # pylint: disable=unused-import
 # pylint: disable=g-bad-import-order,g-import-not-at-top
 from google.cloud import bigquery
 from google.cloud import exceptions
@@ -30,7 +30,7 @@ from google.appengine.ext import deferred
 from google.appengine.ext import ndb
 
 from upvote.gae.bigquery import monitoring
-from upvote.gae.shared.common import settings
+from upvote.gae import settings
 from upvote.shared import constants
 
 
@@ -56,31 +56,31 @@ class Error(Exception):
   """Base Exception class."""
 
 
-class UnexpectedColumn(Error):
+class UnexpectedColumnError(Error):
   """Raised when an unexpected column is provided."""
 
 
-class MissingColumn(Error):
+class MissingColumnError(Error):
   """Raised when an expected column is not provided."""
 
 
-class UnexpectedNull(Error):
+class UnexpectedNullError(Error):
   """Raised when a non-nullable column is null."""
 
 
-class InvalidRepeated(Error):
+class InvalidRepeatedError(Error):
   """Raised when an invalid value is provided for a REPEATED column."""
 
 
-class InvalidType(Error):
+class InvalidTypeError(Error):
   """Raised when an invalid type is provided for a column."""
 
 
-class InvalidValue(Error):
+class InvalidValueError(Error):
   """Raised when an invalid value is provided for a column."""
 
 
-class StreamingFailure(Error):
+class StreamingFailureError(Error):
   """Raised when the BigQuery client returns an error while streaming a row."""
 
 
@@ -124,7 +124,7 @@ def _SendToBigQuery(table, row_dict):
     row_dict: A dict representing the row to be sent.
 
   Raises:
-    StreamingFailure: if the row could not be sent to BigQuery.
+    StreamingFailureError: if the row could not be sent to BigQuery.
   """
   client = bigquery.Client()
 
@@ -189,12 +189,12 @@ def _SendToBigQuery(table, row_dict):
       else:
         break
 
-  # If the client returns errors, raise a StreamingFailure.
+  # If the client returns errors, raise a StreamingFailureError.
   if errors:
     error_str = ', '.join(str(e) for e in errors)
     msg = 'The BigQuery client returned errors: %s' % error_str
     logging.error(msg)
-    raise StreamingFailure(msg)
+    raise StreamingFailureError(msg)
 
   logging.info('Successfully streamed row to "%s" table', table.name)
 
@@ -227,26 +227,27 @@ class BigQueryTable(object):
       **kwargs: Key/value pairs which correspond to the row being inserted.
 
     Raises:
-      UnexpectedColumn: if an unexpected column is provided.
-      MissingColumn: if an expected column is not provided.
-      UnexpectedNull: if a non-nullable column is null.
-      InvalidRepeated: if an invalid value is provided for a REPEATED column.
-      InvalidType: if an invalid type is provided for a column.
-      InvalidValue: if an invalid value is provided for a column.
+      UnexpectedColumnError: if an unexpected column is provided.
+      MissingColumnError: if an expected column is not provided.
+      UnexpectedNullError: if a non-nullable column is null.
+      InvalidRepeatedError: if an invalid value is provided for a REPEATED
+          column.
+      InvalidTypeError: if an invalid type is provided for a column.
+      InvalidValueError: if an invalid value is provided for a column.
     """
     column_map = {c.name: c for c in self._columns}
 
     # Verify that no unexpected columns are passed in.
     unexpected_columns = set(kwargs.keys()) - {c.name for c in self._columns}
     if unexpected_columns:
-      raise UnexpectedColumn(sorted(list(unexpected_columns)))
+      raise UnexpectedColumnError(sorted(list(unexpected_columns)))
 
     # Verify that all REQUIRED columns are present.
     required_columns = {
         c.name for c in self._columns if c.mode == MODE.REQUIRED}
     missing_columns = required_columns - set(kwargs.keys())
     if missing_columns:
-      raise MissingColumn(sorted(list(missing_columns)))
+      raise MissingColumnError(sorted(list(missing_columns)))
 
     for k, v in kwargs.iteritems():
 
@@ -255,18 +256,18 @@ class BigQueryTable(object):
 
       # Verify that all non-NULLABLE columns have values.
       if column.mode != MODE.NULLABLE and v is None:
-        raise UnexpectedNull('Column "%s" is None' % k)
+        raise UnexpectedNullError('Column "%s" is None' % k)
 
       # Verify that all REPEATED columns are lists.
       if column.mode == MODE.REPEATED and not isinstance(v, list):
-        raise InvalidRepeated('Column "%s" is not a list' % k)
+        raise InvalidRepeatedError('Column "%s" is not a list' % k)
 
       # Verify that all REPEATED lists contain the correct type.
       if column.mode == MODE.REPEATED:
         for item in v:
           actual_type = type(item)
           if actual_type not in expected_types:
-            raise InvalidType(
+            raise InvalidTypeError(
                 'Column "%s" contains a value of type %s, must be one of %s' % (
                     k, actual_type.__name__, sorted(list(expected_types))))
 
@@ -274,7 +275,7 @@ class BigQueryTable(object):
       if column.mode == MODE.REQUIRED:
         actual_type = type(v)
         if actual_type not in expected_types:
-          raise InvalidType(
+          raise InvalidTypeError(
               'Column "%s" is of type %s, must be one of %s' % (
                   k, actual_type.__name__, sorted(list(expected_types))))
 
@@ -283,7 +284,7 @@ class BigQueryTable(object):
         v = v if column.mode == MODE.REPEATED else [v]
         for item in v:
           if item not in column.choices:
-            raise InvalidValue(
+            raise InvalidValueError(
                 'Column "%s" contains an invalid value: %s' % (k, item))
 
   def CreateUniqueId(self, **kwargs):

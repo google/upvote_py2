@@ -9,8 +9,8 @@ py_appengine_library(
     name = "env_utils",
     srcs = ["env_utils.py"],
     deps = [
-        "//upvote/gae/shared/common:settings",
-        "//upvote/gae/shared/common:settings_utils",
+        ":settings_utils",
+        "//upvote/gae:settings",
         "//upvote/shared:constants",
     ],
 )
@@ -19,7 +19,7 @@ py_appengine_library(
     name = "intermodule_utils",
     srcs = ["intermodule_utils.py"],
     deps = [
-        "//upvote/gae/shared/common:settings",
+        "//upvote/gae:settings",
         "//upvote/shared:constants",
     ],
 )
@@ -51,6 +51,14 @@ py_appengine_library(
     srcs = ["memcache_utils.py"],
     deps = [
         "//common:memcache_decorator",
+    ],
+)
+
+py_appengine_library(
+    name = "settings_utils",
+    srcs = ["settings_utils.py"],
+    deps = [
+        "//external:six",
     ],
 )
 
@@ -100,10 +108,10 @@ upvote_appengine_test(
     srcs = ["intermodule_utils_test.py"],
     deps = [
         ":intermodule_utils",
+        ":settings_utils",
         "//external:mock",
+        "//upvote/gae:settings",
         "//upvote/gae/lib/testing:basetest",
-        "//upvote/gae/shared/common:settings",
-        "//upvote/gae/shared/common:settings_utils",
     ],
 )
 
@@ -152,6 +160,17 @@ upvote_appengine_test(
         ":memcache_utils",
         "//common/testing:basetest",
         "//external:mock",
+    ],
+)
+
+upvote_appengine_test(
+    name = "settings_utils_test",
+    size = "small",
+    srcs = ["settings_utils_test.py"],
+    deps = [
+        ":settings_utils",
+        "//upvote/gae:settings",
+        "//upvote/gae/lib/testing:basetest",
     ],
 )
 

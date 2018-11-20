@@ -26,11 +26,9 @@ from __future__ import print_function
 import collections
 
 import bs4
-
+from upvote.gae.lib.bit9 import utils
 from absl import app
 from absl import flags
-
-from upvote.gae.lib.bit9 import utils
 
 FLAGS = flags.FLAGS
 

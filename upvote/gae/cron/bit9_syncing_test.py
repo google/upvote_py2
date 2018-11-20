@@ -28,14 +28,14 @@ from google.appengine.ext import ndb
 
 from common import datastore_locks
 
+from upvote.gae import settings
 from upvote.gae.cron import bit9_syncing
 from upvote.gae.datastore import test_utils
 from upvote.gae.datastore import utils as datastore_utils
-
 from upvote.gae.datastore.models import base as base_models
 from upvote.gae.datastore.models import bit9 as bit9_models
+from upvote.gae.datastore.models import host as host_models
 from upvote.gae.datastore.models import user as user_models
-
 from upvote.gae.lib.bit9 import api
 from upvote.gae.lib.bit9 import change_set
 from upvote.gae.lib.bit9 import constants as bit9_constants
@@ -44,7 +44,6 @@ from upvote.gae.lib.bit9 import test_utils as bit9_test_utils
 from upvote.gae.lib.bit9 import utils as bit9_utils
 from upvote.gae.lib.testing import basetest
 from upvote.gae.lib.testing import bit9test
-from upvote.gae.shared.common import settings
 from upvote.gae.shared.common import user_map
 from upvote.gae.utils import time_utils
 from upvote.shared import constants
@@ -236,7 +235,7 @@ class GetCertificateTest(basetest.UpvoteTestCase):
     memcache_key = bit9_syncing._CERT_MEMCACHE_KEY % cert_id
     self.assertIsNone(memcache.get(memcache_key))
 
-    with self.assertRaises(bit9_syncing.MalformedCertificate):
+    with self.assertRaises(bit9_syncing.MalformedCertificateError):
       bit9_syncing._GetCertificate(cert_id)
 
     self.assertIsNone(memcache.get(memcache_key))
@@ -405,7 +404,7 @@ class GetEventsTest(SyncTestCase):
 
     self._AppendMockApiResults([event_1, event_2, event_3], cert_3, cert_1)
     mock_get_signing_chain.side_effect = [
-        signing_chain_3, bit9_syncing.MalformedCertificate, signing_chain_1
+        signing_chain_3, bit9_syncing.MalformedCertificateError, signing_chain_1
     ]
 
     results = bit9_syncing.GetEvents(0)
@@ -1053,11 +1052,11 @@ class PersistBit9HostTest(basetest.UpvoteTestCase):
         users='{0}\\{1},{0}\\{2}'.format(settings.AD_DOMAIN, *users))
     occurred_dt = datetime.datetime.utcnow()
 
-    self.assertEntityCount(bit9_models.Bit9Host, 0)
+    self.assertEntityCount(host_models.Bit9Host, 0)
 
     bit9_syncing._PersistBit9Host(host, occurred_dt).wait()
 
-    self.assertEntityCount(bit9_models.Bit9Host, 1)
+    self.assertEntityCount(host_models.Bit9Host, 1)
     self.assertBigQueryInsertions(
         [constants.BIGQUERY_TABLE.HOST] + [constants.BIGQUERY_TABLE.USER] * 2)
 
@@ -1065,7 +1064,7 @@ class PersistBit9HostTest(basetest.UpvoteTestCase):
     now_dt = datetime.datetime.utcnow()
     earlier_dt = now_dt - datetime.timedelta(days=7)
     users = test_utils.RandomStrings(2)
-    policy_key = ndb.Key(bit9_models.Bit9Policy, '100')
+    policy_key = ndb.Key(host_models.Bit9Policy, '100')
 
     test_utils.CreateBit9Host(
         id='12345', last_event_dt=earlier_dt, users=users,
@@ -1078,13 +1077,13 @@ class PersistBit9HostTest(basetest.UpvoteTestCase):
 
     bit9_syncing._PersistBit9Host(host, now_dt).wait()
 
-    bit9_host = bit9_models.Bit9Host.get_by_id('12345')
+    bit9_host = host_models.Bit9Host.get_by_id('12345')
     self.assertEqual(now_dt, bit9_host.last_event_dt)
     self.assertNoBigQueryInsertions()
 
   def testUpdateHostname(self):
     users = test_utils.RandomStrings(2)
-    policy_key = ndb.Key(bit9_models.Bit9Policy, '100')
+    policy_key = ndb.Key(host_models.Bit9Policy, '100')
 
     test_utils.CreateBit9Host(
         id='12345', hostname=bit9_utils.ExpandHostname('hostname1'),
@@ -1099,13 +1098,13 @@ class PersistBit9HostTest(basetest.UpvoteTestCase):
 
     bit9_syncing._PersistBit9Host(host, occurred_dt).wait()
 
-    bit9_host = bit9_models.Bit9Host.get_by_id('12345')
+    bit9_host = host_models.Bit9Host.get_by_id('12345')
     self.assertEqual(bit9_utils.ExpandHostname('hostname2'), bit9_host.hostname)
     self.assertNoBigQueryInsertions()
 
   def testUpdatePolicyKey(self):
     users = test_utils.RandomStrings(2)
-    old_policy_key = ndb.Key(bit9_models.Bit9Policy, '22222')
+    old_policy_key = ndb.Key(host_models.Bit9Policy, '22222')
 
     test_utils.CreateBit9Host(
         id='11111', policy_key=old_policy_key, users=users)
@@ -1118,15 +1117,15 @@ class PersistBit9HostTest(basetest.UpvoteTestCase):
 
     bit9_syncing._PersistBit9Host(host, occurred_dt).wait()
 
-    bit9_host = bit9_models.Bit9Host.get_by_id('11111')
-    new_policy_key = ndb.Key(bit9_models.Bit9Policy, '33333')
+    bit9_host = host_models.Bit9Host.get_by_id('11111')
+    new_policy_key = ndb.Key(host_models.Bit9Policy, '33333')
     self.assertEqual(new_policy_key, bit9_host.policy_key)
     self.assertBigQueryInsertions([constants.BIGQUERY_TABLE.HOST])
 
   def testUpdateHostUsers_People(self):
     old_users = test_utils.RandomStrings(2)
     new_users = test_utils.RandomStrings(2)
-    policy_key = ndb.Key(bit9_models.Bit9Policy, '22222')
+    policy_key = ndb.Key(host_models.Bit9Policy, '22222')
 
     test_utils.CreateBit9Host(
         id='12345', users=old_users, policy_key=policy_key)
@@ -1140,7 +1139,7 @@ class PersistBit9HostTest(basetest.UpvoteTestCase):
     bit9_syncing._PersistBit9Host(host, occurred_dt).wait()
 
     # Verify that the users were updated in Datastore.
-    host = bit9_models.Bit9Host.get_by_id('12345')
+    host = host_models.Bit9Host.get_by_id('12345')
     self.assertSameElements(new_users, host.users)
 
     # Verify all BigQuery row persistence.
@@ -1152,7 +1151,7 @@ class PersistBit9HostTest(basetest.UpvoteTestCase):
     test_utils.CreateBit9Host(
         id='12345',
         users=['a_real_person'],
-        policy_key=ndb.Key(bit9_models.Bit9Policy, '22222'))
+        policy_key=ndb.Key(host_models.Bit9Policy, '22222'))
 
     host = bit9_test_utils.CreateComputer(
         id=12345,
@@ -1163,7 +1162,7 @@ class PersistBit9HostTest(basetest.UpvoteTestCase):
     bit9_syncing._PersistBit9Host(host, occurred_dt).wait()
 
     # Verify that the user didn't get updated.
-    host = bit9_models.Bit9Host.get_by_id('12345')
+    host = host_models.Bit9Host.get_by_id('12345')
     self.assertSameElements(['a_real_person'], host.users)
 
     # Verify no BigQuery row persistence.
@@ -1172,7 +1171,7 @@ class PersistBit9HostTest(basetest.UpvoteTestCase):
   def testUpdateHostUsers_NoIncomingUsers(self):
 
     old_users = test_utils.RandomStrings(2)
-    policy_key = ndb.Key(bit9_models.Bit9Policy, '22222')
+    policy_key = ndb.Key(host_models.Bit9Policy, '22222')
 
     test_utils.CreateBit9Host(
         id='12345', users=old_users, policy_key=policy_key)
@@ -1184,7 +1183,7 @@ class PersistBit9HostTest(basetest.UpvoteTestCase):
     bit9_syncing._PersistBit9Host(host, occurred_dt).wait()
 
     # Verify that the users weren't updated in Datastore.
-    host = bit9_models.Bit9Host.get_by_id('12345')
+    host = host_models.Bit9Host.get_by_id('12345')
     self.assertSameElements(old_users, host.users)
 
 
@@ -1341,7 +1340,7 @@ class UpdateBit9PoliciesTest(bit9test.Bit9TestCase):
 
     self.testapp.get(self.ROUTE, headers={'X-AppEngine-Cron': 'true'})
 
-    policies = bit9_models.Bit9Policy.query().fetch()
+    policies = host_models.Bit9Policy.query().fetch()
     self.assertEqual(1, len(policies))
 
     policy = policies[0]
@@ -1351,13 +1350,13 @@ class UpdateBit9PoliciesTest(bit9test.Bit9TestCase):
         constants.BIT9_ENFORCEMENT_LEVEL.LOCKDOWN, policy.enforcement_level)
 
   def testGet_UpdateChangedPolicy(self):
-    policy_obj_1 = bit9_models.Bit9Policy(
+    policy_obj_1 = host_models.Bit9Policy(
         id='1', name='bar',
         enforcement_level=constants.BIT9_ENFORCEMENT_LEVEL.LOCKDOWN)
     policy_obj_1.put()
     old_policy_dt = policy_obj_1.updated_dt
 
-    policy_obj_2 = bit9_models.Bit9Policy(
+    policy_obj_2 = host_models.Bit9Policy(
         id='2', name='baz',
         enforcement_level=constants.BIT9_ENFORCEMENT_LEVEL.LOCKDOWN)
     policy_obj_2.put()
@@ -1369,10 +1368,10 @@ class UpdateBit9PoliciesTest(bit9test.Bit9TestCase):
 
     self.testapp.get(self.ROUTE, headers={'X-AppEngine-Cron': 'true'})
 
-    self.assertEqual(2, bit9_models.Bit9Policy.query().count())
+    self.assertEqual(2, host_models.Bit9Policy.query().count())
 
     # First policy should have has its name updated from 'bar' to 'foo'.
-    updated_policy = bit9_models.Bit9Policy.get_by_id('1')
+    updated_policy = host_models.Bit9Policy.get_by_id('1')
     self.assertEqual('foo', updated_policy.name)
     self.assertEqual(
         constants.BIT9_ENFORCEMENT_LEVEL.BLOCK_AND_ASK,
@@ -1380,11 +1379,11 @@ class UpdateBit9PoliciesTest(bit9test.Bit9TestCase):
     self.assertNotEqual(old_policy_dt, updated_policy.updated_dt)
 
     # Second policy should be unchanged.
-    other_updated_policy = bit9_models.Bit9Policy.get_by_id('2')
+    other_updated_policy = host_models.Bit9Policy.get_by_id('2')
     self.assertEqual(old_other_policy_dt, other_updated_policy.updated_dt)
 
   def testGet_IgnoreBadEnforcementLevel(self):
-    policy_obj = bit9_models.Bit9Policy(
+    policy_obj = host_models.Bit9Policy(
         id='1', name='foo',
         enforcement_level=constants.BIT9_ENFORCEMENT_LEVEL.LOCKDOWN)
     policy_obj.put()
@@ -1396,7 +1395,7 @@ class UpdateBit9PoliciesTest(bit9test.Bit9TestCase):
     self.testapp.get(self.ROUTE, headers={'X-AppEngine-Cron': 'true'})
 
     # Policy name should _not_ be updated.
-    updated_policy = bit9_models.Bit9Policy.get_by_id('1')
+    updated_policy = host_models.Bit9Policy.get_by_id('1')
     self.assertEqual('foo', updated_policy.name)
 
 

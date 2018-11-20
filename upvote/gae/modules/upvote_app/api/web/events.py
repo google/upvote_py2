@@ -24,6 +24,7 @@ from google.appengine.ext import ndb
 from upvote.gae.datastore import utils as datastore_utils
 from upvote.gae.datastore.models import base as base_models
 from upvote.gae.datastore.models import bit9 as bit9_models
+from upvote.gae.datastore.models import host as host_models
 from upvote.gae.datastore.models import santa as santa_models
 from upvote.gae.datastore.models import user as user_models
 from upvote.gae.datastore.models import vote as vote_models
@@ -51,7 +52,7 @@ def _GetEventContext(events):
     Blockable), that dict entry is present but set to None.
   """
   host_futures = ndb.get_multi_async(
-      ndb.Key(base_models.Host, event.host_id) for event in events)
+      ndb.Key(host_models.Host, event.host_id) for event in events)
 
   # Fetch the entities associated with Event.blockable_key.
   blockable_futures = ndb.get_multi_async(

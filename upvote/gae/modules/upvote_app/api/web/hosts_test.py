@@ -19,16 +19,16 @@ import httplib
 
 import webapp2
 
+from upvote.gae import settings
 from upvote.gae.datastore import test_utils
 from upvote.gae.datastore import utils as datastore_utils
-from upvote.gae.datastore.models import bit9
 from upvote.gae.datastore.models import exemption
-from upvote.gae.datastore.models import santa
+from upvote.gae.datastore.models import host as host_models
 from upvote.gae.datastore.models import tickets
+from upvote.gae.datastore.models import utils as model_utils
 from upvote.gae.lib.testing import basetest
 from upvote.gae.lib.testing import test_utils as common_test_utils
 from upvote.gae.modules.upvote_app.api.web import hosts
-from upvote.gae.shared.common import settings
 from upvote.shared import constants
 
 
@@ -39,24 +39,24 @@ class HostsTest(basetest.UpvoteTestCase):
     app = webapp2.WSGIApplication(routes=[hosts.ROUTES])
     super(HostsTest, self).setUp(wsgi_app=app)
 
-    self.santa_host_1 = santa.SantaHost(
+    self.santa_host_1 = host_models.SantaHost(
         id='A-COOL-UUID1',
         hostname='user2.foo.bar.goog.co',
         primary_user='user',
         last_postflight_dt=datetime.datetime.utcnow())
-    self.santa_host_2 = santa.SantaHost(
+    self.santa_host_2 = host_models.SantaHost(
         id='A-COOL-UUID2',
         hostname='user2-blah.foo.bar.goog.co',
         primary_user='llcoolj',
         last_postflight_dt=datetime.datetime.utcnow())
-    self.santa_host_3 = santa.SantaHost(
+    self.santa_host_3 = host_models.SantaHost(
         id='A-COOL-UUID3',
         hostname='deck-the-halls.goog.co',
         client_mode=constants.SANTA_CLIENT_MODE.LOCKDOWN,
         client_mode_lock=False,
         primary_user='bubblebuddy',
         last_postflight_dt=datetime.datetime.utcnow())
-    self.bit9_host_1 = bit9.Bit9Host(
+    self.bit9_host_1 = host_models.Bit9Host(
         id='uuid3',
         hostname='bit-the-9.goog.co')
 
@@ -161,7 +161,8 @@ class HostHandlerTest(HostsTest):
           executing_user=user.nickname,
           parent=datastore_utils.ConcatenateKeys(
               user.key, self.santa_host_1.key, blockable.key))
-      self.assertTrue(self.santa_host_1.IsAssociatedWithUser(user))
+      self.assertTrue(
+          model_utils.IsHostAssociatedWithUser(self.santa_host_1, user))
       response = self.testapp.get(self.ROUTE % self.santa_host_1.key.id())
 
     output = response.json
@@ -174,7 +175,8 @@ class HostHandlerTest(HostsTest):
     with self.LoggedInUser() as user:
       self.santa_host_3.primary_user = user.nickname
       self.santa_host_3.put()
-      self.assertTrue(self.santa_host_3.IsAssociatedWithUser(user))
+      self.assertTrue(
+          model_utils.IsHostAssociatedWithUser(self.santa_host_3, user))
       response = self.testapp.get(self.ROUTE % self.santa_host_3.key.id())
 
     output = response.json
@@ -185,7 +187,8 @@ class HostHandlerTest(HostsTest):
   def testUnknownUserGet(self):
     """Normal user not associated with a host attempts to get it by ID."""
     with self.LoggedInUser() as user:
-      self.assertFalse(self.santa_host_1.IsAssociatedWithUser(user))
+      self.assertFalse(
+          model_utils.IsHostAssociatedWithUser(self.santa_host_1, user))
       self.testapp.get(
           self.ROUTE % self.santa_host_1.key.id(), status=httplib.FORBIDDEN)
 
@@ -312,9 +315,9 @@ class AssociatedHostHandlerTest(HostsTest):
     bit9_host_1 = test_utils.CreateBit9Host(
         users=[user.nickname], last_event_dt=recenter)
 
-    self.assertTrue(santa_host_1.IsAssociatedWithUser(user))
-    self.assertTrue(santa_host_2.IsAssociatedWithUser(user))
-    self.assertTrue(bit9_host_1.IsAssociatedWithUser(user))
+    self.assertTrue(model_utils.IsHostAssociatedWithUser(santa_host_1, user))
+    self.assertTrue(model_utils.IsHostAssociatedWithUser(santa_host_2, user))
+    self.assertTrue(model_utils.IsHostAssociatedWithUser(bit9_host_1, user))
 
     with self.LoggedInUser(user=user):
       response = self.testapp.get(self.SELF_ROUTE)
@@ -459,7 +462,7 @@ class HostExceptionHandlerTest(HostsTest):
     self.assertEqual(
         constants.SANTA_CLIENT_MODE.MONITOR, updated_host.client_mode)
 
-  def testCreateHostException_UnknownHost(self):
+  def testCreateHostException_UnknownHostError(self):
     params = {'reason': constants.EXEMPTION_REASON.DEVELOPER_MACOS}
     with self.LoggedInUser(user=self.user):
       self.testapp.post(
@@ -467,7 +470,8 @@ class HostExceptionHandlerTest(HostsTest):
 
   def testCreateHostException_AdminCreate(self):
     with self.LoggedInUser(admin=True) as admin:
-      self.assertFalse(self.santa_host_3.IsAssociatedWithUser(admin))
+      self.assertFalse(
+          model_utils.IsHostAssociatedWithUser(self.santa_host_3, admin))
 
       params = {'reason': constants.EXEMPTION_REASON.DEVELOPER_MACOS}
       response = self.testapp.post(
@@ -532,7 +536,7 @@ class HostExceptionHandlerTest(HostsTest):
     self.assertEqual(self.user.email, output['userId'])
     self.assertEqual(self.santa_host_3.key.id(), output['hostId'])
 
-  def testGetHostException_UnknownHost(self):
+  def testGetHostException_UnknownHostError(self):
     with self.LoggedInUser(user=self.user):
       self.testapp.get(self.ROUTE % 'NotAHost', status=httplib.NOT_FOUND)
 
@@ -617,7 +621,7 @@ class LockdownHandlerTest(HostsTest):
 
     self.assertBigQueryInsertions([constants.BIGQUERY_TABLE.HOST])
 
-  def testPost_UnknownHost(self):
+  def testPost_UnknownHostError(self):
     with self.LoggedInUser(user=self.user):
       self.testapp.post(self.ROUTE % 'NotAHost', status=httplib.NOT_FOUND)
 

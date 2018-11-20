@@ -23,6 +23,7 @@ from google.appengine.ext import ndb
 
 from upvote.gae.datastore import test_utils
 from upvote.gae.datastore import utils as datastore_utils
+from upvote.gae.datastore.models import user as user_models
 from upvote.gae.datastore.models import vote as vote_models
 from upvote.gae.lib.testing import basetest
 from upvote.gae.lib.voting import api as voting_api
@@ -282,8 +283,8 @@ class VoteCastHandlerTest(VotesTest):
           status=httplib.FORBIDDEN)
 
   @mock.patch.object(
-      votes.voting_api, 'Vote', side_effect=voting_api.BlockableNotFound)
-  def testPost_BlockableNotFound(self, mock_vote):
+      votes.voting_api, 'Vote', side_effect=voting_api.BlockableNotFoundError)
+  def testPost_BlockableNotFoundError(self, mock_vote):
     with self.LoggedInUser():
       self.testapp.post(
           self.ROUTE % test_utils.RandomSHA256(),
@@ -291,8 +292,8 @@ class VoteCastHandlerTest(VotesTest):
           status=httplib.NOT_FOUND)
 
   @mock.patch.object(
-      votes.voting_api, 'Vote', side_effect=voting_api.UnsupportedPlatform)
-  def testPost_UnsupportedPlatform(self, mock_vote):
+      votes.voting_api, 'Vote', side_effect=voting_api.UnsupportedPlatformError)
+  def testPost_UnsupportedPlatformError(self, mock_vote):
     with self.LoggedInUser():
       self.testapp.post(
           self.ROUTE % test_utils.RandomSHA256(),
@@ -300,8 +301,8 @@ class VoteCastHandlerTest(VotesTest):
           status=httplib.BAD_REQUEST)
 
   @mock.patch.object(
-      votes.voting_api, 'Vote', side_effect=voting_api.InvalidVoteWeight)
-  def testPost_InvalidVoteWeight(self, mock_vote):
+      votes.voting_api, 'Vote', side_effect=voting_api.InvalidVoteWeightError)
+  def testPost_InvalidVoteWeightError(self, mock_vote):
     with self.LoggedInUser():
       self.testapp.post(
           self.ROUTE % test_utils.RandomSHA256(),
@@ -318,8 +319,8 @@ class VoteCastHandlerTest(VotesTest):
           status=httplib.CONFLICT)
 
   @mock.patch.object(
-      votes.voting_api, 'Vote', side_effect=voting_api.OperationNotAllowed)
-  def testPost_OperationNotAllowed(self, mock_vote):
+      votes.voting_api, 'Vote', side_effect=voting_api.OperationNotAllowedError)
+  def testPost_OperationNotAllowedError(self, mock_vote):
     with self.LoggedInUser():
       self.testapp.post(
           self.ROUTE % test_utils.RandomSHA256(),
@@ -333,6 +334,37 @@ class VoteCastHandlerTest(VotesTest):
           self.ROUTE % test_utils.RandomSHA256(),
           params={'wasYesVote': 'true'},
           status=httplib.INTERNAL_SERVER_ERROR)
+
+  def testPost_CaseMismatch(self):
+
+    blockable = test_utils.CreateSantaBlockable()
+    sha256 = blockable.key.id()
+
+    with self.LoggedInUser():
+      response = self.testapp.post(
+          self.ROUTE % sha256.upper(), params={'wasYesVote': 'true'})
+
+    output = response.json
+
+    self.assertIn('application/json', response.headers['Content-type'])
+    self.assertIsInstance(output, dict)
+
+    self.assertEqual(sha256, output['blockable']['id'])
+    self.assertEqual(True, output['vote']['wasYesVote'])
+
+  @mock.patch.object(
+      user_models.User, 'highest_role', new_callable=mock.PropertyMock)
+  def testPost_NoRolesError(self, mock_highest_role):
+
+    mock_highest_role.side_effect = user_models.NoRolesError
+    user = test_utils.CreateUser()
+
+    self.assertIsNone(user.last_vote_dt)
+    with self.LoggedInUser(user=user):
+      self.testapp.post(
+          self.ROUTE % test_utils.RandomSHA256(),
+          status=httplib.INTERNAL_SERVER_ERROR)
+    self.assertIsNone(user.last_vote_dt)
 
   def testGet_User(self):
     """Normal user reads a vote."""

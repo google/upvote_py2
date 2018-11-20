@@ -596,6 +596,27 @@ class RecentEventHandlerTest(EventsTest):
 
     self.assertIsNone(output)
 
+  def testUser_GetOwnEvent_CaseMismatch(self):
+
+    user = test_utils.CreateUser()
+    host = test_utils.CreateSantaHost()
+    blockable = test_utils.CreateSantaBlockable()
+    event_parent_key = datastore_utils.ConcatenateKeys(
+        user.key, host.key, blockable.key)
+    event = test_utils.CreateSantaEvent(
+        blockable, executing_user=user.nickname, parent=event_parent_key)
+
+    with self.LoggedInUser(user=user):
+      response = self.testapp.get(self.ROUTE % blockable.key.id().upper())
+
+    output = response.json
+
+    self.assertIn('application/json', response.headers['Content-type'])
+    self.assertIsInstance(output, dict)
+    self.assertEqual(output['id'], event.key.id())
+    self.assertEqual(output['hostId'], event.host_id)
+    self.assertIn('Event', output['class_'])
+
   def testUser_GetUnknownBlockable(self):
     with self.LoggedInUser(user=self.user_1):
       self.testapp.get(self.ROUTE % 'NotARealId', status=httplib.NOT_FOUND)

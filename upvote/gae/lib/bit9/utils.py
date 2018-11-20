@@ -22,10 +22,10 @@ import re
 
 from common import context
 
+from upvote.gae import settings
 from upvote.gae.datastore.models import bit9
 from upvote.gae.lib.bit9 import constants as bit9_constants
 from upvote.gae.lib.bit9 import api  # pylint: disable=g-line-too-long
-from upvote.gae.shared.common import settings
 
 
 _NORMAL_USER_REGEX = re.compile(
