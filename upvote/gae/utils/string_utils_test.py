@@ -22,15 +22,28 @@ from upvote.gae.utils import string_utils
 from absl.testing import absltest
 
 
-class UtilsTest(absltest.TestCase):
+class CamelToSnakeCaseTest(absltest.TestCase):
 
-  def testConvertSomeCamelCases(self):
+  def testConversions(self):
     tests = (
         ('thisIsCamelCase', 'this_is_camel_case'),
         ('this_isPartiallyCamelCase', 'this_is_partially_camel_case'),
         ('this_is_snake_case', 'this_is_snake_case'))
     for test, expected in tests:
       self.assertEqual(expected, string_utils.CamelToSnakeCase(test))
+
+
+class SafeLowerTest(absltest.TestCase):
+
+  def testNone(self):
+    self.assertIsNone(string_utils.SafeLower(None))
+
+  def testNoChange(self):
+    for string in ['', '   ', 'asdf']:
+      self.assertEqual(string, string_utils.SafeLower(string))
+
+  def testLowercase(self):
+    self.assertEqual('abc123', string_utils.SafeLower('ABC123'))
 
 
 if __name__ == '__main__':

@@ -49,7 +49,7 @@ class ClientTest(basetest.AppEngineTestCase):
     self.assertIsInstance(response_dict, dict)
     self.assertEqual(0, response_dict['positives'])
     self.assertEqual(1, response_dict['total'])
-    self.assertEqual(1, len(response_dict['scans']))
+    self.assertLen(response_dict['scans'], 1)
     self.assertEqual('Microsoft', response_dict['scans'].keys()[0])
 
   def testLookup_BadResponse(self, mock_get_inst, mock_fetch):

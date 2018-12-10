@@ -112,6 +112,22 @@ class GetSantaHostIdsForUserTest(basetest.UpvoteTestCase):
 
 class GetExemptionsForUserTest(basetest.UpvoteTestCase):
 
+  def testNoExemptions_WithoutStateFilter(self):
+
+    user = test_utils.CreateUser()
+    test_utils.CreateSantaHosts(4, primary_user=user.nickname)
+
+    self.assertListEqual([], model_utils.GetExemptionsForUser(user.email))
+
+  def testNoExemptions_WithStateFilter(self):
+
+    user = test_utils.CreateUser()
+    test_utils.CreateSantaHosts(4, primary_user=user.nickname)
+
+    actual_exms = model_utils.GetExemptionsForUser(
+        user.email, state=constants.EXEMPTION_STATE.APPROVED)
+    self.assertListEqual([], actual_exms)
+
   def testSuccess(self):
 
     user = test_utils.CreateUser()
@@ -123,7 +139,7 @@ class GetExemptionsForUserTest(basetest.UpvoteTestCase):
     test_utils.CreateExemption(host_id_3)
 
     expected_exms = sorted([exm_1, exm_2])
-    actual_exms = sorted(model_utils.GetExemptionsForUser(user))
+    actual_exms = sorted(model_utils.GetExemptionsForUser(user.email))
     self.assertListEqual(expected_exms, actual_exms)
 
   def testWithStateFilter(self):
@@ -138,7 +154,7 @@ class GetExemptionsForUserTest(basetest.UpvoteTestCase):
     test_utils.CreateExemption(host_id_3, initial_state=_STATE.APPROVED)
 
     actual_exms = sorted(
-        model_utils.GetExemptionsForUser(user, state=_STATE.APPROVED))
+        model_utils.GetExemptionsForUser(user.email, state=_STATE.APPROVED))
     self.assertListEqual([exm_1], actual_exms)
 
 
@@ -158,7 +174,7 @@ class GetEventKeysToInsertTest(basetest.UpvoteTestCase):
   def testGetEventKeysToInsert(self):
     keys = model_utils.GetEventKeysToInsert(self.event, ['foo', 'bar'], [])
 
-    self.assertEqual(1, len(keys))
+    self.assertLen(keys, 1)
     expected_email = user_map.UsernameToEmail(self.event.executing_user)
     self.assertEqual(expected_email, keys[0].pairs()[0][1])
 
@@ -169,7 +185,7 @@ class GetEventKeysToInsertTest(basetest.UpvoteTestCase):
       event = datastore_utils.CopyEntity(self.event)
       keys = model_utils.GetEventKeysToInsert(event, usernames, [])
 
-    self.assertEqual(2, len(keys))
+    self.assertLen(keys, 2)
     key_usernames = [user_map.EmailToUsername(key.flat()[1]) for key in keys]
     self.assertSameElements(usernames, key_usernames)
 
@@ -179,7 +195,7 @@ class GetEventKeysToInsertTest(basetest.UpvoteTestCase):
         'bar', 'baz', parent=old_key)
     keys = model_utils.GetEventKeysToInsert(self.event, ['foo', 'bar'], [])
 
-    self.assertEqual(5, len(keys[0].pairs()))
+    self.assertLen(keys[0].pairs(), 5)
     self.assertEqual(old_key.pairs()[0], keys[0].pairs()[2])
     self.assertEqual(('bar', 'baz'), keys[0].pairs()[3])
 
@@ -193,7 +209,7 @@ class GetEventKeysToInsertTest(basetest.UpvoteTestCase):
     self.PatchSetting('EVENT_CREATION', constants.EVENT_CREATION.HOST_OWNER)
     keys = model_utils.GetEventKeysToInsert(self.event, [], ['foo'])
 
-    self.assertEqual(1, len(keys))
+    self.assertLen(keys, 1)
     key_usernames = [user_map.EmailToUsername(key.flat()[1]) for key in keys]
     self.assertSameElements(['foo'], key_usernames)
 

@@ -73,6 +73,7 @@ py_appengine_library(
         ":host",
         ":mixin",
         "//upvote/gae/bigquery:tables",
+        "//upvote/gae/lib/exemption:monitoring",
         "//upvote/gae/taskqueue:utils",
     ],
 )

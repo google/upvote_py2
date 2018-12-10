@@ -83,11 +83,12 @@ def GetHostIdsForUser(user):
   return GetBit9HostIdsForUser(user) + GetSantaHostIdsForUser(user)
 
 
-def GetExemptionsForUser(user, state=None):
+def GetExemptionsForUser(email_addr, state=None):
+  user = user_models.User.GetById(email_addr)
   exm_keys = [
       exemption_models.Exemption.CreateKey(host_id)
       for host_id in GetHostIdsForUser(user)]
-  exms = ndb.get_multi(exm_keys)
+  exms = [exm for exm in ndb.get_multi(exm_keys) if exm]
   if state:
     exms = [exm for exm in exms if exm.state == state]
   return exms

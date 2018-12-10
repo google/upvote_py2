@@ -71,7 +71,7 @@ class BlockableQueryHandlerTest(BlockablesTest):
 
     self.assertIn('application/json', response.headers['Content-type'])
     self.assertIsInstance(output['content'], list)
-    self.assertEqual(len(output['content']), 5)
+    self.assertLen(output['content'], 5)
 
   def testAdminGetListWithPlatform(self):
     """Admin getting list of all blockables on a specific platform."""
@@ -82,7 +82,7 @@ class BlockableQueryHandlerTest(BlockablesTest):
 
     self.assertIn('application/json', response.headers['Content-type'])
     self.assertIsInstance(output['content'], list)
-    self.assertEqual(len(output['content']), 1)
+    self.assertLen(output['content'], 1)
 
   def testUserGetBlockableList(self):
     """Normal user getting a list of all blockables."""
@@ -149,7 +149,7 @@ class BlockableQueryHandlerTest(BlockablesTest):
     # this user.
     self.assertIn('application/json', response.headers['Content-type'])
     self.assertIsInstance(output['content'], list)
-    self.assertEqual(len(output['content']), 2)
+    self.assertLen(output['content'], 2)
 
   def testUserGetOwnBlockables_UserHasNoBlockables(self):
     params = {'filter': 'own'}
@@ -159,7 +159,7 @@ class BlockableQueryHandlerTest(BlockablesTest):
 
     self.assertIn('application/json', response.headers['Content-type'])
     self.assertIsInstance(output['content'], list)
-    self.assertEqual(len(output['content']), 0)
+    self.assertLen(output['content'], 0)
 
   def testAdminGetListOfFlaggedBlockables(self):
     """Admin getting a list of flagged blockables."""
@@ -172,7 +172,7 @@ class BlockableQueryHandlerTest(BlockablesTest):
 
     self.assertIn('application/json', response.headers['Content-type'])
     self.assertIsInstance(output['content'], list)
-    self.assertEqual(len(output['content']), 1)
+    self.assertLen(output['content'], 1)
 
   def testAdminGetListOfSuspectBlockables(self):
     """Admin getting a list of flagged blockables."""
@@ -185,7 +185,7 @@ class BlockableQueryHandlerTest(BlockablesTest):
 
     self.assertIn('application/json', response.headers['Content-type'])
     self.assertIsInstance(output['content'], list)
-    self.assertEqual(len(output['content']), 1)
+    self.assertLen(output['content'], 1)
 
   def testAdminGetQueryByFileName(self):
     """Admin searching for a blockable by filename."""
@@ -198,7 +198,7 @@ class BlockableQueryHandlerTest(BlockablesTest):
     self.assertIn('application/json', response.headers['Content-type'])
     self.assertTrue(isinstance(output, dict))
     self.assertTrue(isinstance(output['content'], list))
-    self.assertEqual(len(output['content']), 1)
+    self.assertLen(output['content'], 1)
 
   def testAdminGetQueryByPublisher(self):
     """Admin searching for a blockable by filename."""
@@ -211,7 +211,7 @@ class BlockableQueryHandlerTest(BlockablesTest):
     self.assertIn('application/json', response.headers['Content-type'])
     self.assertTrue(isinstance(output, dict))
     self.assertTrue(isinstance(output['content'], list))
-    self.assertEqual(len(output['content']), 1)
+    self.assertLen(output['content'], 1)
 
   def testAdminGetQueryByProductName(self):
     """Admin searching for a blockable by filename."""
@@ -224,7 +224,7 @@ class BlockableQueryHandlerTest(BlockablesTest):
     self.assertIn('application/json', response.headers['Content-type'])
     self.assertTrue(isinstance(output, dict))
     self.assertTrue(isinstance(output['content'], list))
-    self.assertEqual(len(output['content']), 1)
+    self.assertLen(output['content'], 1)
 
   def testAdminGetQueryPlatform(self):
     """Admin searching for a blockable by platform."""
@@ -237,7 +237,7 @@ class BlockableQueryHandlerTest(BlockablesTest):
     self.assertIn('application/json', response.headers['Content-type'])
     self.assertTrue(isinstance(output, dict))
     self.assertTrue(isinstance(output['content'], list))
-    self.assertEqual(len(output['content']), 1)
+    self.assertLen(output['content'], 1)
 
   def testAdminGetQueryByUnknown(self):
     """Admin searching for a blockable by an unknown property."""
@@ -377,7 +377,7 @@ class BlockableHandlerTest(BlockablesTest):
     # Verify the FIRST_SEEN row in BigQuery.
     predicate = lambda c: c[1].get('action') == 'FIRST_SEEN'
     calls = self.GetBigQueryCalls(predicate=predicate)
-    self.assertEqual(1, len(calls))
+    self.assertLen(calls, 1)
 
   def testPost_Admin_InsertNote(self):
     """Admin posting a valid blockable."""
@@ -405,7 +405,7 @@ class BlockableHandlerTest(BlockablesTest):
     # Verify the FIRST_SEEN row in BigQuery.
     predicate = lambda c: c[1].get('action') == 'FIRST_SEEN'
     calls = self.GetBigQueryCalls(predicate=predicate)
-    self.assertEqual(1, len(calls))
+    self.assertLen(calls, 1)
 
   def testPost_Admin_Recount_Success(self):
     """Admin requesting a recount for a blockable."""

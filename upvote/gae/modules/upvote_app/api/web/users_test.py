@@ -51,7 +51,7 @@ class UserQueryHandlerTest(UsersTest):
 
     self.assertIn('application/json', response.headers['Content-type'])
     self.assertIsInstance(output, dict)
-    self.assertEqual(user_count, len(output['content']))
+    self.assertLen(output['content'], user_count)
 
   def testAdminGetListPlatformNoEffect(self):
     """Admin specifies a platform which has no effect on the results."""
@@ -67,7 +67,7 @@ class UserQueryHandlerTest(UsersTest):
 
     self.assertIn('application/json', response.headers['Content-type'])
     self.assertIsInstance(output, dict)
-    self.assertEqual(user_count, len(output['content']))
+    self.assertLen(output['content'], user_count)
 
   def testUserGetListNoPermissions(self):
     """Normal user attempts to retrieve all users."""
@@ -88,7 +88,7 @@ class UserQueryHandlerTest(UsersTest):
 
     self.assertIn('application/json', response.headers['Content-type'])
     self.assertIsInstance(output, dict)
-    self.assertEqual(user_count, len(output['content']))
+    self.assertLen(output['content'], user_count)
 
   def testUserGetQueryNoPermissions(self):
     """Normal user queries a rule."""

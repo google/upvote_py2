@@ -32,6 +32,7 @@ closure_js_library(
         "reportUnknownTypes",
         "analyzerChecks",
         "JSC_INCORRECT_SHORTNAME_CAPITALIZATION",
+        "JSC_UNUSED_LOCAL_ASSIGNMENT",
     ],
     deps = [
         ":admin_templates",

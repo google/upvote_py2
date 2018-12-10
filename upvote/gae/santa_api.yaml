@@ -12,9 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-application: auto
 module: santa-api
-version: auto
 runtime: python27
 instance_class: F2
 api_version: 1
@@ -37,6 +35,7 @@ handlers:
   secure: always
 
 skip_files:
+- ^(.*/)embedded_jdk # workaroud for rules_appengine, to prevent jdk upload
 # Default patterns skipped by App Engine, which must be repeated since
 # specifying skip_files overrides them otherwise. See
 # https://cloud.google.com/appengine/docs/standard/python/config/appref#skip_files

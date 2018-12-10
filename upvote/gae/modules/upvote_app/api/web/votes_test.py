@@ -72,7 +72,7 @@ class VoteQueryHandlerTest(VotesTest):
 
     self.assertIn('application/json', response.headers['Content-type'])
     self.assertIsInstance(output, dict)
-    self.assertEqual(len(output['content']), 3)
+    self.assertLen(output['content'], 3)
 
   def testAdminGetList_PlatformNoEffect(self):
     """Admin specifies a platform which has no effect on the results."""
@@ -85,7 +85,7 @@ class VoteQueryHandlerTest(VotesTest):
 
     self.assertIn('application/json', response.headers['Content-type'])
     self.assertIsInstance(output, dict)
-    self.assertEqual(len(output['content']), 3)
+    self.assertLen(output['content'], 3)
 
   def testAdminGetList_OnlyInEffect(self):
     inactive_key = ndb.Key(flat=self.vote_1.key.flat()[:-1] + (None,))
@@ -98,7 +98,7 @@ class VoteQueryHandlerTest(VotesTest):
     with self.LoggedInUser(admin=True):
       response = self.testapp.get(self.ROUTE)
 
-      self.assertEqual(len(response.json['content']), 3)
+      self.assertLen(response.json['content'], 3)
 
   def testUserGetList_NoPermissions(self):
     """Normal user attempts to retrieve all users."""
@@ -118,7 +118,7 @@ class VoteQueryHandlerTest(VotesTest):
 
     self.assertIn('application/json', response.headers['Content-type'])
     self.assertIsInstance(output, dict)
-    self.assertEqual(len(output['content']), 3)
+    self.assertLen(output['content'], 3)
 
     key = datastore_utils.GetKeyFromUrlsafe(output['content'][0]['key'])
     self.assertEqual(key.flat()[1], output['content'][0]['candidateId'])

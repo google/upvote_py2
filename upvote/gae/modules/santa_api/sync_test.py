@@ -225,13 +225,13 @@ class CopyLocalRulesTest(SantaApiTestCase):
     self.assertEntityCount(santa_models.SantaRule, blockable_count * 2)
     host_1_rules = santa_models.SantaRule.query(
         santa_models.SantaRule.host_id == host_1.key.id()).fetch()
-    self.assertEqual(blockable_count, len(host_1_rules))
+    self.assertLen(host_1_rules, blockable_count)
     host_2_rules = santa_models.SantaRule.query(
         santa_models.SantaRule.host_id == host_2.key.id()).fetch()
-    self.assertEqual(blockable_count, len(host_2_rules))
+    self.assertLen(host_2_rules, blockable_count)
     host_3_rules = santa_models.SantaRule.query(
         santa_models.SantaRule.host_id == host_3.key.id()).fetch()
-    self.assertEqual(0, len(host_3_rules))
+    self.assertLen(host_3_rules, 0)
 
     self.assertNoBigQueryInsertions()
 
@@ -241,13 +241,13 @@ class CopyLocalRulesTest(SantaApiTestCase):
     self.assertEntityCount(santa_models.SantaRule, blockable_count * 3)
     host_1_rules = santa_models.SantaRule.query(
         santa_models.SantaRule.host_id == host_1.key.id()).fetch()
-    self.assertEqual(blockable_count, len(host_1_rules))
+    self.assertLen(host_1_rules, blockable_count)
     host_2_rules = santa_models.SantaRule.query(
         santa_models.SantaRule.host_id == host_2.key.id()).fetch()
-    self.assertEqual(blockable_count, len(host_2_rules))
+    self.assertLen(host_2_rules, blockable_count)
     host_3_rules = santa_models.SantaRule.query(
         santa_models.SantaRule.host_id == host_3.key.id()).fetch()
-    self.assertEqual(blockable_count, len(host_3_rules))
+    self.assertLen(host_3_rules, blockable_count)
 
     self.assertBigQueryInsertions([TABLE.RULE] * blockable_count)
 
@@ -602,7 +602,7 @@ class EventUploadHandlerTest(SantaApiTestCase):
     response = self.testapp.post_json('/my-uuid', request_json)
     self.assertEqual(httplib.OK, response.status_int)
 
-    self.assertEqual(0, len(santa_models.SantaEvent.query().fetch()))
+    self.assertLen(santa_models.SantaEvent.query().fetch(), 0)
 
     self.assertNoBigQueryInsertions()
 
@@ -1424,7 +1424,7 @@ class RuleDownloadHandlerTest(SantaApiTestCase):
 
     rules = response.json[RULE_DOWNLOAD.RULES]
 
-    self.assertEqual(1, len(rules))
+    self.assertLen(rules, 1)
     rule = rules[0]
     self.assertEqual(
         self.blockable.key.id(), rule[RULE_DOWNLOAD.SHA256])
@@ -1440,7 +1440,7 @@ class RuleDownloadHandlerTest(SantaApiTestCase):
 
   def testGlobalRule(self):
     response = self.testapp.post_json('/my-uuid', {})
-    self.assertEqual(1, len(response.json[RULE_DOWNLOAD.RULES]))
+    self.assertLen(response.json[RULE_DOWNLOAD.RULES], 1)
     self.assertFalse(RULE_DOWNLOAD.CURSOR in response.json)
     self.assertEqual(httplib.OK, response.status_int)
     self.VerifyIncrementCalls(self.mock_metric, httplib.OK)
@@ -1450,7 +1450,7 @@ class RuleDownloadHandlerTest(SantaApiTestCase):
     self.host.put()
 
     response = self.testapp.post_json('/my-uuid', {})
-    self.assertEqual(0, len(response.json[RULE_DOWNLOAD.RULES]))
+    self.assertLen(response.json[RULE_DOWNLOAD.RULES], 0)
     self.assertFalse(RULE_DOWNLOAD.CURSOR in response.json)
     self.assertEqual(httplib.OK, response.status_int)
     self.VerifyIncrementCalls(self.mock_metric, httplib.OK)
@@ -1465,12 +1465,12 @@ class RuleDownloadHandlerTest(SantaApiTestCase):
     second_comp.put()
 
     response = self.testapp.post_json('/my-uuid', {})
-    self.assertEqual(1, len(response.json[RULE_DOWNLOAD.RULES]))
+    self.assertLen(response.json[RULE_DOWNLOAD.RULES], 1)
     self.assertFalse(RULE_DOWNLOAD.CURSOR in response.json)
     self.assertEqual(httplib.OK, response.status_int)
 
     response = self.testapp.post_json('/my-other-uuid', {})
-    self.assertEqual(0, len(response.json[RULE_DOWNLOAD.RULES]))
+    self.assertLen(response.json[RULE_DOWNLOAD.RULES], 0)
     self.assertEqual(httplib.OK, response.status_int)
 
     self.VerifyIncrementCalls(self.mock_metric, httplib.OK, httplib.OK)
@@ -1491,10 +1491,10 @@ class RuleDownloadHandlerTest(SantaApiTestCase):
 
     response = self.testapp.post_json('/my-uuid', {})
 
-    self.assertEqual(2, len(response.json[RULE_DOWNLOAD.RULES]))
+    self.assertLen(response.json[RULE_DOWNLOAD.RULES], 2)
     latest_rule = response.json[RULE_DOWNLOAD.RULES][1]
-    self.assertEqual(common_const.RULE_POLICY.WHITELIST,
-                     latest_rule[RULE_DOWNLOAD.POLICY])
+    self.assertEqual(
+        common_const.RULE_POLICY.WHITELIST, latest_rule[RULE_DOWNLOAD.POLICY])
     self.assertEqual(httplib.OK, response.status_int)
 
     self.VerifyIncrementCalls(self.mock_metric, httplib.OK)
@@ -1514,7 +1514,7 @@ class RuleDownloadHandlerTest(SantaApiTestCase):
 
     rules = response.json[RULE_DOWNLOAD.RULES]
     # We expect just the BINARY rules.
-    self.assertEqual(2, len(rules))
+    self.assertLen(rules, 2)
 
     self.assertSameElements(
         [blockable1.key.id(), blockable2.key.id()],
@@ -1541,7 +1541,7 @@ class RuleDownloadHandlerTest(SantaApiTestCase):
     self.PatchSetting('SANTA_RULE_BATCH_SIZE', 1)
 
     response = self.testapp.post_json('/my-uuid', {})
-    self.assertEqual(1, len(response.json[RULE_DOWNLOAD.RULES]))
+    self.assertLen(response.json[RULE_DOWNLOAD.RULES], 1)
     self.assertTrue(response.json[RULE_DOWNLOAD.CURSOR])
     self.assertEqual(httplib.OK, response.status_int)
 
@@ -1551,7 +1551,7 @@ class RuleDownloadHandlerTest(SantaApiTestCase):
                 response.json[RULE_DOWNLOAD.CURSOR]
         }
     )
-    self.assertEqual(1, len(response.json[RULE_DOWNLOAD.RULES]))
+    self.assertLen(response.json[RULE_DOWNLOAD.RULES], 1)
     self.assertFalse(RULE_DOWNLOAD.CURSOR in response.json)
     self.assertEqual(httplib.OK, response.status_int)
 

@@ -128,7 +128,7 @@ class EventTest(basetest.UpvoteTestCase):
 
     events = base.Event.DedupeMultiple([event1, event2, event3])
 
-    self.assertEqual(1, len(events))
+    self.assertLen(events, 1)
 
     self.assertEqual(self.earlier, events[0].first_blocked_dt)
     self.assertEqual(self.later, events[0].last_blocked_dt)
@@ -147,7 +147,7 @@ class NoteTest(basetest.UpvoteTestCase):
   def testGenerateKey(self):
     key = base.Note.GenerateKey('fake_message', self.blockable.key)
     self.assertEqual(key.parent(), self.blockable.key)
-    self.assertEqual(64, len(key.id()))
+    self.assertLen(key.id(), 64)
 
 
 class BlockableTest(basetest.UpvoteTestCase):
@@ -173,21 +173,21 @@ class BlockableTest(basetest.UpvoteTestCase):
       self.assertTrue(get_votes_mock.called)
 
   def testGetVotes(self):
-    self.assertEqual(0, len(self.blockable_1.GetVotes()))
-    self.assertEqual(0, len(self.blockable_2.GetVotes()))
+    self.assertLen(self.blockable_1.GetVotes(), 0)
+    self.assertLen(self.blockable_2.GetVotes(), 0)
 
     test_utils.CreateVotes(self.blockable_1, 3)
     test_utils.CreateVotes(self.blockable_2, 2)
 
-    self.assertEqual(3, len(self.blockable_1.GetVotes()))
-    self.assertEqual(2, len(self.blockable_2.GetVotes()))
+    self.assertLen(self.blockable_1.GetVotes(), 3)
+    self.assertLen(self.blockable_2.GetVotes(), 2)
 
   def testGetVotes_Inactive(self):
-    self.assertEqual(0, len(self.blockable_1.GetVotes()))
+    self.assertLen(self.blockable_1.GetVotes(), 0)
 
     test_utils.CreateVotes(self.blockable_1, 2)
 
-    self.assertEqual(2, len(self.blockable_1.GetVotes()))
+    self.assertLen(self.blockable_1.GetVotes(), 2)
 
     votes = vote_models.Vote.query().fetch()
     new_votes = []
@@ -197,11 +197,11 @@ class BlockableTest(basetest.UpvoteTestCase):
     ndb.delete_multi(vote.key for vote in votes)
     ndb.put_multi(new_votes)
 
-    self.assertEqual(0, len(self.blockable_1.GetVotes()))
+    self.assertLen(self.blockable_1.GetVotes(), 0)
 
   def testGetRules(self):
-    self.assertEqual(0, len(self.blockable_1.GetRules()))
-    self.assertEqual(0, len(self.blockable_2.GetRules()))
+    self.assertLen(self.blockable_1.GetRules(), 0)
+    self.assertLen(self.blockable_2.GetRules(), 0)
 
     test_utils.CreateSantaRule(self.blockable_1.key)
     test_utils.CreateSantaRule(self.blockable_1.key)
@@ -211,10 +211,10 @@ class BlockableTest(basetest.UpvoteTestCase):
     test_utils.CreateSantaRule(self.blockable_2.key)
     test_utils.CreateSantaRule(self.blockable_2.key, **{'in_effect': False})
 
-    self.assertEqual(2, len(self.blockable_1.GetRules()))
-    self.assertEqual(3, len(self.blockable_2.GetRules()))
-    self.assertEqual(3, len(self.blockable_1.GetRules(in_effect=False)))
-    self.assertEqual(4, len(self.blockable_2.GetRules(in_effect=False)))
+    self.assertLen(self.blockable_1.GetRules(), 2)
+    self.assertLen(self.blockable_2.GetRules(), 3)
+    self.assertLen(self.blockable_1.GetRules(in_effect=False), 3)
+    self.assertLen(self.blockable_2.GetRules(in_effect=False), 4)
 
   def testGetStrongestVote_Upvote(self):
 
@@ -239,9 +239,9 @@ class BlockableTest(basetest.UpvoteTestCase):
     self.assertEqual(-6, vote.weight)
 
   def testGetEvents(self):
-    self.assertEqual(0, len(self.blockable_1.GetEvents()))
+    self.assertLen(self.blockable_1.GetEvents(), 0)
     test_utils.CreateEvents(self.blockable_1, 5)
-    self.assertEqual(5, len(self.blockable_1.GetEvents()))
+    self.assertLen(self.blockable_1.GetEvents(), 5)
 
   def testIsVotingAllowed_Allowed(self):
     for state in constants.STATE.SET_VOTING_ALLOWED:
@@ -409,7 +409,7 @@ class RuleTest(basetest.UpvoteTestCase):
         [constants.BIGQUERY_TABLE.RULE], reset_mock=False)
 
     calls = self.GetBigQueryCalls()
-    self.assertEqual(1, len(calls))
+    self.assertLen(calls, 1)
     self.assertEqual(constants.RULE_SCOPE.LOCAL, calls[0][1].get('scope'))
 
   def testInsertBigQueryRow_LocalRule_HostIdMissing(self):
@@ -429,7 +429,7 @@ class RuleTest(basetest.UpvoteTestCase):
         [constants.BIGQUERY_TABLE.RULE], reset_mock=False)
 
     calls = self.GetBigQueryCalls()
-    self.assertEqual(1, len(calls))
+    self.assertLen(calls, 1)
     self.assertEqual(constants.RULE_SCOPE.LOCAL, calls[0][1].get('scope'))
 
   def testInsertBigQueryRow_GlobalRule(self):
@@ -442,7 +442,7 @@ class RuleTest(basetest.UpvoteTestCase):
         [constants.BIGQUERY_TABLE.RULE], reset_mock=False)
 
     calls = self.GetBigQueryCalls()
-    self.assertEqual(1, len(calls))
+    self.assertLen(calls, 1)
     self.assertEqual(constants.RULE_SCOPE.GLOBAL, calls[0][1].get('scope'))
 
 

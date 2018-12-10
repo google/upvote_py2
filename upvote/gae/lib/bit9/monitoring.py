@@ -35,7 +35,5 @@ bit9_requests = monitoring.Counter(
 bit9_latency = monitoring.LatencyMetric(
     metrics.BIT9_API.BIT9_LATENCY,
     fields=[('http_method', str), ('api_object', str)])
-local_whitelisting_latency = monitoring.LatencyMetric(
-    metrics.BIT9_API.LOCAL_WHITELISTING_LATENCY)
 file_instances_missing = monitoring.Counter(
     metrics.BIT9_API.FILE_INSTANCES_MISSING)

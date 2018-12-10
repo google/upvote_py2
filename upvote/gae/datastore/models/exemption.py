@@ -21,6 +21,7 @@ from google.appengine.ext.ndb import polymodel
 from upvote.gae.bigquery import tables
 from upvote.gae.datastore.models import host as host_models
 from upvote.gae.datastore.models import mixin
+from upvote.gae.lib.exemption import monitoring
 from upvote.shared import constants
 
 
@@ -140,6 +141,8 @@ class Exemption(mixin.Base, polymodel.PolyModel):
     exm = cls(key=exm_key, deactivation_dt=deactivation_dt, history=[record])
     exm.put()
 
+    monitoring.state_changes.Increment(constants.EXEMPTION_STATE.REQUESTED)
+
     tables.EXEMPTION.InsertRow(
         device_id=host_id,
         timestamp=exm.history[0].recorded_dt,
@@ -184,6 +187,8 @@ class Exemption(mixin.Base, polymodel.PolyModel):
     exm.state = new_state
     exm.history.append(Record(state=new_state, details=details))
     exm.put()
+
+    monitoring.state_changes.Increment(new_state)
 
     tables.EXEMPTION.InsertRow(
         device_id=host_id,

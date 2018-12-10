@@ -29,31 +29,34 @@ class MetricTest(absltest.TestCase):
 class MetricNamespaceTest(absltest.TestCase):
 
   def testDatastore(self):
-    self.assertEqual(1, len(metrics.DATASTORE.ALL))
+    self.assertLen(metrics.DATASTORE.ALL, 1)
 
   def testSantaApi(self):
-    self.assertEqual(6, len(metrics.SANTA_API.ALL))
+    self.assertLen(metrics.SANTA_API.ALL, 6)
 
   def testBit9Api(self):
-    self.assertEqual(12, len(metrics.BIT9_API.ALL))
+    self.assertLen(metrics.BIT9_API.ALL, 11)
 
   def testBit9RestApi(self):
-    self.assertEqual(3, len(metrics.BIT9_REST_API.ALL))
+    self.assertLen(metrics.BIT9_REST_API.ALL, 3)
 
   def testUpvoteApp(self):
-    self.assertEqual(10, len(metrics.UPVOTE_APP.ALL))
+    self.assertLen(metrics.UPVOTE_APP.ALL, 9)
 
   def testBinaryHealth(self):
-    self.assertEqual(2, len(metrics.ANALYSIS.ALL))
+    self.assertLen(metrics.ANALYSIS.ALL, 2)
 
   def testBigQuery(self):
-    self.assertEqual(1, len(metrics.BIGQUERY.ALL))
+    self.assertLen(metrics.BIGQUERY.ALL, 1)
+
+  def testExemption(self):
+    self.assertLen(metrics.EXEMPTION.ALL, 1)
 
   def testRpcServer(self):
-    self.assertEqual(3, len(metrics.RPC_SERVER.ALL))
+    self.assertLen(metrics.RPC_SERVER.ALL, 3)
 
   def testPresence(self):
-    self.assertEqual(1, len(metrics.PRESENCE.ALL))
+    self.assertLen(metrics.PRESENCE.ALL, 1)
 
 
 if __name__ == '__main__':

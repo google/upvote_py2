@@ -71,7 +71,7 @@ class RuleQueryHandler(RulesTest):
 
     self.assertIn('application/json', response.headers['Content-type'])
     self.assertIsInstance(output, dict)
-    self.assertEqual(len(output['content']), 3)
+    self.assertLen(output['content'], 3)
 
   def testAdminGetListWithPlatform(self):
     """Admin retrieves list of all rules with a platform."""
@@ -82,7 +82,7 @@ class RuleQueryHandler(RulesTest):
 
     self.assertIn('application/json', response.headers['Content-type'])
     self.assertIsInstance(output, dict)
-    self.assertEqual(len(output['content']), 1)
+    self.assertLen(output['content'], 1)
 
   def testUserGetListNoPermissions(self):
     """Normal user attempts to retrieve all rules."""
@@ -101,7 +101,7 @@ class RuleQueryHandler(RulesTest):
 
     self.assertIn('application/json', response.headers['Content-type'])
     self.assertIsInstance(output, dict)
-    self.assertEqual(len(output['content']), 2)
+    self.assertLen(output['content'], 2)
 
   def testAdminGetQueryWithPlatform(self):
     """Admin queries rules on a specific platform."""
@@ -115,7 +115,7 @@ class RuleQueryHandler(RulesTest):
 
     self.assertIn('application/json', response.headers['Content-type'])
     self.assertIsInstance(output, dict)
-    self.assertEqual(len(output['content']), 1)
+    self.assertLen(output['content'], 1)
 
   def testUserGetQueryNoPermissions(self):
     """Normal user queries a rule."""

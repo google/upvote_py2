@@ -29,4 +29,7 @@ def ng_template_bundle(
         srcs = [name + "_genrule"],
         # Include the .ng files as data dependencies so binaries can serve them.
         data = srcs,
+        suppress = [
+            "JSC_VAR_MULTIPLY_DECLARED_ERROR",
+        ],
     )

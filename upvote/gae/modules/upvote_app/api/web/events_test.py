@@ -157,7 +157,7 @@ class EventQueryHandlerTest(EventsTest):
 
     self.assertIn('application/json', response.headers['Content-type'])
     self.assertIsInstance(output, dict)
-    self.assertEqual(6, len(output['content']))
+    self.assertLen(output['content'], 6)
 
   def testAdminGetListAllEventsWithBlockable(self):
     """Admin user getting list of all events for a blockable_id."""
@@ -173,7 +173,7 @@ class EventQueryHandlerTest(EventsTest):
 
     self.assertIn('application/json', response.headers['Content-type'])
     self.assertEqual(isinstance(output, dict), True)
-    self.assertEqual(len(host_ids), 3)
+    self.assertLen(host_ids, 3)
     self.assertIn(self.santa_host1.key.id(), host_ids)
     self.assertIn(self.santa_host2.key.id(), host_ids)
 
@@ -190,7 +190,7 @@ class EventQueryHandlerTest(EventsTest):
 
     self.assertIn('application/json', response.headers['Content-type'])
     self.assertEqual(isinstance(output, dict), True)
-    self.assertEqual(len(host_ids), 2)
+    self.assertLen(host_ids, 2)
     self.assertIn(self.bit9_host1.key.id(), host_ids)
     self.assertIn(self.bit9_host2.key.id(), host_ids)
 
@@ -207,7 +207,7 @@ class EventQueryHandlerTest(EventsTest):
 
     self.assertIn('application/json', response.headers['Content-type'])
     self.assertEqual(isinstance(output, dict), True)
-    self.assertEqual(len(host_ids), 4)
+    self.assertLen(host_ids, 4)
     self.assertIn(self.santa_host1.key.id(), host_ids)
     self.assertIn(self.santa_host2.key.id(), host_ids)
 
@@ -228,7 +228,7 @@ class EventQueryHandlerTest(EventsTest):
     self.assertIn('application/json', response.headers['Content-type'])
     self.assertIsInstance(output, dict)
     content = output['content']
-    self.assertEqual(4, len(content))
+    self.assertLen(content, 4)
     self.assertFalse(output['more'])
 
   def testUserGetListOwnEventsWithHostId(self):
@@ -241,7 +241,7 @@ class EventQueryHandlerTest(EventsTest):
 
     self.assertIn('application/json', response.headers['Content-type'])
     self.assertIsInstance(output, dict)
-    self.assertEqual(len(output['content']), 2)
+    self.assertLen(output['content'], 2)
     self.assertFalse(output['more'])
 
   def testUserGetListOwnEventsWithContext(self):
@@ -257,15 +257,15 @@ class EventQueryHandlerTest(EventsTest):
       response = self.testapp.get(self.ROUTE, params)
 
     content = response.json['content']
-    self.assertEqual(4, len(content))
+    self.assertLen(content, 4)
     self.assertFalse(response.json['more'])
 
     event1 = [
         dict_ for dict_ in content
         if dict_['blockable']['id'] == self.santa_blockable1.key.id()][0]
-    self.assertEqual(len(event1.keys()), 5)
-    self.assertEqual(self.santa_event2_from_user1.host_id,
-                     event1['host']['id'])
+    self.assertLen(event1.keys(), 5)
+    self.assertEqual(
+        self.santa_event2_from_user1.host_id, event1['host']['id'])
     blockable_key = ndb.Key(urlsafe=event1['event']['blockableKey'])
     self.assertEqual(self.santa_event2_from_user1.blockable_key, blockable_key)
     self.assertEqual(event1['blockable']['id'], blockable_key.id())
@@ -283,7 +283,7 @@ class EventQueryHandlerTest(EventsTest):
     with self.LoggedInUser(user=self.user_1):
       response = self.testapp.get(self.ROUTE, params)
 
-    self.assertEqual(len(response.json['content']), 2)
+    self.assertLen(response.json['content'], 2)
     self.assertFalse(response.json['more'])
 
   def testUserGetListOwnEventsWithBlockableAndContext(self):
@@ -304,12 +304,12 @@ class EventQueryHandlerTest(EventsTest):
 
     self.assertIn('application/json', response.headers['Content-type'])
     self.assertIsInstance(output, dict)
-    self.assertEqual(len(output['content']), 2)
+    self.assertLen(output['content'], 2)
 
     event_with_context = output['content'][0]
-    self.assertEqual(len(event_with_context.keys()), 5)
-    self.assertEqual(event_with_context['host']['id'],
-                     event_with_context['event']['hostId'])
+    self.assertLen(event_with_context.keys(), 5)
+    self.assertEqual(
+        event_with_context['host']['id'], event_with_context['event']['hostId'])
     blockable_key = ndb.Key(urlsafe=event_with_context['event']['blockableKey'])
     self.assertEqual(event_with_context['blockable']['id'], blockable_key.id())
     self.assertEqual(event_with_context['blockable']['fileName'],
@@ -334,7 +334,7 @@ class EventQueryHandlerTest(EventsTest):
 
     self.assertIn('application/json', response.headers['Content-type'])
     self.assertIsInstance(output, dict)
-    self.assertEqual(len(output['content']), 2)
+    self.assertLen(output['content'], 2)
 
   def testAdminGetQueryWithPlatform(self):
     """Admin searching with a platform param."""
@@ -350,7 +350,7 @@ class EventQueryHandlerTest(EventsTest):
 
     self.assertIn('application/json', response.headers['Content-type'])
     self.assertIsInstance(output, dict)
-    self.assertEqual(len(output['content']), 1)
+    self.assertLen(output['content'], 1)
 
   def testAdminGetQueryBadPlatform(self):
     """Admin searching with a platform param mismatch with the searchBase."""

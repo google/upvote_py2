@@ -78,18 +78,16 @@ def _ChangeLocalStates(blockable, local_rules, new_state):
     was_fulfilled = _ChangeLocalState(
         new_state, int(blockable.file_catalog_id), int(local_rule.host_id))
 
+    # Insert a special BigQuery Rule row indicating when/if this rule ultimately
+    # gets fulfilled.
+    if was_fulfilled:
+      local_rule.InsertBigQueryRow(comment='Fulfilled in Bit9')
+
     # Update the Rule.is_fulfilled to reflect whether the local state change
     # was able to be committed to the database.
     logging.info(
         'Local rule %s fulfilled', 'was' if was_fulfilled else 'was not')
     local_rule.is_fulfilled = was_fulfilled
-
-    # If this is a local whitelisting rule, record the latency between the time
-    # the Bit9Rule was created and now.
-    if local_rule.policy == constants.RULE_POLICY.WHITELIST and was_fulfilled:
-      now = datetime.datetime.utcnow()
-      latency_secs = int((now - local_rule.recorded_dt).total_seconds())
-      monitoring.local_whitelisting_latency.Record(latency_secs)
 
 
 def _ChangeGlobalState(blockable, new_state):

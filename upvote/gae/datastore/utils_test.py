@@ -671,11 +671,11 @@ class PaginateTest(basetest.UpvoteTestCase):
       pages = list(
           datastore_utils.Paginate(TestModel.query(), page_size=page_size))
       expected_page_count = int(math.ceil(float(entity_count) / page_size))
-      self.assertEqual(expected_page_count, len(pages))
+      self.assertLen(pages, expected_page_count)
 
       # Verify that we get the expected number of entities.
       entities = list(itertools.chain(*pages))
-      self.assertEqual(entity_count, len(entities))
+      self.assertLen(entities, entity_count)
 
       # Delete everything.
       for entity in entities:

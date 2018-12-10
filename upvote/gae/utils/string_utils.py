@@ -35,3 +35,8 @@ def CamelToSnakeCase(input_string):
   # Convert all characters to lowercase
   # e.g. camel_Case -> camel_case
   return without_leading_underscore.lower()
+
+
+def SafeLower(string):
+  """Converts a string to lowercase without breaking on Nones."""
+  return string.lower() if string else string

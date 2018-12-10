@@ -63,7 +63,7 @@ class VoteTest(basetest.UpvoteTestCase):
         vote_models.Vote.GetKey(self.blockable.key, self.user.key))
 
     self.assertIsNotNone(vote.blockable_key)
-    self.assertEqual(2, len(vote.blockable_key.pairs()))
+    self.assertLen(vote.blockable_key.pairs(), 2)
     self.assertEqual(self.blockable.key, vote.blockable_key.parent())
 
   def testBlockableKey_NoKey(self):

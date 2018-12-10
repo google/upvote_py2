@@ -859,7 +859,7 @@ class SantaBallotBox(BallotBox):
     return {host_key.id() for host_key in query.fetch(keys_only=True)}
 
   def _LocallyWhitelist(self, user_keys=None):
-    future = super(SantaBallotBox, self)._LocallyWhitelist(user_keys=user_keys)  # pylint: disable=line-too-long
+    future = super(SantaBallotBox, self)._LocallyWhitelist(user_keys=user_keys)
     return future
 
   def _GenerateRemoveRules(self, unused_existing_rules):

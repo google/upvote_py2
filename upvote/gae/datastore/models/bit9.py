@@ -43,13 +43,9 @@ class Bit9Event(mixin.Bit9, base.Event):
 
   Attributes:
     description: str, Description.
-    is_anomalous: bool, Indicates whether an unfulfilled local rule existed
-        prior to execution but wasn't in effect due to Bit9's local rule
-        enforcement semantics.
     bit9_id: int, The largest Bit9 database ID associated with this event.
   """
   description = ndb.StringProperty()
-  is_anomalous = ndb.BooleanProperty(default=False)
   bit9_id = ndb.IntegerProperty(default=0)
 
   @property
@@ -66,8 +62,6 @@ class Bit9Event(mixin.Bit9, base.Event):
           more_recent_event.last_blocked_dt)
 
     super(Bit9Event, self)._DedupeMoreRecentEvent(more_recent_event)
-
-    self.is_anomalous = more_recent_event.is_anomalous
 
   def Dedupe(self, related_event):
     """See base class."""

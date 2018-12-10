@@ -1,15 +1,20 @@
+load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository", "new_git_repository")
+
 git_repository(
     name = "io_bazel_rules_appengine",
-    commit = "d8136f0d4e71e8c70cbd3514eaeed9d41a67a85f",
+    commit = "17c3c8471477a9ec7f993d35a54bfb26798b05c5",
     remote = "https://github.com/bazelbuild/rules_appengine.git",
 )
 
 load("@io_bazel_rules_appengine//appengine:py_appengine.bzl", "py_appengine_repositories")
+load("@io_bazel_rules_appengine//appengine:sdk.bzl", "appengine_repositories")
 
+appengine_repositories()
 py_appengine_repositories()
 
 # needed for mock, webtest
-new_http_archive(
+http_archive(
     name = "six_archive",
     build_file = "//third_party:six.BUILD",
     sha256 = "105f8d68616f8248e24bf0e9372ef04d3cc10104f1980f54d57b2ce73a5ad56a",
@@ -25,7 +30,7 @@ bind(
     actual = "@six_archive//:six",
 )
 
-new_http_archive(
+http_archive(
     name = "mock_archive",
     build_file = "//third_party:mock.BUILD",
     sha256 = "b839dd2d9c117c701430c149956918a423a9863b48b09c90e30a6013e7d2f44f",
@@ -43,11 +48,11 @@ bind(
 
 bind(
     name = "webob",
-    actual = "@com_google_appengine_python//:webob-latest",
+    actual = "@com_google_appengine_py//:webob-latest",
 )
 
 # needed for webtest
-new_http_archive(
+http_archive(
     name = "waitress_archive",
     build_file = "//third_party:waitress.BUILD",
     sha256 = "c74fa1b92cb183d5a3684210b1bf0a0845fe8eb378fa816f17199111bbf7865f",
@@ -64,7 +69,7 @@ bind(
 )
 
 # needed for webtest
-new_http_archive(
+http_archive(
     name = "beautifulsoup4_archive",
     build_file = "//third_party:beautifulsoup4.BUILD",
     sha256 = "b21ca09366fa596043578fd4188b052b46634d22059e68dd0077d9ee77e08a3e",
@@ -80,7 +85,7 @@ bind(
     actual = "@beautifulsoup4_archive//:beautifulsoup4",
 )
 
-new_http_archive(
+http_archive(
     name = "webtest_archive",
     build_file = "//third_party:webtest.BUILD",
     sha256 = "2b6abd2689f28a0b3575bcb5a36757f2344670dd13a8d9272d3a987c2fd1b615",
@@ -139,7 +144,7 @@ bind(
 )
 
 # needed for googleapiclient
-new_http_archive(
+http_archive(
     name = "uritemplate_archive",
     build_file = "//third_party:uritemplate.BUILD",
     sha256 = "c02643cebe23fc8adb5e6becffe201185bf06c40bda5c0b4028a93f1527d011d",
@@ -233,7 +238,7 @@ bind(
 )
 
 # needed for gcloud_core, oauth2client
-new_http_archive(
+http_archive(
     name = "httplib2_archive",
     build_file = "//third_party:httplib2.BUILD",
     sha256 = "c3aba1c9539711551f4d83e857b316b5134a1c4ddce98a875b7027be7dd6d988",
@@ -250,7 +255,7 @@ bind(
 )
 
 # needed for gcloud_core
-new_http_archive(
+http_archive(
     name = "gapi_protos_http",
     build_file = "//third_party:gapi_protos.BUILD",
     sha256 = "f94cc66efba677a086b8b17b1240239433495b77631cd410f70151a8ff14435d",
@@ -267,7 +272,7 @@ bind(
 )
 
 # needed for gcloud_core
-new_http_archive(
+http_archive(
     name = "protobuf_archive",
     build_file = "//third_party:protobuf.BUILD",
     sha256 = "1cbcee2c45773f57cb6de7ee0eceb97f92b9b69c0178305509b162c0160c1f04",
@@ -298,7 +303,7 @@ bind(
 
 # needed for gcloud_api_core
 
-new_http_archive(
+http_archive(
     name = "futures_archive",
     build_file = "//third_party:futures.BUILD",
     sha256 = "9ec02aa7d674acb8618afb127e27fde7fc68994c0437ad759fa094a574adb265",
@@ -313,7 +318,7 @@ bind(
     actual = "@futures_archive//:futures",
 )
 
-new_http_archive(
+http_archive(
     name = "pytz_archive",
     build_file = "//third_party:pytz.BUILD",
     sha256 = "ffb9ef1de172603304d9d2819af6f5ece76f2e85ec10692a524dd876e72bf277",
@@ -329,7 +334,7 @@ bind(
 )
 
 # needed for gcloud_core
-new_http_archive(
+http_archive(
     name = "gcloud_api_core_archive",
     build_file = "//third_party:gcloud_api_core.BUILD",
     sha256 = "370d5dc108ac5dfea2eee8ef32b77693444bf957d4657820d12596ca5082e8ae",
@@ -345,7 +350,7 @@ bind(
 )
 
 # needed for gcloud_bigquery
-new_http_archive(
+http_archive(
     name = "gcloud_core_archive",
     build_file = "//third_party:gcloud_core.BUILD",
     sha256 = "89e8140a288acec20c5e56159461d3afa4073570c9758c05d4e6cb7f2f8cc440",
@@ -375,7 +380,7 @@ bind(
 )
 
 # NOTE: workaround for pkg_resources import issue with gcloud_bigquery.
-new_http_archive(
+http_archive(
     name = "setuptools_archive",
     build_file = "//third_party:setuptools.BUILD",
     sha256 = "47881d54ede4da9c15273bac65f9340f8929d4f0213193fa7894be384f2dcfa6",
@@ -430,7 +435,7 @@ bind(
     actual = "@gcloud_auth_git//:gcloud_auth",
 )
 
-new_http_archive(
+http_archive(
     name = "gcloud_bigquery_archive",
     build_file = "//third_party:gcloud_bigquery.BUILD",
     sha256 = "aed2b1d4db1e21d891522d6d6bb14476e6ba58c681cbb68eeb42c168a4e3fda9",
@@ -446,7 +451,7 @@ bind(
     actual = "@gcloud_bigquery_archive//:gcloud_bigquery",
 )
 
-new_http_archive(
+http_archive(
     name = "requests_toolbelt_archive",
     build_file = "//third_party:requests_toolbelt.BUILD",
     sha256 = "f6a531936c6fa4c6cfce1b9c10d5c4f498d16528d2a54a22ca00011205a187b5",
@@ -463,10 +468,10 @@ bind(
 
 http_archive(
     name = "io_bazel_rules_closure",
-    sha256 = "f91ec43ce3898c6b965e2bdff91a53755a13004adbeaf606804f719f1e888340",
-    strip_prefix = "rules_closure-3555e5ba61fdcc17157dd833eaf7d19b313b1bca",
+    sha256 = "e3a384a34ab7f54f3b2e65d6c9b015aed665bab3ee265396f3876f0c53729525",
+    strip_prefix = "rules_closure-7448ab3b1f53db99419a2b1a1b84f9ba2d79ec03",
     urls = [
-        "https://github.com/bazelbuild/rules_closure/archive/3555e5ba61fdcc17157dd833eaf7d19b313b1bca.tar.gz",  # 2018-07-23
+        "https://github.com/bazelbuild/rules_closure/archive/7448ab3b1f53db99419a2b1a1b84f9ba2d79ec03.tar.gz",  # 2018-11-15
     ],
 )
 

@@ -172,7 +172,7 @@ class UpvoteTestCase(basetest.AppEngineTestCase):
     self.assertEntityCount(model_class, 0, ancestor=ancestor)
 
   def assertTaskCount(self, queue_name, expected_count):  # pylint: disable=g-bad-name
-    self.assertEqual(expected_count, len(self.GetTasks(queue_name)))
+    self.assertLen(self.GetTasks(queue_name), expected_count)
 
   def assertMemcacheContains(self, key, expected_value, namespace=None):
     actual_value = memcache.get(key, namespace=namespace)

@@ -83,7 +83,7 @@ class HostQueryHandlerTest(HostsTest):
     self.assertIn('application/json', response.headers['Content-type'])
     self.assertIsInstance(output, dict)
     self.assertIsInstance(output['content'], list)
-    self.assertEqual(len(output['content']), 4)
+    self.assertLen(output['content'], 4)
 
   def testAdminGetListPlatform(self):
     """Admin gets a list of all hosts specific to a single platform."""
@@ -98,7 +98,7 @@ class HostQueryHandlerTest(HostsTest):
     self.assertIn('application/json', response.headers['Content-type'])
     self.assertIsInstance(output, dict)
     self.assertIsInstance(output['content'], list)
-    self.assertEqual(len(output['content']), 3)
+    self.assertLen(output['content'], 3)
 
   def testUserGetListNoPermissions(self):
     """Unprivileged user attempts to get a list of all hosts."""
@@ -119,7 +119,7 @@ class HostQueryHandlerTest(HostsTest):
     self.assertIn('application/json', response.headers['Content-type'])
     self.assertIsInstance(output, dict)
     self.assertIsInstance(output['content'], list)
-    self.assertEqual(len(output['content']), 1)
+    self.assertLen(output['content'], 1)
 
   def testAdminGetQueryPlatform(self):
     """Admin queries for a host on a specific platform."""
@@ -135,7 +135,7 @@ class HostQueryHandlerTest(HostsTest):
     self.assertIn('application/json', response.headers['Content-type'])
     self.assertIsInstance(output, dict)
     self.assertIsInstance(output['content'], list)
-    self.assertEqual(len(output['content']), 1)
+    self.assertLen(output['content'], 1)
 
   def testAdminGetQueryBadField(self):
     """Admin queries for a host with an invalid field."""
@@ -272,7 +272,7 @@ class AssociatedHostHandlerTest(HostsTest):
       response = self.testapp.get(self.USER_ID_ROUTE % user.key.id())
 
     output = response.json
-    self.assertEqual(2, len(output))
+    self.assertLen(output, 2)
     actual_ids = set(host['id'] for host in output)
     self.assertSetEqual(set([santa_host_id, bit9_host_id]), actual_ids)
 
@@ -325,7 +325,7 @@ class AssociatedHostHandlerTest(HostsTest):
 
     self.assertIn('application/json', response.headers['Content-type'])
 
-    self.assertEqual(3, len(output))
+    self.assertLen(output, 3)
     expected_host_ids = [
         bit9_host_1.key.id(), santa_host_2.key.id(), santa_host_1.key.id()]
     actual_host_ids = [entry['id'] for entry in output]
@@ -354,7 +354,7 @@ class AssociatedHostHandlerTest(HostsTest):
     with self.LoggedInUser():
       response = self.testapp.get(self.SELF_ROUTE)
     output = response.json
-    self.assertEqual(0, len(output))
+    self.assertLen(output, 0)
 
 
 class HostExceptionHandlerTest(HostsTest):

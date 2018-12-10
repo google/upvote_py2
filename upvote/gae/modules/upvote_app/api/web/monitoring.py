@@ -21,9 +21,6 @@ from upvote.monitoring import metrics
 blockable_requests = (
     monitoring.RequestCounter(metrics.UPVOTE_APP.BLOCKABLE_REQUESTS))
 
-constant_requests = (
-    monitoring.RequestCounter(metrics.UPVOTE_APP.CONSTANT_REQUESTS))
-
 event_requests = monitoring.RequestCounter(metrics.UPVOTE_APP.EVENT_REQUESTS)
 
 host_requests = monitoring.RequestCounter(metrics.UPVOTE_APP.HOST_REQUESTS)

@@ -173,7 +173,7 @@ class UnsyncedEventTest(basetest.UpvoteTestCase):
     key = bit9_syncing._UnsyncedEvent.Generate(event, [cert]).put()
     entity = key.get()
 
-    self.assertEqual(1, len(entity.signing_chain))
+    self.assertLen(entity.signing_chain, 1)
     self.assertEqual(event._obj_dict, entity.event)
 
     self.assertEqual(file_catalog.sha256, entity.sha256)
@@ -304,7 +304,7 @@ class GetEventsTest(SyncTestCase):
     self._AppendMockApiResults(event, signing_chain)
 
     results = bit9_syncing.GetEvents(0)
-    self.assertEqual(0, len(results))
+    self.assertLen(results, 0)
     self.assertTrue(bit9_syncing.monitoring.events_skipped.Increment.called)
 
   def testFileCatalogMalformed(self):
@@ -323,7 +323,7 @@ class GetEventsTest(SyncTestCase):
     self._AppendMockApiResults(event, signing_chain)
 
     results = bit9_syncing.GetEvents(0)
-    self.assertEqual(0, len(results))
+    self.assertLen(results, 0)
     self.assertTrue(bit9_syncing.monitoring.events_skipped.Increment.called)
 
   def testComputerMissing(self):
@@ -340,7 +340,7 @@ class GetEventsTest(SyncTestCase):
     self._AppendMockApiResults(event, signing_chain)
 
     results = bit9_syncing.GetEvents(0)
-    self.assertEqual(0, len(results))
+    self.assertLen(results, 0)
     self.assertTrue(bit9_syncing.monitoring.events_skipped.Increment.called)
 
   @mock.patch.object(bit9_syncing.monitoring, 'events_skipped')
@@ -356,7 +356,7 @@ class GetEventsTest(SyncTestCase):
     self._AppendMockApiResults(events, *certs)
 
     results = bit9_syncing.GetEvents(0)
-    self.assertEqual(1, len(results))
+    self.assertLen(results, 1)
     self.assertEqual(expected_event_id, results[0][0].id)
     self.assertEqual(expected_cert_id, results[0][1][0].id)
 
@@ -408,16 +408,16 @@ class GetEventsTest(SyncTestCase):
     ]
 
     results = bit9_syncing.GetEvents(0)
-    self.assertEqual(2, len(results))
+    self.assertLen(results, 2)
     self.assertTrue(bit9_syncing.monitoring.events_skipped.Increment.called)
 
     actual_event_1, actual_signing_chain_1 = results[0]
-    self.assertEqual(1, len(actual_signing_chain_1))
+    self.assertLen(actual_signing_chain_1, 1)
     self.assertEqual(103, actual_event_1.id)
     self.assertEqual(101, actual_signing_chain_1[0].id)
 
     actual_event_3, actual_signing_chain_3 = results[1]
-    self.assertEqual(1, len(actual_signing_chain_3))
+    self.assertLen(actual_signing_chain_3, 1)
     self.assertEqual(303, actual_event_3.id)
     self.assertEqual(301, actual_signing_chain_3[0].id)
 
@@ -466,16 +466,16 @@ class GetEventsTest(SyncTestCase):
         signing_chain_3, Exception, signing_chain_1]
 
     results = bit9_syncing.GetEvents(0)
-    self.assertEqual(2, len(results))
+    self.assertLen(results, 2)
     self.assertTrue(bit9_syncing.monitoring.events_skipped.Increment.called)
 
     actual_event_1, actual_signing_chain_1 = results[0]
-    self.assertEqual(1, len(actual_signing_chain_1))
+    self.assertLen(actual_signing_chain_1, 1)
     self.assertEqual(103, actual_event_1.id)
     self.assertEqual(101, actual_signing_chain_1[0].id)
 
     actual_event_3, actual_signing_chain_3 = results[1]
-    self.assertEqual(1, len(actual_signing_chain_3))
+    self.assertLen(actual_signing_chain_3, 1)
     self.assertEqual(303, actual_event_3.id)
     self.assertEqual(301, actual_signing_chain_3[0].id)
 
@@ -507,7 +507,7 @@ class GetEventsTest(SyncTestCase):
     self._AppendMockApiResults([event_1, event_2], cert_2, cert_1)
 
     results = bit9_syncing.GetEvents(0)
-    self.assertEqual(2, len(results))
+    self.assertLen(results, 2)
     self.assertListEqual([103, 203], [e.id for e, _ in results])
     self.assertListEqual(
         [[101], [201]], [[c.id for c in sc] for _, sc in results])
@@ -531,7 +531,7 @@ class PullTest(SyncTestCase):
     events = (bit9_syncing._UnsyncedEvent.query()
               .order(bit9_syncing._UnsyncedEvent.bit9_id)
               .fetch())
-    self.assertEqual(2, len(events))
+    self.assertLen(events, 2)
     self.assertEqual(event_1._obj_dict, events[0].event)
     self.assertEqual(event_2._obj_dict, events[1].event)
     self.assertEqual(2, self.mock_events_pulled.IncrementBy.call_count)
@@ -569,7 +569,7 @@ class PullTest(SyncTestCase):
     events = (bit9_syncing._UnsyncedEvent.query()
               .order(bit9_syncing._UnsyncedEvent.bit9_id)
               .fetch())
-    self.assertEqual(1, len(events))
+    self.assertLen(events, 1)
     self.assertEqual(event._obj_dict, events[0].event)
 
 
@@ -1011,13 +1011,13 @@ class CopyLocalRulesTest(basetest.UpvoteTestCase):
     self.assertEntityCount(bit9_models.Bit9Rule, binary_count * 2)
     host_1_rules = bit9_models.Bit9Rule.query(
         bit9_models.Bit9Rule.host_id == host_1.key.id()).fetch()
-    self.assertEqual(binary_count, len(host_1_rules))
+    self.assertLen(host_1_rules, binary_count)
     host_2_rules = bit9_models.Bit9Rule.query(
         bit9_models.Bit9Rule.host_id == host_2.key.id()).fetch()
-    self.assertEqual(binary_count, len(host_2_rules))
+    self.assertLen(host_2_rules, binary_count)
     host_3_rules = bit9_models.Bit9Rule.query(
         bit9_models.Bit9Rule.host_id == host_3.key.id()).fetch()
-    self.assertEqual(0, len(host_3_rules))
+    self.assertLen(host_3_rules, 0)
 
     self.assertNoBigQueryInsertions()
 
@@ -1027,13 +1027,13 @@ class CopyLocalRulesTest(basetest.UpvoteTestCase):
     self.assertEntityCount(bit9_models.Bit9Rule, binary_count * 3)
     host_1_rules = bit9_models.Bit9Rule.query(
         bit9_models.Bit9Rule.host_id == host_1.key.id()).fetch()
-    self.assertEqual(binary_count, len(host_1_rules))
+    self.assertLen(host_1_rules, binary_count)
     host_2_rules = bit9_models.Bit9Rule.query(
         bit9_models.Bit9Rule.host_id == host_2.key.id()).fetch()
-    self.assertEqual(binary_count, len(host_2_rules))
+    self.assertLen(host_2_rules, binary_count)
     host_3_rules = bit9_models.Bit9Rule.query(
         bit9_models.Bit9Rule.host_id == host_3.key.id()).fetch()
-    self.assertEqual(binary_count, len(host_3_rules))
+    self.assertLen(host_3_rules, binary_count)
 
     self.assertBigQueryInsertions(
         [constants.BIGQUERY_TABLE.RULE] * binary_count)
@@ -1341,7 +1341,7 @@ class UpdateBit9PoliciesTest(bit9test.Bit9TestCase):
     self.testapp.get(self.ROUTE, headers={'X-AppEngine-Cron': 'true'})
 
     policies = host_models.Bit9Policy.query().fetch()
-    self.assertEqual(1, len(policies))
+    self.assertLen(policies, 1)
 
     policy = policies[0]
     self.assertEqual('1', policy.key.id())

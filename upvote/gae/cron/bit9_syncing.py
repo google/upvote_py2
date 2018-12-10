@@ -907,7 +907,7 @@ def _PersistBit9Events(event, file_catalog, computer, signing_chain):
   host_users = list(bit9_utils.ExtractHostUsers(computer.users))
   occurred_dt = event.timestamp
 
-  is_anomalous = _CheckAndResolveAnomalousBlock(blockable_key, host_id)
+  _CheckAndResolveAnomalousBlock(blockable_key, host_id)
 
   new_event = bit9.Bit9Event(
       blockable_key=blockable_key,
@@ -922,7 +922,6 @@ def _PersistBit9Events(event, file_catalog, computer, signing_chain):
       version=file_catalog.product_version,
       description=event.description,
       executing_user=bit9_utils.ExtractHostUser(event.user_name),
-      is_anomalous=is_anomalous,
       bit9_id=event.id)
 
   tables.EXECUTION.InsertRow(

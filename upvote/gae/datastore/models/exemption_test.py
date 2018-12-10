@@ -15,6 +15,7 @@
 """Tests for exemption models."""
 
 import datetime
+import mock
 
 from upvote.gae.datastore import test_utils
 from upvote.gae.datastore.models import exemption
@@ -72,7 +73,8 @@ class ExemptionTest(basetest.UpvoteTestCase):
     actual_host_id = exemption.Exemption.GetHostId(exm_key)
     self.assertEqual(expected_host_id, actual_host_id)
 
-  def testInsert_Success(self):
+  @mock.patch.object(exemption.monitoring, 'state_changes')
+  def testInsert_Success(self, mock_metric):
 
     self.assertEntityCount(exemption.Exemption, 0)
 
@@ -86,9 +88,11 @@ class ExemptionTest(basetest.UpvoteTestCase):
 
     self.assertEntityCount(exemption.Exemption, 1)
     self.assertIsNotNone(expected_key.get())
+    mock_metric.Increment.assert_called_once()
     self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.EXEMPTION)
 
-  def testInsert_AlreadyExistsError(self):
+  @mock.patch.object(exemption.monitoring, 'state_changes')
+  def testInsert_AlreadyExistsError(self, mock_metric):
 
     self.assertEntityCount(exemption.Exemption, 0)
 
@@ -98,6 +102,7 @@ class ExemptionTest(basetest.UpvoteTestCase):
         constants.EXEMPTION_REASON.DEVELOPER_MACOS)
 
     self.assertEntityCount(exemption.Exemption, 1)
+    mock_metric.Increment.assert_called_once()
     self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.EXEMPTION)
 
     # Attempt a duplicate insertion.
@@ -106,26 +111,33 @@ class ExemptionTest(basetest.UpvoteTestCase):
           host_id, datetime.datetime.utcnow(),
           constants.EXEMPTION_REASON.DEVELOPER_MACOS)
 
-  def testChangeState_InvalidExemptionError(self):
+  @mock.patch.object(exemption.monitoring, 'state_changes')
+  def testChangeState_InvalidExemptionError(self, mock_metric):
     exm_key = exemption.Exemption.CreateKey('invalid_host_id')
     with self.assertRaises(exemption.InvalidExemptionError):
       exemption.Exemption.ChangeState(
           exm_key, constants.EXEMPTION_STATE.APPROVED)
+    mock_metric.Increment.assert_not_called()
 
-  def testChangeState_InvalidStateChangeError(self):
+  @mock.patch.object(exemption.monitoring, 'state_changes')
+  def testChangeState_InvalidStateChangeError(self, mock_metric):
 
     host_id = 'valid_host_id'
     exm_key = exemption.Exemption.Insert(
         host_id, datetime.datetime.utcnow(),
         constants.EXEMPTION_REASON.DEVELOPER_MACOS)
 
+    mock_metric.Increment.assert_called_once()
+    mock_metric.reset_mock()
     self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.EXEMPTION)
 
     with self.assertRaises(exemption.InvalidStateChangeError):
       exemption.Exemption.ChangeState(
           exm_key, constants.EXEMPTION_STATE.APPROVED)
+    mock_metric.Increment.assert_not_called()
 
-  def testChangeState_Success(self):
+  @mock.patch.object(exemption.monitoring, 'state_changes')
+  def testChangeState_Success(self, mock_metric):
 
     self.assertEntityCount(exemption.Exemption, 0)
 
@@ -137,6 +149,8 @@ class ExemptionTest(basetest.UpvoteTestCase):
         other_text='Test')
 
     self.assertEntityCount(exemption.Exemption, 1)
+    mock_metric.Increment.assert_called_once()
+    mock_metric.reset_mock()
     self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.EXEMPTION)
 
     exemption.Exemption.ChangeState(
@@ -145,6 +159,7 @@ class ExemptionTest(basetest.UpvoteTestCase):
 
     self.assertEqual(constants.EXEMPTION_STATE.PENDING, exm.state)
     self.assertEntityCount(exemption.Exemption, 1)
+    mock_metric.Increment.assert_called_once()
     self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.EXEMPTION)
 
 

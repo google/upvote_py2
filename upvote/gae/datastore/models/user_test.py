@@ -111,9 +111,9 @@ class UserTest(basetest.UpvoteTestCase):
   def testPrePutHook(self):
     user = user_models.User.GetOrInsert(email_addr=_TEST_EMAIL)
     user.roles = [USER] * 100
-    self.assertEqual(100, len(user.roles))
+    self.assertLen(user.roles, 100)
     user.put()
-    self.assertEqual(1, len(user.roles))
+    self.assertLen(user.roles, 1)
     self.assertEquals([USER], user.roles)
 
     self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.USER)
