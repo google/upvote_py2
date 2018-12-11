@@ -37,7 +37,8 @@ def main(argv):
   result = ["goog.provide('{}');".format(goog_provide)]
   for src in html_paths:
     assert src.startswith(strip_prefix)
-    js = subprocess.check_output([html2js, src, '--module', module_name])
+    js = subprocess.check_output([html2js, src, '--module', module_name],
+                                 env={})
     template_name = prepend_prefix + src[len(strip_prefix):]
     js = js.replace(src, template_name)
 

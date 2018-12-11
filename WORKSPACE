@@ -479,25 +479,22 @@ load("@io_bazel_rules_closure//closure:defs.bzl", "closure_repositories")
 
 closure_repositories()
 
-http_archive(
-    name = "org_pubref_rules_node",
-    sha256 = "d161dd6551c1061ee954fd6ec014a671d932728776f55a6dcb6ac8ddd5cb5354",
-    strip_prefix = "rules_node-993a258096aaf3d4b295c18856e3405011cad99c",
-    urls = [
-        "http://mirror.bazel.build/github.com/pubref/rules_node/archive/993a258096aaf3d4b295c18856e3405011cad99c.tar.gz",
-        "https://github.com/pubref/rules_node/archive/993a258096aaf3d4b295c18856e3405011cad99c.tar.gz",
-    ],
+git_repository(
+    name = "build_bazel_rules_nodejs",
+    remote = "https://github.com/bazelbuild/rules_nodejs.git",
+    tag = "0.16.3",  # 2018-12-11
 )
 
-load("@org_pubref_rules_node//node:rules.bzl", "node_repositories", "yarn_modules")
+load("@build_bazel_rules_nodejs//:package.bzl", "rules_nodejs_dependencies")
+rules_nodejs_dependencies()
 
-node_repositories()
+load("@build_bazel_rules_nodejs//:defs.bzl", "node_repositories")
 
-yarn_modules(
-    name = "npm_html2js",
-    deps = {
-        "ng-html2js": "3.0.0",
-    },
+node_repositories(package_json = ["//:package.json"])
+load("@build_bazel_rules_nodejs//:defs.bzl", "npm_install")
+npm_install(
+    name = "npm",
+    package_json = "//:package.json",
 )
 
 new_git_repository(

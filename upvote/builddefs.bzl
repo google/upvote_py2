@@ -15,4 +15,5 @@ def upvote_appengine_test(name, srcs, deps = [], data = [], size = "medium"):  #
             "jinja2": "latest",
             "yaml": "latest",
         },
+        overwrite_appengine_config = False,
     )
