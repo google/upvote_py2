@@ -710,7 +710,8 @@ describe('Detail Controller', () => {
         ctrl = buildController();
         scope.$apply();
 
-        expect(ctrl.userHasElevatedPermissions()).toBe(true);
+        expect(ctrl.userHasAdditionalRoles()).toBe(true);
+        expect(ctrl.userCanViewAdminConsole()).toBe(false);
         expect(settingResource['get']).toHaveBeenCalledWith({
           'setting': 'votingWeights'
         });

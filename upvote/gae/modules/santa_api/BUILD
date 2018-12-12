@@ -1,7 +1,7 @@
 load(
     "//upvote:builddefs.bzl",
     "py_appengine_library",
-    "py_appengine_binary",
+    "upvote_appengine_binary",
     "upvote_appengine_test",
 )
 
@@ -80,7 +80,7 @@ py_appengine_library(
     srcs = ["auth.py"],
 )
 
-py_appengine_binary(
+upvote_appengine_binary(
     name = "santa_api_binary",
     srcs = ["main.py"],
     configs = [

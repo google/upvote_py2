@@ -177,7 +177,7 @@
         </md-step>
         <md-step md-label="Cast your vote for this application">
           <div layout-padding>
-            <div ng-if="ctrl.userHasElevatedPermissions()">
+            <div ng-if="ctrl.userHasAdditionalRoles()">
               <md-input-container>
                 <label>Vote Weight</label>
                 <md-select ng-model="ctrl.requestedVoteRole">
@@ -302,7 +302,7 @@
     </md-card-content>
 
     <md-button class="md-primary"
-               ng-show="ctrl.userHasElevatedPermissions()"
+               ng-show="ctrl.userCanViewAdminConsole()"
                ng-href="{{ ctrl.getAdminUrl() }}"
                target="_blank">View as Admin
     </md-button>

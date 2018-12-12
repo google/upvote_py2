@@ -1,6 +1,6 @@
 package(default_visibility = ["//upvote"])
 
-load("//upvote:builddefs.bzl", "py_appengine_library", "py_appengine_binary")
+load("//upvote:builddefs.bzl", "py_appengine_library", "upvote_appengine_binary")
 
 # AppEngine Libraries
 # ==============================================================================
@@ -22,7 +22,7 @@ py_appengine_library(
 # Binaries
 # ==============================================================================
 
-py_appengine_binary(
+upvote_appengine_binary(
     name = "upvote_app_binary",
     srcs = ["//upvote/gae/modules/upvote_app/api/web:main.py"],
     configs = [

@@ -4,6 +4,12 @@ load("@io_bazel_rules_appengine//appengine:py_appengine.bzl", "py_appengine_bina
 
 py_appengine_library = native.py_library
 
+def upvote_appengine_binary(**kwargs):
+    py_appengine_binary(
+        overwrite_appengine_config = False,
+        **kwargs
+    )
+
 def upvote_appengine_test(name, srcs, deps = [], data = [], size = "medium"):  # pylint: disable=unused-argument
     py_appengine_test(
         name = name,
@@ -15,5 +21,4 @@ def upvote_appengine_test(name, srcs, deps = [], data = [], size = "medium"):  #
             "jinja2": "latest",
             "yaml": "latest",
         },
-        overwrite_appengine_config = False,
     )

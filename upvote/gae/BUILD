@@ -2,7 +2,7 @@ package(default_visibility = ["//upvote"])
 
 load(
     "//upvote:builddefs.bzl",
-    "py_appengine_binary",
+    "upvote_appengine_binary",
     "py_appengine_library",
     "upvote_appengine_test",
 )
@@ -12,7 +12,7 @@ exports_files(glob(["*.yaml"]))
 # Binaries
 # ==============================================================================
 
-py_appengine_binary(
+upvote_appengine_binary(
     name = "monolith_binary",
     srcs = ["appengine_config.py"],
     configs = glob(["*.yaml"]) + [":appengine_config.py"],

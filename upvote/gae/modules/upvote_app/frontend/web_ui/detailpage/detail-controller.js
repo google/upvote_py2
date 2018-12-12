@@ -256,7 +256,7 @@ upvote.detailpage.BlockableDetailsController = class {
           this.user = user;
           this.initStepperState_();
 
-          if (this.userHasElevatedPermissions()) {
+          if (this.userHasAdditionalRoles()) {
             return this.settingResource_.get(
                 {'setting': 'votingWeights'})['$promise'];
           }
@@ -593,15 +593,22 @@ upvote.detailpage.BlockableDetailsController = class {
   }
 
   /**
-   * Indicates if the current user has more permissions than a normal user.
+   * Indicates if the current user has more roles than a normal user.
    * @return {boolean}
    * @export
    */
-  userHasElevatedPermissions() {
-    return !!this.user &&
-        (this.user['roles'].includes(UserRole['TRUSTED_USER']) ||
-         this.user['roles'].includes(UserRole['SUPERUSER']) ||
-         this.user['isAdmin']);
+  userHasAdditionalRoles() {
+    return !!this.user && !!this.user['roles'] && this.user['roles'].length > 1;
+  }
+
+  /**
+   * Indicates if the current user can view the admin console.
+   * @return {boolean}
+   * @export
+   */
+  userCanViewAdminConsole() {
+    return !!this.user && !!this.user['permissions'] &&
+        this.user['permissions'].includes('VIEW_ADMIN_CONSOLE');
   }
 
   /**
