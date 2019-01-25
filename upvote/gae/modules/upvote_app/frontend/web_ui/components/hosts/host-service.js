@@ -13,8 +13,7 @@
 // limitations under the License.
 
 goog.provide('upvote.hosts.ClientMode');
-goog.provide('upvote.hosts.ExceptionReason');
-goog.provide('upvote.hosts.ExceptionRequestData');
+goog.provide('upvote.hosts.ExemptionState');
 goog.provide('upvote.hosts.HostService');
 goog.provide('upvote.hosts.Platform');
 goog.provide('upvote.hosts.PolicyLevel');
@@ -57,6 +56,22 @@ upvote.hosts.PolicyLevel = {
 
 
 /**
+ * @enum {string}
+ * @export
+ */
+upvote.hosts.ExemptionState = {
+  'REQUESTED': 'REQUESTED',
+  'PENDING': 'PENDING',
+  'APPROVED': 'APPROVED',
+  'DENIED': 'DENIED',
+  'ESCALATED': 'ESCALATED',
+  'CANCELLED': 'CANCELLED',
+  'REVOKED': 'REVOKED',
+  'EXPIRED': 'EXPIRED',
+};
+
+
+/**
  * @typedef {{
  *   platform: !upvote.hosts.Platform,
  *   cursor: string,
@@ -66,33 +81,6 @@ upvote.hosts.PolicyLevel = {
  * }}
  */
 upvote.hosts.SearchParams;
-
-
-/**
- * Representations of the valid reasons for requesting a host exception.
- * These should mirror those in shared.constants.EXEMPTION_REASON
- * @enum {string}
- * @export
- */
-upvote.hosts.ExceptionReason = {
-  'DEVELOPER_MACOS': 'DEVELOPER_MACOS',
-  'DEVELOPER_IOS': 'DEVELOPER_IOS',
-  'DEVELOPER_DEVTOOLS': 'DEVELOPER_DEVTOOLS',
-  'DEVELOPER_PERSONAL': 'DEVELOPER_PERSONAL',
-  'USES_PACKAGE_MANAGER': 'USES_PACKAGE_MANAGER',
-  'FEARS_NEGATIVE_IMPACT': 'FEARS_NEGATIVE_IMPACT',
-  'OTHER': 'OTHER'
-};
-
-
-/**
- * @typedef {{
- *   reason: !upvote.hosts.ExceptionReason,
- *   otherText: ?string,
- * }}
- * @export
- */
-upvote.hosts.ExceptionRequestData;
 
 
 upvote.hosts.HostService = class {
@@ -133,43 +121,6 @@ upvote.hosts.HostService = class {
   }
 
   /**
-   * If present, return the host exception request for the given user and host.
-   * @param {!string} hostId
-   * @return {!angular.$http.HttpPromise}
-   * @export
-   */
-  getExistingHostException(hostId) {
-    let url =
-        HostService.BASE_URL_ + '/' + hostId + HostService.EXCEPTION_SUFFIX_;
-    return this.http_.get(url);
-  }
-
-  /**
-   * Create a host exception request the given host.
-   * @param {!string} hostId
-   * @param {!upvote.hosts.ExceptionRequestData} requestData
-   * @return {!angular.$http.HttpPromise}
-   * @export
-   */
-  requestHostException(hostId, requestData) {
-    let url =
-        HostService.BASE_URL_ + '/' + hostId + HostService.EXCEPTION_SUFFIX_;
-    return this.http_.post(url, requestData);
-  }
-
-  /**
-   * Request that the given host be put into lockdown mode.
-   * @param {!string} hostId
-   * @return {!angular.$http.HttpPromise}
-   * @export
-   */
-  requestLockdown(hostId) {
-    let url =
-        HostService.BASE_URL_ + '/' + hostId + HostService.LOCKDOWN_SUFFIX_;
-    return this.http_.post(url, {});
-  }
-
-  /**
    * Retrieve the list of hosts associated with the given (or current) user.
    * @param {!string=} opt_userId
    * @return {!angular.$http.HttpPromise}
@@ -185,14 +136,28 @@ upvote.hosts.HostService = class {
 
   /**
    * Sets the hidden state of a host
-   * @param {!string} hostId
-   * @param {!boolean} hidden hides if set to true, otherwise shows host
+   * @param {string} hostId
+   * @param {boolean} hide hides if set to true, otherwise shows host
    * @return {!angular.$http.HttpPromise}
    * @export
    */
-  hide(hostId, hidden) {
+  setHidden(hostId, hide) {
     let url = HostService.BASE_URL_ + '/' + hostId +
-        HostService.HIDDEN_SUFFIX_ + (hidden ? 'true' : 'false');
+        HostService.HIDDEN_SUFFIX_ + (hide ? 'true' : 'false');
+    return this.http_.put(url, {});
+  }
+
+  /**
+   * Sets the transitive whitelisting state of a host
+   * @param {string} hostId
+   * @param {boolean} enable enables transitive whitelisting if set to true,
+   *     otherwise disables it.
+   * @return {!angular.$http.HttpPromise}
+   * @export
+   */
+  setTransitive(hostId, enable) {
+    let url = HostService.BASE_URL_ + '/' + hostId +
+        HostService.TRANSITIVE_SUFFIX_ + (enable ? 'true' : 'false');
     return this.http_.put(url, {});
   }
 };
@@ -201,11 +166,9 @@ let HostService = upvote.hosts.HostService;
 /** @private {string} */
 HostService.BASE_URL_ = upvote.app.constants.WEB_PREFIX + 'hosts';
 /** @private {string} */
-HostService.EXCEPTION_SUFFIX_ = '/request-exception';
-/** @private {string} */
-HostService.LOCKDOWN_SUFFIX_ = '/request-lockdown';
-/** @private {string} */
 HostService.HIDDEN_SUFFIX_ = '/hidden/';
+/** @private {string} */
+HostService.TRANSITIVE_SUFFIX_ = '/transitive/';
 /** @private {string} */
 HostService.ASSOCIATED_URL_ = HostService.BASE_URL_ + '/associated';
 /** @private {string} */

@@ -11,7 +11,7 @@ py_appengine_library(
         "//upvote/gae:app.yaml",
         "//upvote/gae/modules/upvote_app/frontend:app_css",
         "//upvote/gae/modules/upvote_app/frontend:app_min",
-        "//upvote/gae/shared/templates",
+        "//upvote/gae/templates/web:templates",
     ],
     deps = [
         "//upvote/gae/cron:main",

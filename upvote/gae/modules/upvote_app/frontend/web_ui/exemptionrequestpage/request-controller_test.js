@@ -16,7 +16,8 @@ goog.setTestOnly();
 
 goog.require('upvote.errornotifier.module');
 goog.require('upvote.exemptionrequestpage.ExemptionRequestController');
-goog.require('upvote.hosts.ExceptionReason');
+goog.require('upvote.exemptions.ExemptionReason');
+goog.require('upvote.exemptions.module');
 goog.require('upvote.hosts.module');
 goog.require('upvote.shared.Page');
 
@@ -25,7 +26,8 @@ const ExemptionRequestController = upvote.exemptionrequestpage.ExemptionRequestC
 
 
 describe('Host Request Controller', () => {
-  let hostService, errorService, routeParams, q, rootScope, page;
+  let exemptionService, hostService, errorService, routeParams, q, rootScope,
+      page;
   let ctrl;
 
   let fakeHost = {
@@ -36,13 +38,16 @@ describe('Host Request Controller', () => {
 
   beforeEach(/** @suppress {missingProperties} */ () => {
     angular.mock.module(upvote.errornotifier.module.name);
+    angular.mock.module(upvote.exemptions.module.name);
     angular.mock.module(upvote.hosts.module.name);
     angular.mock.module('ngRoute');
 
     angular.mock.inject(
-        (_hostService_, _errorService_, $routeParams, $q, $rootScope) => {
+        (_exemptionService_, _hostService_, _errorService_, $routeParams, $q,
+         $rootScope) => {
           // Store injected components.
           hostService = _hostService_;
+          exemptionService = _exemptionService_;
           errorService = _errorService_;
           routeParams = $routeParams;
           q = $q;
@@ -51,8 +56,8 @@ describe('Host Request Controller', () => {
 
           // Create spies.
           hostService.get = jasmine.createSpy('get');
-          hostService.requestHostException =
-              jasmine.createSpy('requestHostException');
+          exemptionService.requestExemption =
+              jasmine.createSpy('requestExemption');
           errorService.createDialogFromError =
               jasmine.createSpy('createDialogFromError');
           errorService.createSimpleToast =
@@ -65,8 +70,8 @@ describe('Host Request Controller', () => {
     hostService.get['and']['callFake'](() => q.when({'data': fakeHost}));
   });
 
-  let buildController = () =>
-      new ExemptionRequestController(hostService, errorService, routeParams, page);
+  let buildController = () => new ExemptionRequestController(
+      exemptionService, hostService, errorService, routeParams, page);
 
   describe('should display an error notifiction', () => {
     it('when initialization fails', () => {
@@ -95,12 +100,12 @@ describe('Host Request Controller', () => {
 
   it('should detect when OTHER is selected', () => {
     ctrl = buildController();
-    ctrl.requestData.reason = upvote.hosts.ExceptionReason.OTHER;
+    ctrl.requestData.reason = upvote.exemptions.ExemptionReason.OTHER;
     rootScope.$apply();
 
     expect(ctrl.isOtherSelected()).toBe(true);
 
-    ctrl.requestData.reason = upvote.hosts.ExceptionReason.DEVELOPER_MACOS;
+    ctrl.requestData.reason = upvote.exemptions.ExemptionReason.DEVELOPER_MACOS;
     rootScope.$apply();
 
     expect(ctrl.isOtherSelected()).toBe(false);
@@ -129,7 +134,7 @@ describe('Host Request Controller', () => {
       });
 
       it('when OTHER is selected and no explanation was provided', () => {
-        ctrl.requestData.reason = upvote.hosts.ExceptionReason.OTHER;
+        ctrl.requestData.reason = upvote.exemptions.ExemptionReason.OTHER;
         ctrl.requestData.otherText = '';
 
         ctrl.submitRequest();
@@ -140,7 +145,7 @@ describe('Host Request Controller', () => {
 
     describe('by submitting the request', () => {
       afterEach(() => {
-        expect(hostService.requestHostException).toHaveBeenCalled();
+        expect(exemptionService.requestExemption).toHaveBeenCalled();
       });
 
       describe('but failing upon submission', () => {
@@ -149,7 +154,7 @@ describe('Host Request Controller', () => {
         });
 
         it('when there is an existing request', () => {
-          hostService.requestHostException['and']['returnValue'](
+          exemptionService.requestExemption['and']['returnValue'](
               q.reject({'status': 409}));
 
           ctrl.submitRequest();
@@ -159,7 +164,7 @@ describe('Host Request Controller', () => {
         });
 
         it('when there is an unhandled error', () => {
-          hostService.requestHostException['and']['returnValue'](
+          exemptionService.requestExemption['and']['returnValue'](
               q.reject({'status': 400}));
 
           ctrl.submitRequest();
@@ -170,7 +175,7 @@ describe('Host Request Controller', () => {
       });
 
       it('and succeeding when all requirements are met', () => {
-        hostService.requestHostException['and']['returnValue'](q.resolve({}));
+        exemptionService.requestExemption['and']['returnValue'](q.resolve({}));
 
         ctrl.submitRequest();
         rootScope.$apply();

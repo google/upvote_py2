@@ -19,9 +19,8 @@ import logging
 import webapp2
 
 from google.appengine.api import users
-
-from upvote.gae.shared.common import template_utils
 from upvote.gae.utils import handler_utils
+from upvote.gae.utils import template_utils
 from upvote.shared import constants
 
 
@@ -38,11 +37,8 @@ class IndexHandler(handler_utils.UserFacingHandler):
     logging.info('Debugging is %s', 'enabled' if debug else 'disabled')
 
     # Write the jinja2 template rendering to the handler's repsonse.
-    template_context = {
-        'debug': debug,
-        'username': users.get_current_user()}
-    template = template_utils.GetTemplate(self.TEMPLATE_NAME)
-    response_string = template.render(template_context)
+    response_string = template_utils.RenderWebTemplate(
+        self.TEMPLATE_NAME, debug=debug, username=users.get_current_user())
     self.response.set_status(httplib.OK)
     self.response.write(response_string)
 

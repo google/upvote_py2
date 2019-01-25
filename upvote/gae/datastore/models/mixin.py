@@ -28,8 +28,7 @@ class Base(object):
 
   def to_dict(self, include=None, exclude=None):  # pylint: disable=g-bad-name
     """Convert the model to a dict."""
-    result = super(Base, self).to_dict(
-        include=include, exclude=exclude)
+    result = super(Base, self).to_dict(include=include, exclude=exclude)
 
     if exclude is None or 'id' not in exclude:
       # Check for the key just in case put() hasn't been called yet.

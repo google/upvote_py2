@@ -14,8 +14,9 @@
 
 """Monitoring metrics for BigQuery streaming."""
 
-from upvote.gae.shared.common import monitoring
+from upvote.gae.utils import monitoring_utils
 from upvote.monitoring import metrics
 
 
-row_insertions = monitoring.SuccessFailureCounter(metrics.BIGQUERY.ROW_INSERTIONS)
+row_insertions = monitoring_utils.SuccessFailureCounter(
+    metrics.BIGQUERY.ROW_INSERTIONS)

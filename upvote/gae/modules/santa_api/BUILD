@@ -22,29 +22,21 @@ py_appengine_library(
     srcs = ["sync.py"],
     deps = [
         ":auth",
-        ":constants",
         ":monitoring",
         "//upvote/gae:settings",
         "//upvote/gae/bigquery:tables",
         "//upvote/gae/datastore:utils",
         "//upvote/gae/datastore/models:host",
+        "//upvote/gae/datastore/models:rule",
         "//upvote/gae/datastore/models:santa",
         "//upvote/gae/datastore/models:user",
         "//upvote/gae/datastore/models:utils",
         "//upvote/gae/lib/analysis:metrics",
         "//upvote/gae/shared/common:big_red",
-        "//upvote/gae/shared/common:user_map",
         "//upvote/gae/taskqueue:utils",
         "//upvote/gae/utils:handler_utils",
+        "//upvote/gae/utils:user_utils",
         "//upvote/gae/utils:xsrf_utils",
-        "//upvote/shared:constants",
-    ],
-)
-
-py_appengine_library(
-    name = "constants",
-    srcs = ["constants.py"],
-    deps = [
         "//upvote/shared:constants",
     ],
 )
@@ -53,7 +45,7 @@ py_appengine_library(
     name = "monitoring",
     srcs = ["monitoring.py"],
     deps = [
-        "//upvote/gae/shared/common:monitoring",
+        "//upvote/gae/utils:monitoring_utils",
         "//upvote/monitoring:metrics",
     ],
 )
@@ -104,6 +96,7 @@ upvote_appengine_test(
         "//external:mock",
         "//external:webtest",
         "//upvote/gae/datastore:test_utils",
+        "//upvote/gae/datastore/models:rule",
         "//upvote/gae/datastore/models:santa",
         "//upvote/gae/lib/testing:basetest",
         "//upvote/gae/utils:handler_utils",

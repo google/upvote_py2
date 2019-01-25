@@ -26,7 +26,7 @@ py_appengine_library(
     name = "monitoring",
     srcs = ["monitoring.py"],
     deps = [
-        "//upvote/gae/shared/common:monitoring",
+        "//upvote/gae/utils:monitoring_utils",
         "//upvote/monitoring:metrics",
     ],
 )

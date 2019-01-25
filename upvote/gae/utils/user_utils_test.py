@@ -12,25 +12,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Tests for the template_utils module."""
+"""Unit tests for user_map.py."""
 
-import jinja2
+from upvote.gae import settings
+from upvote.gae.lib.testing import basetest
+from upvote.gae.utils import user_utils
 
-from upvote.gae.shared.common import template_utils
-from absl.testing import absltest
 
+class UtilsTests(basetest.UpvoteTestCase):
 
-class TemplateUtilsTest(absltest.TestCase):
+  def testEmailToUsername(self):
+    self.assertEqual('user', user_utils.EmailToUsername('user@foo.com'))
+    self.assertEqual('user', user_utils.EmailToUsername('user'))
 
-  def testGetTemplate(self):
-    # Actually just load one of our templates.
-    template = template_utils.GetTemplate('admin-index.html')
-    self.assertIn('ng-app', template.render())
-
-  def testGetJinjaEnv(self):
-    env = template_utils.GetJinjaEnv()
-    self.assertIsInstance(env, jinja2.Environment)
+  def testUsernameToEmail(self):
+    self.assertEqual('user@' + settings.USER_EMAIL_DOMAIN,
+                     user_utils.UsernameToEmail('user'))
 
 
 if __name__ == '__main__':
-  absltest.main()
+  basetest.main()

@@ -257,6 +257,32 @@ upvote.shared.models.AnyEvent;
 /**
  * @typedef {{
  *   class_: !Array<string>,
+ *
+ *   recorded_dt: string,
+ *   state: string,
+ *   details: !Array<string>
+ * }}
+ */
+upvote.shared.models.Record;
+
+
+/**
+ * @typedef {{
+ *   class_: !Array<string>,
+ *
+ *   id: string,
+ *   creationDt: string,
+ *   deactivationDt: string,
+ *   state: string,
+ *   history: !Array<!upvote.shared.models.Record>
+ * }}
+ */
+upvote.shared.models.Exemption;
+
+
+/**
+ * @typedef {{
+ *   class_: !Array<string>,
  *   operatingSystemFamily: string,
  *
  *   id: string,
@@ -290,7 +316,8 @@ upvote.shared.models.SantaHost;
  *   id: string,
  *   hostname: string,
  *   recordedDt: string,
- *   hidden: boolean
+ *   hidden: boolean,
+ *   exemption: ?upvote.shared.models.Exemption
  * }}
  */
 upvote.shared.models.Host;

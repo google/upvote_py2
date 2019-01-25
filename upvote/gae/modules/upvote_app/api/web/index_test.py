@@ -37,57 +37,41 @@ class IndexHandlerTest(basetest.UpvoteTestCase):
     app = webapp2.WSGIApplication(routes=[route])
     super(IndexHandlerTest, self).setUp(wsgi_app=app)
 
-  @mock.patch.object(index.template_utils, 'GetTemplate')
-  def testDebug_On(self, mock_get_template):
-
-    mock_template = mock.Mock()
-    mock_get_template.return_value = mock_template
+  @mock.patch.object(index.template_utils, 'RenderWebTemplate')
+  def testDebug_On(self, mock_render):
 
     with self.LoggedInUser():
       self.testapp.get('/stuff?debug=1')
 
-    mock_template.render.assert_called_once()
-    actual_context = mock_template.render.call_args_list[0][0][0]
-    self.assertTrue(actual_context['debug'])
+    mock_render.assert_called_once_with(
+        'whatever.html', debug=True, username=mock.ANY)
 
-  @mock.patch.object(index.template_utils, 'GetTemplate')
-  def testDebug_Off(self, mock_get_template):
-
-    mock_template = mock.Mock()
-    mock_get_template.return_value = mock_template
+  @mock.patch.object(index.template_utils, 'RenderWebTemplate')
+  def testDebug_Off(self, mock_render):
 
     with self.LoggedInUser():
       self.testapp.get('/stuff?debug=0')
 
-    mock_template.render.assert_called_once()
-    actual_context = mock_template.render.call_args_list[0][0][0]
-    self.assertFalse(actual_context['debug'])
+    mock_render.assert_called_once_with(
+        'whatever.html', debug=False, username=mock.ANY)
 
-  @mock.patch.object(index.template_utils, 'GetTemplate')
-  def testDebug_Omitted(self, mock_get_template):
-
-    mock_template = mock.Mock()
-    mock_get_template.return_value = mock_template
+  @mock.patch.object(index.template_utils, 'RenderWebTemplate')
+  def testDebug_Omitted(self, mock_render):
 
     with self.LoggedInUser():
       self.testapp.get('/stuff')
 
-    mock_template.render.assert_called_once()
-    actual_context = mock_template.render.call_args_list[0][0][0]
-    self.assertFalse(actual_context['debug'])
+    mock_render.assert_called_once_with(
+        'whatever.html', debug=False, username=mock.ANY)
 
-  @mock.patch.object(index.template_utils, 'GetTemplate')
-  def testDebug_BadValue(self, mock_get_template):
-
-    mock_template = mock.Mock()
-    mock_get_template.return_value = mock_template
+  @mock.patch.object(index.template_utils, 'RenderWebTemplate')
+  def testDebug_BadValue(self, mock_render):
 
     with self.LoggedInUser():
       self.testapp.get('/stuff?debug=asdf')
 
-    mock_template.render.assert_called_once()
-    actual_context = mock_template.render.call_args_list[0][0][0]
-    self.assertFalse(actual_context['debug'])
+    mock_render.assert_called_once_with(
+        'whatever.html', debug=False, username=mock.ANY)
 
 
 class AdminIndexHandlerTest(basetest.UpvoteTestCase):
@@ -96,31 +80,31 @@ class AdminIndexHandlerTest(basetest.UpvoteTestCase):
     app = webapp2.WSGIApplication(routes=[index.ADMIN_ROUTE])
     super(AdminIndexHandlerTest, self).setUp(wsgi_app=app)
 
-  @mock.patch.object(index.template_utils, 'GetTemplate')
-  def testGet_AsAdmin_TrailingSlash(self, mock_get_template):
+  @mock.patch.object(index.template_utils, 'RenderWebTemplate')
+  def testGet_AsAdmin_TrailingSlash(self, mock_render):
 
     with self.LoggedInUser(admin=True):
       self.testapp.get('/admin/', status=httplib.OK)
 
-    mock_get_template.assert_called_once_with(
-        index.AdminIndexHandler.TEMPLATE_NAME)
+    mock_render.assert_called_once_with(
+        index.AdminIndexHandler.TEMPLATE_NAME, debug=False, username=mock.ANY)
 
-  @mock.patch.object(index.template_utils, 'GetTemplate')
-  def testGet_AsAdmin_NoTrailingSlash(self, mock_get_template):
+  @mock.patch.object(index.template_utils, 'RenderWebTemplate')
+  def testGet_AsAdmin_NoTrailingSlash(self, mock_render):
 
     with self.LoggedInUser(admin=True):
       self.testapp.get('/admin', status=httplib.OK)
 
-    mock_get_template.assert_called_once_with(
-        index.AdminIndexHandler.TEMPLATE_NAME)
+    mock_render.assert_called_once_with(
+        index.AdminIndexHandler.TEMPLATE_NAME, debug=False, username=mock.ANY)
 
-  @mock.patch.object(index.template_utils, 'GetTemplate')
-  def testGet_AsUser(self, mock_get_template):
+  @mock.patch.object(index.template_utils, 'RenderWebTemplate')
+  def testGet_AsUser(self, mock_render):
 
     with self.LoggedInUser(admin=False):
       self.testapp.get('/admin', status=httplib.FORBIDDEN)
 
-    mock_get_template.assert_not_called()
+    mock_render.assert_not_called()
 
 
 class UserIndexHandlerTest(basetest.UpvoteTestCase):
@@ -129,23 +113,23 @@ class UserIndexHandlerTest(basetest.UpvoteTestCase):
     app = webapp2.WSGIApplication(routes=[index.USER_ROUTE])
     super(UserIndexHandlerTest, self).setUp(wsgi_app=app)
 
-  @mock.patch.object(index.template_utils, 'GetTemplate')
-  def testGetRoot(self, mock_get_template):
+  @mock.patch.object(index.template_utils, 'RenderWebTemplate')
+  def testGetRoot(self, mock_render):
 
     with self.LoggedInUser(admin=False):
       self.testapp.get('/', status=httplib.OK)
 
-    mock_get_template.assert_called_once_with(
-        index.UserIndexHandler.TEMPLATE_NAME)
+    mock_render.assert_called_once_with(
+        index.UserIndexHandler.TEMPLATE_NAME, debug=False, username=mock.ANY)
 
-  @mock.patch.object(index.template_utils, 'GetTemplate')
-  def testGetBlockableList(self, mock_get_template):
+  @mock.patch.object(index.template_utils, 'RenderWebTemplate')
+  def testGetBlockableList(self, mock_render):
 
     with self.LoggedInUser(admin=False):
       self.testapp.get('/blockables', status=httplib.OK)
 
-    mock_get_template.assert_called_once_with(
-        index.UserIndexHandler.TEMPLATE_NAME)
+    mock_render.assert_called_once_with(
+        index.UserIndexHandler.TEMPLATE_NAME, debug=False, username=mock.ANY)
 
 
 if __name__ == '__main__':

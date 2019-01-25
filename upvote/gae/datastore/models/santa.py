@@ -22,6 +22,7 @@ from upvote.gae.bigquery import tables
 from upvote.gae.datastore import utils as datastore_utils
 from upvote.gae.datastore.models import base
 from upvote.gae.datastore.models import mixin
+from upvote.gae.datastore.models import rule as rule_models
 from upvote.gae.datastore.models import user as user_models
 from upvote.shared import constants
 
@@ -115,9 +116,9 @@ class SantaBlockable(mixin.Santa, base.Binary):
     if not current_user.is_admin and self.cert_id:
       cert = SantaCertificate.get_by_id(self.cert_id)
       # pylint: disable=g-explicit-bool-comparison, singleton-comparison
-      cert_rules = base.Rule.query(
-          base.Rule.in_effect == True,
-          base.Rule.policy == constants.RULE_POLICY.BLACKLIST,
+      cert_rules = rule_models.Rule.query(
+          rule_models.Rule.in_effect == True,
+          rule_models.Rule.policy == constants.RULE_POLICY.BLACKLIST,
           ancestor=cert.key)
       # pylint: enable=g-explicit-bool-comparison, singleton-comparison
       if cert_rules.count() > 0:
@@ -332,67 +333,4 @@ class SantaBundle(mixin.Santa, base.Package):
     result = super(SantaBundle, self).to_dict(include=include, exclude=exclude)
     result['has_been_uploaded'] = self.has_been_uploaded
     result['cert_id'] = self.main_cert_key.id() if self.main_cert_key else None
-    return result
-
-
-class SantaLogFile(mixin.Santa, ndb.Model):
-  """Represents a Log file uploaded by Santa.
-
-  Files are stored in blobstore and assumed to be uploaded
-  with gzip compression.
-
-  Attributes:
-    blobkey: blobkey, the key to the file in blobstore.
-    filename: str, name of this log file.
-    host_id: str, the id of the SantaHost this log came from.
-    upload_dt: date, date this file was uploaded.
-  """
-  blobkey = ndb.BlobKeyProperty()
-  filename = ndb.StringProperty()
-  host_id = ndb.StringProperty()
-  upload_dt = ndb.DateTimeProperty()
-
-
-class SantaBinaryFile(mixin.Santa, ndb.Model):
-  """Represents a binary file uploaded by Santa.
-
-  Files are stored in blobstore and assumed to be Mach-O executables
-  uploaded with gzip compression.
-
-  Attributes:
-    blobkey: blobkey, the key to the file in blobstore.
-    shasum: str, the shasum of the uploaded file, provided by client.
-    host_id: str, the id of the SantaHost this file came from.
-    upload_dt: date, date this file was uploaded.
-  """
-  blobkey = ndb.BlobKeyProperty()
-  shasum = ndb.StringProperty()
-  host_id = ndb.StringProperty()
-  upload_dt = ndb.DateTimeProperty(auto_now_add=True)
-
-
-class SantaRule(mixin.Santa, base.Rule):
-  """Represents a Rule that should be downloaded by Santa clients.
-
-  Attributes:
-    custom_msg: str, a custom message to show when the rule is activated.
-  """
-  policy = ndb.StringProperty(
-      choices=constants.RULE_POLICY.SET_SANTA, required=True)
-  custom_msg = ndb.StringProperty(default='', indexed=False)
-
-  @property
-  def bundle_binary_ids(self):
-    if self.rule_type == constants.RULE_TYPE.PACKAGE:
-      keys = SantaBundle.GetBundleBinaryKeys(self.key.parent())
-      return [key.id() for key in keys]
-    return []
-
-  def to_dict(self, include=None, exclude=None):  # pylint: disable=g-bad-name
-    result = super(SantaRule, self).to_dict(
-        include=include, exclude=exclude)
-
-    if self.rule_type == constants.RULE_TYPE.PACKAGE:
-      result['binary_ids'] = self.bundle_binary_ids
-
     return result

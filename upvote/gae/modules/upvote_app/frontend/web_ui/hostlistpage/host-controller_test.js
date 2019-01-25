@@ -15,6 +15,7 @@
 goog.setTestOnly();
 
 goog.require('upvote.errornotifier.module');
+goog.require('upvote.exemptions.module');
 goog.require('upvote.hostlistpage.HostListController');
 goog.require('upvote.hosts.module');
 goog.require('upvote.shared.Page');
@@ -24,17 +25,20 @@ const HostListController = upvote.hostlistpage.HostListController;
 
 
 describe('Host List Controller', () => {
-  let hostService, hostUtilsService, errorService, location, q, rootScope, page;
+  let exemptionService, hostService, hostUtilsService, errorService, location,
+      q, rootScope, page;
   let ctrl;
 
   beforeEach(/** @suppress {missingProperties} */ () => {
     angular.mock.module(upvote.errornotifier.module.name);
+    angular.mock.module(upvote.exemptions.module.name);
     angular.mock.module(upvote.hosts.module.name);
 
     angular.mock.inject(
-        (_hostService_, _hostUtilsService_, _errorService_, $location, $q,
-         $rootScope) => {
+        (_exemptionService_, _hostService_, _hostUtilsService_, _errorService_,
+         $location, $q, $rootScope) => {
           // Store injected components.
+          exemptionService = _exemptionService_;
           hostService = _hostService_;
           hostUtilsService = _hostUtilsService_;
           errorService = _errorService_;
@@ -46,7 +50,8 @@ describe('Host List Controller', () => {
           // Create spies.
           hostService.getAssociatedHosts =
               jasmine.createSpy('getAssociatedHosts');
-          hostService.requestLockdown = jasmine.createSpy('requestLockdown');
+          exemptionService.cancelExemption =
+              jasmine.createSpy('cancelExemption');
           errorService.createDialogFromError =
               jasmine.createSpy('createDialogFromError');
           errorService.createToastFromError =
@@ -69,7 +74,8 @@ describe('Host List Controller', () => {
   });
 
   let buildController = () => new HostListController(
-      hostService, hostUtilsService, errorService, location, page);
+      exemptionService, hostService, hostUtilsService, errorService, location,
+      page);
 
   /**
    * @param {?Object=} opt_properties
@@ -178,26 +184,47 @@ describe('Host List Controller', () => {
       // Update the client mode.
       let host = getSantaHost({'id': 'foo', 'clientMode': 'bar'});
       setHosts([host]);
-      hostService.requestLockdown['and']['returnValue'](q.resolve(host));
+      exemptionService.cancelExemption['and']['returnValue'](q.resolve(host));
 
-      ctrl.requestLockdown('foo');
+      ctrl.cancelExemption('foo');
       rootScope.$apply();
 
-      expect(hostService.requestLockdown).toHaveBeenCalledWith('foo');
+      expect(exemptionService.cancelExemption).toHaveBeenCalledWith('foo');
       expect(hostService.getAssociatedHosts['calls'].count()).toEqual(2);
       // Verify that the client mode has changed.
       expect(ctrl.hosts[0]['clientMode']).toEqual('bar');
     });
 
     it('when the request fails, an error dialog should be shown', () => {
-      hostService.requestLockdown['and']['returnValue'](q.reject({}));
+      exemptionService.cancelExemption['and']['returnValue'](q.reject({}));
 
-      ctrl.requestLockdown('foo');
+      ctrl.cancelExemption('foo');
       rootScope.$apply();
 
-      expect(hostService.requestLockdown).toHaveBeenCalledWith('foo');
+      expect(exemptionService.cancelExemption).toHaveBeenCalledWith('foo');
       expect(errorService.createDialogFromError).toHaveBeenCalled();
     });
   });
+
+  describe('should allow exemption renewal', () => {
+    beforeEach(() => {
+      ctrl = buildController();
+      rootScope.$apply();
+    });
+
+    it('when an exemption is approved', () => {
+      let host = getSantaHost({
+        'id': 'foo',
+        'clientMode': 'bar',
+        'exemption': {'state': 'APPROVED'}
+      });
+      setHosts([host]);
+
+      rootScope.$apply();
+
+      expect(ctrl.isExemptionRenewable(host)).toBe(true);
+    });
+  });
+
 });
 });  // goog.scope

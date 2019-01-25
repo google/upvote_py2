@@ -29,6 +29,11 @@ span.unprotected-host, button.protected-host {
   color: #FF5252;
 }
 
+span.bad-exemption-state {
+  color: #FF5252;
+  font-weight: bold;
+}
+
 button.visibility-button {
   float: right;
   min-width: 40px;

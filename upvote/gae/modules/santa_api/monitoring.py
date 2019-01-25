@@ -14,24 +14,18 @@
 
 """Monitoring metrics for the santa_api AppEngine module."""
 
-from upvote.gae.shared.common import monitoring
+from upvote.gae.utils import monitoring_utils
 from upvote.monitoring import metrics
 
 
-preflight_requests = monitoring.RequestCounter(
+preflight_requests = monitoring_utils.RequestCounter(
     metrics.SANTA_API.PREFLIGHT_REQUESTS)
 
-event_upload_requests = monitoring.RequestCounter(
+event_upload_requests = monitoring_utils.RequestCounter(
     metrics.SANTA_API.EVENT_UPLOAD_REQUESTS)
 
-log_upload_requests = monitoring.RequestCounter(
-    metrics.SANTA_API.LOG_UPLOAD_REQUESTS)
-
-binary_upload_requests = monitoring.RequestCounter(
-    metrics.SANTA_API.BINARY_UPLOAD_REQUESTS)
-
-rule_download_requests = monitoring.RequestCounter(
+rule_download_requests = monitoring_utils.RequestCounter(
     metrics.SANTA_API.RULE_DOWNLOAD_REQUESTS)
 
-postflight_requests = monitoring.RequestCounter(
+postflight_requests = monitoring_utils.RequestCounter(
     metrics.SANTA_API.POSTFLIGHT_REQUESTS)

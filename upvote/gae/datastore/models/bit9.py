@@ -21,12 +21,17 @@ from google.appengine.ext import ndb
 from common.cloud_kms import kms_ndb
 from upvote.gae.datastore.models import base
 from upvote.gae.datastore.models import mixin
+from upvote.gae.datastore.models import rule as rule_models
 from upvote.gae.datastore.models import singleton
 from upvote.shared import constants
 
 _KEY_LOC = 'global'
 _KEY_RING = 'ring'
 _KEY_NAME = 'bit9'
+
+
+# Done for the sake of brevity.
+_POLICY = constants.RULE_POLICY
 
 
 class Bit9ApiAuth(singleton.Singleton):
@@ -129,20 +134,20 @@ class Bit9Binary(mixin.Bit9, base.Binary):
       The current installer state prescribed by Upvote.
     """
     # pylint: disable=g-explicit-bool-comparison, singleton-comparison
-    query = Bit9Rule.query(
-        Bit9Rule.in_effect == True,
+    query = rule_models.Bit9Rule.query(
+        rule_models.Bit9Rule.in_effect == True,
         ndb.OR(
-            Bit9Rule.policy == constants.RULE_POLICY.FORCE_INSTALLER,
-            Bit9Rule.policy == constants.RULE_POLICY.FORCE_NOT_INSTALLER),
+            rule_models.Bit9Rule.policy == _POLICY.FORCE_INSTALLER,
+            rule_models.Bit9Rule.policy == _POLICY.FORCE_NOT_INSTALLER),
         ancestor=self.key
-    ).order(-Bit9Rule.updated_dt)
+    ).order(-rule_models.Bit9Rule.updated_dt)
     # pylint: enable=g-explicit-bool-comparison, singleton-comparison
 
     installer_rule = query.get()
     if installer_rule is None:
       return self.detected_installer
     else:
-      return installer_rule.policy == constants.RULE_POLICY.FORCE_INSTALLER
+      return installer_rule.policy == _POLICY.FORCE_INSTALLER
 
 
 class Bit9Certificate(mixin.Bit9, base.Certificate):
@@ -170,22 +175,6 @@ class Bit9Certificate(mixin.Bit9, base.Certificate):
     defaults.update(kwargs.copy())
 
     super(Bit9Certificate, self).InsertBigQueryRow(action, **defaults)
-
-
-class Bit9Rule(mixin.Bit9, base.Rule):
-  """A rule dictating a certain policy should be applied to a blockable.
-
-  Attributes:
-    is_committed: bool, Whether the policy has been committed to Bit9.
-    is_fulfilled: bool, Whether the local policy was fulfilled by Bit9.
-        If not, the specific host has no fileInstance entity associated with
-        the associated blockable (i.e. the host has never seen it before) so
-        local whitelisting is impossible. It can become fulfilled in the future
-        if the blockable is run on the host.
-        This field is only meaningful for local rules when is_committed is True.
-  """
-  is_committed = ndb.BooleanProperty(default=False)
-  is_fulfilled = ndb.BooleanProperty()
 
 
 class BanDescriptionNote(base.Note):

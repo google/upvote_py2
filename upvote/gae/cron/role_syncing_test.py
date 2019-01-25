@@ -25,7 +25,7 @@ from upvote.gae.cron import role_syncing
 from upvote.gae.datastore import test_utils
 from upvote.gae.datastore.models import user as user_models
 from upvote.gae.lib.testing import basetest
-from upvote.gae.shared.common import user_map
+from upvote.gae.utils import user_utils
 from upvote.shared import constants
 
 
@@ -57,8 +57,9 @@ class SyncRolesTest(basetest.UpvoteTestCase):
     expected_vote_weight = max(voting_weights[r] for r in expected_roles)
     self.assertEqual(expected_vote_weight, user.vote_weight)
 
+  @mock.patch.object(role_syncing, '_SYNCING_ERRORS')
   @mock.patch.object(role_syncing.group_utils, 'GroupManager')
-  def testGet_GroupDoesNotExist(self, mock_ctor):
+  def testGet_GroupDoesNotExist(self, mock_ctor, mock_metric):
     """Tests a sync with a nonexistent group."""
 
     self.PatchSetting(
@@ -79,6 +80,8 @@ class SyncRolesTest(basetest.UpvoteTestCase):
 
     self.VerifyUser(user1.email, [USER])
     self.VerifyUser(user2.email, [USER])
+
+    mock_metric.Increment.assert_called_once()
 
   @mock.patch.object(role_syncing.group_utils, 'GroupManager')
   def testGet_AddRole(self, mock_ctor):
@@ -184,6 +187,29 @@ class SyncRolesTest(basetest.UpvoteTestCase):
     self.VerifyUser(user2.email, [USER, TRUSTED_USER])
 
     self.assertBigQueryInsertions([constants.BIGQUERY_TABLE.USER] * 2)
+
+  @mock.patch.object(role_syncing, '_SYNCING_ERRORS')
+  @mock.patch.object(role_syncing.group_utils, 'GroupManager')
+  def testGet_RemoveRole_NoRolesError(self, mock_ctor, mock_metric):
+    """Tests all roles being removed from a user."""
+
+    self.PatchSetting('GROUP_ROLE_ASSIGNMENTS', {TRUSTED_USER: ['group1']})
+    user1 = test_utils.CreateUser(roles=[TRUSTED_USER])
+
+    mock_group_client = mock.Mock()
+    mock_ctor.return_value = mock_group_client
+    mock_group_client.AllMembers.return_value = []
+
+    self.VerifyUser(user1.email, [TRUSTED_USER])
+
+    response = self.testapp.get(
+        self.ROUTE, headers={'X-AppEngine-Cron': 'true'})
+    self.assertEqual(httplib.OK, response.status_int)
+
+    self.VerifyUser(user1.email, [TRUSTED_USER])
+
+    self.assertNoBigQueryInsertions()
+    mock_metric.Increment.assert_called_once()
 
   @mock.patch.object(role_syncing.group_utils, 'GroupManager')
   def testGet_ExistingRole_RemoveGroup(self, mock_ctor):
@@ -321,7 +347,7 @@ class ClientModeChangeHandlerTest(basetest.UpvoteTestCase):
         test_utils.CreateUser() for _ in xrange(role_syncing.BATCH_SIZE - 1)]
     hosts = [
         test_utils.CreateSantaHost(
-            primary_user=user_map.EmailToUsername(user.key.id()),
+            primary_user=user_utils.EmailToUsername(user.key.id()),
             client_mode=MONITOR)
         for user in users]
     mock_ctor.return_value.AllMembers.return_value = [
@@ -345,7 +371,7 @@ class ClientModeChangeHandlerTest(basetest.UpvoteTestCase):
         test_utils.CreateUser() for _ in xrange(role_syncing.BATCH_SIZE + 1)]
     hosts = [
         test_utils.CreateSantaHost(
-            primary_user=user_map.EmailToUsername(user.key.id()),
+            primary_user=user_utils.EmailToUsername(user.key.id()),
             client_mode=MONITOR)
         for user in users]
     mock_ctor.return_value.AllMembers.return_value = [
@@ -382,7 +408,7 @@ class ChangeModeForHostsTest(basetest.UpvoteTestCase):
   def testClientModeLockOnHonored(self):
 
     host = test_utils.CreateSantaHost(
-        primary_user=user_map.EmailToUsername(self.user.key.id()),
+        primary_user=user_utils.EmailToUsername(self.user.key.id()),
         client_mode=MONITOR, client_mode_lock=True)
     role_syncing._ChangeModeForHosts(LOCKDOWN, [self.user.key])
 
@@ -393,7 +419,7 @@ class ChangeModeForHostsTest(basetest.UpvoteTestCase):
   def testClientModeLockOnNotHonored(self):
 
     host = test_utils.CreateSantaHost(
-        primary_user=user_map.EmailToUsername(self.user.key.id()),
+        primary_user=user_utils.EmailToUsername(self.user.key.id()),
         client_mode=MONITOR, client_mode_lock=True)
     role_syncing._ChangeModeForHosts(
         LOCKDOWN, [self.user.key], honor_lock=False)
@@ -405,7 +431,7 @@ class ChangeModeForHostsTest(basetest.UpvoteTestCase):
   def testNoModeChange(self):
 
     host = test_utils.CreateSantaHost(
-        primary_user=user_map.EmailToUsername(self.user.key.id()),
+        primary_user=user_utils.EmailToUsername(self.user.key.id()),
         client_mode=LOCKDOWN)
     role_syncing._ChangeModeForHosts(LOCKDOWN, [self.user.key])
 
@@ -415,7 +441,7 @@ class ChangeModeForHostsTest(basetest.UpvoteTestCase):
   def testModeChange(self):
 
     host = test_utils.CreateSantaHost(
-        primary_user=user_map.EmailToUsername(self.user.key.id()),
+        primary_user=user_utils.EmailToUsername(self.user.key.id()),
         client_mode=MONITOR)
     role_syncing._ChangeModeForHosts(LOCKDOWN, [self.user.key])
 

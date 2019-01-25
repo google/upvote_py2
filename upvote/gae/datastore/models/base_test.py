@@ -26,11 +26,11 @@ from upvote.gae.datastore.models import base
 from upvote.gae.datastore.models import utils as model_utils
 from upvote.gae.datastore.models import vote as vote_models
 from upvote.gae.lib.testing import basetest
-from upvote.gae.shared.common import user_map
+from upvote.gae.utils import user_utils
 from upvote.shared import constants
 
 
-_TEST_EMAIL = user_map.UsernameToEmail('testemail')
+_TEST_EMAIL = user_utils.UsernameToEmail('testemail')
 
 
 class EventTest(basetest.UpvoteTestCase):
@@ -198,23 +198,6 @@ class BlockableTest(basetest.UpvoteTestCase):
     ndb.put_multi(new_votes)
 
     self.assertLen(self.blockable_1.GetVotes(), 0)
-
-  def testGetRules(self):
-    self.assertLen(self.blockable_1.GetRules(), 0)
-    self.assertLen(self.blockable_2.GetRules(), 0)
-
-    test_utils.CreateSantaRule(self.blockable_1.key)
-    test_utils.CreateSantaRule(self.blockable_1.key)
-    test_utils.CreateSantaRule(self.blockable_1.key, **{'in_effect': False})
-    test_utils.CreateSantaRule(self.blockable_2.key)
-    test_utils.CreateSantaRule(self.blockable_2.key)
-    test_utils.CreateSantaRule(self.blockable_2.key)
-    test_utils.CreateSantaRule(self.blockable_2.key, **{'in_effect': False})
-
-    self.assertLen(self.blockable_1.GetRules(), 2)
-    self.assertLen(self.blockable_2.GetRules(), 3)
-    self.assertLen(self.blockable_1.GetRules(in_effect=False), 3)
-    self.assertLen(self.blockable_2.GetRules(in_effect=False), 4)
 
   def testGetStrongestVote_Upvote(self):
 
@@ -389,61 +372,6 @@ class BinaryTest(basetest.UpvoteTestCase):
 
   def testToDict(self):
     self.assertIn('cert_id', self.blockable.to_dict())
-
-
-class RuleTest(basetest.UpvoteTestCase):
-
-  def testInsertBigQueryRow_LocalRule_UserKeyMissing(self):
-    """Verifies that a LOCAL row is inserted, even if user_key is missing.
-
-    The host_id and user_key columns have to be NULLABLE in order to support
-    GLOBAL rows (which will lack values for both of these columns). If user_key
-    is mistakenly omitted, we should still insert a LOCAL row with the values
-    we have.
-    """
-    blockable_key = test_utils.CreateSantaBlockable().key
-    local_rule = test_utils.CreateSantaRule(blockable_key, host_id='12345')
-    local_rule.InsertBigQueryRow()
-
-    self.assertBigQueryInsertions(
-        [constants.BIGQUERY_TABLE.RULE], reset_mock=False)
-
-    calls = self.GetBigQueryCalls()
-    self.assertLen(calls, 1)
-    self.assertEqual(constants.RULE_SCOPE.LOCAL, calls[0][1].get('scope'))
-
-  def testInsertBigQueryRow_LocalRule_HostIdMissing(self):
-    """Verifies that a LOCAL row is inserted, even if host_id is missing.
-
-    The host_id and user_key columns have to be NULLABLE in order to support
-    GLOBAL rows (which will lack values for both of these columns). If host_id
-    is mistakenly omitted, we should still insert a LOCAL row with the values
-    we have.
-    """
-    blockable_key = test_utils.CreateSantaBlockable().key
-    user_key = test_utils.CreateUser().key
-    local_rule = test_utils.CreateSantaRule(blockable_key, user_key=user_key)
-    local_rule.InsertBigQueryRow()
-
-    self.assertBigQueryInsertions(
-        [constants.BIGQUERY_TABLE.RULE], reset_mock=False)
-
-    calls = self.GetBigQueryCalls()
-    self.assertLen(calls, 1)
-    self.assertEqual(constants.RULE_SCOPE.LOCAL, calls[0][1].get('scope'))
-
-  def testInsertBigQueryRow_GlobalRule(self):
-
-    blockable_key = test_utils.CreateSantaBlockable().key
-    global_rule = test_utils.CreateSantaRule(blockable_key)
-    global_rule.InsertBigQueryRow()
-
-    self.assertBigQueryInsertions(
-        [constants.BIGQUERY_TABLE.RULE], reset_mock=False)
-
-    calls = self.GetBigQueryCalls()
-    self.assertLen(calls, 1)
-    self.assertEqual(constants.RULE_SCOPE.GLOBAL, calls[0][1].get('scope'))
 
 
 if __name__ == '__main__':

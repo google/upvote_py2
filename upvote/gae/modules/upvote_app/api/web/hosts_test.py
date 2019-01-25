@@ -19,12 +19,9 @@ import httplib
 
 import webapp2
 
-from upvote.gae import settings
 from upvote.gae.datastore import test_utils
 from upvote.gae.datastore import utils as datastore_utils
-from upvote.gae.datastore.models import exemption
 from upvote.gae.datastore.models import host as host_models
-from upvote.gae.datastore.models import tickets
 from upvote.gae.datastore.models import utils as model_utils
 from upvote.gae.lib.testing import basetest
 from upvote.gae.lib.testing import test_utils as common_test_utils
@@ -287,6 +284,33 @@ class AssociatedHostHandlerTest(HostsTest):
       self.testapp.get(
           self.USER_ID_ROUTE % 'NotAUser', status=httplib.NOT_FOUND)
 
+  def testGetByUserId_WithExemption(self):
+
+    user = test_utils.CreateUser()
+    bit9_host_id = test_utils.CreateBit9Host(users=[user.nickname]).key.id()
+    test_utils.CreateExemption(bit9_host_id).get()
+
+    with self.LoggedInUser(admin=True):
+      response = self.testapp.get(self.USER_ID_ROUTE % user.key.id())
+
+    output = response.json
+    self.assertLen(output, 1)
+    self.assertIn('exemption', output[0])
+    self.assertIsNotNone(output[0]['exemption'])
+
+  def testGetByUserId_WithoutExemption(self):
+
+    user = test_utils.CreateUser()
+    test_utils.CreateBit9Host(users=[user.nickname]).key.id()
+
+    with self.LoggedInUser(admin=True):
+      response = self.testapp.get(self.USER_ID_ROUTE % user.key.id())
+
+    output = response.json
+    self.assertLen(output, 1)
+    self.assertIn('exemption', output[0])
+    self.assertIsNone(output[0]['exemption'])
+
   def testGetSelf(self):
 
     user = test_utils.CreateUser()
@@ -356,332 +380,142 @@ class AssociatedHostHandlerTest(HostsTest):
     output = response.json
     self.assertLen(output, 0)
 
+  def testGetSelf_WithExemption(self):
 
-class HostExceptionHandlerTest(HostsTest):
-  """Test HostExceptionHandler class."""
+    user = test_utils.CreateUser()
+    bit9_host_id = test_utils.CreateBit9Host(users=[user.nickname]).key.id()
+    test_utils.CreateExemption(bit9_host_id)
 
-  ROUTE = '/hosts/%s/request-exception'
-
-  def setUp(self):
-    super(HostExceptionHandlerTest, self).setUp()
-
-    self.user = test_utils.CreateUser(admin=True)
-
-    self.santa_blockable = test_utils.CreateSantaBlockable()
-    self.santa_event = test_utils.CreateSantaEvent(
-        self.santa_blockable,
-        host_id=self.santa_host_3.key.id(),
-        executing_user=self.user.nickname,
-        parent=datastore_utils.ConcatenateKeys(
-            self.user.key, self.santa_host_3.key,
-            self.santa_blockable.key))
-
-    self.santa_blockable.put()
-    self.santa_event.put()
-
-    self.PatchEnv(settings.ProdEnv, ENABLE_BIGQUERY_STREAMING=True)
-
-  def testCreateHostException_Success(self):
-    params = {'reason': constants.EXEMPTION_REASON.DEVELOPER_MACOS}
-    with self.LoggedInUser(user=self.user):
-      response = self.testapp.post(
-          self.ROUTE % self.santa_host_3.key.id(), params)
-    self.assertEqual(httplib.OK, response.status_int)
-    self.assertEqual(response.json['id'], self.santa_host_3.key.id())
-
-    self.assertBigQueryInsertions([
-        constants.BIGQUERY_TABLE.HOST,
-    ])
-
-    ticket = tickets.HostExceptionTicket.query().get()
-    self.assertEqual(self.santa_host_3.key.id(), ticket.host_id)
-    self.assertEqual(self.user.email, ticket.user_id)
-    self.assertEqual(
-        constants.EXEMPTION_REASON.DEVELOPER_MACOS, ticket.reason)
-    self.assertIsNone(ticket.other_text)
-
-    updated_host = self.santa_host_3.key.get()
-    self.assertTrue(updated_host.client_mode_lock)
-    self.assertEqual(
-        constants.SANTA_CLIENT_MODE.MONITOR, updated_host.client_mode)
-
-  def testCreateHostException_ReRequest(self):
-
-    params = {'reason': constants.EXEMPTION_REASON.DEVELOPER_MACOS}
-    with self.LoggedInUser(user=self.user):
-      response = self.testapp.post(
-          self.ROUTE % self.santa_host_3.key.id(), params)
-    self.assertEqual(httplib.OK, response.status_int)
-    self.assertEqual(response.json['id'], self.santa_host_3.key.id())
-
-    self.assertBigQueryInsertions([
-        constants.BIGQUERY_TABLE.HOST,
-    ])
-
-    host = self.santa_host_3.key.get()
-    self.assertTrue(host.client_mode_lock)
-    self.assertEqual(
-        constants.SANTA_CLIENT_MODE.MONITOR, host.client_mode)
-
-    # Revert the client mode.
-    host.client_mode_lock = True
-    host.client_mode = constants.SANTA_CLIENT_MODE.LOCKDOWN
-    host.put()
-
-    # Request again.
-    params = {'reason': constants.EXEMPTION_REASON.DEVELOPER_MACOS}
-    with self.LoggedInUser(user=self.user):
-      response = self.testapp.post(
-          self.ROUTE % self.santa_host_3.key.id(), params)
-    self.assertEqual(httplib.OK, response.status_int)
-    self.assertEqual(response.json['id'], self.santa_host_3.key.id())
-
-    self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.HOST)
-
-    host = self.santa_host_3.key.get()
-    self.assertTrue(host.client_mode_lock)
-    self.assertEqual(
-        constants.SANTA_CLIENT_MODE.MONITOR, host.client_mode)
-
-  def testCreateHostException_OtherReason(self):
-    params = {'reason': constants.EXEMPTION_REASON.OTHER,
-              'otherText': 'foo'}
-    with self.LoggedInUser(user=self.user):
-      self.testapp.post(self.ROUTE % self.santa_host_3.key.id(), params)
-
-    self.assertBigQueryInsertions([
-        constants.BIGQUERY_TABLE.HOST,
-    ])
-
-    ticket = tickets.HostExceptionTicket.query().get()
-    self.assertEqual(constants.EXEMPTION_REASON.OTHER, ticket.reason)
-    self.assertEqual('foo', ticket.other_text)
-
-    updated_host = self.santa_host_3.key.get()
-    self.assertTrue(updated_host.client_mode_lock)
-    self.assertEqual(
-        constants.SANTA_CLIENT_MODE.MONITOR, updated_host.client_mode)
-
-  def testCreateHostException_UnknownHostError(self):
-    params = {'reason': constants.EXEMPTION_REASON.DEVELOPER_MACOS}
-    with self.LoggedInUser(user=self.user):
-      self.testapp.post(
-          self.ROUTE % 'NotAHost', params, status=httplib.NOT_FOUND)
-
-  def testCreateHostException_AdminCreate(self):
-    with self.LoggedInUser(admin=True) as admin:
-      self.assertFalse(
-          model_utils.IsHostAssociatedWithUser(self.santa_host_3, admin))
-
-      params = {'reason': constants.EXEMPTION_REASON.DEVELOPER_MACOS}
-      response = self.testapp.post(
-          self.ROUTE % self.santa_host_3.key.id(), params)
-
-      self.assertBigQueryInsertions([
-          constants.BIGQUERY_TABLE.HOST,
-      ])
-
-      self.assertTrue(response)
-      self.assertTrue(tickets.HostExceptionTicket.query().get())
-
-  def testCreateHostException_UnownedHost(self):
-    superuser = test_utils.CreateUser(
-        roles=[constants.USER_ROLE.SUPERUSER])
-    params = {'reason': constants.EXEMPTION_REASON.DEVELOPER_MACOS}
-    with self.LoggedInUser(user=superuser):
-      self.testapp.post(
-          self.ROUTE % self.santa_host_2.key.id(), params,
-          status=httplib.FORBIDDEN)
-
-  def testCreateHostException_ExistingTicket(self):
-    params = {'reason': constants.EXEMPTION_REASON.DEVELOPER_MACOS}
-    with self.LoggedInUser(user=self.user):
-      response = self.testapp.post(
-          self.ROUTE % self.santa_host_3.key.id(), params)
-    self.assertEqual(httplib.OK, response.status_int)
-
-    self.assertBigQueryInsertions([
-        constants.BIGQUERY_TABLE.HOST,
-    ])
-
-
-  def testCreateHostException_NoReason(self):
-    with self.LoggedInUser(user=self.user):
-      self.testapp.post(
-          self.ROUTE % self.santa_host_3.key.id(), status=httplib.BAD_REQUEST)
-
-  def testCreateHostException_BadReason(self):
-    params = {'reason': 'NotARealReason'}
-    with self.LoggedInUser(user=self.user):
-      self.testapp.post(
-          self.ROUTE % self.santa_host_3.key.id(), params,
-          status=httplib.BAD_REQUEST)
-
-  def testCreateHostException_NoOtherReason(self):
-    params = {'reason': constants.EXEMPTION_REASON.OTHER}
-    with self.LoggedInUser(user=self.user):
-      self.testapp.post(
-          self.ROUTE % self.santa_host_3.key.id(), params,
-          status=httplib.BAD_REQUEST)
-
-  def testGetHostException(self):
-    tickets.HostExceptionTicket.get_open_or_insert_did_insert(
-        self.user.key.id(), self.santa_host_3.key.id())
-
-    with self.LoggedInUser(user=self.user):
-      response = self.testapp.get(self.ROUTE % self.santa_host_3.key.id())
+    with self.LoggedInUser(user=user):
+      response = self.testapp.get(self.SELF_ROUTE)
 
     output = response.json
+    self.assertLen(output, 1)
+    self.assertIn('exemption', output[0])
+    self.assertIsNotNone(output[0]['exemption'])
 
-    self.assertEqual(self.user.email, output['userId'])
-    self.assertEqual(self.santa_host_3.key.id(), output['hostId'])
+  def testGetSelf_WithoutExemption(self):
 
-  def testGetHostException_UnknownHostError(self):
-    with self.LoggedInUser(user=self.user):
-      self.testapp.get(self.ROUTE % 'NotAHost', status=httplib.NOT_FOUND)
+    user = test_utils.CreateUser()
+    test_utils.CreateBit9Host(users=[user.nickname]).key.id()
 
-  def testGetHostException_UnownedHost(self):
-    with self.LoggedInUser():
-      self.testapp.get(
-          self.ROUTE % self.santa_host_2.key.id(), status=httplib.FORBIDDEN)
+    with self.LoggedInUser(user=user):
+      response = self.testapp.get(self.SELF_ROUTE)
 
-  def testGetHostException_NoTicket(self):
-    with self.LoggedInUser(user=self.user):
-      self.testapp.get(
-          self.ROUTE % self.santa_host_3.key.id(), status=httplib.NOT_FOUND)
-
-  def testGetHostException_GetByOtherUsername(self):
-    with self.LoggedInUser(admin=True) as admin:
-      tickets.HostExceptionTicket.get_open_or_insert_did_insert(
-          admin.key.id(), self.santa_host_3.key.id())
-
-      params = {'user_id': admin.email}
-      response = self.testapp.get(
-          self.ROUTE % self.santa_host_3.key.id(), params)
-      self.assertEqual(httplib.OK, response.status_int)
-
-  def testGetHostException_AdminGetByOtherUsername(self):
-    tickets.HostExceptionTicket.get_open_or_insert_did_insert(
-        self.user.key.id(), self.santa_host_3.key.id())
-
-    params = {'user_id': self.user.email}
-    with self.LoggedInUser(admin=True):
-      response = self.testapp.get(
-          self.ROUTE % self.santa_host_3.key.id(), params)
-    self.assertEqual(httplib.OK, response.status_int)
+    output = response.json
+    self.assertLen(output, 1)
+    self.assertIn('exemption', output[0])
+    self.assertIsNone(output[0]['exemption'])
 
 
-class LockdownHandlerTest(HostsTest):
-  """Test LockdownHandler class."""
-
-  ROUTE = '/hosts/%s/request-lockdown'
-
-  def setUp(self):
-    super(LockdownHandlerTest, self).setUp()
-
-    self.user = test_utils.CreateUser()
-
-    self.santa_blockable = test_utils.CreateSantaBlockable()
-    self.santa_event = test_utils.CreateSantaEvent(
-        self.santa_blockable,
-        host_id=self.santa_host_3.key.id(),
-        parent=datastore_utils.ConcatenateKeys(
-            self.user.key, self.santa_host_3.key, self.santa_blockable.key))
-
-    self.santa_blockable.put()
-    self.santa_event.put()
-
-    self.santa_host_3.client_mode = constants.SANTA_CLIENT_MODE.MONITOR
-    self.santa_host_3.put()
-
-  def testPost(self):
-    with self.LoggedInUser(user=self.user):
-      response = self.testapp.post(self.ROUTE % self.santa_host_3.key.id())
-    self.assertEqual(httplib.OK, response.status_int)
-    self.assertEqual(response.json['id'], self.santa_host_3.key.id())
-
-    updated_host = self.santa_host_3.key.get()
-    self.assertEqual(
-        response.json['clientModeLock'], updated_host.client_mode_lock)
-    self.assertTrue(updated_host.client_mode_lock)
-    self.assertEqual(
-        constants.SANTA_CLIENT_MODE.LOCKDOWN, updated_host.client_mode)
-
-    self.assertBigQueryInsertions([constants.BIGQUERY_TABLE.HOST])
-
-  def testPost_Admin(self):
-    with self.LoggedInUser(admin=True):
-      response = self.testapp.post(self.ROUTE % self.santa_host_3.key.id())
-    self.assertEqual(httplib.OK, response.status_int)
-
-    updated_host = self.santa_host_3.key.get()
-    self.assertTrue(updated_host.client_mode_lock)
-    self.assertEqual(
-        constants.SANTA_CLIENT_MODE.LOCKDOWN, updated_host.client_mode)
-
-    self.assertBigQueryInsertions([constants.BIGQUERY_TABLE.HOST])
-
-  def testPost_UnknownHostError(self):
-    with self.LoggedInUser(user=self.user):
-      self.testapp.post(self.ROUTE % 'NotAHost', status=httplib.NOT_FOUND)
-
-  def testPost_UnownedHost(self):
-    with self.LoggedInUser(user=self.user):
-      self.testapp.post(
-          self.ROUTE % self.santa_host_2.key.id(), status=httplib.FORBIDDEN)
-
-
-class VisibilityHandlerTest(HostsTest):
+class BooleanPropertyHandlerTest(basetest.UpvoteTestCase):
 
   ROUTE = '/hosts/%s/hidden/%s'
 
   def setUp(self):
-    super(VisibilityHandlerTest, self).setUp()
+    app = webapp2.WSGIApplication(routes=[hosts.ROUTES])
+    super(BooleanPropertyHandlerTest, self).setUp(wsgi_app=app)
+    self.PatchValidateXSRFToken()
 
-    self.user = test_utils.CreateUser()
-
-    self.santa_host_1.primary_user = self.user.nickname
-    self.santa_host_1.hidden = False
-    self.santa_host_1.put()
-
-  def testUnhide_Success(self):
-    self.santa_host_1.hidden = True
-    self.santa_host_1.put()
-
-    with self.LoggedInUser(user=self.user):
-      self.testapp.put(
-          self.ROUTE % (self.santa_host_1.key.id(), 'false'), status=httplib.OK)
-    self.assertFalse(self.santa_host_1.key.get().hidden)
-
-  def testHide_Success(self):
-    with self.LoggedInUser(user=self.user):
-      self.testapp.put(
-          self.ROUTE % (self.santa_host_1.key.id(), 'true'), status=httplib.OK)
-    self.assertTrue(self.santa_host_1.key.get().hidden)
-
-  def testHide_Capital(self):
-    with self.LoggedInUser(user=self.user):
-      self.testapp.put(
-          self.ROUTE % (self.santa_host_1.key.id(), 'True'), status=httplib.OK)
-    self.assertTrue(self.santa_host_1.key.get().hidden)
-
-  def testHide_Forbidden(self):
+  def testDispatch_HostNotFound(self):
     with self.LoggedInUser():
-      self.testapp.put(
-          self.ROUTE % (self.santa_host_1.key.id(), 'true'),
-          status=httplib.FORBIDDEN)
-    self.assertFalse(self.santa_host_1.key.get().hidden)
+      url = self.ROUTE % ('missing_host_id', 'false')
+      self.testapp.put(url, status=httplib.NOT_FOUND)
 
-  def testHide_NotFound(self):
-    with self.LoggedInUser(user=self.user):
-      self.testapp.put(self.ROUTE % ('DNE', 'true'), status=httplib.NOT_FOUND)
+  def testDispatch_UserNotAssociated(self):
 
-  def testHide_BadRequest(self):
-    with self.LoggedInUser(user=self.user):
-      self.testapp.put(
-          self.ROUTE % (self.santa_host_1.key.id(), 'badrequest'),
-          status=httplib.BAD_REQUEST)
-    self.assertFalse(self.santa_host_1.key.get().hidden)
+    user = test_utils.CreateUser()
+    host = test_utils.CreateSantaHost(primary_user='someone_else')
+    host.put()
+
+    with self.LoggedInUser(user=user):
+      url = self.ROUTE % (host.key.id(), 'false')
+      self.testapp.put(url, status=httplib.FORBIDDEN)
+
+  def testDispatch_InvalidNewValue(self):
+
+    user = test_utils.CreateUser()
+    host = test_utils.CreateSantaHost(primary_user=user.nickname)
+    host.put()
+
+    with self.LoggedInUser(user=user):
+      url = self.ROUTE % (host.key.id(), 'blah')
+      self.testapp.put(url, status=httplib.BAD_REQUEST)
+
+
+class VisibilityHandlerTest(basetest.UpvoteTestCase):
+
+  ROUTE = '/hosts/%s/hidden/%s'
+
+  def setUp(self):
+    app = webapp2.WSGIApplication(routes=[hosts.ROUTES])
+    super(VisibilityHandlerTest, self).setUp(wsgi_app=app)
+    self.PatchValidateXSRFToken()
+
+  def testHide(self):
+
+    user = test_utils.CreateUser()
+    host = test_utils.CreateSantaHost(primary_user=user.nickname, hidden=False)
+
+    with self.LoggedInUser(user=user):
+      url = self.ROUTE % (host.key.id(), 'true')
+      self.testapp.put(url, status=httplib.OK)
+    self.assertTrue(host.key.get().hidden)
+
+  def testReveal(self):
+
+    user = test_utils.CreateUser()
+    host = test_utils.CreateSantaHost(primary_user=user.nickname, hidden=True)
+
+    with self.LoggedInUser(user=user):
+      url = self.ROUTE % (host.key.id(), 'false')
+      self.testapp.put(url, status=httplib.OK)
+    self.assertFalse(host.key.get().hidden)
+
+
+class TransitiveHandlerTest(basetest.UpvoteTestCase):
+
+  ROUTE = '/hosts/%s/transitive/%s'
+
+  def setUp(self):
+    app = webapp2.WSGIApplication(routes=[hosts.ROUTES])
+    super(TransitiveHandlerTest, self).setUp(wsgi_app=app)
+    self.PatchValidateXSRFToken()
+
+  def testNotSantaClient(self):
+
+    user = test_utils.CreateUser()
+    host = test_utils.CreateBit9Host(users=[user.nickname])
+
+    with self.LoggedInUser(user=user):
+      url = self.ROUTE % (host.key.id(), 'true')
+      self.testapp.put(url, status=httplib.FORBIDDEN)
+
+  def testEnable(self):
+
+    user = test_utils.CreateUser()
+    host = test_utils.CreateSantaHost(
+        primary_user=user.nickname, transitive_whitelisting_enabled=False)
+
+    with self.LoggedInUser(user=user):
+      url = self.ROUTE % (host.key.id(), 'true')
+      self.testapp.put(url, status=httplib.OK)
+
+    self.assertTrue(host.key.get().transitive_whitelisting_enabled)
+    self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.HOST)
+
+  def testDisable(self):
+
+    user = test_utils.CreateUser()
+    host = test_utils.CreateSantaHost(
+        primary_user=user.nickname, transitive_whitelisting_enabled=True)
+
+    with self.LoggedInUser(user=user):
+      url = self.ROUTE % (host.key.id(), 'false')
+      self.testapp.put(url, status=httplib.OK)
+
+    self.assertFalse(host.key.get().transitive_whitelisting_enabled)
+    self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.HOST)
 
 
 if __name__ == '__main__':

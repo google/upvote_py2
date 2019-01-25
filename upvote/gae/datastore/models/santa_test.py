@@ -429,23 +429,5 @@ class SantaBundleTest(SantaModelTest):
     self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.BUNDLE)
 
 
-class SantaRuleTest(SantaModelTest):
-
-  def testToDict_Package(self):
-    blockable = test_utils.CreateSantaBlockable()
-    bundle = test_utils.CreateSantaBundle(bundle_binaries=[blockable])
-    rule = test_utils.CreateSantaRule(
-        bundle.key, rule_type=constants.RULE_TYPE.PACKAGE)
-
-    self.assertSameElements([blockable.key.id()], rule.to_dict()['binary_ids'])
-
-  def testToDict_NotPackage(self):
-    blockable = test_utils.CreateSantaBlockable()
-    rule = test_utils.CreateSantaRule(
-        blockable.key, rule_type=constants.RULE_TYPE.BINARY)
-
-    self.assertNotIn('binary_ids', rule.to_dict())
-
-
 if __name__ == '__main__':
   basetest.main()

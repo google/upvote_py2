@@ -122,17 +122,35 @@ GROUP_ROLE_ASSIGNMENTS = {
     constants.USER_ROLE.ADMINISTRATOR: ['admin-users'],
 }
 
-# Certificate hashes that are critical to the macOS platform.
-CRITICAL_MAC_OS_CERT_HASHES = [
+
+# Critical Rules that must be present in Datastore.
+CRITICAL_RULES = [
 
     # Google Certificate for Chrome
-    '345a8e098bd04794aaeefda8c9ef56a0bf3d3706d67d35bc0e23f11bb3bffce5',
+    settings_utils.CriticalRule(
+        sha256=(
+            '345a8e098bd04794aaeefda8c9ef56a0bf3d3706d67d35bc0e23f11bb3bffce5'),
+        platform=constants.PLATFORM.MACOS,
+        rule_type=constants.RULE_TYPE.CERTIFICATE,
+        rule_policy=constants.RULE_POLICY.WHITELIST),
 
     # Apple Software Signing for macOS 10.10, 10.11, 10.12, and 10.13
-    '2aa4b9973b7ba07add447ee4da8b5337c3ee2c3a991911e80e7282e8a751fc32',
+    settings_utils.CriticalRule(
+        sha256=(
+            '2aa4b9973b7ba07add447ee4da8b5337c3ee2c3a991911e80e7282e8a751fc32'),
+        platform=constants.PLATFORM.MACOS,
+        rule_type=constants.RULE_TYPE.CERTIFICATE,
+        rule_policy=constants.RULE_POLICY.WHITELIST),
 
     # Google Certificate for Santa
-    '33b9aee3b089c922952c9240a40a0daa271bebf192cf3f7d964722e8f2170e48']
+    settings_utils.CriticalRule(
+        sha256=(
+            '33b9aee3b089c922952c9240a40a0daa271bebf192cf3f7d964722e8f2170e48'),
+        platform=constants.PLATFORM.MACOS,
+        rule_type=constants.RULE_TYPE.CERTIFICATE,
+        rule_policy=constants.RULE_POLICY.WHITELIST),
+]
+
 
 # These groups mandate a specific client mode for all Santa clients belonging to
 # the users in the associated group.

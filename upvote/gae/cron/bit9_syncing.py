@@ -15,10 +15,8 @@
 """Cron handlers responsible for all Bit9 syncing."""
 
 import datetime
-import httplib
 import logging
 import random
-import re
 import time
 
 import webapp2
@@ -35,6 +33,7 @@ from upvote.gae.datastore import utils as datastore_utils
 from upvote.gae.datastore.models import base
 from upvote.gae.datastore.models import bit9
 from upvote.gae.datastore.models import host as host_models
+from upvote.gae.datastore.models import rule as rule_models
 from upvote.gae.datastore.models import user as user_models
 from upvote.gae.datastore.models import utils as model_utils
 from upvote.gae.lib.analysis import metrics
@@ -43,10 +42,10 @@ from upvote.gae.lib.bit9 import change_set
 from upvote.gae.lib.bit9 import constants as bit9_constants
 from upvote.gae.lib.bit9 import monitoring
 from upvote.gae.lib.bit9 import utils as bit9_utils
-from upvote.gae.shared.common import user_map
 from upvote.gae.taskqueue import utils as taskqueue_utils
 from upvote.gae.utils import handler_utils
 from upvote.gae.utils import time_utils
+from upvote.gae.utils import user_utils
 from upvote.shared import constants
 
 
@@ -73,11 +72,14 @@ _PROCESS_LOCK_TIMEOUT = int(
     datetime.timedelta(minutes=10, seconds=30).total_seconds())
 _PROCESS_LOCK_MAX_ACQUIRE_ATTEMPTS = 1
 
-
 _CERT_MEMCACHE_KEY = 'bit9_cert_%s'
 _CERT_MEMCACHE_TIMEOUT = datetime.timedelta(days=7).total_seconds()
 
 _GET_CERT_ATTEMPTS = 3
+
+
+# Done for the sake of brevity.
+_POLICY = constants.RULE_POLICY
 
 
 class Error(Exception):
@@ -471,11 +473,11 @@ def _CheckAndResolveInstallerState(blockable_key, bit9_policy):
   assert ndb.in_transaction(), 'Policy changes require a transaction'
 
   # pylint: disable=g-explicit-bool-comparison, singleton-comparison
-  installer_query = bit9.Bit9Rule.query(
-      bit9.Bit9Rule.in_effect == True,
+  installer_query = rule_models.Bit9Rule.query(
+      rule_models.Bit9Rule.in_effect == True,
       ndb.OR(
-          bit9.Bit9Rule.policy == constants.RULE_POLICY.FORCE_INSTALLER,
-          bit9.Bit9Rule.policy == constants.RULE_POLICY.FORCE_NOT_INSTALLER),
+          rule_models.Bit9Rule.policy == _POLICY.FORCE_INSTALLER,
+          rule_models.Bit9Rule.policy == _POLICY.FORCE_NOT_INSTALLER),
       ancestor=blockable_key)
   # pylint: enable=g-explicit-bool-comparison, singleton-comparison
   installer_rule = yield installer_query.get_async()
@@ -506,7 +508,7 @@ def _CheckAndResolveInstallerState(blockable_key, bit9_policy):
 
   # Create a rule to reflect the policy in Bit9. It's marked committed and
   # fulfilled because the data's already in Bit9, after all.
-  new_rule = bit9.Bit9Rule(
+  new_rule = rule_models.Bit9Rule(
       rule_type=constants.RULE_TYPE.BINARY, in_effect=True, is_committed=True,
       is_fulfilled=True, policy=bit9_policy, parent=blockable_key)
   new_rule.InsertBigQueryRow(
@@ -605,14 +607,12 @@ def _PersistBit9Binary(event, file_catalog, signing_chain, now):
       file_catalog.file_flags & bit9_constants.FileFlags.MARKED_NOT_INSTALLER)
   if marked or marked_not:
     bit9_policy = (
-        constants.RULE_POLICY.FORCE_INSTALLER
-        if marked
-        else constants.RULE_POLICY.FORCE_NOT_INSTALLER)
+        _POLICY.FORCE_INSTALLER if marked else _POLICY.FORCE_NOT_INSTALLER)
     changed_installer_state = yield _CheckAndResolveInstallerState(
         bit9_binary.key, bit9_policy)
     if changed_installer_state:
       bit9_binary.is_installer = (
-          bit9_policy == constants.RULE_POLICY.FORCE_INSTALLER)
+          bit9_policy == _POLICY.FORCE_INSTALLER)
     changed = changed_installer_state or changed
 
   # Only persist if needed.
@@ -670,7 +670,7 @@ def _CopyLocalRules(user_key, dest_host_id):
       'Copying rules for user %s to host %s', user_key.id(), dest_host_id)
 
   # Query for a host belonging to the user.
-  username = user_map.EmailToUsername(user_key.id())
+  username = user_utils.EmailToUsername(user_key.id())
   query = host_models.Bit9Host.query(host_models.Bit9Host.users == username)
   src_host = yield query.get_async()
   if src_host is None:
@@ -679,10 +679,10 @@ def _CopyLocalRules(user_key, dest_host_id):
   src_host_id = src_host.key.id()
 
   # Query for all the Bit9Rules in effect for the given user on the chosen host.
-  query = bit9.Bit9Rule.query(
-      bit9.Bit9Rule.host_id == src_host_id,
-      bit9.Bit9Rule.user_key == user_key,
-      bit9.Bit9Rule.in_effect == True)  # pylint: disable=g-explicit-bool-comparison, singleton-comparison
+  query = rule_models.Bit9Rule.query(
+      rule_models.Bit9Rule.host_id == src_host_id,
+      rule_models.Bit9Rule.user_key == user_key,
+      rule_models.Bit9Rule.in_effect == True)  # pylint: disable=g-explicit-bool-comparison, singleton-comparison
   src_rules = yield query.fetch_async()
   logging.info(
       'Found a total of %d rule(s) for user %s', len(src_rules), user_key.id())
@@ -764,7 +764,7 @@ def _PersistBit9Host(computer, occurred_dt):
   for new_user in new_users:
 
     # Create User if we haven't seen this user before.
-    email = user_map.UsernameToEmail(new_user)
+    email = user_utils.UsernameToEmail(new_user)
     user = user_models.User.GetOrInsert(email_addr=email)
 
     # Copy the user's local rules over from a pre-existing host.
@@ -848,19 +848,19 @@ def _CheckAndResolveAnomalousBlock(blockable_key, host_id):
   # Check and handle anomalous block events by detecting unfulfilled rules and,
   # if present, attempting to commit them.
   # pylint: disable=g-explicit-bool-comparison, singleton-comparison
-  unfulfilled_rule_query = bit9.Bit9Rule.query(
-      bit9.Bit9Rule.is_committed == True,
-      bit9.Bit9Rule.is_fulfilled == False,
-      bit9.Bit9Rule.host_id == host_id,
+  unfulfilled_rule_query = rule_models.Bit9Rule.query(
+      rule_models.Bit9Rule.is_committed == True,
+      rule_models.Bit9Rule.is_fulfilled == False,
+      rule_models.Bit9Rule.host_id == host_id,
       ancestor=blockable_key
-  ).order(bit9.Bit9Rule.updated_dt)
+  ).order(rule_models.Bit9Rule.updated_dt)
   # pylint: enable=g-explicit-bool-comparison, singleton-comparison
   unfulfilled_rules = unfulfilled_rule_query.fetch()
 
   # Installer rules shouldn't be local (e.g. have host_id's) so they shouldn't
   # have been returned by the query. Still, the sanity check couldn't hurt.
   assert all(
-      rule.policy in constants.RULE_POLICY.SET_EXECUTION
+      rule.policy in _POLICY.SET_EXECUTION
       for rule in unfulfilled_rules)
   if unfulfilled_rules:
     logging.info(

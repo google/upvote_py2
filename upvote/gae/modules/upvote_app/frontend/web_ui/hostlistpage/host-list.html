@@ -40,6 +40,14 @@
               {{ host.clientMode | prettifyMode }}
             </span>
           </span>
+          <span ng-show="hostListCtrl.isExemptionStatusVisible(host)"
+                class="md-subhead uv-host-card-detail">
+            Exemption Status:
+            <span class="uv-host-card-value"
+                  ng-class="hostListCtrl.isExemptionInBadState(host) ? 'bad-exemption-state' : ''">
+              {{ host.exemption | prettifyExemption }}
+            </span>
+          </span>
           <span ng-if="hostListCtrl.hostUtils.isSantaHost(host)"
                 class="md-subhead uv-host-card-detail">
             Primary User:
@@ -73,11 +81,17 @@
           <span class="ng-scope">Disable Full Protection</span>
         </button>
         <button class="md-button md-default-theme md-ink-ripple"
-                ng-click="hostListCtrl.requestLockdown(host.id)"
+                ng-click="hostListCtrl.cancelExemption(host.id)"
                 type="button"
                 ng-class="hostListCtrl.hostUtils.isInLockdown(host) ? 'protected-host' : 'unprotected-host'"
                 ng-if="hostListCtrl.hostUtils.isSantaHost(host) && !hostListCtrl.hostUtils.isInLockdown(host)">
           <span class="ng-scope">Enable Full Protection</span>
+        </button>
+        <button class="md-button md-default-theme md-ink-ripple"
+                ng-click="hostListCtrl.goToRequestPage(host.id)"
+                type="button"
+                ng-if="hostListCtrl.isExemptionRenewable(host)">
+          <span class="ng-scope">Renew Exemption</span>
         </button>
         <button class="md-button md-default-theme md-ink-ripple"
                 ng-click="hostListCtrl.goToBlockablesPage(host.id)"

@@ -1,0 +1,5 @@
+{ "dependencies" :
+  {
+    "ng-html2js": "3.0.0"
+  }
+}

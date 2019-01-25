@@ -16,15 +16,6 @@ py_appengine_library(
 )
 
 py_appengine_library(
-    name = "intermodule_utils",
-    srcs = ["intermodule_utils.py"],
-    deps = [
-        "//upvote/gae:settings",
-        "//upvote/shared:constants",
-    ],
-)
-
-py_appengine_library(
     name = "handler_utils",
     srcs = ["handler_utils.py"],
     deps = [
@@ -47,6 +38,16 @@ py_appengine_library(
 )
 
 py_appengine_library(
+    name = "mail_utils",
+    srcs = ["mail_utils.py"],
+    deps = [
+        ":user_utils",
+        "//common:memcache_decorator",
+        "//upvote/gae:settings",
+    ],
+)
+
+py_appengine_library(
     name = "memcache_utils",
     srcs = ["memcache_utils.py"],
     deps = [
@@ -63,8 +64,23 @@ py_appengine_library(
 )
 
 py_appengine_library(
+    name = "monitoring_utils",
+    srcs = ["monitoring_utils.py"],
+    deps = ["//upvote/shared:constants"],
+)
+
+py_appengine_library(
     name = "string_utils",
     srcs = ["string_utils.py"],
+)
+
+py_appengine_library(
+    name = "template_utils",
+    srcs = ["template_utils.py"],
+    data = [
+        "//upvote/gae/templates/email:templates",
+        "//upvote/gae/templates/web:templates",
+    ],
 )
 
 py_appengine_library(
@@ -72,6 +88,14 @@ py_appengine_library(
     srcs = ["time_utils.py"],
     deps = [
         "//upvote/gae/lib/bit9:constants",
+    ],
+)
+
+py_library(
+    name = "user_utils",
+    srcs = ["user_utils.py"],
+    deps = [
+        "//upvote/gae:settings",
     ],
 )
 
@@ -99,19 +123,6 @@ upvote_appengine_test(
         ":env_utils",
         "//common/testing:basetest",
         "//upvote/shared:constants",
-    ],
-)
-
-upvote_appengine_test(
-    name = "intermodule_utils_test",
-    size = "small",
-    srcs = ["intermodule_utils_test.py"],
-    deps = [
-        ":intermodule_utils",
-        ":settings_utils",
-        "//external:mock",
-        "//upvote/gae:settings",
-        "//upvote/gae/lib/testing:basetest",
     ],
 )
 
@@ -153,6 +164,18 @@ upvote_appengine_test(
 )
 
 upvote_appengine_test(
+    name = "mail_utils_test",
+    size = "small",
+    srcs = ["mail_utils_test.py"],
+    deps = [
+        ":mail_utils",
+        ":user_utils",
+        "//external:mock",
+        "//upvote/gae/lib/testing:basetest",
+    ],
+)
+
+upvote_appengine_test(
     name = "memcache_utils_test",
     size = "small",
     srcs = ["memcache_utils_test.py"],
@@ -185,6 +208,17 @@ upvote_appengine_test(
 )
 
 upvote_appengine_test(
+    name = "template_utils_test",
+    size = "small",
+    srcs = ["template_utils_test.py"],
+    data = ["//upvote/gae/templates/test:templates"],
+    deps = [
+        ":template_utils",
+        "//common/testing:basetest",
+    ],
+)
+
+upvote_appengine_test(
     name = "time_utils_test",
     size = "small",
     srcs = ["time_utils_test.py"],
@@ -192,6 +226,16 @@ upvote_appengine_test(
         ":time_utils",
         "//external:mock",
         "@absl_git//absl/testing:absltest",
+    ],
+)
+
+upvote_appengine_test(
+    name = "user_utils_test",
+    size = "small",
+    srcs = ["user_utils_test.py"],
+    deps = [
+        ":user_utils",
+        "//upvote/gae/lib/testing:basetest",
     ],
 )
 

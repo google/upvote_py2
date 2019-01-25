@@ -22,7 +22,7 @@ cron:
   retry_parameters:
     job_retry_limit: 3
     min_backoff_seconds: 300
-  target: upvote-app
+  target: default
   timezone: US/Pacific
 
 #### END:daily_backup ####
@@ -30,24 +30,24 @@ cron:
 - description: Sync members of external groups to roles in Upvote.
   url: /cron/roles/sync
   schedule: every 1 hours
-  target: upvote-app
+  target: default
 
 #### END:groups ####
 #### BEGIN:santa ####
 - description: Lock down all hosts of users in lockdown group.
   url: /cron/roles/lock-it-down
   schedule: every 1 hours
-  target: upvote-app
+  target: default
 
 - description: Lock down all hosts not locked to monitor.
   url: /cron/roles/lock-spider
   schedule: every 1 hours
-  target: upvote-app
+  target: default
 
 - description: Put all hosts of users in monitor group into monitor mode.
   url: /cron/roles/monitor-it
   schedule: every 1 hours
-  target: upvote-app
+  target: default
 
 #### END:santa ####
 #### BEGIN:bit9 ####
@@ -55,38 +55,38 @@ cron:
 - description: Sync host policies from Bit9.
   url: /cron/bit9/update-policies
   schedule: every 1 hours
-  target: upvote-app
+  target: default
 
 - description: Attempt to commit any uncommitted/failing change sets.
   url: /cron/bit9/commit-pending-change-sets
   schedule: every 5 minutes
-  target: upvote-app
+  target: default
 
 - description: Counts the number of Bit9 events to be pulled.
   url: /cron/bit9/count-events-to-pull
   schedule: every 1 minutes
   retry_parameters:
     job_retry_limit: 0
-  target: upvote-app
+  target: default
 
 - description: Pulls events from Bit9.
   url: /cron/bit9/pull-events
   schedule: every 1 minutes
   retry_parameters:
     job_retry_limit: 0
-  target: upvote-app
+  target: default
 
 - description: Counts the number of _UnsyncedEvents to be processed.
   url: /cron/bit9/count-events-to-process
   schedule: every 1 minutes
   retry_parameters:
     job_retry_limit: 0
-  target: upvote-app
+  target: default
 
 - description: Processes _UnsyncedEvents.
   url: /cron/bit9/process-events
   schedule: every 1 minutes
   retry_parameters:
     job_retry_limit: 0
-  target: upvote-app
+  target: default
 #### END:bit9 ####

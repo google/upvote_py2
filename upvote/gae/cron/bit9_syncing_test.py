@@ -35,6 +35,7 @@ from upvote.gae.datastore import utils as datastore_utils
 from upvote.gae.datastore.models import base as base_models
 from upvote.gae.datastore.models import bit9 as bit9_models
 from upvote.gae.datastore.models import host as host_models
+from upvote.gae.datastore.models import rule as rule_models
 from upvote.gae.datastore.models import user as user_models
 from upvote.gae.lib.bit9 import api
 from upvote.gae.lib.bit9 import change_set
@@ -44,8 +45,8 @@ from upvote.gae.lib.bit9 import test_utils as bit9_test_utils
 from upvote.gae.lib.bit9 import utils as bit9_utils
 from upvote.gae.lib.testing import basetest
 from upvote.gae.lib.testing import bit9test
-from upvote.gae.shared.common import user_map
 from upvote.gae.utils import time_utils
+from upvote.gae.utils import user_utils
 from upvote.shared import constants
 from absl.testing import absltest
 
@@ -708,6 +709,7 @@ class ProcessTest(SyncTestCase):
     self.assertTaskCount(constants.TASK_QUEUE.BIT9_PROCESS, 0)
     self.assertFalse(self.mock_events_processed.Increment.called)
 
+
 class PersistBit9CertificatesTest(basetest.UpvoteTestCase):
 
   def testNoSigningChain(self):
@@ -793,20 +795,20 @@ class PersistBit9BinaryTest(basetest.UpvoteTestCase):
     file_catalog = event.get_expand(api.Event.file_catalog_id)
 
     self.assertEntityCount(bit9_models.Bit9Binary, 0)
-    self.assertEntityCount(bit9_models.Bit9Rule, 0)
+    self.assertEntityCount(rule_models.Bit9Rule, 0)
 
     changed = bit9_syncing._PersistBit9Binary(
         event, file_catalog, [cert], datetime.datetime.utcnow()).get_result()
 
     self.assertTrue(changed)
     self.assertEntityCount(bit9_models.Bit9Binary, 1)
-    self.assertEntityCount(bit9_models.Bit9Rule, 1)
+    self.assertEntityCount(rule_models.Bit9Rule, 1)
 
     binary = bit9_models.Bit9Binary.query().get()
     self.assertTrue(binary.is_installer)
     self.assertFalse(binary.detected_installer)
 
-    rule = bit9_models.Bit9Rule.query().get()
+    rule = rule_models.Bit9Rule.query().get()
     self.assertTrue(constants.RULE_POLICY.FORCE_INSTALLER, rule.policy)
 
     self.assertTaskCount(constants.TASK_QUEUE.METRICS, 1)
@@ -1008,15 +1010,15 @@ class CopyLocalRulesTest(basetest.UpvoteTestCase):
           in_effect=True)
 
     # Verify all the rule counts.
-    self.assertEntityCount(bit9_models.Bit9Rule, binary_count * 2)
-    host_1_rules = bit9_models.Bit9Rule.query(
-        bit9_models.Bit9Rule.host_id == host_1.key.id()).fetch()
+    self.assertEntityCount(rule_models.Bit9Rule, binary_count * 2)
+    host_1_rules = rule_models.Bit9Rule.query(
+        rule_models.Bit9Rule.host_id == host_1.key.id()).fetch()
     self.assertLen(host_1_rules, binary_count)
-    host_2_rules = bit9_models.Bit9Rule.query(
-        bit9_models.Bit9Rule.host_id == host_2.key.id()).fetch()
+    host_2_rules = rule_models.Bit9Rule.query(
+        rule_models.Bit9Rule.host_id == host_2.key.id()).fetch()
     self.assertLen(host_2_rules, binary_count)
-    host_3_rules = bit9_models.Bit9Rule.query(
-        bit9_models.Bit9Rule.host_id == host_3.key.id()).fetch()
+    host_3_rules = rule_models.Bit9Rule.query(
+        rule_models.Bit9Rule.host_id == host_3.key.id()).fetch()
     self.assertLen(host_3_rules, 0)
 
     self.assertNoBigQueryInsertions()
@@ -1024,15 +1026,15 @@ class CopyLocalRulesTest(basetest.UpvoteTestCase):
     bit9_syncing._CopyLocalRules(user.key, host_3.key.id()).get_result()
 
     # Verify all the rule counts again.
-    self.assertEntityCount(bit9_models.Bit9Rule, binary_count * 3)
-    host_1_rules = bit9_models.Bit9Rule.query(
-        bit9_models.Bit9Rule.host_id == host_1.key.id()).fetch()
+    self.assertEntityCount(rule_models.Bit9Rule, binary_count * 3)
+    host_1_rules = rule_models.Bit9Rule.query(
+        rule_models.Bit9Rule.host_id == host_1.key.id()).fetch()
     self.assertLen(host_1_rules, binary_count)
-    host_2_rules = bit9_models.Bit9Rule.query(
-        bit9_models.Bit9Rule.host_id == host_2.key.id()).fetch()
+    host_2_rules = rule_models.Bit9Rule.query(
+        rule_models.Bit9Rule.host_id == host_2.key.id()).fetch()
     self.assertLen(host_2_rules, binary_count)
-    host_3_rules = bit9_models.Bit9Rule.query(
-        bit9_models.Bit9Rule.host_id == host_3.key.id()).fetch()
+    host_3_rules = rule_models.Bit9Rule.query(
+        rule_models.Bit9Rule.host_id == host_3.key.id()).fetch()
     self.assertLen(host_3_rules, binary_count)
 
     self.assertBigQueryInsertions(

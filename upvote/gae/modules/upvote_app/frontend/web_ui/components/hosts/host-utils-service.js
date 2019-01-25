@@ -59,7 +59,6 @@ upvote.hosts.HostUtilsService = class {
     }
   }
 
-
   /**
    * Return whether a host is in Lockdown mode.
    * @param {!upvote.shared.models.AnyHost} host

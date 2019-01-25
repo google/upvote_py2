@@ -19,7 +19,6 @@ import logging
 from google.appengine.ext import ndb
 from google.appengine.ext.ndb import polymodel
 from upvote.gae.bigquery import tables
-from upvote.gae.datastore.models import host as host_models
 from upvote.gae.datastore.models import mixin
 from upvote.gae.lib.exemption import monitoring
 from upvote.shared import constants
@@ -41,6 +40,10 @@ class InvalidStateChangeError(Error):
   """Raised when attempting to change an Exemption to an invalid state."""
 
 
+class InvalidDetailsError(Error):
+  """Raised when attempting to change state with invalid details."""
+
+
 class UnknownPlatformError(Error):
   """Raised if the platform of an Exemption cannot be determined."""
 
@@ -51,7 +54,7 @@ class Record(ndb.Model):
   Describes an event that changes the state of an exemption
 
   Attributes:
-    datetime: datetime, The time the event happened that issued this record
+    recorded_dt: datetime, The time the event happened that issued this record
     state: str, The ending state of the exemption
     details: list<str>, a list of strings that can justify the change
   """
@@ -65,8 +68,8 @@ class Exemption(mixin.Base, polymodel.PolyModel):
   """An execution exemption.
 
   Attributes:
-    creation_dt: datetime, time the Exemption was created.
-    deactivation_dt: datetime, time the Exemption was deactivated.
+    creation_dt: datetime, time at which the Exemption was created.
+    deactivation_dt: datetime, time at which the Exemption will (or did) expire.
     state: str, the current Exemption state.
     history: list<Record>, history of changes and the details of those changes.
   """
@@ -88,7 +91,7 @@ class Exemption(mixin.Base, polymodel.PolyModel):
 
   @classmethod
   def CreateKey(cls, host_id):
-    return ndb.Key(host_models.Host, host_id, cls, '1')
+    return ndb.Key('Host', host_id, cls, '1')
 
   @classmethod
   def Get(cls, host_id):
@@ -159,13 +162,14 @@ class Exemption(mixin.Base, polymodel.PolyModel):
     Args:
       exm_key: The NDB Key of the Exemption.
       new_state: The new state to transition to.
-      details: A list of strings that can justify the change.
+      details: An optional list of strings that can justify the change.
 
     Raises:
       InvalidExemptionError: If the Key doesn't correspond to an actual
           Exemption.
       InvalidStateChangeError: If the desired state cannot be transitioned to
           from the current state.
+      InvalidDetailsError: If any members of the details list are falsey.
     """
     host_id = exm_key.parent().id()
 
@@ -180,6 +184,10 @@ class Exemption(mixin.Base, polymodel.PolyModel):
 
     if details is None:
       details = []
+
+    # If anything like None or '' gets through, raise an error.
+    if details and any(not detail for detail in details):
+      raise InvalidDetailsError
 
     logging.info(
         'Exemption for host %s changing state from %s to %s', host_id,

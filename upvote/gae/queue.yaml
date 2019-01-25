@@ -77,6 +77,12 @@ queue:
   retry_parameters:
     task_retry_limit: 0
 
+- name: exemptions
+  rate: 10/s
+  bucket_size: 50
+  retry_parameters:
+    task_retry_limit: 0
+
 - name: query
   rate: 5/s
   bucket_size: 25
@@ -95,4 +101,3 @@ queue:
     max_backoff_seconds: 600
     task_retry_limit: 4320  # 4320 * 10m = 30d
     task_age_limit: 30d
-  target: upvote-app

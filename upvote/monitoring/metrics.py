@@ -61,8 +61,6 @@ DATASTORE = UpvoteNamespace('datastore/', [
 SANTA_API = UpvoteNamespace('santa_api/', [
     ('preflight_requests', 'Preflight Requests'),
     ('event_upload_requests', 'Event Upload Requests'),
-    ('log_upload_requests', 'Log Upload Requests'),
-    ('binary_upload_requests', 'Binary Upload Requests'),
     ('rule_download_requests', 'Rule Download Requests'),
     ('postflight_requests', 'Postflight Requests')])
 
@@ -109,7 +107,18 @@ BIGQUERY = UpvoteNamespace('bigquery/', [
 
 
 EXEMPTION = UpvoteNamespace('exemption/', [
+    ('enforcement_errors', 'Enforcement Errors'),
+    ('expired_exemptions', 'Expired Exemptions'),
+    ('policy_check_outcomes', 'Policy Check Outcomes'),
+    ('processing_errors', 'Processing Errors'),
+    ('requested_exemptions', 'Requested Exemptions'),
+    ('revocation_errors', 'Revocation Errors'),
     ('state_changes', 'State Changes')])
+
+
+ROLES = UpvoteNamespace('roles/', [
+    ('syncing_errors', 'Syncing Errors')])
+
 
 RPC_SERVER = Namespace('/rpc/server/', [
     ('count', 'RPC Query Count'),

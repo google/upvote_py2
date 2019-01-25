@@ -19,8 +19,7 @@ import httplib
 import webapp2
 
 from upvote.gae.datastore import test_utils
-from upvote.gae.datastore.models import base
-from upvote.gae.datastore.models import santa
+from upvote.gae.datastore.models import rule as rule_models
 from upvote.gae.lib.testing import basetest
 from upvote.gae.modules.upvote_app.api.web import rules
 
@@ -35,17 +34,17 @@ class RulesTest(basetest.UpvoteTestCase):
     self.blockable1 = test_utils.CreateBlockable()
     self.blockable2 = test_utils.CreateBlockable()
 
-    self.rule_1 = base.Rule(
+    self.rule_1 = rule_models.Rule(
         parent=self.blockable1.key,
         id=123456,
         rule_type='BINARY',
         policy='WHITELIST')
-    self.rule_2 = base.Rule(
+    self.rule_2 = rule_models.Rule(
         parent=self.blockable2.key,
         id=123457,
         rule_type='BINARY',
         policy='BLACKLIST')
-    self.rule_3 = santa.SantaRule(
+    self.rule_3 = rule_models.SantaRule(
         parent=self.blockable2.key,
         id=123458,
         rule_type='BINARY',

@@ -21,7 +21,7 @@ import webapp2
 from upvote.gae.datastore import test_utils
 from upvote.gae.lib.testing import basetest
 from upvote.gae.modules.upvote_app.api.web import users
-from upvote.gae.shared.common import user_map
+from upvote.gae.utils import user_utils
 
 
 class UsersTest(basetest.UpvoteTestCase):
@@ -130,7 +130,7 @@ class UserHandlerTest(UsersTest):
   def testAdminGetUnknownUser(self):
     """Admin attempting to get information on an unknown user."""
     with self.LoggedInUser(admin=True):
-      unknown_user = user_map.UsernameToEmail('blahblahblah')
+      unknown_user = user_utils.UsernameToEmail('blahblahblah')
       self.testapp.get(self.ROUTE % unknown_user, status=httplib.NOT_FOUND)
 
   def testUserGetOtherUser(self):

@@ -222,6 +222,17 @@ indexes:
   - name: last_blocked_dt
     direction: desc
 
+- kind: Exemption
+  ancestor: yes
+  properties:
+  - name: creation_dt
+    direction: desc
+
+- kind: Exemption
+  properties:
+  - name: state
+  - name: deactivation_dt
+
 - kind: Host
   properties:
   - name: class

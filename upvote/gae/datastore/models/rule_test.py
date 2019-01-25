@@ -15,25 +15,63 @@
 """Unit tests for rule.py."""
 
 from upvote.gae.datastore import test_utils
-from upvote.gae.datastore.models import rule
-from upvote.gae.datastore.models import santa
 from upvote.gae.lib.testing import basetest
 from upvote.shared import constants
 
 
-class EnsureCriticalRulesTest(basetest.UpvoteTestCase):
+class RuleTest(basetest.UpvoteTestCase):
 
-  def testSuccess(self):
+  def testInsertBigQueryRow_LocalRule_UserKeyMissing(self):
+    """Verifies that a LOCAL row is inserted, even if user_key is missing.
 
-    self.assertEntityCount(santa.SantaCertificate, 0)
-    self.assertEntityCount(santa.SantaRule, 0)
+    The host_id and user_key columns have to be NULLABLE in order to support
+    GLOBAL rows (which will lack values for both of these columns). If user_key
+    is mistakenly omitted, we should still insert a LOCAL row with the values
+    we have.
+    """
+    blockable_key = test_utils.CreateSantaBlockable().key
+    local_rule = test_utils.CreateSantaRule(blockable_key, host_id='12345')
+    local_rule.InsertBigQueryRow()
 
-    sha256_list = [test_utils.RandomSHA256() for _ in xrange(5)]
-    rule.EnsureCriticalRules(sha256_list)
+    self.assertBigQueryInsertions(
+        [constants.BIGQUERY_TABLE.RULE], reset_mock=False)
 
-    self.assertEntityCount(santa.SantaCertificate, 5)
-    self.assertEntityCount(santa.SantaRule, 5)
-    self.assertBigQueryInsertions([constants.BIGQUERY_TABLE.CERTIFICATE] * 5)
+    calls = self.GetBigQueryCalls()
+    self.assertLen(calls, 1)
+    self.assertEqual(constants.RULE_SCOPE.LOCAL, calls[0][1].get('scope'))
+
+  def testInsertBigQueryRow_LocalRule_HostIdMissing(self):
+    """Verifies that a LOCAL row is inserted, even if host_id is missing.
+
+    The host_id and user_key columns have to be NULLABLE in order to support
+    GLOBAL rows (which will lack values for both of these columns). If host_id
+    is mistakenly omitted, we should still insert a LOCAL row with the values
+    we have.
+    """
+    blockable_key = test_utils.CreateSantaBlockable().key
+    user_key = test_utils.CreateUser().key
+    local_rule = test_utils.CreateSantaRule(blockable_key, user_key=user_key)
+    local_rule.InsertBigQueryRow()
+
+    self.assertBigQueryInsertions(
+        [constants.BIGQUERY_TABLE.RULE], reset_mock=False)
+
+    calls = self.GetBigQueryCalls()
+    self.assertLen(calls, 1)
+    self.assertEqual(constants.RULE_SCOPE.LOCAL, calls[0][1].get('scope'))
+
+  def testInsertBigQueryRow_GlobalRule(self):
+
+    blockable_key = test_utils.CreateSantaBlockable().key
+    global_rule = test_utils.CreateSantaRule(blockable_key)
+    global_rule.InsertBigQueryRow()
+
+    self.assertBigQueryInsertions(
+        [constants.BIGQUERY_TABLE.RULE], reset_mock=False)
+
+    calls = self.GetBigQueryCalls()
+    self.assertLen(calls, 1)
+    self.assertEqual(constants.RULE_SCOPE.GLOBAL, calls[0][1].get('scope'))
 
 
 if __name__ == '__main__':

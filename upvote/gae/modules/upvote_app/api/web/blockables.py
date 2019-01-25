@@ -25,6 +25,7 @@ from google.appengine.ext import ndb
 from upvote.gae.bigquery import tables
 from upvote.gae.datastore.models import base as base_models
 from upvote.gae.datastore.models import bit9 as bit9_models
+from upvote.gae.datastore.models import rule as rule_models
 from upvote.gae.datastore.models import santa as santa_models
 from upvote.gae.lib.bit9 import change_set
 from upvote.gae.lib.voting import api as voting_api
@@ -288,10 +289,10 @@ class AuthorizedHostCountHandler(handler_utils.UserFacingHandler):
       # but this is not currently supported due to an issue in ndb:
       # https://github.com/GoogleCloudPlatform/datastore-ndb-python/issues/261
 
-      rule_query = santa_models.SantaRule.query(
-          santa_models.SantaRule.policy == constants.RULE_POLICY.WHITELIST,
-          santa_models.SantaRule.in_effect == True,  # pylint: disable=g-explicit-bool-comparison, singleton-comparison
-          santa_models.SantaRule.rule_type == blockable.rule_type,
+      rule_query = rule_models.SantaRule.query(
+          rule_models.SantaRule.policy == constants.RULE_POLICY.WHITELIST,
+          rule_models.SantaRule.in_effect == True,  # pylint: disable=g-explicit-bool-comparison, singleton-comparison
+          rule_models.SantaRule.rule_type == blockable.rule_type,
           ancestor=blockable.key)
 
       # Fetch used here should be fine as the number of rules returned shouldn't
@@ -371,13 +372,13 @@ class PendingStateChangeHandler(handler_utils.UserFacingHandler):
     # Relevant Rules are either global Rules or local Rules that the user was
     # responsible for creating.
     # pylint: disable=g-explicit-bool-comparison, singleton-comparison
-    pending_rule_query = bit9_models.Bit9Rule.query(
-        bit9_models.Bit9Rule.in_effect == True,
-        bit9_models.Bit9Rule.is_committed == False,
-        bit9_models.Bit9Rule.policy.IN(constants.RULE_POLICY.SET_EXECUTION),
+    pending_rule_query = rule_models.Bit9Rule.query(
+        rule_models.Bit9Rule.in_effect == True,
+        rule_models.Bit9Rule.is_committed == False,
+        rule_models.Bit9Rule.policy.IN(constants.RULE_POLICY.SET_EXECUTION),
         ndb.OR(
-            bit9_models.Bit9Rule.host_id == '',               # Global rule
-            bit9_models.Bit9Rule.user_key == self.user.key),  # User's rule
+            rule_models.Bit9Rule.host_id == '',               # Global rule
+            rule_models.Bit9Rule.user_key == self.user.key),  # User's rule
         ancestor=blockable.key)
     # pylint: enable=g-explicit-bool-comparison, singleton-comparison
     has_pending_rules = bool(pending_rule_query.count(limit=1))
@@ -401,10 +402,10 @@ class PendingInstallerStateChangeHandler(handler_utils.UserFacingHandler):
     # Get any uncommitted installer change Rules for this blockable. Since these
     # are always global, we don't care who initiated the state change action.
     # pylint: disable=g-explicit-bool-comparison, singleton-comparison
-    pending_installer_rule_query = bit9_models.Bit9Rule.query(
-        bit9_models.Bit9Rule.in_effect == True,
-        bit9_models.Bit9Rule.is_committed == False,
-        bit9_models.Bit9Rule.policy.IN(constants.RULE_POLICY.SET_INSTALLER),
+    pending_installer_rule_query = rule_models.Bit9Rule.query(
+        rule_models.Bit9Rule.in_effect == True,
+        rule_models.Bit9Rule.is_committed == False,
+        rule_models.Bit9Rule.policy.IN(constants.RULE_POLICY.SET_INSTALLER),
         ancestor=blockable.key)
     # pylint: enable=g-explicit-bool-comparison, singleton-comparison
     has_pending_rules = bool(pending_installer_rule_query.count(limit=1))
@@ -420,9 +421,9 @@ class SetInstallerStateHandler(handler_utils.UserFacingHandler):
     blockable = base_models.Blockable.get_by_id(blockable_id)
 
     # pylint: disable=g-explicit-bool-comparison, singleton-comparison
-    installer_rule_query = bit9_models.Bit9Rule.query(
-        bit9_models.Bit9Rule.in_effect == True,
-        bit9_models.Bit9Rule.policy.IN(constants.RULE_POLICY.SET_INSTALLER),
+    installer_rule_query = rule_models.Bit9Rule.query(
+        rule_models.Bit9Rule.in_effect == True,
+        rule_models.Bit9Rule.policy.IN(constants.RULE_POLICY.SET_INSTALLER),
         ancestor=blockable.key)
     # pylint: enable=g-explicit-bool-comparison, singleton-comparison
     existing_rule = installer_rule_query.get()
@@ -435,7 +436,7 @@ class SetInstallerStateHandler(handler_utils.UserFacingHandler):
 
     # Create the Bit9Rule associated with the installer state and a change set
     # to commit it.
-    new_rule = bit9_models.Bit9Rule(
+    new_rule = rule_models.Bit9Rule(
         rule_type=blockable.rule_type,
         in_effect=True,
         policy=new_policy,

@@ -18,11 +18,11 @@ from upvote.gae import settings
 from upvote.gae.datastore import test_utils
 from upvote.gae.datastore.models import user as user_models
 from upvote.gae.lib.testing import basetest
-from upvote.gae.shared.common import user_map
+from upvote.gae.utils import user_utils
 from upvote.shared import constants
 
 
-_TEST_EMAIL = user_map.UsernameToEmail('testemail')
+_TEST_EMAIL = user_utils.UsernameToEmail('testemail')
 
 # Done for the sake of brevity.
 USER = constants.USER_ROLE.USER
@@ -123,7 +123,8 @@ class UserTest(basetest.UpvoteTestCase):
       self.assertListEqual([constants.USER_ROLE.USER], user.roles)
 
       email_addr = user.email
-      user_models.User.SetRoles(email_addr, [])
+      with self.assertRaises(user_models.NoRolesError):
+        user_models.User.SetRoles(email_addr, [])
       user = user_models.User.GetOrInsert(email_addr=email_addr)
       self.assertListEqual([constants.USER_ROLE.USER], user.roles)
 

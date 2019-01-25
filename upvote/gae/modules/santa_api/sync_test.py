@@ -21,30 +21,28 @@ import zlib
 
 import mock
 import webapp2
-
-from google.appengine.api import datastore_types
 from google.appengine.ext import ndb
 
 from upvote.gae import settings
 from upvote.gae.datastore import test_utils
 from upvote.gae.datastore import utils as datastore_utils
 from upvote.gae.datastore.models import host as host_models
+from upvote.gae.datastore.models import rule as rule_models
 from upvote.gae.datastore.models import santa as santa_models
 from upvote.gae.datastore.models import user as user_models
 from upvote.gae.lib.testing import basetest
 from upvote.gae.modules.santa_api import auth
-from upvote.gae.modules.santa_api import constants as santa_const
 from upvote.gae.modules.santa_api import sync
-from upvote.gae.shared.common import user_map
-from upvote.shared import constants as common_const
+from upvote.gae.utils import user_utils
+from upvote.shared import constants
 
 
 # Done for the sake of brevity.
-SANTA_CLIENT_MODE = common_const.SANTA_CLIENT_MODE
-TABLE = common_const.BIGQUERY_TABLE
-PREFLIGHT = santa_const.PREFLIGHT
-EVENT_UPLOAD = santa_const.EVENT_UPLOAD
-RULE_DOWNLOAD = santa_const.RULE_DOWNLOAD
+SANTA_CLIENT_MODE = constants.SANTA_CLIENT_MODE
+TABLE = constants.BIGQUERY_TABLE
+PREFLIGHT = sync._PREFLIGHT
+EVENT_UPLOAD = sync._EVENT_UPLOAD
+RULE_DOWNLOAD = sync._RULE_DOWNLOAD
 
 
 class SantaApiTestCase(basetest.UpvoteTestCase):
@@ -82,7 +80,7 @@ class BaseSantaApiHandlerTest(SantaApiTestCase):
     sync.BaseSantaApiHandler.REQUIRE_HOST_OBJECT = False
 
     self.PatchSetting(
-        'SANTA_CLIENT_VALIDATION', common_const.VALIDATION_MODE.FAIL_CLOSED)
+        'SANTA_CLIENT_VALIDATION', constants.VALIDATION_MODE.FAIL_CLOSED)
     headers = {'Foo': 'bar'}
     self.testapp.post_json('/my-uuid', {}, headers=headers)
 
@@ -94,7 +92,7 @@ class BaseSantaApiHandlerTest(SantaApiTestCase):
     sync.BaseSantaApiHandler.REQUIRE_HOST_OBJECT = False
 
     self.PatchSetting(
-        'SANTA_CLIENT_VALIDATION', common_const.VALIDATION_MODE.FAIL_CLOSED)
+        'SANTA_CLIENT_VALIDATION', constants.VALIDATION_MODE.FAIL_CLOSED)
     self.testapp.post_json(
         '/my-uuid', {}, headers={'Foo': 'bar'}, status=httplib.FORBIDDEN)
 
@@ -103,7 +101,7 @@ class BaseSantaApiHandlerTest(SantaApiTestCase):
     sync.BaseSantaApiHandler.REQUIRE_HOST_OBJECT = False
 
     self.PatchSetting(
-        'SANTA_CLIENT_VALIDATION', common_const.VALIDATION_MODE.NONE)
+        'SANTA_CLIENT_VALIDATION', constants.VALIDATION_MODE.NONE)
     headers = {'Foo': 'bar'}
     self.testapp.post_json('/my-uuid', {}, headers=headers)
 
@@ -114,7 +112,7 @@ class BaseSantaApiHandlerTest(SantaApiTestCase):
     sync.BaseSantaApiHandler.REQUIRE_HOST_OBJECT = False
 
     self.PatchSetting(
-        'SANTA_CLIENT_VALIDATION', common_const.VALIDATION_MODE.FAIL_OPEN)
+        'SANTA_CLIENT_VALIDATION', constants.VALIDATION_MODE.FAIL_OPEN)
     headers = {'Foo': 'bar'}
     self.testapp.post_json('/my-uuid', {}, headers=headers)
 
@@ -126,7 +124,7 @@ class BaseSantaApiHandlerTest(SantaApiTestCase):
     sync.BaseSantaApiHandler.REQUIRE_HOST_OBJECT = False
 
     self.PatchSetting(
-        'SANTA_CLIENT_VALIDATION', common_const.VALIDATION_MODE.FAIL_CLOSED)
+        'SANTA_CLIENT_VALIDATION', constants.VALIDATION_MODE.FAIL_CLOSED)
     headers = {'Foo': 'bar'}
     self.testapp.post_json(
         '/my-uuid', {}, headers=headers, status=httplib.FORBIDDEN)
@@ -222,15 +220,15 @@ class CopyLocalRulesTest(SantaApiTestCase):
           in_effect=True)
 
     # Verify all the rule counts.
-    self.assertEntityCount(santa_models.SantaRule, blockable_count * 2)
-    host_1_rules = santa_models.SantaRule.query(
-        santa_models.SantaRule.host_id == host_1.key.id()).fetch()
+    self.assertEntityCount(rule_models.SantaRule, blockable_count * 2)
+    host_1_rules = rule_models.SantaRule.query(
+        rule_models.SantaRule.host_id == host_1.key.id()).fetch()
     self.assertLen(host_1_rules, blockable_count)
-    host_2_rules = santa_models.SantaRule.query(
-        santa_models.SantaRule.host_id == host_2.key.id()).fetch()
+    host_2_rules = rule_models.SantaRule.query(
+        rule_models.SantaRule.host_id == host_2.key.id()).fetch()
     self.assertLen(host_2_rules, blockable_count)
-    host_3_rules = santa_models.SantaRule.query(
-        santa_models.SantaRule.host_id == host_3.key.id()).fetch()
+    host_3_rules = rule_models.SantaRule.query(
+        rule_models.SantaRule.host_id == host_3.key.id()).fetch()
     self.assertLen(host_3_rules, 0)
 
     self.assertNoBigQueryInsertions()
@@ -238,15 +236,15 @@ class CopyLocalRulesTest(SantaApiTestCase):
     sync._CopyLocalRules(user.key, host_3.key.id()).get_result()
 
     # Verify all the rule counts again.
-    self.assertEntityCount(santa_models.SantaRule, blockable_count * 3)
-    host_1_rules = santa_models.SantaRule.query(
-        santa_models.SantaRule.host_id == host_1.key.id()).fetch()
+    self.assertEntityCount(rule_models.SantaRule, blockable_count * 3)
+    host_1_rules = rule_models.SantaRule.query(
+        rule_models.SantaRule.host_id == host_1.key.id()).fetch()
     self.assertLen(host_1_rules, blockable_count)
-    host_2_rules = santa_models.SantaRule.query(
-        santa_models.SantaRule.host_id == host_2.key.id()).fetch()
+    host_2_rules = rule_models.SantaRule.query(
+        rule_models.SantaRule.host_id == host_2.key.id()).fetch()
     self.assertLen(host_2_rules, blockable_count)
-    host_3_rules = santa_models.SantaRule.query(
-        santa_models.SantaRule.host_id == host_3.key.id()).fetch()
+    host_3_rules = rule_models.SantaRule.query(
+        rule_models.SantaRule.host_id == host_3.key.id()).fetch()
     self.assertLen(host_3_rules, blockable_count)
 
     self.assertBigQueryInsertions([TABLE.RULE] * blockable_count)
@@ -280,7 +278,8 @@ class PreflightHandlerTest(SantaApiTestCase):
     other_host = test_utils.CreateSantaHost(
         primary_user='user', last_postflight_dt=datetime.datetime.utcnow())
     blockable = test_utils.CreateSantaBlockable()
-    user_key = ndb.Key(user_models.User, user_map.UsernameToEmail('user'))
+    user_key = ndb.Key(
+        user_models.User, user_utils.UsernameToEmail('user'))
     test_utils.CreateSantaRule(
         blockable.key, user_key=user_key, host_id=other_host.key.id(),
         in_effect=True)
@@ -306,13 +305,14 @@ class PreflightHandlerTest(SantaApiTestCase):
 
     # Ensure the new rule was created.
     self.assertEqual(
-        2, santa_models.SantaRule.query(ancestor=blockable.key).count())
+        2, rule_models.SantaRule.query(ancestor=blockable.key).count())
 
   def testFirstCheckin_OtherHostNotSynced(self):
 
     unsynced_host = test_utils.CreateSantaHost(primary_user='user')
     blockable = test_utils.CreateSantaBlockable()
-    user_key = ndb.Key(user_models.User, user_map.UsernameToEmail('user'))
+    user_key = ndb.Key(
+        user_models.User, user_utils.UsernameToEmail('user'))
     test_utils.CreateSantaRule(
         blockable.key, user_key=user_key, host_id=unsynced_host.key.id(),
         in_effect=True)
@@ -326,7 +326,7 @@ class PreflightHandlerTest(SantaApiTestCase):
     self.assertBigQueryInsertions([TABLE.USER, TABLE.HOST])
 
     # Ensure the existing rule wasn't copied from the unsynced host.
-    self.assertEntityCount(santa_models.SantaRule, 1)
+    self.assertEntityCount(rule_models.SantaRule, 1)
 
   def testFirstCheckin_NoPreexistingHost(self):
 
@@ -339,7 +339,7 @@ class PreflightHandlerTest(SantaApiTestCase):
     self.assertBigQueryInsertions([TABLE.USER, TABLE.HOST])
 
     # Ensure no rules were copied because none existed.
-    self.assertEntityCount(santa_models.SantaRule, 0)
+    self.assertEntityCount(rule_models.SantaRule, 0)
 
   def testFirstCheckin_SantaHostCreation(self):
 
@@ -380,14 +380,14 @@ class PreflightHandlerTest(SantaApiTestCase):
   def testCheckin_Success(self):
     host_models.SantaHost(
         key=ndb.Key('Host', 'my-uuid'),
-        client_mode=common_const.SANTA_CLIENT_MODE.LOCKDOWN,
+        client_mode=constants.SANTA_CLIENT_MODE.LOCKDOWN,
         directory_whitelist_regex='^/[Bb]uild/.*',
         transitive_whitelisting_enabled=True).put()
 
     response = self.testapp.post_json('/my-uuid', self.request_json)
 
     self.assertEqual(
-        common_const.SANTA_CLIENT_MODE.LOCKDOWN,
+        constants.SANTA_CLIENT_MODE.LOCKDOWN,
         response.json[PREFLIGHT.CLIENT_MODE])
     self.assertEqual(
         '^/[Bb]uild/.*',
@@ -488,7 +488,7 @@ class PreflightHandlerTest(SantaApiTestCase):
 
     self.assertBigQueryInsertion(TABLE.HOST, reset_mock=False)
     calls = self.GetBigQueryCalls()
-    self.assertEqual(common_const.HOST_MODE.UNKNOWN, calls[0][1].get('mode'))
+    self.assertEqual(constants.HOST_MODE.UNKNOWN, calls[0][1].get('mode'))
 
   def testCheckin_ClientModeMissing(self):
     host_models.SantaHost(
@@ -509,7 +509,7 @@ class PreflightHandlerTest(SantaApiTestCase):
     self.VerifyIncrementCalls(self.mock_metric, httplib.OK)
     self.assertBigQueryInsertion(TABLE.HOST, reset_mock=False)
     calls = self.GetBigQueryCalls()
-    self.assertEqual(common_const.HOST_MODE.UNKNOWN, calls[0][1].get('mode'))
+    self.assertEqual(constants.HOST_MODE.UNKNOWN, calls[0][1].get('mode'))
 
 
 
@@ -565,7 +565,7 @@ class EventUploadHandlerTest(SantaApiTestCase):
         EVENT_UPLOAD.FILE_NAME: file_name,
         EVENT_UPLOAD.FILE_BUNDLE_BINARY_COUNT: 1,
         EVENT_UPLOAD.DECISION:
-            common_const.EVENT_TYPE.BUNDLE_BINARY,
+            constants.EVENT_TYPE.BUNDLE_BINARY,
     })
     return event
 
@@ -627,13 +627,10 @@ class EventUploadHandlerTest(SantaApiTestCase):
     event = self._CreateEvent('the-sha256')
     request_json = {EVENT_UPLOAD.EVENTS: [event]}
     response = self.testapp.post_json('/my-uuid', request_json)
-    self.assertSameElements(
-        ['the-sha256'],
-        response.json[EVENT_UPLOAD.REQUEST_UPLOADS])
 
     self.assertEqual(1, santa_models.SantaEvent.query().count())
 
-    parent = ndb.Key(user_models.User, user_map.UsernameToEmail('user'),
+    parent = ndb.Key(user_models.User, user_utils.UsernameToEmail('user'),
                      host_models.SantaHost, 'my-uuid',
                      santa_models.SantaBlockable, 'the-sha256')
     event = santa_models.SantaEvent.query(ancestor=parent).get()
@@ -655,13 +652,9 @@ class EventUploadHandlerTest(SantaApiTestCase):
     request_json = {EVENT_UPLOAD.EVENTS: [event]}
     response = self.testapp.post_json('/my-uuid', request_json)
 
-    self.assertSameElements(
-        ['the-sha256'],
-        response.json[EVENT_UPLOAD.REQUEST_UPLOADS])
-
     self.assertEqual(1, santa_models.SantaEvent.query().count())
 
-    parent = ndb.Key(user_models.User, user_map.UsernameToEmail('user'),
+    parent = ndb.Key(user_models.User, user_utils.UsernameToEmail('user'),
                      host_models.SantaHost, 'my-uuid',
                      santa_models.SantaBlockable, 'the-sha256')
     event = santa_models.SantaEvent.query(ancestor=parent).get()
@@ -716,7 +709,7 @@ class EventUploadHandlerTest(SantaApiTestCase):
         EVENT_UPLOAD.FILE_BUNDLE_PATH: '/Foo.app',
         EVENT_UPLOAD.FILE_PATH: '/Foo.app/Contents/MacOS/bar',
         EVENT_UPLOAD.FILE_NAME: 'baz',
-        EVENT_UPLOAD.DECISION: common_const.EVENT_TYPE.BUNDLE_BINARY
+        EVENT_UPLOAD.DECISION: constants.EVENT_TYPE.BUNDLE_BINARY
     })
     request_json = {EVENT_UPLOAD.EVENTS: [event]}
     self.testapp.post_json('/my-uuid', request_json)
@@ -808,7 +801,7 @@ class EventUploadHandlerTest(SantaApiTestCase):
     self.assertEqual(1, santa_models.SantaEvent.query().count())
 
     # Validate the created event.
-    parent = ndb.Key(user_models.User, user_map.UsernameToEmail('user'),
+    parent = ndb.Key(user_models.User, user_utils.UsernameToEmail('user'),
                      host_models.SantaHost, 'my-uuid',
                      santa_models.SantaBlockable, 'the-sha256')
     event = santa_models.SantaEvent.query(ancestor=parent).get()
@@ -898,25 +891,15 @@ class EventUploadHandlerTest(SantaApiTestCase):
     # Request the first event.
     request_json = {EVENT_UPLOAD.EVENTS: [event1]}
     response = self.testapp.post_json('/my-uuid', request_json)
-    self.assertSameElements(
-        ['the-sha256'],
-        response.json[EVENT_UPLOAD.REQUEST_UPLOADS])
 
     self.assertEqual(1, santa_models.SantaEvent.query().count())
 
     # Request the second event.
     request_json = {EVENT_UPLOAD.EVENTS: [event2]}
     response = self.testapp.post_json('/my-uuid', request_json)
-    self.assertSameElements(
-        ['the-sha256'],
-        response.json[EVENT_UPLOAD.REQUEST_UPLOADS])
 
     # We expect 1 extra old-style Event.
     self.assertEqual(1, santa_models.SantaEvent.query().count())
-
-    # Simulate an upload of a the binary
-    santa_models.SantaBinaryFile(
-        id='the-sha256', shasum='the-sha256').put()
 
     # Request the final event.
     request_json = {EVENT_UPLOAD.EVENTS: [event3]}
@@ -926,7 +909,7 @@ class EventUploadHandlerTest(SantaApiTestCase):
 
     self.assertEqual(1, santa_models.SantaEvent.query().count())
 
-    parent = ndb.Key(user_models.User, user_map.UsernameToEmail('user'),
+    parent = ndb.Key(user_models.User, user_utils.UsernameToEmail('user'),
                      host_models.SantaHost, 'my-uuid',
                      santa_models.SantaBlockable, 'the-sha256')
     event = santa_models.SantaEvent.query(ancestor=parent).get()
@@ -937,7 +920,7 @@ class EventUploadHandlerTest(SantaApiTestCase):
 
   def testMultipleEvents_DifferentUserTxns(self):
     self.PatchSetting(
-        'EVENT_CREATION', common_const.EVENT_CREATION.EXECUTING_USER)
+        'EVENT_CREATION', constants.EVENT_CREATION.EXECUTING_USER)
     event1 = self._CreateEvent('the-sha256')
     event2 = event1.copy()
     event2[EVENT_UPLOAD.EXECUTING_USER] = 'anotheruser'
@@ -962,7 +945,7 @@ class EventUploadHandlerTest(SantaApiTestCase):
 
   def testMultipleEvents_UpdateSequential(self):
     self.PatchSetting(
-        'EVENT_CREATION', common_const.EVENT_CREATION.EXECUTING_USER)
+        'EVENT_CREATION', constants.EVENT_CREATION.EXECUTING_USER)
     event1 = self._CreateEvent('the-sha256')
     event2 = event1.copy()
     event2[EVENT_UPLOAD.EXECUTING_USER] = 'other'
@@ -979,12 +962,13 @@ class EventUploadHandlerTest(SantaApiTestCase):
 
     self.assertEqual(2, santa_models.SantaEvent.query().count())
 
-    parent = ndb.Key(user_models.User, user_map.UsernameToEmail('user'),
+    parent = ndb.Key(user_models.User, user_utils.UsernameToEmail('user'),
                      host_models.SantaHost, 'my-uuid',
                      santa_models.SantaBlockable, 'the-sha256')
     event = santa_models.SantaEvent.query(ancestor=parent).get()
     self.assertEqual(2, event.count)
-    parent = ndb.Key(user_models.User, user_map.UsernameToEmail('other'),
+    email = user_utils.UsernameToEmail('other')
+    parent = ndb.Key(user_models.User, email,
                      host_models.SantaHost, 'my-uuid',
                      santa_models.SantaBlockable, 'the-sha256')
     event = santa_models.SantaEvent.query(ancestor=parent).get()
@@ -999,13 +983,10 @@ class EventUploadHandlerTest(SantaApiTestCase):
     event2[EVENT_UPLOAD.EXECUTION_TIME] = later_timestamp
     request_json = {EVENT_UPLOAD.EVENTS: [event1, event2]}
     response = self.testapp.post_json('/my-uuid', request_json)
-    self.assertSameElements(
-        ['the-sha256'],
-        response.json[EVENT_UPLOAD.REQUEST_UPLOADS])
 
     self.assertEqual(1, santa_models.SantaEvent.query().count())
 
-    parent = ndb.Key(user_models.User, user_map.UsernameToEmail('user'),
+    parent = ndb.Key(user_models.User, user_utils.UsernameToEmail('user'),
                      host_models.SantaHost, 'my-uuid',
                      santa_models.SantaBlockable, 'the-sha256')
     event = santa_models.SantaEvent.query(ancestor=parent).get()
@@ -1062,7 +1043,7 @@ class EventUploadHandlerTest(SantaApiTestCase):
         EVENT_UPLOAD.FILE_BUNDLE_PATH: '/Foo.app',
         EVENT_UPLOAD.FILE_PATH: '/Foo.app/Content/MacOS',
         EVENT_UPLOAD.FILE_NAME: 'foo',
-        EVENT_UPLOAD.DECISION: common_const.EVENT_TYPE.BUNDLE_BINARY
+        EVENT_UPLOAD.DECISION: constants.EVENT_TYPE.BUNDLE_BINARY
     })
     request_json = {EVENT_UPLOAD.EVENTS: [event]}
     self.testapp.post_json('/my-uuid', request_json)
@@ -1156,7 +1137,7 @@ class EventUploadHandlerTest(SantaApiTestCase):
             'Content/MacOS/unknown',
         EVENT_UPLOAD.FILE_PATH: '/Unknown.app/Content/MacOS',
         EVENT_UPLOAD.FILE_NAME: 'unknown',
-        EVENT_UPLOAD.DECISION: common_const.EVENT_TYPE.BUNDLE_BINARY
+        EVENT_UPLOAD.DECISION: constants.EVENT_TYPE.BUNDLE_BINARY
     })
     request_json = {EVENT_UPLOAD.EVENTS: [event]}
     self.testapp.post_json('/my-uuid', request_json)
@@ -1190,12 +1171,11 @@ class EventUploadHandlerTest(SantaApiTestCase):
             'Content/MacOS/foo',
         EVENT_UPLOAD.FILE_PATH: '/Foo.app/Content/MacOS',
         EVENT_UPLOAD.FILE_NAME: 'foo',
-        EVENT_UPLOAD.DECISION: common_const.EVENT_TYPE.BUNDLE_BINARY
+        EVENT_UPLOAD.DECISION: constants.EVENT_TYPE.BUNDLE_BINARY
     })
     request_json = {
         EVENT_UPLOAD.EVENTS: [normal_event, upload_event]}
-    response = self.testapp.post_json('/my-uuid', request_json)
-    output = response.json
+    self.testapp.post_json('/my-uuid', request_json)
 
     self.assertEqual(1, santa_models.SantaEvent.query().count())
     self.assertIsNotNone(santa_models.SantaBlockable.get_by_id('blah'))
@@ -1203,10 +1183,6 @@ class EventUploadHandlerTest(SantaApiTestCase):
     self.assertEqual(
         1, santa_models.SantaBundleBinary.query(ancestor=bundle.key).count())
     self.assertTrue(bundle.key.get().has_been_uploaded)
-
-    self.assertSameElements(
-        [blockable.key.id(), 'blah'],
-        output[EVENT_UPLOAD.REQUEST_UPLOADS])
 
     self.assertBigQueryInsertions(
         [TABLE.BINARY, TABLE.BUNDLE_BINARY, TABLE.EXECUTION])
@@ -1224,7 +1200,7 @@ class EventUploadHandlerTest(SantaApiTestCase):
             'Content/MacOS/unknown',
         EVENT_UPLOAD.FILE_PATH: '/Unknown.app/Content/MacOS',
         EVENT_UPLOAD.FILE_NAME: 'unknown',
-        EVENT_UPLOAD.DECISION: common_const.EVENT_TYPE.BUNDLE_BINARY
+        EVENT_UPLOAD.DECISION: constants.EVENT_TYPE.BUNDLE_BINARY
     })
     request_json = {EVENT_UPLOAD.EVENTS: [event]}
     self.testapp.post_json('/my-uuid', request_json)
@@ -1300,98 +1276,6 @@ class EventUploadHandlerTest(SantaApiTestCase):
     self.assertBigQueryInsertion(TABLE.EXECUTION)
 
 
-class LogUploadHandlerTest(SantaApiTestCase):
-
-  def setUp(self):
-    app = webapp2.WSGIApplication([('/(.*)', sync.LogUploadHandler)])
-    super(LogUploadHandlerTest, self).setUp(wsgi_app=app)
-    self.Patch(
-        sync.LogUploadHandler,
-        'RequestCounter',
-        new_callable=mock.PropertyMock,
-        return_value=self.mock_metric)
-
-    self.host = host_models.SantaHost(id='my-uuid', should_upload_logs=True)
-    self.host.put()
-
-  def testDisabledLogUpload(self):
-    response = self.testapp.post('/my-uuid')
-
-    self.assertFalse(
-        host_models.SantaHost.get_by_id('my-uuid').should_upload_logs)
-    self.assertEqual(httplib.OK, response.status_int)
-    self.VerifyIncrementCalls(self.mock_metric, httplib.OK)
-
-  def testCreatesLogFileEntity(self):
-    # NOTE: Yuck. The Blobstore stub doesn't provide any way to test
-    # a BlobstoreUploadHandler, so instead override the get_uploads() method
-    # to return an object that quacks like a BlobInfo object.
-
-    class BlobInfo(object):
-
-      def __init__(self):
-        self.filename = 'system.log'
-
-      def key(self):  # pylint:disable=invalid-name
-        return datastore_types.BlobKey('my-key')
-
-    with mock.patch.object(
-        sync.LogUploadHandler, 'get_uploads', return_value=[BlobInfo()]):
-      response = self.testapp.post('/%s' % self.host.key.id())
-
-      self.assertEqual(httplib.OK, response.status_int)
-      self.VerifyIncrementCalls(self.mock_metric, httplib.OK)
-
-    q = santa_models.SantaLogFile.query()
-    self.assertEqual(1, q.count())
-    comp = q.get()
-    self.assertEqual('system.log', comp.filename)
-    self.assertEqual('my-key', comp.blobkey)
-    self.assertEqual('my-uuid', comp.host_id)
-
-
-class BinaryUploadHandlerTest(SantaApiTestCase):
-
-  def setUp(self):
-    app = webapp2.WSGIApplication([('/(.*)', sync.BinaryUploadHandler)])
-    super(BinaryUploadHandlerTest, self).setUp(wsgi_app=app)
-    self.Patch(
-        sync.BinaryUploadHandler,
-        'RequestCounter',
-        new_callable=mock.PropertyMock,
-        return_value=self.mock_metric)
-
-    host_models.SantaHost(key=ndb.Key('Host', 'my-uuid')).put()
-
-  def testCreatesLogFileEntity(self):
-    # NOTE: Yuck. The Blobstore stub doesn't provide any way to test
-    # a BlobstoreUploadHandler, so instead override the get_uploads() method
-    # to return an object that quacks like a BlobInfo object.
-    fname = 'd5cc4aee4203c5d7bd7b2da9aeec257a377aaa2b80d8597206400f0d941cc7c5'
-
-    class BlobInfo(object):
-
-      def __init__(self):
-        self.filename = fname
-
-      def key(self):  # pylint:disable=invalid-name
-        return datastore_types.BlobKey('my-key')
-
-    sync.BinaryUploadHandler.get_uploads = lambda x, y: [BlobInfo()]
-
-    response = self.testapp.post('/my-uuid')
-
-    q = santa_models.SantaBinaryFile.query()
-    self.assertEqual(1, q.count())
-    comp = q.get()
-    self.assertEqual(fname, comp.key.id())
-    self.assertEqual(fname, comp.shasum)
-    self.assertEqual('my-key', comp.blobkey)
-    self.assertEqual('my-uuid', comp.host_id)
-    self.assertEqual(httplib.OK, response.status_int)
-    self.VerifyIncrementCalls(self.mock_metric, httplib.OK)
-
-
 class RuleDownloadHandlerTest(SantaApiTestCase):
 
   def setUp(self):
@@ -1410,10 +1294,10 @@ class RuleDownloadHandlerTest(SantaApiTestCase):
 
     self.blockable = test_utils.CreateBlockable(
         id='aaaaaaaaaabbbbbbbbbbcccccccccdddddddddd')
-    self.rule = santa_models.SantaRule(
+    self.rule = rule_models.SantaRule(
         parent=self.blockable.key,
-        rule_type=common_const.RULE_TYPE.BINARY,
-        policy=common_const.RULE_POLICY.WHITELIST)
+        rule_type=constants.RULE_TYPE.BINARY,
+        policy=constants.RULE_POLICY.WHITELIST)
     self.rule.put()
 
   def testDownloadRules(self):
@@ -1480,21 +1364,21 @@ class RuleDownloadHandlerTest(SantaApiTestCase):
     self.host.put()
 
     blockable = test_utils.CreateBlockable()
-    santa_models.SantaRule(
+    rule_models.SantaRule(
         parent=blockable.key,
-        rule_type=common_const.RULE_TYPE.BINARY,
-        policy=common_const.RULE_POLICY.BLACKLIST).put()
-    santa_models.SantaRule(
+        rule_type=constants.RULE_TYPE.BINARY,
+        policy=constants.RULE_POLICY.BLACKLIST).put()
+    rule_models.SantaRule(
         parent=blockable.key,
-        rule_type=common_const.RULE_TYPE.BINARY,
-        policy=common_const.RULE_POLICY.WHITELIST).put()
+        rule_type=constants.RULE_TYPE.BINARY,
+        policy=constants.RULE_POLICY.WHITELIST).put()
 
     response = self.testapp.post_json('/my-uuid', {})
 
     self.assertLen(response.json[RULE_DOWNLOAD.RULES], 2)
     latest_rule = response.json[RULE_DOWNLOAD.RULES][1]
     self.assertEqual(
-        common_const.RULE_POLICY.WHITELIST, latest_rule[RULE_DOWNLOAD.POLICY])
+        constants.RULE_POLICY.WHITELIST, latest_rule[RULE_DOWNLOAD.POLICY])
     self.assertEqual(httplib.OK, response.status_int)
 
     self.VerifyIncrementCalls(self.mock_metric, httplib.OK)
@@ -1507,7 +1391,7 @@ class RuleDownloadHandlerTest(SantaApiTestCase):
     bundle = test_utils.CreateSantaBundle(
         bundle_binaries=[blockable1, blockable2])
     test_utils.CreateSantaRule(
-        bundle.key, rule_type=common_const.RULE_TYPE.PACKAGE)
+        bundle.key, rule_type=constants.RULE_TYPE.PACKAGE)
 
     response = self.testapp.post_json('/my-uuid', {})
     self.assertEqual(httplib.OK, response.status_int)
@@ -1522,7 +1406,7 @@ class RuleDownloadHandlerTest(SantaApiTestCase):
 
     for rule in rules:
       self.assertEqual(
-          common_const.RULE_TYPE.BINARY,
+          constants.RULE_TYPE.BINARY,
           rule[RULE_DOWNLOAD.RULE_TYPE])
       self.assertEqual(
           2, rule[RULE_DOWNLOAD.FILE_BUNDLE_BINARY_COUNT])
@@ -1533,10 +1417,10 @@ class RuleDownloadHandlerTest(SantaApiTestCase):
 
   def testCursor(self):
     blockable = test_utils.CreateBlockable()
-    santa_models.SantaRule(
+    rule_models.SantaRule(
         parent=blockable.key,
-        rule_type=common_const.RULE_TYPE.CERTIFICATE,
-        policy=common_const.RULE_POLICY.BLACKLIST).put()
+        rule_type=constants.RULE_TYPE.CERTIFICATE,
+        policy=constants.RULE_POLICY.BLACKLIST).put()
 
     self.PatchSetting('SANTA_RULE_BATCH_SIZE', 1)
 

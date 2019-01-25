@@ -30,6 +30,7 @@ py_appengine_library(
         "//upvote/gae/datastore/models:base",
         "//upvote/gae/datastore/models:bit9",
         "//upvote/gae/datastore/models:host",
+        "//upvote/gae/datastore/models:rule",
         "//upvote/gae/datastore/models:user",
         "//upvote/gae/datastore/models:utils",
         "//upvote/gae/lib/analysis:metrics",
@@ -38,11 +39,10 @@ py_appengine_library(
         "//upvote/gae/lib/bit9:constants",
         "//upvote/gae/lib/bit9:monitoring",
         "//upvote/gae/lib/bit9:utils",
-        "//upvote/gae/shared/common:user_map",
         "//upvote/gae/taskqueue:utils",
         "//upvote/gae/utils:handler_utils",
-        "//upvote/gae/utils:intermodule_utils",
         "//upvote/gae/utils:time_utils",
+        "//upvote/gae/utils:user_utils",
         "//upvote/shared:constants",
     ],
 )
@@ -53,9 +53,9 @@ py_appengine_library(
     deps = [
         "//upvote/gae:settings",
         "//upvote/gae/datastore/models:user",
-        "//upvote/gae/shared/common:monitoring",
         "//upvote/gae/utils:env_utils",
         "//upvote/gae/utils:handler_utils",
+        "//upvote/gae/utils:monitoring_utils",
         "//upvote/shared:constants",
     ],
 )
@@ -67,10 +67,29 @@ py_appengine_library(
         "//upvote/gae/datastore:utils",
         "//upvote/gae/datastore/models:host",
         "//upvote/gae/datastore/models:user",
-        "//upvote/gae/shared/common:user_map",
         "//upvote/gae/utils:group_utils",
         "//upvote/gae/utils:handler_utils",
         "//upvote/gae/utils:iter_utils",
+        "//upvote/gae/utils:monitoring_utils",
+        "//upvote/gae/utils:user_utils",
+        "//upvote/monitoring:metrics",
+    ],
+)
+
+py_appengine_library(
+    name = "exemption_upkeep",
+    srcs = ["exemption_upkeep.py"],
+    deps = [
+        "//upvote/gae:settings",
+        "//upvote/gae/datastore/models:exemption",
+        "//upvote/gae/datastore/models:utils",
+        "//upvote/gae/lib/exemption:api",
+        "//upvote/gae/lib/exemption:monitoring",
+        "//upvote/gae/lib/exemption:notify",
+        "//upvote/gae/utils:group_utils",
+        "//upvote/gae/utils:handler_utils",
+        "//upvote/gae/utils:user_utils",
+        "//upvote/shared:constants",
     ],
 )
 
@@ -80,6 +99,7 @@ py_appengine_library(
     deps = [
         ":bit9_syncing",
         ":datastore_backup",
+        ":exemption_upkeep",
         ":role_syncing",
     ],
 )
@@ -99,6 +119,7 @@ upvote_appengine_test(
         "//upvote/gae/datastore/models:base",
         "//upvote/gae/datastore/models:bit9",
         "//upvote/gae/datastore/models:host",
+        "//upvote/gae/datastore/models:rule",
         "//upvote/gae/lib/bit9:api",
         "//upvote/gae/lib/bit9:constants",
         "//upvote/gae/lib/bit9:monitoring",
@@ -138,6 +159,22 @@ upvote_appengine_test(
         "//upvote/gae/datastore/models:base",
         "//upvote/gae/lib/testing:basetest",
         "//upvote/gae/utils:group_utils",
+        "//upvote/shared:constants",
+    ],
+)
+
+upvote_appengine_test(
+    name = "exemption_upkeep_test",
+    srcs = ["exemption_upkeep_test.py"],
+    deps = [
+        ":exemption_upkeep",
+        "//external:mock",
+        "//upvote/gae:settings",
+        "//upvote/gae/datastore:test_utils",
+        "//upvote/gae/datastore/models:exemption",
+        "//upvote/gae/lib/exemption:api",
+        "//upvote/gae/lib/testing:basetest",
+        "//upvote/gae/utils:user_utils",
         "//upvote/shared:constants",
     ],
 )

@@ -29,8 +29,8 @@ from upvote.gae.datastore.models import santa as santa_models
 from upvote.gae.datastore.models import user as user_models
 from upvote.gae.datastore.models import vote as vote_models
 from upvote.gae.modules.upvote_app.api.web import monitoring
-from upvote.gae.shared.common import user_map
 from upvote.gae.utils import handler_utils
+from upvote.gae.utils import user_utils
 from upvote.shared import constants
 
 
@@ -198,7 +198,8 @@ class RecentEventHandler(handler_utils.UserFacingHandler):
     username = self.request.get('asUser')
     if username:
       self.RequireCapability(constants.PERMISSIONS.VIEW_OTHER_EVENTS)
-      user = user_models.User.GetById(user_map.UsernameToEmail(username))
+      user = user_models.User.GetById(
+          user_utils.UsernameToEmail(username))
     else:
       user = self.user
 

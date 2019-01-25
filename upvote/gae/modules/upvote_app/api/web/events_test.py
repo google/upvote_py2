@@ -25,7 +25,7 @@ from upvote.gae.datastore import test_utils
 from upvote.gae.datastore import utils as datastore_utils
 from upvote.gae.lib.testing import basetest
 from upvote.gae.modules.upvote_app.api.web import events
-from upvote.gae.shared.common import user_map
+from upvote.gae.utils import user_utils
 from upvote.shared import constants
 
 
@@ -317,7 +317,7 @@ class EventQueryHandlerTest(EventsTest):
     self.assertEqual(event_with_context['cert']['id'],
                      event_with_context['blockable']['certId'])
     self.assertEqual(
-        user_map.EmailToUsername(event_with_context['vote']['userEmail']),
+        user_utils.EmailToUsername(event_with_context['vote']['userEmail']),
         event_with_context['event']['executingUser'])
 
   def testAdminGetQuery(self):

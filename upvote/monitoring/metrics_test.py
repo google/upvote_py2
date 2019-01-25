@@ -32,7 +32,7 @@ class MetricNamespaceTest(absltest.TestCase):
     self.assertLen(metrics.DATASTORE.ALL, 1)
 
   def testSantaApi(self):
-    self.assertLen(metrics.SANTA_API.ALL, 6)
+    self.assertLen(metrics.SANTA_API.ALL, 4)
 
   def testBit9Api(self):
     self.assertLen(metrics.BIT9_API.ALL, 11)
@@ -50,7 +50,10 @@ class MetricNamespaceTest(absltest.TestCase):
     self.assertLen(metrics.BIGQUERY.ALL, 1)
 
   def testExemption(self):
-    self.assertLen(metrics.EXEMPTION.ALL, 1)
+    self.assertLen(metrics.EXEMPTION.ALL, 7)
+
+  def testRoles(self):
+    self.assertLen(metrics.ROLES.ALL, 1)
 
   def testRpcServer(self):
     self.assertLen(metrics.RPC_SERVER.ALL, 3)

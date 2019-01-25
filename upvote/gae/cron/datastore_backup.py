@@ -28,13 +28,13 @@ from google.appengine.api import taskqueue
 from google.appengine.ext.ndb import metadata
 from upvote.gae import settings
 from upvote.shared import constants
-from upvote.gae.shared.common import monitoring
+from upvote.gae.utils import monitoring_utils
 from upvote.gae.utils import env_utils
 from upvote.gae.utils import handler_utils
 from upvote.monitoring import metrics
 
 
-_DATASTORE_BACKUPS = monitoring.Counter(metrics.DATASTORE.BACKUPS)
+_DATASTORE_BACKUPS = monitoring_utils.Counter(metrics.DATASTORE.BACKUPS)
 
 _BACKUP_PREFIX = 'datastore_backup'
 

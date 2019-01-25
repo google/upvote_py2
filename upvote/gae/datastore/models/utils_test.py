@@ -20,18 +20,22 @@ import mock
 
 from google.appengine.ext import ndb
 
+from upvote.gae import settings
 from upvote.gae.datastore import test_utils
 from upvote.gae.datastore import utils as datastore_utils
 from upvote.gae.datastore.models import base as base_models
 from upvote.gae.datastore.models import host as host_models
+from upvote.gae.datastore.models import rule as rule_models
+from upvote.gae.datastore.models import santa as santa_models
 from upvote.gae.datastore.models import utils as model_utils
 from upvote.gae.lib.testing import basetest
-from upvote.gae.shared.common import user_map
+from upvote.gae.utils import user_utils
 from upvote.shared import constants
 
 
 # Done for brevity.
 _STATE = constants.EXEMPTION_STATE
+_TABLE = constants.BIGQUERY_TABLE
 
 
 class GetBit9HostKeysForUserTest(basetest.UpvoteTestCase):
@@ -158,6 +162,29 @@ class GetExemptionsForUserTest(basetest.UpvoteTestCase):
     self.assertListEqual([exm_1], actual_exms)
 
 
+class GetExemptionsForHostsTest(basetest.UpvoteTestCase):
+
+  def testSuccess(self):
+
+    # Create a user and some Hosts, some with Exemptions, and some without.
+    user = test_utils.CreateUser()
+    host_key_1 = test_utils.CreateBit9Host(users=[user.nickname]).key
+    exm_1 = test_utils.CreateExemption(host_key_1.id()).get()
+    host_key_2 = test_utils.CreateBit9Host(users=[user.nickname]).key
+    host_key_3 = test_utils.CreateSantaHost(primary_user=user.nickname).key
+    exm_2 = test_utils.CreateExemption(host_key_3.id()).get()
+    host_key_4 = test_utils.CreateSantaHost(primary_user=user.nickname).key
+
+    host_keys = [host_key_1, host_key_2, host_key_3, host_key_4]
+    results = model_utils.GetExemptionsForHosts(host_keys)
+
+    self.assertLen(results, 4)
+    self.assertEqual(exm_1, results.get(host_key_1))
+    self.assertIsNone(results.get(host_key_2))
+    self.assertEqual(exm_2, results.get(host_key_3))
+    self.assertIsNone(results.get(host_key_4))
+
+
 class GetEventKeysToInsertTest(basetest.UpvoteTestCase):
 
   def setUp(self):
@@ -175,7 +202,7 @@ class GetEventKeysToInsertTest(basetest.UpvoteTestCase):
     keys = model_utils.GetEventKeysToInsert(self.event, ['foo', 'bar'], [])
 
     self.assertLen(keys, 1)
-    expected_email = user_map.UsernameToEmail(self.event.executing_user)
+    expected_email = user_utils.UsernameToEmail(self.event.executing_user)
     self.assertEqual(expected_email, keys[0].pairs()[0][1])
 
   def testGetEventKeysToInsert_Admin(self):
@@ -186,7 +213,7 @@ class GetEventKeysToInsertTest(basetest.UpvoteTestCase):
       keys = model_utils.GetEventKeysToInsert(event, usernames, [])
 
     self.assertLen(keys, 2)
-    key_usernames = [user_map.EmailToUsername(key.flat()[1]) for key in keys]
+    key_usernames = [user_utils.EmailToUsername(key.flat()[1]) for key in keys]
     self.assertSameElements(usernames, key_usernames)
 
   def testGetEventKeysToInsert_BlockableKey(self):
@@ -210,7 +237,7 @@ class GetEventKeysToInsertTest(basetest.UpvoteTestCase):
     keys = model_utils.GetEventKeysToInsert(self.event, [], ['foo'])
 
     self.assertLen(keys, 1)
-    key_usernames = [user_map.EmailToUsername(key.flat()[1]) for key in keys]
+    key_usernames = [user_utils.EmailToUsername(key.flat()[1]) for key in keys]
     self.assertSameElements(['foo'], key_usernames)
 
   def testGetEventKeysToInsert_Superuser(self):
@@ -336,6 +363,41 @@ class GetUsersAssociatedWithSantaHostTest(basetest.UpvoteTestCase):
     expected_users = ['user2', 'user3']
     actual_users = sorted(model_utils.GetUsersAssociatedWithSantaHost(host_id))
     self.assertEqual(expected_users, actual_users)
+
+
+class GetBundleBinaryIdsForRuleTest(basetest.UpvoteTestCase):
+
+  def testPackage(self):
+    blockable = test_utils.CreateSantaBlockable()
+    bundle = test_utils.CreateSantaBundle(bundle_binaries=[blockable])
+    rule = test_utils.CreateSantaRule(
+        bundle.key, rule_type=constants.RULE_TYPE.PACKAGE)
+
+    self.assertSameElements(
+        [blockable.key.id()], model_utils.GetBundleBinaryIdsForRule(rule))
+
+  def testNotPackage(self):
+    blockable = test_utils.CreateSantaBlockable()
+    rule = test_utils.CreateSantaRule(
+        blockable.key, rule_type=constants.RULE_TYPE.BINARY)
+
+    self.assertListEqual([], model_utils.GetBundleBinaryIdsForRule(rule))
+
+
+class EnsureCriticalRulesTest(basetest.UpvoteTestCase):
+
+  def testSuccess(self):
+
+    self.assertEntityCount(santa_models.SantaCertificate, 0)
+    self.assertEntityCount(rule_models.SantaRule, 0)
+
+    model_utils.EnsureCriticalRules(settings.CRITICAL_RULES)
+
+    expected_count = len(settings.CRITICAL_RULES)
+    self.assertEntityCount(santa_models.SantaCertificate, expected_count)
+    self.assertEntityCount(rule_models.SantaRule, expected_count)
+    self.assertBigQueryInsertions(
+        [_TABLE.CERTIFICATE, _TABLE.RULE] * expected_count)
 
 
 if __name__ == '__main__':

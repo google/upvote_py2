@@ -52,45 +52,6 @@ describe('Host Service', () => {
       hostService.get('abc');
     });
 
-    it('when retrieving an existing host exception', () => {
-      httpBackend.expectGET('/api/web/hosts/abc/request-exception')
-          .respond(200);
-      hostService.getExistingHostException('abc');
-    });
-
-    describe('when requesting a host exception', () => {
-      it('', () => {
-        httpBackend.expectPOST('/api/web/hosts/abc/request-exception')
-            .respond((method, url, data, headers, params) => {
-              expect(data.search(/reason=DEVELOPER_MACOS/)).not.toBe(-1);
-              expect(data.search(/otherText/)).toBe(-1);
-              return [200, {}];
-            });
-        hostService.requestHostException(
-            'abc', {'reason': 'DEVELOPER_MACOS', 'otherText': null});
-      });
-
-      it('of type OTHER', () => {
-        httpBackend.expectPOST('/api/web/hosts/abc/request-exception')
-            .respond((method, url, data, headers, params) => {
-              expect(data.search(/reason=OTHER/)).not.toBe(-1);
-              expect(data.search(/otherText=FOO/)).not.toBe(-1);
-              return [200, {}];
-            });
-        hostService.requestHostException(
-            'abc', {'reason': 'OTHER', 'otherText': 'FOO'});
-      });
-    });
-
-    it('when requesting lockdown mode', () => {
-      httpBackend.expectPOST('/api/web/hosts/abc/request-lockdown')
-          .respond((method, url, data, headers, params) => {
-            expect(data).toBeFalsy();
-            return [200, {}];
-          });
-      hostService.requestLockdown('abc');
-    });
-
     describe('when getting associated hosts', () => {
       it('for a given user', () => {
         httpBackend.expectGET('/api/web/hosts/associated/user@foo.com')
@@ -120,6 +81,32 @@ describe('Host Service', () => {
         let params =
             Object.assign({'platform': upvote.hosts.Platform.SANTA}, qParams);
         hostService.search(params);
+      });
+    });
+
+    describe('when changing hidden to', () => {
+      it('true', () => {
+        httpBackend.expectPUT('/api/web/hosts/12345/hidden/true').respond(200);
+        hostService.setHidden('12345', true);
+      });
+
+      it('false', () => {
+        httpBackend.expectPUT('/api/web/hosts/12345/hidden/false').respond(200);
+        hostService.setHidden('12345', false);
+      });
+    });
+
+    describe('when changing transitive to', () => {
+      it('true', () => {
+        httpBackend.expectPUT('/api/web/hosts/12345/transitive/true')
+            .respond(200);
+        hostService.setTransitive('12345', true);
+      });
+
+      it('false', () => {
+        httpBackend.expectPUT('/api/web/hosts/12345/transitive/false')
+            .respond(200);
+        hostService.setTransitive('12345', false);
       });
     });
   });

@@ -22,7 +22,6 @@ py_appengine_library(
         ":rule",
         ":santa",
         ":singleton",
-        ":tickets",
         ":virustotal",
     ],
 )
@@ -44,7 +43,6 @@ py_appengine_library(
         ":vote",
         "//upvote/gae/bigquery:tables",
         "//upvote/gae/datastore:utils",
-        "//upvote/gae/shared/common:user_map",
         "//upvote/shared:constants",
     ],
 )
@@ -55,6 +53,7 @@ py_appengine_library(
     deps = [
         ":base",
         ":mixin",
+        ":rule",
         "//common/cloud_kms:kms_ndb",
         "//upvote/gae/datastore/models:singleton",
         "//upvote/shared:constants",
@@ -70,7 +69,6 @@ py_appengine_library(
     name = "exemption",
     srcs = ["exemption.py"],
     deps = [
-        ":host",
         ":mixin",
         "//upvote/gae/bigquery:tables",
         "//upvote/gae/lib/exemption:monitoring",
@@ -107,7 +105,9 @@ py_appengine_library(
     name = "rule",
     srcs = ["rule.py"],
     deps = [
-        ":santa",
+        ":mixin",
+        "//upvote/gae/bigquery:tables",
+        "//upvote/gae/utils:user_utils",
         "//upvote/shared:constants",
     ],
 )
@@ -118,6 +118,7 @@ py_appengine_library(
     deps = [
         ":base",
         ":mixin",
+        ":rule",
         ":user",
         "//upvote/gae/bigquery:tables",
         "//upvote/gae/datastore:utils",
@@ -132,14 +133,6 @@ py_appengine_library(
 )
 
 py_appengine_library(
-    name = "tickets",
-    srcs = ["tickets.py"],
-    deps = [
-        ":mixin",
-    ],
-)
-
-py_appengine_library(
     name = "user",
     srcs = ["user.py"],
     deps = [
@@ -147,8 +140,8 @@ py_appengine_library(
         "//upvote/gae:settings",
         "//upvote/gae/bigquery:tables",
         "//upvote/gae/datastore:utils",
-        "//upvote/gae/shared/common:user_map",
         "//upvote/gae/taskqueue:utils",
+        "//upvote/gae/utils:user_utils",
         "//upvote/shared:constants",
     ],
 )
@@ -160,10 +153,11 @@ py_appengine_library(
         ":base",
         ":exemption",
         ":host",
+        ":rule",
         ":santa",
         ":user",
         "//upvote/gae:settings",
-        "//upvote/gae/shared/common:user_map",
+        "//upvote/gae/utils:user_utils",
         "//upvote/shared:constants",
     ],
 )
@@ -276,8 +270,6 @@ upvote_appengine_test(
     size = "small",
     srcs = ["rule_test.py"],
     deps = [
-        ":rule",
-        ":santa",
         "//upvote/gae/datastore:test_utils",
         "//upvote/gae/lib/testing:basetest",
         "//upvote/shared:constants",
@@ -314,18 +306,6 @@ upvote_appengine_test(
 )
 
 upvote_appengine_test(
-    name = "tickets_test",
-    size = "small",
-    srcs = ["tickets_test.py"],
-    deps = [
-        ":tickets",
-        "//common/testing:basetest",
-        "//upvote/gae/lib/testing:basetest",
-        "@absl_git//absl/testing:absltest",
-    ],
-)
-
-upvote_appengine_test(
     name = "user_test",
     size = "small",
     srcs = ["user_test.py"],
@@ -350,12 +330,15 @@ upvote_appengine_test(
     deps = [
         ":base",
         ":host",
+        ":rule",
+        ":santa",
         ":utils",
         "//external:mock",
+        "//upvote/gae:settings",
         "//upvote/gae/datastore:test_utils",
         "//upvote/gae/datastore:utils",
         "//upvote/gae/lib/testing:basetest",
-        "//upvote/gae/shared/common:user_map",
+        "//upvote/gae/utils:user_utils",
         "//upvote/shared:constants",
         "@absl_git//absl/testing:absltest",
     ],

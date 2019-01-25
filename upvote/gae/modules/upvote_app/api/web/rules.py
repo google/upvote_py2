@@ -23,7 +23,7 @@ from google.appengine.ext import ndb
 
 from upvote.gae.datastore import utils as datastore_utils
 from upvote.gae.datastore.models import base as base_models
-from upvote.gae.datastore.models import santa as santa_models
+from upvote.gae.datastore.models import rule as rule_models
 from upvote.gae.modules.upvote_app.api.web import monitoring
 from upvote.gae.utils import handler_utils
 from upvote.shared import constants
@@ -32,7 +32,7 @@ from upvote.shared import constants
 class RuleQueryHandler(handler_utils.UserFacingQueryHandler):
   """Handler for querying rules."""
 
-  MODEL_CLASS = base_models.Rule
+  MODEL_CLASS = rule_models.Rule
 
   @property
   def RequestCounter(self):
@@ -55,7 +55,7 @@ class RuleQueryHandler(handler_utils.UserFacingQueryHandler):
 class SantaRuleQueryHandler(RuleQueryHandler):
   """Handler for querying santa rules."""
 
-  MODEL_CLASS = santa_models.SantaRule
+  MODEL_CLASS = rule_models.SantaRule
 
 
 class RuleHandler(handler_utils.UserFacingHandler):

@@ -27,10 +27,12 @@ from upvote.gae import settings
 from upvote.gae.datastore import utils as datastore_utils
 from upvote.gae.datastore.models import host as host_models
 from upvote.gae.datastore.models import user as user_models
-from upvote.gae.shared.common import user_map
 from upvote.gae.utils import group_utils
 from upvote.gae.utils import handler_utils
 from upvote.gae.utils import iter_utils
+from upvote.gae.utils import monitoring_utils
+from upvote.gae.utils import user_utils
+from upvote.monitoring import metrics
 from upvote.shared import constants
 
 # This number may need tweaking.
@@ -38,6 +40,8 @@ BATCH_SIZE = 1000
 
 # Done for the sake of brevity.
 _SANTA_CLIENT_MODE = constants.SANTA_CLIENT_MODE
+
+_SYNCING_ERRORS = monitoring_utils.Counter(metrics.ROLES.SYNCING_ERRORS)
 
 
 class SyncRoles(handler_utils.CronJobHandler):
@@ -58,20 +62,21 @@ class SyncRoles(handler_utils.CronJobHandler):
           user_models.User.roles == role)
 
       # Make sure all of the groups actually exist first.
-      bail = False
+      skip_current_role = False
       for group in group_names:
+
+        # If we're trying to sync a group that doesn't exist, make some noise.
         if not group_client.DoesGroupExist(group):
-          logging.info(
+          logging.error(
               'Skipping sync of role %s, group %s does not exist', role,
               group)
-
-          # If one doesn't, break out.
+          _SYNCING_ERRORS.Increment()
           self.response.set_status(httplib.NOT_FOUND)
-          bail = True
+          skip_current_role = True
           break
 
-      # If a group turns up missing, move on to the next role.
-      if bail:
+      # If we hit a nonexistent group, move on to the next role.
+      if skip_current_role:
         continue
 
       # Gather all users in the set of groups associated with the current role.
@@ -94,8 +99,14 @@ class SyncRoles(handler_utils.CronJobHandler):
       # they're supposed to, and remove the role from them if they aren't.
       for ndb_user in ndb_roster:
         if ndb_user.email not in expected_roster:
-          user_models.User.UpdateRoles(ndb_user.email, remove=[role])
-          removals += 1
+          try:
+            user_models.User.UpdateRoles(ndb_user.email, remove=[role])
+            removals += 1
+          except user_models.NoRolesError:
+            logging.error(
+                'Error encountered while removing role(s) from %s',
+                ndb_user.email)
+            _SYNCING_ERRORS.Increment()
         else:
           expected_roster.remove(ndb_user.email)
 
@@ -155,7 +166,7 @@ def _ChangeModeForHosts(mode, user_keys, honor_lock=True):
     honor_lock: bool, whether the client_mode_lock property will be honored.
   """
   predicates = [
-      host_models.SantaHost.primary_user == user_map.EmailToUsername(key.id())
+      host_models.SantaHost.primary_user == user_utils.EmailToUsername(key.id())
       for key in user_keys]
   query = host_models.SantaHost.query(ndb.OR(*predicates))
   hosts = query.fetch()

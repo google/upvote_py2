@@ -104,6 +104,7 @@ handlers:
 
 skip_files:
 - ^(.*/)embedded_jdk # workaroud for rules_appengine, to prevent jdk upload
+- ^(.*/)remotejdk_ # workaroud for rules_appengine, to prevent jdk upload
 # Default patterns skipped by App Engine, which must be repeated since
 # specifying skip_files overrides them otherwise.  See
 # https://cloud.google.com/appengine/docs/standard/python/config/appref#skip_files

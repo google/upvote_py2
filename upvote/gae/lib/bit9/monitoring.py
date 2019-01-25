@@ -14,26 +14,26 @@
 
 """Monitoring metrics for the bit9_api AppEngine module."""
 
-from upvote.gae.shared.common import monitoring
+from upvote.gae.utils import monitoring_utils
 from upvote.monitoring import metrics
 
 
-events_to_pull = monitoring.Metric(metrics.BIT9_API.EVENTS_TO_PULL, long)
-events_pulled = monitoring.Counter(metrics.BIT9_API.EVENTS_PULLED)
-events_to_process = monitoring.Metric(
+events_to_pull = monitoring_utils.Metric(metrics.BIT9_API.EVENTS_TO_PULL, long)
+events_pulled = monitoring_utils.Counter(metrics.BIT9_API.EVENTS_PULLED)
+events_to_process = monitoring_utils.Metric(
     metrics.BIT9_API.EVENTS_TO_PROCESS, long)
-events_processed = monitoring.Counter(metrics.BIT9_API.EVENTS_PROCESSED)
-events_skipped = monitoring.Counter(metrics.BIT9_API.EVENTS_SKIPPED)
-pending_changes = monitoring.Metric(metrics.BIT9_API.PENDING_CHANGES, long)
+events_processed = monitoring_utils.Counter(metrics.BIT9_API.EVENTS_PROCESSED)
+events_skipped = monitoring_utils.Counter(metrics.BIT9_API.EVENTS_SKIPPED)
+pending_changes = monitoring_utils.Metric(metrics.BIT9_API.PENDING_CHANGES, long)
 
 # Bit9 integration metrics
-bit9_logins = monitoring.SuccessFailureCounter(metrics.BIT9_API.BIT9_LOGINS)
-bit9_qps = monitoring.Counter(metrics.BIT9_API.BIT9_QPS)
-bit9_requests = monitoring.Counter(
+bit9_logins = monitoring_utils.SuccessFailureCounter(metrics.BIT9_API.BIT9_LOGINS)
+bit9_qps = monitoring_utils.Counter(metrics.BIT9_API.BIT9_QPS)
+bit9_requests = monitoring_utils.Counter(
     metrics.BIT9_API.BIT9_REQUESTS,
     fields=[('http_method', str), ('api_object', str), ('http_status', int)])
-bit9_latency = monitoring.LatencyMetric(
+bit9_latency = monitoring_utils.LatencyMetric(
     metrics.BIT9_API.BIT9_LATENCY,
     fields=[('http_method', str), ('api_object', str)])
-file_instances_missing = monitoring.Counter(
+file_instances_missing = monitoring_utils.Counter(
     metrics.BIT9_API.FILE_INSTANCES_MISSING)

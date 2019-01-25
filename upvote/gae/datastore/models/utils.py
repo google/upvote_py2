@@ -20,10 +20,23 @@ from upvote.gae import settings
 from upvote.gae.datastore.models import base as base_models
 from upvote.gae.datastore.models import exemption as exemption_models
 from upvote.gae.datastore.models import host as host_models
+from upvote.gae.datastore.models import rule as rule_models
 from upvote.gae.datastore.models import santa as santa_models
 from upvote.gae.datastore.models import user as user_models
-from upvote.gae.shared.common import user_map
+from upvote.gae.utils import user_utils
 from upvote.shared import constants
+
+
+class Error(Exception):
+  """Base Exception class."""
+
+
+class UnsupportedPlatformError(Error):
+  """Raised when an unsupported platform is encountered."""
+
+
+class UnsupportedRuleTypeError(Error):
+  """Raised when an unsupported rule type is encountered."""
 
 
 def GetBit9HostKeysForUser(user):
@@ -94,6 +107,30 @@ def GetExemptionsForUser(email_addr, state=None):
   return exms
 
 
+def GetExemptionsForHosts(host_keys):
+  """Retrieves all Exemptions corresponding to the specified Hosts.
+
+  Args:
+    host_keys: A list of NDB Host Keys.
+
+  Returns:
+    A dictionary mapping the given Host Keys to their corresponding Exemptions,
+    or None if one doesn't exist.
+  """
+  # Compose the expected Exemption Keys for all Hosts.
+  exm_keys = [ndb.Key(flat=k.flat() + ('Exemption', '1')) for k in host_keys]
+
+  # Grab everything from Datastore.
+  exms = ndb.get_multi(exm_keys)
+
+  # Map Host Keys to the entities we got back.
+  exm_dict = {exm.key.parent(): exm for exm in exms if exm}
+
+  # Return a mapping of all Host Keys to their Exemptions, or None for those
+  # without Exemptions.
+  return {host_key: exm_dict.get(host_key) for host_key in host_keys}
+
+
 def GetEventKeysToInsert(event, logged_in_users, host_owners):
   """Returns the list of keys with which this Event should be inserted."""
   if settings.EVENT_CREATION == constants.EVENT_CREATION.EXECUTING_USER:
@@ -104,7 +141,7 @@ def GetEventKeysToInsert(event, logged_in_users, host_owners):
   else:  # HOST_OWNERS
     usernames = host_owners
 
-  emails = [user_map.UsernameToEmail(username) for username in usernames]
+  emails = [user_utils.UsernameToEmail(username) for username in usernames]
 
   keys = []
   for email in emails:
@@ -164,3 +201,75 @@ def GetUsersAssociatedWithSantaHost(host_id):
   return [
       e.executing_user for e in event_query.fetch()
       if e.executing_user != constants.LOCAL_ADMIN.MACOS]
+
+
+def GetBundleBinaryIdsForRule(rule):
+  if rule.rule_type == constants.RULE_TYPE.PACKAGE:
+    keys = santa_models.SantaBundle.GetBundleBinaryKeys(rule.key.parent())
+    return [key.id() for key in keys]
+  return []
+
+
+_BLOCKABLE_CLASSES = {
+    constants.PLATFORM.MACOS: {
+        constants.RULE_TYPE.BINARY: santa_models.SantaBlockable,
+        constants.RULE_TYPE.CERTIFICATE: santa_models.SantaCertificate,
+    },
+}
+
+
+def EnsureCriticalRule(critical_rule):
+  """Pre-populates Datastore with a critical Rule entity.
+
+  Args:
+    critical_rule: A settings_utils.CriticalRule namedtuple.
+
+  Raises:
+    UnsupportedPlatformError:
+    UnsupportedRuleTypeError:
+  """
+  # Start off by determining the necessary Blockable and Rule subclasses we'll
+  # need before we continue.
+  if critical_rule.platform == constants.PLATFORM.MACOS:
+    rule_cls = rule_models.SantaRule
+    if critical_rule.rule_type == constants.RULE_TYPE.BINARY:
+      blockable_cls = santa_models.SantaBlockable
+    elif critical_rule.rule_type == constants.RULE_TYPE.CERTIFICATE:
+      blockable_cls = santa_models.SantaCertificate
+    else:
+      raise UnsupportedRuleTypeError(critical_rule.rule_type)
+  else:
+    raise UnsupportedPlatformError(critical_rule.platform)
+
+  # If the Blockable entity doesn't yet exist in Datastore, create it now.
+  blockable_key = ndb.Key(blockable_cls, critical_rule.sha256)
+  blockable = blockable_key.get()
+  if not blockable:
+    blockable = blockable_cls(
+        id=critical_rule.sha256, id_type=constants.ID_TYPE.SHA256,
+        blockable_hash=critical_rule.sha256)
+    blockable.put()
+    blockable.InsertBigQueryRow(constants.BLOCK_ACTION.FIRST_SEEN)
+
+  # Check for at least one matching Rule entity.
+  rule = rule_cls.query(
+      ancestor=blockable_key).get(keys_only=True)
+
+  # Doesn't exist? Add it!
+  if rule is None:
+    rule = rule_cls(
+        parent=blockable_key,
+        rule_type=critical_rule.rule_type,
+        policy=critical_rule.rule_policy)
+    rule.put()
+    rule.InsertBigQueryRow()
+
+
+def EnsureCriticalRules(critical_rules):
+  """Pre-populates Datastore with critical Rule entities.
+
+  Args:
+    critical_rules: A list of settings_utils.CriticalRule namedtuples.
+  """
+  for critical_rule in critical_rules:
+    EnsureCriticalRule(critical_rule)

@@ -21,29 +21,62 @@ import json
 import logging
 import zlib
 
+import webapp2
+from webapp2_extras import routes
+
 from google.appengine.datastore import datastore_query
 from google.appengine.ext import blobstore
 from google.appengine.ext import ndb
-from google.appengine.ext.webapp import blobstore_handlers
 
 from upvote.gae import settings
 from upvote.gae.bigquery import tables
 from upvote.gae.datastore import utils as datastore_utils
 from upvote.gae.datastore.models import host as host_models
+from upvote.gae.datastore.models import rule as rule_models
 from upvote.gae.datastore.models import santa as santa_models
 from upvote.gae.datastore.models import user as user_models
 from upvote.gae.datastore.models import utils as model_utils
 from upvote.gae.lib.analysis import metrics
 from upvote.gae.modules.santa_api import auth
-from upvote.gae.modules.santa_api import constants as santa_const
 from upvote.gae.modules.santa_api import monitoring
 from upvote.gae.shared.common import big_red
-from upvote.gae.shared.common import user_map
 from upvote.gae.utils import handler_utils
+from upvote.gae.utils import user_utils
 from upvote.gae.utils import xsrf_utils
-from upvote.shared import constants as common_const
+from upvote.shared import constants
+
 
 _SANTA_ACTION = 'santa_action'
+
+
+_PREFLIGHT = constants.LowercaseNamespace([
+    'BATCH_SIZE', 'BLACKLIST_REGEX', 'CLEAN_SYNC', 'CLIENT_MODE',
+    'HOSTNAME', 'OS_BUILD', 'OS_VERSION', 'PRIMARY_USER', 'REQUEST_CLEAN_SYNC',
+    'SANTA_VERSION', 'SERIAL_NUM', 'UPLOAD_LOGS_URL', 'WHITELIST_REGEX',
+    'BUNDLES_ENABLED', 'TRANSITIVE_WHITELISTING_ENABLED',])
+
+
+_EVENT_UPLOAD = constants.LowercaseNamespace([
+    'CN', 'CURRENT_SESSIONS', 'DECISION', 'EVENT_UPLOAD_BUNDLE_BINARIES',
+    'EVENTS', 'EXECUTING_USER', 'EXECUTION_TIME', 'FILE_BUNDLE_ID',
+    'FILE_BUNDLE_NAME', 'FILE_BUNDLE_PATH', 'FILE_BUNDLE_VERSION',
+    'FILE_BUNDLE_VERSION_STRING', 'FILE_BUNDLE_EXECUTABLE_REL_PATH',
+    'FILE_NAME', 'FILE_PATH', 'FILE_SHA256', 'LOGGED_IN_USERS', 'ORG', 'OU',
+    'PID', 'PPID', 'QUARANTINE_AGENT_BUNDLE_ID', 'QUARANTINE_DATA_URL',
+    'QUARANTINE_REFERER_URL', 'QUARANTINE_TIMESTAMP', 'SHA256', 'SIGNING_CHAIN',
+    'VALID_FROM', 'VALID_UNTIL', 'FILE_BUNDLE_HASH',
+    'FILE_BUNDLE_BINARY_COUNT',])
+
+
+_RULE_DOWNLOAD = constants.LowercaseNamespace([
+    'CREATION_TIME', 'CURSOR', 'CUSTOM_MSG', 'POLICY', 'RULE_TYPE', 'RULES',
+    'SHA256', 'FILE_BUNDLE_HASH', 'FILE_BUNDLE_BINARY_COUNT',])
+
+
+_POSTFLIGHT = constants.LowercaseNamespace(['BACKOFF'])
+
+
+_UUID_RE = r'[0-9A-F]{8}-[A-F0-9]{4}-[A-F0-9]{4}-[A-F0-9]{4}-[A-F0-9]{12}'
 
 
 class XsrfHandler(handler_utils.UpvoteRequestHandler):
@@ -90,12 +123,12 @@ class BaseSantaApiHandler(handler_utils.UpvoteRequestHandler):
 
     # Validate the connecting client.
     mode = settings.SANTA_CLIENT_VALIDATION
-    if mode != common_const.VALIDATION_MODE.NONE:
+    if mode != constants.VALIDATION_MODE.NONE:
       try:
         is_valid = auth.ValidateClient(self.request.headers, uuid)
       except Exception as e:  # pylint: disable=broad-except
         logging.warning('Client validation failed: %s', e)
-        is_valid = mode == common_const.VALIDATION_MODE.FAIL_OPEN
+        is_valid = mode == constants.VALIDATION_MODE.FAIL_OPEN
 
       if not is_valid:
         self.abort(httplib.FORBIDDEN, explanation='Failed to validate client.')
@@ -138,7 +171,7 @@ def _CopyLocalRules(user_key, dest_host_id):
 
   # Pick any host owned by the user to copy rules from. Exclude hosts that
   # haven't completed a full sync because they won't have a complete rule set.
-  username = user_map.EmailToUsername(user_key.id())
+  username = user_utils.EmailToUsername(user_key.id())
   query = host_models.SantaHost.query(
       host_models.SantaHost.primary_user == username,
       host_models.SantaHost.last_postflight_dt != None)  # pylint: disable=g-equals-none
@@ -150,9 +183,9 @@ def _CopyLocalRules(user_key, dest_host_id):
     logging.info('Copying local rules from %s', src_host.key.id())
 
   # Query for all SantaRules for the given user on the chosen host.
-  query = santa_models.SantaRule.query(
-      santa_models.SantaRule.host_id == src_host.key.id(),
-      santa_models.SantaRule.user_key == user_key)
+  query = rule_models.SantaRule.query(
+      rule_models.SantaRule.host_id == src_host.key.id(),
+      rule_models.SantaRule.user_key == user_key)
 
   # Copy the local rules to the new host.
   new_rules = []
@@ -184,9 +217,9 @@ class PreflightHandler(BaseSantaApiHandler):
 
     # Create an User for the primary_user on any preflight if one doesn't
     # already exist.
-    primary_user = self.parsed_json.get(santa_const.PREFLIGHT.PRIMARY_USER)
+    primary_user = self.parsed_json.get(_PREFLIGHT.PRIMARY_USER)
     user = user_models.User.GetOrInsert(
-        user_map.UsernameToEmail(primary_user))
+        user_utils.UsernameToEmail(primary_user))
     # Ensures the returned username is consistent with the User entity.
     primary_user = user.nickname
 
@@ -199,21 +232,16 @@ class PreflightHandler(BaseSantaApiHandler):
       futures.append(_CopyLocalRules(user.key, uuid))
 
     # Update host entity on every sync.
-    self.host.serial_num = self.parsed_json.get(
-        santa_const.PREFLIGHT.SERIAL_NUM)
-    self.host.hostname = self.parsed_json.get(
-        santa_const.PREFLIGHT.HOSTNAME)
+    self.host.serial_num = self.parsed_json.get(_PREFLIGHT.SERIAL_NUM)
+    self.host.hostname = self.parsed_json.get(_PREFLIGHT.HOSTNAME)
     self.host.primary_user = primary_user
-    self.host.santa_version = self.parsed_json.get(
-        santa_const.PREFLIGHT.SANTA_VERSION)
-    self.host.os_version = self.parsed_json.get(
-        santa_const.PREFLIGHT.OS_VERSION)
-    self.host.os_build = self.parsed_json.get(
-        santa_const.PREFLIGHT.OS_BUILD)
+    self.host.santa_version = self.parsed_json.get(_PREFLIGHT.SANTA_VERSION)
+    self.host.os_version = self.parsed_json.get(_PREFLIGHT.OS_VERSION)
+    self.host.os_build = self.parsed_json.get(_PREFLIGHT.OS_BUILD)
     self.host.last_preflight_dt = datetime.datetime.utcnow()
     self.host.last_preflight_ip = self.request.remote_addr
 
-    reported_mode = self.parsed_json.get(santa_const.PREFLIGHT.CLIENT_MODE)
+    reported_mode = self.parsed_json.get(_PREFLIGHT.CLIENT_MODE)
     if reported_mode != self.host.client_mode:
 
       message = 'Client mode mismatch (Expected: %s, Actual: %s)' % (
@@ -222,20 +250,20 @@ class PreflightHandler(BaseSantaApiHandler):
 
       # If the client_mode doesn't correspond to a known value, report it as
       # UNKNOWN.
-      if reported_mode not in common_const.HOST_MODE.SET_ALL:
-        reported_mode = common_const.HOST_MODE.UNKNOWN
+      if reported_mode not in constants.HOST_MODE.SET_ALL:
+        reported_mode = constants.HOST_MODE.UNKNOWN
 
       tables.HOST.InsertRow(
           device_id=uuid,
           timestamp=datetime.datetime.utcnow(),
-          action=common_const.HOST_ACTION.COMMENT,
+          action=constants.HOST_ACTION.COMMENT,
           hostname=self.host.hostname,
-          platform=common_const.PLATFORM.MACOS,
+          platform=constants.PLATFORM.MACOS,
           users=model_utils.GetUsersAssociatedWithSantaHost(uuid),
           mode=reported_mode,
           comment=message)
 
-    if self.parsed_json.get(santa_const.PREFLIGHT.REQUEST_CLEAN_SYNC):
+    if self.parsed_json.get(_PREFLIGHT.REQUEST_CLEAN_SYNC):
       logging.info('Client requested clean sync')
       self.host.rule_sync_dt = None
 
@@ -247,32 +275,32 @@ class PreflightHandler(BaseSantaApiHandler):
     actual_client_mode = self.host.client_mode
     big_red_button = big_red.BigRedButton()
     if big_red_button.stop_stop_stop:
-      actual_client_mode = common_const.SANTA_CLIENT_MODE.MONITOR
+      actual_client_mode = constants.SANTA_CLIENT_MODE.MONITOR
     elif big_red_button.go_go_go:
-      actual_client_mode = common_const.SANTA_CLIENT_MODE.LOCKDOWN
+      actual_client_mode = constants.SANTA_CLIENT_MODE.LOCKDOWN
 
     # Prepare response.
     response = {
-        santa_const.PREFLIGHT.BATCH_SIZE: (
+        _PREFLIGHT.BATCH_SIZE: (
             settings.SANTA_EVENT_BATCH_SIZE),
-        santa_const.PREFLIGHT.CLIENT_MODE: actual_client_mode,
-        santa_const.PREFLIGHT.WHITELIST_REGEX: (
+        _PREFLIGHT.CLIENT_MODE: actual_client_mode,
+        _PREFLIGHT.WHITELIST_REGEX: (
             self.host.directory_whitelist_regex
             if self.host.directory_whitelist_regex is not None
             else settings.SANTA_DIRECTORY_WHITELIST_REGEX),
-        santa_const.PREFLIGHT.BLACKLIST_REGEX: (
+        _PREFLIGHT.BLACKLIST_REGEX: (
             self.host.directory_blacklist_regex
             if self.host.directory_blacklist_regex is not None
             else settings.SANTA_DIRECTORY_BLACKLIST_REGEX),
-        santa_const.PREFLIGHT.CLEAN_SYNC: not self.host.rule_sync_dt,
-        santa_const.PREFLIGHT.BUNDLES_ENABLED: (
+        _PREFLIGHT.CLEAN_SYNC: not self.host.rule_sync_dt,
+        _PREFLIGHT.BUNDLES_ENABLED: (
             settings.SANTA_BUNDLES_ENABLED),
-        santa_const.PREFLIGHT.TRANSITIVE_WHITELISTING_ENABLED: (
+        _PREFLIGHT.TRANSITIVE_WHITELISTING_ENABLED: (
             self.host.transitive_whitelisting_enabled),
     }
 
     if self.host.should_upload_logs:
-      response[santa_const.PREFLIGHT.UPLOAD_LOGS_URL] = (
+      response[_PREFLIGHT.UPLOAD_LOGS_URL] = (
           blobstore.create_upload_url('/api/santa/logupload/%s' % uuid))
 
     # Verify all futures resolved successfully.
@@ -287,9 +315,9 @@ class PreflightHandler(BaseSantaApiHandler):
       tables.HOST.InsertRow(
           device_id=uuid,
           timestamp=new_host.recorded_dt,
-          action=common_const.HOST_ACTION.FIRST_SEEN,
+          action=constants.HOST_ACTION.FIRST_SEEN,
           hostname=new_host.hostname,
-          platform=common_const.PLATFORM.MACOS,
+          platform=constants.PLATFORM.MACOS,
           users=model_utils.GetUsersAssociatedWithSantaHost(uuid),
           mode=new_host.client_mode)
 
@@ -321,11 +349,11 @@ class EventUploadHandler(BaseSantaApiHandler):
       publisher: The organization from the leaf cert in the chain, or None.
       cert_sha256: The SHA-256 of the leaf cert in the chain, or None.
     """
-    signing_chain = json_event.get(santa_const.EVENT_UPLOAD.SIGNING_CHAIN)
+    signing_chain = json_event.get(_EVENT_UPLOAD.SIGNING_CHAIN)
     if signing_chain:
       first_cert = signing_chain[0]
-      publisher = first_cert.get(santa_const.EVENT_UPLOAD.ORG)
-      cert_sha256 = first_cert.get(santa_const.EVENT_UPLOAD.SHA256)
+      publisher = first_cert.get(_EVENT_UPLOAD.ORG)
+      cert_sha256 = first_cert.get(_EVENT_UPLOAD.SHA256)
     else:
       publisher = None
       cert_sha256 = None
@@ -346,15 +374,14 @@ class EventUploadHandler(BaseSantaApiHandler):
     cert_key = cert_sha256 and ndb.Key(
         santa_models.SantaCertificate, cert_sha256)
     return santa_models.SantaBlockable(
-        id=json_event.get(santa_const.EVENT_UPLOAD.FILE_SHA256),
-        blockable_hash=json_event.get(santa_const.EVENT_UPLOAD.FILE_SHA256),
-        id_type=common_const.ID_TYPE.SHA256,
-        file_name=json_event.get(santa_const.EVENT_UPLOAD.FILE_NAME),
+        id=json_event.get(_EVENT_UPLOAD.FILE_SHA256),
+        blockable_hash=json_event.get(_EVENT_UPLOAD.FILE_SHA256),
+        id_type=constants.ID_TYPE.SHA256,
+        file_name=json_event.get(_EVENT_UPLOAD.FILE_NAME),
         publisher=publisher,
-        version=json_event.get(
-            santa_const.EVENT_UPLOAD.FILE_BUNDLE_VERSION),
+        version=json_event.get(_EVENT_UPLOAD.FILE_BUNDLE_VERSION),
         cert_key=cert_key,
-        state=common_const.STATE.UNTRUSTED,
+        state=constants.STATE.UNTRUSTED,
         cert_sha256=cert_sha256)
 
   @classmethod
@@ -367,19 +394,19 @@ class EventUploadHandler(BaseSantaApiHandler):
     Returns:
       A list of the created-but-not-persisted SantaCertificate entities.
     """
-    signing_chain = event.get(santa_const.EVENT_UPLOAD.SIGNING_CHAIN, [])
+    signing_chain = event.get(_EVENT_UPLOAD.SIGNING_CHAIN, [])
     certs = []
     for cert in signing_chain:
       cert_entity = santa_models.SantaCertificate(
-          id=cert.get(santa_const.EVENT_UPLOAD.SHA256),
-          id_type=common_const.ID_TYPE.SHA256,
-          common_name=cert.get(santa_const.EVENT_UPLOAD.CN),
-          organization=cert.get(santa_const.EVENT_UPLOAD.ORG),
-          organizational_unit=cert.get(santa_const.EVENT_UPLOAD.OU),
+          id=cert.get(_EVENT_UPLOAD.SHA256),
+          id_type=constants.ID_TYPE.SHA256,
+          common_name=cert.get(_EVENT_UPLOAD.CN),
+          organization=cert.get(_EVENT_UPLOAD.ORG),
+          organizational_unit=cert.get(_EVENT_UPLOAD.OU),
           valid_from_dt=datetime.datetime.utcfromtimestamp(
-              cert.get(santa_const.EVENT_UPLOAD.VALID_FROM)),
+              cert.get(_EVENT_UPLOAD.VALID_FROM)),
           valid_until_dt=datetime.datetime.utcfromtimestamp(
-              cert.get(santa_const.EVENT_UPLOAD.VALID_UNTIL)))
+              cert.get(_EVENT_UPLOAD.VALID_UNTIL)))
       certs.append(cert_entity)
     return certs
 
@@ -393,22 +420,19 @@ class EventUploadHandler(BaseSantaApiHandler):
     # should be more than enough for display purposes, and will ensure that we
     # stay under the 1500 byte limit, even for strings with lots of characters
     # that require multiple bytes in UTF-8.
-    name = json_event.get(santa_const.EVENT_UPLOAD.FILE_BUNDLE_NAME)
+    name = json_event.get(_EVENT_UPLOAD.FILE_BUNDLE_NAME)
     name = name if name is None else name[:200]
 
     return santa_models.SantaBundle(
         key=bundle_key,
         name=name,
-        version=json_event.get(
-            santa_const.EVENT_UPLOAD.FILE_BUNDLE_VERSION),
-        short_version=json_event.get(
-            santa_const.EVENT_UPLOAD.FILE_BUNDLE_VERSION_STRING),
-        bundle_id=json_event.get(santa_const.EVENT_UPLOAD.FILE_BUNDLE_ID),
-        binary_count=json_event.get(
-            santa_const.EVENT_UPLOAD.FILE_BUNDLE_BINARY_COUNT),
+        version=json_event.get(_EVENT_UPLOAD.FILE_BUNDLE_VERSION),
+        short_version=json_event.get(_EVENT_UPLOAD.FILE_BUNDLE_VERSION_STRING),
+        bundle_id=json_event.get(_EVENT_UPLOAD.FILE_BUNDLE_ID),
+        binary_count=json_event.get(_EVENT_UPLOAD.FILE_BUNDLE_BINARY_COUNT),
         main_executable_rel_path=json_event.get(
-            santa_const.EVENT_UPLOAD.FILE_BUNDLE_EXECUTABLE_REL_PATH),
-        id_type=common_const.ID_TYPE.SANTA_BUNDLE)
+            _EVENT_UPLOAD.FILE_BUNDLE_EXECUTABLE_REL_PATH),
+        id_type=constants.ID_TYPE.SANTA_BUNDLE)
 
   @classmethod
   def _GenerateSantaEventsFromJsonEvent(cls, event, host):
@@ -423,18 +447,15 @@ class EventUploadHandler(BaseSantaApiHandler):
     """
     dbevent = santa_models.SantaEvent()
     dbevent.host_id = host.key.id()
-    dbevent.file_name = event.get(santa_const.EVENT_UPLOAD.FILE_NAME)
-    dbevent.file_path = event.get(santa_const.EVENT_UPLOAD.FILE_PATH)
-    dbevent.version = event.get(
-        santa_const.EVENT_UPLOAD.FILE_BUNDLE_VERSION)
-    dbevent.executing_user = event.get(
-        santa_const.EVENT_UPLOAD.EXECUTING_USER)
-    dbevent.event_type = event.get(santa_const.EVENT_UPLOAD.DECISION)
-    dbevent.bundle_path = event.get(
-        santa_const.EVENT_UPLOAD.FILE_BUNDLE_PATH)
+    dbevent.file_name = event.get(_EVENT_UPLOAD.FILE_NAME)
+    dbevent.file_path = event.get(_EVENT_UPLOAD.FILE_PATH)
+    dbevent.version = event.get(_EVENT_UPLOAD.FILE_BUNDLE_VERSION)
+    dbevent.executing_user = event.get(_EVENT_UPLOAD.EXECUTING_USER)
+    dbevent.event_type = event.get(_EVENT_UPLOAD.DECISION)
+    dbevent.bundle_path = event.get(_EVENT_UPLOAD.FILE_BUNDLE_PATH)
     dbevent.bundle_key = cls._GetBundleKeyFromJsonEvent(event)
 
-    blockable_id = event.get(santa_const.EVENT_UPLOAD.FILE_SHA256)
+    blockable_id = event.get(_EVENT_UPLOAD.FILE_SHA256)
     if blockable_id:
       dbevent.blockable_key = ndb.Key(santa_models.SantaBlockable, blockable_id)
 
@@ -445,23 +466,20 @@ class EventUploadHandler(BaseSantaApiHandler):
       dbevent.cert_key = ndb.Key(santa_models.SantaCertificate, cert_sha256)
 
     occurred_dt = datetime.datetime.utcfromtimestamp(
-        event.get(santa_const.EVENT_UPLOAD.EXECUTION_TIME, 0))
+        event.get(_EVENT_UPLOAD.EXECUTION_TIME, 0))
     dbevent.first_blocked_dt = occurred_dt
     dbevent.last_blocked_dt = occurred_dt
 
-    quarantine_timestamp = event.get(
-        santa_const.EVENT_UPLOAD.QUARANTINE_TIMESTAMP, 0)
+    quarantine_timestamp = event.get(_EVENT_UPLOAD.QUARANTINE_TIMESTAMP, 0)
     if quarantine_timestamp:
       quarantine_time = datetime.datetime.utcfromtimestamp(quarantine_timestamp)
       dbevent.quarantine = santa_models.QuarantineMetadata(
-          data_url=event.get(santa_const.EVENT_UPLOAD.QUARANTINE_DATA_URL),
-          referer_url=event.get(
-              santa_const.EVENT_UPLOAD.QUARANTINE_REFERER_URL),
-          agent_bundle_id=event.get(
-              santa_const.EVENT_UPLOAD.QUARANTINE_AGENT_BUNDLE_ID),
+          data_url=event.get(_EVENT_UPLOAD.QUARANTINE_DATA_URL),
+          referer_url=event.get(_EVENT_UPLOAD.QUARANTINE_REFERER_URL),
+          agent_bundle_id=event.get(_EVENT_UPLOAD.QUARANTINE_AGENT_BUNDLE_ID),
           downloaded_dt=quarantine_time)
 
-    usernames = event.get(santa_const.EVENT_UPLOAD.LOGGED_IN_USERS, [])
+    usernames = event.get(_EVENT_UPLOAD.LOGGED_IN_USERS, [])
 
     tables.EXECUTION.InsertRow(
         sha256=blockable_id,
@@ -499,7 +517,7 @@ class EventUploadHandler(BaseSantaApiHandler):
       # Insert a row into the Certificate table. Allow the timestamp to be
       # generated within InsertBigQueryRow(). The Blockable.recorded_dt Property
       # is set to auto_now_add, but this isn't filled in until persist time.
-      cert_entity.InsertBigQueryRow(common_const.BLOCK_ACTION.FIRST_SEEN)
+      cert_entity.InsertBigQueryRow(constants.BLOCK_ACTION.FIRST_SEEN)
 
     yield ndb.put_multi_async(unknown_certs)
 
@@ -523,21 +541,20 @@ class EventUploadHandler(BaseSantaApiHandler):
 
   @classmethod
   def _GetBlockableKeyFromJsonEvent(cls, json_event):
-    file_hash = json_event.get(santa_const.EVENT_UPLOAD.FILE_SHA256)
+    file_hash = json_event.get(_EVENT_UPLOAD.FILE_SHA256)
     assert file_hash
     return ndb.Key(santa_models.SantaBundle, file_hash)
 
   @classmethod
   def _GetBundleKeyFromJsonEvent(cls, json_event):
-    bundle_hash = json_event.get(santa_const.EVENT_UPLOAD.FILE_BUNDLE_HASH)
+    bundle_hash = json_event.get(_EVENT_UPLOAD.FILE_BUNDLE_HASH)
     return (
         ndb.Key(santa_models.SantaBundle, bundle_hash) if bundle_hash else None)
 
   @classmethod
   def _GetBundleRelPathFromJsonEvent(cls, json_event):
-    path_to_bundle = json_event.get(
-        santa_const.EVENT_UPLOAD.FILE_BUNDLE_PATH)
-    path_to_file = json_event.get(santa_const.EVENT_UPLOAD.FILE_PATH)
+    path_to_bundle = json_event.get(_EVENT_UPLOAD.FILE_BUNDLE_PATH)
+    path_to_file = json_event.get(_EVENT_UPLOAD.FILE_PATH)
     if path_to_bundle:
       if path_to_bundle not in path_to_file:
         logging.error(
@@ -571,7 +588,7 @@ class EventUploadHandler(BaseSantaApiHandler):
           ensure that transaction retries use the same timestamp.
     """
     # pylint: enable=g-doc-return-or-yield
-    blockable_id = json_event.get(santa_const.EVENT_UPLOAD.FILE_SHA256)
+    blockable_id = json_event.get(_EVENT_UPLOAD.FILE_SHA256)
     blockable_key = ndb.Key(santa_models.SantaBlockable, blockable_id)
     blockable = yield blockable_key.get_async()
     if not blockable:
@@ -579,10 +596,10 @@ class EventUploadHandler(BaseSantaApiHandler):
       yield blockable.put_async()
 
       blockable.InsertBigQueryRow(
-          common_const.BLOCK_ACTION.FIRST_SEEN, timestamp=now)
+          constants.BLOCK_ACTION.FIRST_SEEN, timestamp=now)
 
       metrics.DeferLookupMetric(
-          blockable_id, common_const.ANALYSIS_REASON.NEW_BLOCKABLE)
+          blockable_id, constants.ANALYSIS_REASON.NEW_BLOCKABLE)
 
   # pylint: disable=g-doc-return-or-yield
   @classmethod
@@ -603,7 +620,7 @@ class EventUploadHandler(BaseSantaApiHandler):
         bundle = cls._GenerateBundleFromJsonEvent(json_event)
 
         bundle.InsertBigQueryRow(
-            common_const.BLOCK_ACTION.FIRST_SEEN, timestamp=now)
+            constants.BLOCK_ACTION.FIRST_SEEN, timestamp=now)
 
         yield bundle.put_async()
 
@@ -635,8 +652,7 @@ class EventUploadHandler(BaseSantaApiHandler):
     if not bundle:
       bundle = cls._GenerateBundleFromJsonEvent(bundle_upload_events[0])
 
-      bundle.InsertBigQueryRow(
-          common_const.BLOCK_ACTION.FIRST_SEEN, timestamp=now)
+      bundle.InsertBigQueryRow(constants.BLOCK_ACTION.FIRST_SEEN, timestamp=now)
 
       yield bundle.put_async()
     elif bundle and bundle.has_been_uploaded:
@@ -656,7 +672,7 @@ class EventUploadHandler(BaseSantaApiHandler):
         bundle.has_unsigned_contents = True
 
       rel_path = cls._GetBundleRelPathFromJsonEvent(json_event)
-      file_name = json_event.get(santa_const.EVENT_UPLOAD.FILE_NAME)
+      file_name = json_event.get(_EVENT_UPLOAD.FILE_NAME)
       if rel_path is None:
         logging.error(
             'Skipping bundle binary %s in bundle %s', blockable.key.id(),
@@ -672,7 +688,7 @@ class EventUploadHandler(BaseSantaApiHandler):
           bundle_hash=bundle_key.id(),
           sha256=blockable.key.id(),
           timestamp=datetime.datetime.utcnow(),
-          action=common_const.BLOCK_ACTION.UPLOADED,
+          action=constants.BLOCK_ACTION.UPLOADED,
           cert_fingerprint='' if signing_cert_key is None
           else signing_cert_key.id(),
           relative_path=rel_path,
@@ -703,7 +719,7 @@ class EventUploadHandler(BaseSantaApiHandler):
       bundle.uploaded_dt = datetime.datetime.utcnow()
       yield bundle.put_async()
       metrics.DeferLookupMetric(
-          bundle.key.id(), common_const.ANALYSIS_REASON.NEW_BLOCKABLE)
+          bundle.key.id(), constants.ANALYSIS_REASON.NEW_BLOCKABLE)
 
   @ndb.tasklet
   def _CreateAllBundleBinaries(self, bundle_upload_events):
@@ -741,34 +757,6 @@ class EventUploadHandler(BaseSantaApiHandler):
 
   @classmethod
   @ndb.tasklet
-  def _GetBlockablesToUpload(cls, existing_keys, unknown_keys):
-    """Determine which blockables in this event upload require uploading.
-
-    - If we've never seen a Blockable before, we know we'll need to upload it.
-    - If the Blockable has an existing entity (i.e. we've seen it), we need to
-      do a further check to see whether there's an associated SantaBinaryFile.
-
-    Args:
-      existing_keys: set<Key>, The set of blockable keys for which blockable
-          entities existed prior to this upload.
-      unknown_keys: set<Key>, The set of blockable keys for which no blockable
-          entity existed prior to this upload.
-
-    Returns:
-      list<Key>, The keys of SantaBlockables that require upload.
-    """
-    blockable_keys = list(existing_keys)
-    binary_files = yield ndb.get_multi_async(
-        ndb.Key(santa_models.SantaBinaryFile, blockable_key.id())
-        for blockable_key in blockable_keys)
-    existing_but_not_uploaded = {
-        blockable_key
-        for blockable_key, binary_file in zip(blockable_keys, binary_files)
-        if not binary_file}
-    raise ndb.Return(list(unknown_keys | existing_but_not_uploaded))
-
-  @classmethod
-  @ndb.tasklet
   def _GetBundlesToUpload(cls, json_events):
     """Determine which bundles in this event upload require uploading.
 
@@ -803,7 +791,7 @@ class EventUploadHandler(BaseSantaApiHandler):
       return
 
     all_futures = []
-    json_events = self.parsed_json.get(santa_const.EVENT_UPLOAD.EVENTS)
+    json_events = self.parsed_json.get(_EVENT_UPLOAD.EVENTS)
     logging.info('Syncing %d events', len(json_events))
 
     # Create cert entities for all signing chains if they don't already exist.
@@ -815,8 +803,8 @@ class EventUploadHandler(BaseSantaApiHandler):
     normal_events = []
     blockable_event_map = {}  # Maps a blockable key to one of its json events.
     for event in json_events:
-      decision = event.get(santa_const.EVENT_UPLOAD.DECISION)
-      if decision == common_const.EVENT_TYPE.BUNDLE_BINARY:
+      decision = event.get(_EVENT_UPLOAD.DECISION)
+      if decision == constants.EVENT_TYPE.BUNDLE_BINARY:
         bundle_upload_events.append(event)
       else:
         normal_events.append(event)
@@ -850,10 +838,6 @@ class EventUploadHandler(BaseSantaApiHandler):
         if blockable}
     unknown_blockable_keys = unique_blockable_keys - existing_blockable_keys
 
-    # Start tasklet to determine which entities require upload.
-    blockables_future = self._GetBlockablesToUpload(
-        existing_blockable_keys, unknown_blockable_keys)
-
     # Create previously unknown blockables.
     now = datetime.datetime.utcnow()
     for blockable_key in list(unknown_blockable_keys):
@@ -864,16 +848,6 @@ class EventUploadHandler(BaseSantaApiHandler):
     # Generate and send the response.
     response_dict = {}
 
-    blockables_to_upload = blockables_future.get_result()
-    if blockables_to_upload:
-      need_upload_ids = [
-          blockable_key.id() for blockable_key in blockables_to_upload]
-      response_dict.update({
-          santa_const.EVENT_UPLOAD.REQUEST_UPLOADS: need_upload_ids,
-          santa_const.EVENT_UPLOAD.REQUEST_UPLOADS_URL: (
-              blobstore.create_upload_url('/api/santa/binaryupload/%s' % uuid)),
-      })
-
     # NOTE: The bundles-to-upload calculation needs to wait for the
     # bundle members in this upload to be committed and for those bundles'
     # upload statuses to be recalculated.
@@ -882,7 +856,7 @@ class EventUploadHandler(BaseSantaApiHandler):
     if bundles_to_upload:
       bundle_ids = [bundle_key.id() for bundle_key in bundles_to_upload]
       response_dict.update({
-          santa_const.EVENT_UPLOAD.EVENT_UPLOAD_BUNDLE_BINARIES: bundle_ids,
+          _EVENT_UPLOAD.EVENT_UPLOAD_BUNDLE_BINARIES: bundle_ids,
       })
 
     # Resolve all futures. This will have the side effect of raising the first
@@ -891,56 +865,6 @@ class EventUploadHandler(BaseSantaApiHandler):
       future.check_success()
 
     self.respond_json(response_dict)
-
-
-class LogUploadHandler(
-    blobstore_handlers.BlobstoreUploadHandler, BaseSantaApiHandler):
-  """Handles log uploads."""
-  # Clients do not send any JSON with this request.
-  SHOULD_PARSE_JSON = False
-
-  @property
-  def RequestCounter(self):
-    return monitoring.log_upload_requests
-
-  @ndb.toplevel  # ensure all async puts complete before handler returns.
-  @handler_utils.RecordRequest
-  def post(self, uuid):
-    upload_files = self.get_uploads('files')
-    now = datetime.datetime.utcnow()
-
-    logs = [
-        santa_models.SantaLogFile(blobkey=f.key(), filename=f.filename,
-                                  upload_dt=now, host_id=uuid)
-        for f in upload_files]
-    ndb.put_multi(logs)
-
-    self.host.should_upload_logs = False
-    self.host.put()
-
-
-class BinaryUploadHandler(
-    blobstore_handlers.BlobstoreUploadHandler, BaseSantaApiHandler):
-  """Handles binary uploads."""
-  # Clients do not send any JSON with this request.
-  SHOULD_PARSE_JSON = False
-
-  @property
-  def RequestCounter(self):
-    return monitoring.binary_upload_requests
-
-  @ndb.toplevel
-  @handler_utils.RecordRequest
-  def post(self, uuid):
-    upload_files = self.get_uploads('files')
-
-    for f in upload_files:
-      santa_models.SantaBinaryFile(
-          id=f.filename,
-          blobkey=f.key(),
-          shasum=f.filename,
-          upload_dt=datetime.datetime.utcnow(),
-          host_id=uuid).put_async()
 
 
 class RuleDownloadHandler(BaseSantaApiHandler):
@@ -953,17 +877,17 @@ class RuleDownloadHandler(BaseSantaApiHandler):
   @handler_utils.RecordRequest
   def post(self, uuid):
     # Prepare the query
-    cursor = self.parsed_json.get(santa_const.RULE_DOWNLOAD.CURSOR)
+    cursor = self.parsed_json.get(_RULE_DOWNLOAD.CURSOR)
 
     if self.host.rule_sync_dt is None:
       logging.info('%s clean rule sync', 'Continuing' if cursor else 'Starting')
 
     # pylint:disable=g-explicit-bool-comparison, singleton-comparison
-    query = santa_models.SantaRule.query(
-        santa_models.SantaRule.in_effect == True,
-        santa_models.SantaRule.updated_dt >= self.host.rule_sync_dt,
-        santa_models.SantaRule.host_id.IN(['', uuid])
-    ).order(santa_models.SantaRule.updated_dt, santa_models.SantaRule.key)
+    query = rule_models.SantaRule.query(
+        rule_models.SantaRule.in_effect == True,
+        rule_models.SantaRule.updated_dt >= self.host.rule_sync_dt,
+        rule_models.SantaRule.host_id.IN(['', uuid])
+    ).order(rule_models.SantaRule.updated_dt, rule_models.SantaRule.key)
     # pylint:enable=g-explicit-bool-comparison, singleton-comparison
 
     # Fetch
@@ -977,35 +901,34 @@ class RuleDownloadHandler(BaseSantaApiHandler):
       epoch = datetime.datetime.utcfromtimestamp(0)
       creation_timestamp = (rule.updated_dt - epoch).total_seconds()
       rule_dict = {
-          santa_const.RULE_DOWNLOAD.SHA256: rule.key.parent().id(),
-          santa_const.RULE_DOWNLOAD.RULE_TYPE: rule.rule_type,
-          santa_const.RULE_DOWNLOAD.POLICY: rule.policy,
-          santa_const.RULE_DOWNLOAD.CUSTOM_MSG: rule.custom_msg,
-          santa_const.RULE_DOWNLOAD.CREATION_TIME: creation_timestamp}
+          _RULE_DOWNLOAD.SHA256: rule.key.parent().id(),
+          _RULE_DOWNLOAD.RULE_TYPE: rule.rule_type,
+          _RULE_DOWNLOAD.POLICY: rule.policy,
+          _RULE_DOWNLOAD.CUSTOM_MSG: rule.custom_msg,
+          _RULE_DOWNLOAD.CREATION_TIME: creation_timestamp}
 
-      if rule.rule_type == common_const.RULE_TYPE.PACKAGE:
+      if rule.rule_type == constants.RULE_TYPE.PACKAGE:
         # For Bundles, each binary member should have a separate rule generated
         # with a policy type matching that of the PACKAGE rule.
-        binary_ids = rule.bundle_binary_ids
+        binary_ids = model_utils.GetBundleBinaryIdsForRule(rule)
         binary_count = len(binary_ids)
         logging.info('Syncing %s bundle rules', binary_ids)
         for id_ in binary_ids:
           dict_ = rule_dict.copy()
           dict_.update({
-              santa_const.RULE_DOWNLOAD.SHA256: id_,
-              santa_const.RULE_DOWNLOAD.RULE_TYPE:
-                  common_const.RULE_TYPE.BINARY,
-              santa_const.RULE_DOWNLOAD.FILE_BUNDLE_BINARY_COUNT: binary_count,
-              santa_const.RULE_DOWNLOAD.FILE_BUNDLE_HASH: rule.key.parent().id()
+              _RULE_DOWNLOAD.SHA256: id_,
+              _RULE_DOWNLOAD.RULE_TYPE: constants.RULE_TYPE.BINARY,
+              _RULE_DOWNLOAD.FILE_BUNDLE_BINARY_COUNT: binary_count,
+              _RULE_DOWNLOAD.FILE_BUNDLE_HASH: rule.key.parent().id()
           })
           response_rules.append(dict_)
       else:
         response_rules.append(rule_dict)
 
     # Prepare the response, include the cursor if there are more rules.
-    response = {santa_const.RULE_DOWNLOAD.RULES: response_rules}
+    response = {_RULE_DOWNLOAD.RULES: response_rules}
     if more:
-      response[santa_const.RULE_DOWNLOAD.CURSOR] = next_cursor.urlsafe()
+      response[_RULE_DOWNLOAD.CURSOR] = next_cursor.urlsafe()
 
     self.respond_json(response)
 
@@ -1029,8 +952,38 @@ class PostflightHandler(BaseSantaApiHandler):
     tables.HOST.InsertRow(
         device_id=host_id,
         timestamp=self.host.last_postflight_dt,
-        action=common_const.HOST_ACTION.FULL_SYNC,
+        action=constants.HOST_ACTION.FULL_SYNC,
         hostname=self.host.hostname,
-        platform=common_const.PLATFORM.MACOS,
+        platform=constants.PLATFORM.MACOS,
         users=model_utils.GetUsersAssociatedWithSantaHost(host_id),
         mode=self.host.client_mode)
+
+
+ROUTES = [
+    # Warmup
+    webapp2.Route(r'/_ah/warmup', handler=handler_utils.AckHandler),
+
+    routes.PathPrefixRoute(
+        r'/api/santa',
+        [
+            webapp2.Route(
+                r'/ack',
+                handler=handler_utils.AckHandler),
+            webapp2.Route(
+                r'/xsrf/<:%s>' % _UUID_RE,
+                handler=XsrfHandler),
+            webapp2.Route(
+                r'/preflight/<:%s>' % _UUID_RE,
+                handler=PreflightHandler),
+            webapp2.Route(
+                r'/eventupload/<:%s>' % _UUID_RE,
+                handler=EventUploadHandler),
+            webapp2.Route(
+                r'/ruledownload/<:%s>' % _UUID_RE,
+                handler=RuleDownloadHandler),
+            webapp2.Route(
+                r'/postflight/<:%s>' % _UUID_RE,
+                handler=PostflightHandler),
+        ]
+    ),
+]

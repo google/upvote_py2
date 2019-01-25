@@ -15,6 +15,8 @@
 goog.provide('upvote.hostlistpage.HostListController');
 
 goog.require('upvote.errornotifier.ErrorService');
+goog.require('upvote.exemptions.ExemptionService');
+goog.require('upvote.hosts.ExemptionState');
 goog.require('upvote.hosts.HostService');
 goog.require('upvote.hosts.HostUtilsService');
 goog.require('upvote.shared.Page');
@@ -25,6 +27,7 @@ goog.scope(() => {
 /** Controller for host page. */
 upvote.hostlistpage.HostListController = class {
   /**
+   * @param {!upvote.exemptions.ExemptionService} exemptionService
    * @param {!upvote.hosts.HostService} hostService
    * @param {!upvote.hosts.HostUtilsService} hostUtilsService
    * @param {!upvote.errornotifier.ErrorService} errorService
@@ -32,7 +35,11 @@ upvote.hostlistpage.HostListController = class {
    * @param {!upvote.shared.Page} page Details about the active page
    * @ngInject
    */
-  constructor(hostService, hostUtilsService, errorService, $location, page) {
+  constructor(
+      exemptionService, hostService, hostUtilsService, errorService, $location,
+      page) {
+    /** @const @private {!upvote.exemptions.ExemptionService} */
+    this.exemptionService_ = exemptionService;
     /** @private {!upvote.hosts.HostService} */
     this.hostService_ = hostService;
     /** @private {!upvote.errornotifier.ErrorService} errorService */
@@ -42,7 +49,7 @@ upvote.hostlistpage.HostListController = class {
 
     /** @export {!upvote.hosts.HostUtilsService} */
     this.hostUtils = hostUtilsService;
-    /** @export {?Array<upvote.shared.models.AnyHost>} */
+    /** @export {?Array<?upvote.shared.models.AnyHost>} */
     this.hosts = null;
 
     page.title = 'Hosts';
@@ -90,8 +97,45 @@ upvote.hostlistpage.HostListController = class {
   }
 
   /**
+   * Return whether to display exemption status for a host.
+   * @param {!upvote.shared.models.AnyHost} host
+   * @return {boolean}
+   * @export
+   */
+  isExemptionStatusVisible(host) {
+    return (
+        host.exemption != null &&
+        host.exemption.state != upvote.hosts.ExemptionState.CANCELLED);
+  }
+
+  /**
+   * Return whether the exemption is in a bad state.
+   * @param {!upvote.shared.models.AnyHost} host
+   * @return {boolean}
+   * @export
+   */
+  isExemptionInBadState(host) {
+    return (
+        host.exemption != null &&
+        (host.exemption.state == upvote.hosts.ExemptionState.DENIED ||
+         host.exemption.state == upvote.hosts.ExemptionState.REVOKED));
+  }
+
+  /**
+   * Return whether the exemption is in a state where it can be renewed.
+   * @param {!upvote.shared.models.AnyHost} host
+   * @return {boolean}
+   * @export
+   */
+  isExemptionRenewable(host) {
+    return (
+        host.exemption != null &&
+        host.exemption.state == upvote.hosts.ExemptionState.APPROVED);
+  }
+
+  /**
    * Navigates to a host's "request exception" page.
-   * @param {!string} hostId
+   * @param {string} hostId
    * @export
    */
   goToRequestPage(hostId) {
@@ -101,7 +145,7 @@ upvote.hostlistpage.HostListController = class {
 
   /**
    * Navigates to a host's "blockables" page.
-   * @param {!string} hostId
+   * @param {string} hostId
    * @export
    */
   goToBlockablesPage(hostId) {
@@ -110,12 +154,12 @@ upvote.hostlistpage.HostListController = class {
   }
 
   /**
-   * Requests the Host be Navigates to a host's "request exception" page.
-   * @param {!string} hostId
+   * Requests to cancel the host's Exemption.
+   * @param {string} hostId
    * @export
    */
-  requestLockdown(hostId) {
-    this.hostService_.requestLockdown(hostId)
+  cancelExemption(hostId) {
+    this.exemptionService_.cancelExemption(hostId)
         .then((response) => this.init_())
         .catch((response) => {
           this.errorService_.createDialogFromError(response);
@@ -128,7 +172,7 @@ upvote.hostlistpage.HostListController = class {
    * @export
    */
   toggleVisibility(host) {
-    this.hostService_.hide(host.id, !host.hidden)
+    this.hostService_.setHidden(host.id, !host.hidden)
         .then((response) => {
           host.hidden = !host.hidden;
         })

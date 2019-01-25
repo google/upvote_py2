@@ -65,7 +65,7 @@ class DatastoreBackupTest(basetest.UpvoteTestCase):
     app = webapp2.WSGIApplication(routes=[datastore_backup.ROUTES])
     super(DatastoreBackupTest, self).setUp(wsgi_app=app)
 
-    self.mock_metric = mock.Mock(spec=datastore_backup.monitoring.Counter)
+    self.mock_metric = mock.Mock(spec=datastore_backup.monitoring_utils.Counter)
     patcher = mock.patch.dict(
         datastore_backup.__dict__,
         _DATASTORE_BACKUPS=self.mock_metric)

@@ -23,7 +23,7 @@ import webapp2
 
 from google.appengine.api import users
 from upvote.gae.lib.testing import basetest
-from upvote.gae.shared.common import user_map
+from upvote.gae.utils import user_utils
 from upvote.gae.utils import xsrf_utils
 from absl.testing import absltest
 
@@ -47,7 +47,7 @@ class XsrfTest(basetest.UpvoteTestCase):
     app = webapp2.WSGIApplication(
         [webapp2.Route(r'', handler=FakeHandler)])
     super(XsrfTest, self).setUp(app, patch_generate_token=False)
-    self.user_email = user_map.UsernameToEmail('test')
+    self.user_email = user_utils.UsernameToEmail('test')
     self.Login(self.user_email)
     self.user_id = users.get_current_user().user_id()
 

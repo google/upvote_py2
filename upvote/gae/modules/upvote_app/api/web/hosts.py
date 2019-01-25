@@ -13,9 +13,11 @@
 # limitations under the License.
 
 """Views related to hosts."""
+import abc
 import datetime
 import httplib
 import logging
+import re
 
 import webapp2
 from webapp2_extras import routes
@@ -23,9 +25,7 @@ from webapp2_extras import routes
 from google.appengine.ext import ndb
 
 from upvote.gae.bigquery import tables
-from upvote.gae.datastore.models import exemption as exemption_models
 from upvote.gae.datastore.models import host as host_models
-from upvote.gae.datastore.models import tickets as tickets_models
 from upvote.gae.datastore.models import user as user_models
 from upvote.gae.datastore.models import utils as model_utils
 from upvote.gae.modules.upvote_app.api.web import monitoring
@@ -95,9 +95,17 @@ class AssociatedHostHandler(handler_utils.UserFacingHandler):
   """Handler for interacting with specific hosts."""
 
   def _GetAssociatedHosts(self, user):
+
+    # Build Keys for the associated Hosts, along with their corresponding
+    # Exemptions.
     host_keys = model_utils.GetHostKeysForUser(user)
+
+    # Grab all the Hosts.
     hosts = ndb.get_multi(host_keys)
-    hosts = filter(None, hosts)
+    hosts = [host for host in hosts if host is not None]
+
+    # Get a mapping of Host Keys to Exemptions.
+    exm_dict = model_utils.GetExemptionsForHosts(host_keys)
 
     # If Santa hosts have never synced rules or Bit9 hosts never reported an
     # event, push them to the end of the list.
@@ -109,7 +117,18 @@ class AssociatedHostHandler(handler_utils.UserFacingHandler):
       elif isinstance(host, host_models.SantaHost):
         return host.rule_sync_dt or epoch
 
-    return sorted(hosts, key=ByFreshness, reverse=True)
+    hosts = sorted(hosts, key=ByFreshness, reverse=True)
+
+    # Convert the Host entities to dicts for the frontend, and stuff each one
+    # with its corresponding Exemption (if one exists).
+    host_dicts = []
+    for host in hosts:
+      host_dict = host.to_dict()
+      if host.key in exm_dict:
+        host_dict['exemption'] = exm_dict[host.key]
+      host_dicts.append(host_dict)
+
+    return host_dicts
 
   @handler_utils.RequireCapability(constants.PERMISSIONS.VIEW_OTHER_HOSTS)
   def GetByUserId(self, user_id):
@@ -127,172 +146,106 @@ class AssociatedHostHandler(handler_utils.UserFacingHandler):
     self.respond_json(hosts)
 
 
-class HostExceptionHandler(handler_utils.UserFacingHandler):
-  """Handler for interacting with host exceptions."""
+class BooleanPropertyHandler(handler_utils.UserFacingHandler):
+  """Base class for handlers that toggle a BooleanProperty on a Host."""
 
-  def get(self, host_id):
-    host_id = host_models.Host.NormalizeId(host_id)
-    logging.info('Host exception handler GET called with ID=%s.', host_id)
+  __metaclass__ = abc.ABCMeta
 
-    host = host_models.Host.get_by_id(host_id)
-    if host is None:
-      self.abort(httplib.NOT_FOUND, explanation='Host not found')
+  @abc.abstractproperty
+  def property_name(self):
+    pass
 
-    # This request should only be available to admins or users who have (at
-    # least at one time) had control of the host.
-    if (not self.user.is_admin and
-        not model_utils.IsHostAssociatedWithUser(host, self.user)):
-      logging.warning(
-          'Host exception for ID=%s queried by unauthorized user=%s.',
-          host_id, self.user.email)
-      self.abort(
-          httplib.FORBIDDEN,
-          explanation='Host not associated with requesting user')
+  def _GetHost(self):
+    return host_models.Host.get_by_id(self._normalized_host_id)
 
-    # Users are allowed to query for any ticket filed for a host with which they
-    # are associated.
-    user_id = self.request.get('user_id').lower() or self.user.email
-
-    parent_key = tickets_models.HostExceptionTicket.GetParentKey(
-        user_id, host_id)
-    ticket = tickets_models.HostExceptionTicket.query(ancestor=parent_key).get()
-    if not ticket:
-      logging.error(
-          'Host exception not found for ID=%s filed by user=%s.', host_id,
-          user_id)
-      self.abort(
-          httplib.NOT_FOUND, explanation='Host exception ticket not found')
-
-    self.respond_json(ticket)
-
-  @handler_utils.RequireCapability(constants.PERMISSIONS.REQUEST_EXEMPTION)
-  @xsrf_utils.RequireToken
-  def post(self, host_id):
-    host_id = host_models.Host.NormalizeId(host_id)
-    logging.info('Host exception handler POST called with ID=%s.', host_id)
-
-    host = host_models.Host.get_by_id(host_id)
-    if host is None:
-      self.abort(httplib.NOT_FOUND, explanation='Host not found')
-
-    # This request should only be available to admins or users who have (at
-    # least at one time) had control of the host.
-    if not (self.user.is_admin or
-            model_utils.IsHostAssociatedWithUser(host, self.user)):
-      logging.error(
-          'Host exception for ID=%s requested by unauthorized user=%s.',
-          host_id, self.user.email)
-      self.abort(
-          httplib.FORBIDDEN,
-          explanation='Host not associated with requesting user')
-
-    # Extract and validate POST data fields
-    reason = self.request.get('reason')
-    other_text = self.request.get('otherText') or None
-    if not reason:
-      self.abort(httplib.BAD_REQUEST, explanation='No reason provided')
-    elif reason not in constants.EXEMPTION_REASON.SET_ALL:
-      self.abort(
-          httplib.BAD_REQUEST,
-          explanation='Invalid reason provided: %s' % reason)
-    elif reason == constants.EXEMPTION_REASON.OTHER and not other_text:
-      self.abort(
-          httplib.BAD_REQUEST,
-          explanation='No explanation for "Other" reason provided')
-
-    # Check if an outstanding request exists. If not, create one.
-    ticket_model, inserted = (
-        tickets_models.HostExceptionTicket.get_open_or_insert_did_insert(
-            self.user.email, host_id, reason=reason, other_text=other_text,
-            is_open=False))
-    if not inserted:
-      logging.warning(
-          'Duplicate host exception ticket requested: requested='
-          '(%s, %s, %s, %s) existing=%s', self.user.email, host_id, reason,
-          other_text, ticket_model)
-      self.abort(httplib.CONFLICT, explanation='Ticket already exists')
-
-    # NOTE: THIS IS TEMPORARY!!! Remove when pilot is over.
-    host.client_mode_lock = True
-    host.client_mode = constants.SANTA_CLIENT_MODE.MONITOR
+  @ndb.transactional
+  def _UpdateHost(self):
+    host = self._GetHost()
+    logging.info(
+        'Changing %s to %s for %s',
+        self.property_name, self._bool_new_value, host.hostname)
+    setattr(host, self.property_name, self._bool_new_value)
     host.put()
 
-    tables.HOST.InsertRow(
-        device_id=host_id,
-        timestamp=host.last_postflight_dt,
-        action=constants.HOST_ACTION.MODE_CHANGE,
-        hostname=host.hostname,
-        platform=constants.PLATFORM.MACOS,
-        users=model_utils.GetUsersAssociatedWithSantaHost(host_id),
-        mode=host.client_mode)
+  def dispatch(self):
 
-    self.respond_json(host)
+    # Make sure a host_id is provided.
+    host_id = self.request.route_kwargs.get('host_id')
+    if not host_id:
+      self.abort(httplib.BAD_REQUEST, explanation='No host_id provided')
 
-
-class LockdownHandler(handler_utils.UserFacingHandler):
-  """Handler for enrolling a host in Lockdown."""
-
-  @xsrf_utils.RequireToken
-  def post(self, host_id):
-    host_id = host_models.Host.NormalizeId(host_id)
-    logging.info('Lockdown handler POST called with ID=%s.', host_id)
-
-    host = host_models.Host.get_by_id(host_id)
-    if host is None:
-      self.abort(httplib.NOT_FOUND, explanation='Host not found')
-
-    # This request should only be available to admins or users who have (at
-    # least at one time) had control of the host.
-    if not (self.user.is_admin or
-            model_utils.IsHostAssociatedWithUser(host, self.user)):
-      logging.error(
-          'Lockdown for ID=%s requested by unauthorized user=%s.',
-          host_id, self.user.email)
-      self.abort(
-          httplib.FORBIDDEN,
-          explanation='Host not associated with requesting user')
-
-    host.client_mode_lock = True
-    host.client_mode = constants.SANTA_CLIENT_MODE.LOCKDOWN
-    host.put()
-
-    tables.HOST.InsertRow(
-        device_id=host_id,
-        timestamp=host.last_postflight_dt,
-        action=constants.HOST_ACTION.MODE_CHANGE,
-        hostname=host.hostname,
-        platform=constants.PLATFORM.MACOS,
-        users=model_utils.GetUsersAssociatedWithSantaHost(host_id),
-        mode=host.client_mode)
-
-    self.respond_json(host)
-
-
-class VisibilityHandler(handler_utils.UserFacingHandler):
-  """Handler for changing the hidden attribute of a host."""
-
-  @xsrf_utils.RequireToken
-  def put(self, host_id, hidden):
-    host_id = host_models.Host.NormalizeId(host_id)
-
-    host = host_models.Host.get_by_id(host_id)
+    # Make sure the Host actually exists.
+    self._normalized_host_id = host_models.Host.NormalizeId(host_id)
+    host = self._GetHost()
     if not host:
       self.abort(httplib.NOT_FOUND, explanation='Host %s not found' % host_id)
 
+    # Make sure the Host is associated with the current user.
     if not model_utils.IsHostAssociatedWithUser(host, self.user):
+      explanation = 'Host %s not associated with user %s' % (
+          host.hostname, self.user.nickname)
+      self.abort(httplib.FORBIDDEN, explanation=explanation)
+
+    # Make sure a new_value is provided.
+    new_value = self.request.route_kwargs.get('new_value')
+    if not new_value:
+      self.abort(httplib.BAD_REQUEST, explanation='No new_value provided')
+
+    # Make sure the new_value is an explicit boolean string.
+    if re.match('^(true|false)$', new_value, flags=re.IGNORECASE) is None:
+      self.abort(
+          httplib.BAD_REQUEST, explanation='Invalid new_value: %s' % new_value)
+
+    self._bool_new_value = new_value.lower() == 'true'
+
+    super(BooleanPropertyHandler, self).dispatch()
+
+
+class VisibilityHandler(BooleanPropertyHandler):
+  """Handler for changing the hidden attribute of a host."""
+
+  @property
+  def property_name(self):
+    return 'hidden'
+
+  @xsrf_utils.RequireToken
+  def put(self, host_id, new_value):
+    self._UpdateHost()
+
+
+class TransitiveHandler(BooleanPropertyHandler):
+  """Handler for changing the transitive whitelisting status of a macOS host."""
+
+  @property
+  def property_name(self):
+    return 'transitive_whitelisting_enabled'
+
+  @xsrf_utils.RequireToken
+  def put(self, host_id, new_value):
+
+    # Only Santa clients are supported.
+    host = self._GetHost()
+    if host.GetClientName() != constants.CLIENT.SANTA:
       self.abort(
           httplib.FORBIDDEN,
-          explanation='Host %s not associated with user %s' % (
-              host_id, self.user.email))
+          explanation='Only Santa clients support transitive whitelisting')
 
-    hidden = hidden.lower()
-    if hidden != 'true' and hidden != 'false':
-      self.abort(
-          httplib.BAD_REQUEST,
-          explanation='Required hidden parameter \'true\' or \'false\'')
+    self._UpdateHost()
 
-    host.hidden = hidden == 'true'
-    host.put()
+    # Note the state change in BigQuery.
+    users = model_utils.GetUsersAssociatedWithSantaHost(
+        self._normalized_host_id)
+    comment = 'Transitive whitelisting %s by %s' % (
+        'enabled' if self._bool_new_value else 'disabled', self.user.nickname)
+    tables.HOST.InsertRow(
+        device_id=host_id,
+        timestamp=datetime.datetime.utcnow(),
+        action=constants.HOST_ACTION.COMMENT,
+        hostname=host.hostname,
+        platform=constants.PLATFORM.MACOS,
+        users=users,
+        mode=host.client_mode,
+        comment=comment)
 
 
 # The Webapp2 routes defined for these handlers.
@@ -314,16 +267,12 @@ ROUTES = routes.PathPrefixRoute('/hosts', [
         '/query',
         handler=HostQueryHandler),
     webapp2.Route(
-        '/<host_id>/request-exception',
-        handler=HostExceptionHandler),
-    webapp2.Route(
-        '/<host_id>/request-lockdown',
-        handler=LockdownHandler,
-        methods=['POST']),
-    webapp2.Route(
         '/<host_id>',
         handler=HostHandler),
     webapp2.Route(
-        '/<host_id>/hidden/<hidden>',
+        '/<host_id>/hidden/<new_value>',
         handler=VisibilityHandler),
+    webapp2.Route(
+        '/<host_id>/transitive/<new_value>',
+        handler=TransitiveHandler),
 ])

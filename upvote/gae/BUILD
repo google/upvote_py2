@@ -16,9 +16,6 @@ upvote_appengine_binary(
     name = "monolith_binary",
     srcs = ["appengine_config.py"],
     configs = glob(["*.yaml"]) + [":appengine_config.py"],
-    data = [
-        "//upvote/gae/shared/templates",
-    ],
     deps = [
         "//upvote/gae/datastore:all",
         "//upvote/gae/modules/santa_api:santa_api_library",
@@ -38,7 +35,7 @@ py_appengine_library(
     srcs = ["appengine_config.py"],
     deps = [
         ":settings",
-        "//upvote/gae/datastore/models:rule",
+        "//upvote/gae/datastore/models:utils",
     ],
 )
 
@@ -62,6 +59,8 @@ upvote_appengine_test(
     deps = [
         ":appengine_config",
         ":settings",
+        "//upvote/gae/datastore/models:rule",
+        "//upvote/gae/datastore/models:santa",
         "//upvote/gae/lib/testing:basetest",
         "//upvote/shared:constants",
     ],

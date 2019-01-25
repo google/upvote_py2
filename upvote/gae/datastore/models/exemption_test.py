@@ -137,6 +137,33 @@ class ExemptionTest(basetest.UpvoteTestCase):
     mock_metric.Increment.assert_not_called()
 
   @mock.patch.object(exemption.monitoring, 'state_changes')
+  def testChangeState_InvalidDetailsError(self, mock_metric):
+
+    self.assertEntityCount(exemption.Exemption, 0)
+
+    host_id = 'valid_host_id'
+    exm_key = exemption.Exemption.Insert(
+        host_id,
+        datetime.datetime.utcnow(),
+        constants.EXEMPTION_REASON.OTHER,
+        other_text='Test')
+
+    self.assertEntityCount(exemption.Exemption, 1)
+    mock_metric.Increment.assert_called_once()
+    mock_metric.reset_mock()
+    self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.EXEMPTION)
+
+    bad_details = ['aaa', None, 'bbb']
+    with self.assertRaises(exemption.InvalidDetailsError):
+      exemption.Exemption.ChangeState(
+          exm_key, constants.EXEMPTION_STATE.PENDING, details=bad_details)
+    exm = exm_key.get()
+
+    self.assertEqual(constants.EXEMPTION_STATE.REQUESTED, exm.state)
+    self.assertEntityCount(exemption.Exemption, 1)
+    mock_metric.Increment.assert_not_called()
+
+  @mock.patch.object(exemption.monitoring, 'state_changes')
   def testChangeState_Success(self, mock_metric):
 
     self.assertEntityCount(exemption.Exemption, 0)

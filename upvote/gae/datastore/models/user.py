@@ -24,7 +24,7 @@ from google.appengine.ext import ndb
 from upvote.gae import settings
 from upvote.gae.bigquery import tables
 from upvote.gae.datastore.models import mixin
-from upvote.gae.shared.common import user_map
+from upvote.gae.utils import user_utils
 from upvote.shared import constants
 
 
@@ -45,7 +45,7 @@ class InvalidUserRoleError(Error):
 
 
 class NoRolesError(Error):
-  """Raised if an User has no assigned roles."""
+  """Raised if an User has (or will have) no assigned roles."""
 
 
 def _ValidateRolloutGroup(unused_prop, value):
@@ -166,8 +166,10 @@ class User(mixin.Base, ndb.Model):
 
     # Removing all roles would put this user into a bad state, so don't.
     if not new_roles:
-      logging.warning('Cannot remove all roles from user %s', user.nickname)
-      return
+      msg = 'Cannot remove remaining role(s) %s from user %s' % (
+          sorted(list(old_roles)), user.nickname)
+      logging.error(msg)
+      raise NoRolesError(msg)
 
     # Verify that all the roles provided are valid.
     invalid_roles = new_roles - all_roles
@@ -236,7 +238,7 @@ class User(mixin.Base, ndb.Model):
 
   @property
   def nickname(self):
-    return user_map.EmailToUsername(self.key.string_id())
+    return user_utils.EmailToUsername(self.key.string_id())
 
   @property
   def highest_role(self):

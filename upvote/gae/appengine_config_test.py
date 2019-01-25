@@ -15,9 +15,14 @@
 """Unit tests for appengine_config.py."""
 
 from upvote.gae import settings
-from upvote.gae.datastore.models import santa
+from upvote.gae.datastore.models import rule as rule_models
+from upvote.gae.datastore.models import santa as santa_models
 from upvote.gae.lib.testing import basetest
 from upvote.shared import constants
+
+
+# Done for the sake of brevity.
+_TABLE = constants.BIGQUERY_TABLE
 
 
 class AppEngineConfigTest(basetest.UpvoteTestCase):
@@ -26,11 +31,11 @@ class AppEngineConfigTest(basetest.UpvoteTestCase):
     # pylint: disable=g-import-not-at-top,unused-import,unused-variable
     from upvote.gae import appengine_config
 
-    expected_count = len(settings.CRITICAL_MAC_OS_CERT_HASHES)
-    self.assertEntityCount(santa.SantaCertificate, expected_count)
-    self.assertEntityCount(santa.SantaRule, expected_count)
+    expected_count = len(settings.CRITICAL_RULES)
+    self.assertEntityCount(santa_models.SantaCertificate, expected_count)
+    self.assertEntityCount(rule_models.SantaRule, expected_count)
     self.assertBigQueryInsertions(
-        [constants.BIGQUERY_TABLE.CERTIFICATE] * expected_count)
+        [_TABLE.CERTIFICATE, _TABLE.RULE] * expected_count)
 
 
 if __name__ == '__main__':

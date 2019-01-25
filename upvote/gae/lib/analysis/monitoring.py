@@ -14,12 +14,12 @@
 
 """Monitoring metrics for the binary_health services."""
 
-from upvote.gae.shared.common import monitoring
+from upvote.gae.utils import monitoring_utils
 from upvote.monitoring import metrics
 
 
-virustotal_requests = monitoring.SuccessFailureCounter(
+virustotal_requests = monitoring_utils.SuccessFailureCounter(
     metrics.ANALYSIS.VIRUSTOTAL_REQUESTS)
 
-virustotal_new_lookups = monitoring.Counter(
+virustotal_new_lookups = monitoring_utils.Counter(
     metrics.ANALYSIS.VIRUSTOTAL_NEW_LOOKUPS, fields=[(u'state', str)])

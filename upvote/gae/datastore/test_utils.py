@@ -30,11 +30,12 @@ from upvote.gae.datastore.models import base
 from upvote.gae.datastore.models import bit9
 from upvote.gae.datastore.models import exemption as exemption_models
 from upvote.gae.datastore.models import host as host_models
+from upvote.gae.datastore.models import rule as rule_models
 from upvote.gae.datastore.models import santa
 from upvote.gae.datastore.models import user as user_models
 from upvote.gae.datastore.models import vote as vote_models
-from upvote.gae.shared.common import user_map
 from upvote.gae.utils import env_utils
+from upvote.gae.utils import user_utils
 from upvote.shared import constants
 
 
@@ -92,7 +93,7 @@ def RandomConstant(constant_namespace):
 
 
 def RandomEmail():
-  return user_map.UsernameToEmail('noreply+%s' % RandomLetters(8))
+  return user_utils.UsernameToEmail('noreply+%s' % RandomLetters(8))
 
 
 def RandomEmails(count):
@@ -571,9 +572,13 @@ def CreateRuleEntity(rule_cls, blockable_key, **kwargs):
 
 
 def CreateSantaRule(blockable_key, **kwargs):
-  santa_rule = CreateRuleEntity(santa.SantaRule, blockable_key, **kwargs)
+  santa_rule = CreateRuleEntity(rule_models.SantaRule, blockable_key, **kwargs)
   santa_rule.put()
   return santa_rule
+
+
+def CreateSantaRules(blockable_key, count, **kwargs):
+  return [CreateSantaRule(blockable_key, **kwargs) for _ in xrange(count)]
 
 
 def CreateBit9Rule(blockable_key, **kwargs):
@@ -581,7 +586,7 @@ def CreateBit9Rule(blockable_key, **kwargs):
       'is_committed': False,
       'is_fulfilled': False}
   defaults.update(kwargs.copy())
-  bit9_rule = CreateRuleEntity(bit9.Bit9Rule, blockable_key, **defaults)
+  bit9_rule = CreateRuleEntity(rule_models.Bit9Rule, blockable_key, **defaults)
   bit9_rule.put()
   return bit9_rule
 
@@ -665,7 +670,7 @@ def CreateTestEntities(email_addr):
   user = user_models.User.GetOrInsert(email_addr=email_addr)
   user_models.User.SetRoles(email_addr, constants.USER_ROLE.SET_ALL)
 
-  username = user_map.EmailToUsername(email_addr)
+  username = user_utils.EmailToUsername(email_addr)
 
   # Create associated SantaHosts for the user.
   santa_hosts = CreateSantaHosts(2, primary_user=username)

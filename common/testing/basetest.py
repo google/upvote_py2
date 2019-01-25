@@ -36,6 +36,7 @@ import base64
 import os
 import random
 import string
+
 from google.appengine.api import apiproxy_stub_map
 from google.appengine.datastore import datastore_stub_util
 from google.appengine.ext import deferred
@@ -43,6 +44,7 @@ from google.appengine.ext import testbed
 from google.appengine.runtime import request_environment
 from google.appengine.runtime import runtime
 from absl.testing import absltest
+
 
 from google.appengine.api.search import simple_search_stub
 

@@ -25,12 +25,13 @@ from upvote.gae.datastore import utils as datastore_utils
 from upvote.gae.datastore.models import base
 from upvote.gae.datastore.models import bit9
 from upvote.gae.datastore.models import host as host_models
+from upvote.gae.datastore.models import rule as rule_models
 from upvote.gae.datastore.models import santa
 from upvote.gae.datastore.models import user as user_models
 from upvote.gae.datastore.models import vote as vote_models
 from upvote.gae.lib.analysis import metrics
 from upvote.gae.lib.bit9 import change_set
-from upvote.gae.shared.common import user_map
+from upvote.gae.utils import user_utils
 from upvote.shared import constants
 
 
@@ -128,6 +129,22 @@ def _CheckBlockableFlagStatus(blockable):
     blockable.flagged = False
     change_made = True
   return change_made
+
+
+def _GetRulesForBlockable(blockable):
+  """Queries for all Rules associated with blockable.
+
+  Args:
+    blockable: The Blockable whose Rules we want.
+
+  Returns:
+    A list of Rules.
+  """
+  query = rule_models.Rule.query(ancestor=blockable.key)
+  # pylint: disable=g-explicit-bool-comparison, singleton-comparison
+  query = query.filter(rule_models.Rule.in_effect == True)
+  # pylint: enable=g-explicit-bool-comparison, singleton-comparison
+  return query.fetch()
 
 
 def Vote(user, sha256, upvote, weight):
@@ -500,7 +517,7 @@ class BallotBox(object):
     ndb.put_multi_async(archived_votes)
 
     # Disable all existing rules.
-    existing_rules = self.blockable.GetRules()
+    existing_rules = _GetRulesForBlockable(self.blockable)
     for rule in existing_rules:
       rule.MarkDisabled()
     ndb.put_multi_async(existing_rules)
@@ -555,9 +572,9 @@ class BallotBox(object):
   def _GloballyWhitelist(self):
     """Makes sure there is only one rule and it is the right one."""
     # pylint: disable=g-explicit-bool-comparison, singleton-comparison
-    existing_rules = base.Rule.query(
-        base.Rule.rule_type == self.blockable.rule_type,
-        base.Rule.in_effect == True,
+    existing_rules = rule_models.Rule.query(
+        rule_models.Rule.rule_type == self.blockable.rule_type,
+        rule_models.Rule.in_effect == True,
         ancestor=self.blockable.key)
     # pylint: enable=g-explicit-bool-comparison, singleton-comparison
 
@@ -593,10 +610,10 @@ class BallotBox(object):
     """
     # Query for all active local whitelisting rules for this blockable.
     # pylint: disable=g-explicit-bool-comparison, singleton-comparison
-    existing_rule_query = base.Rule.query(
-        base.Rule.policy == constants.RULE_POLICY.WHITELIST,
-        base.Rule.in_effect == True,
-        base.Rule.rule_type == self.blockable.rule_type,
+    existing_rule_query = rule_models.Rule.query(
+        rule_models.Rule.policy == constants.RULE_POLICY.WHITELIST,
+        rule_models.Rule.in_effect == True,
+        rule_models.Rule.rule_type == self.blockable.rule_type,
         ancestor=self.blockable.key)
     # pylint: enable=g-explicit-bool-comparison, singleton-comparison
     existing_rules = yield existing_rule_query.fetch_async()
@@ -684,9 +701,9 @@ class BallotBox(object):
     """Creates a global blacklist rule and disables all whitelist rules."""
     # Remove all active whitelist rules.
     # pylint: disable=g-explicit-bool-comparison, singleton-comparison
-    rule_query = base.Rule.query(
-        base.Rule.policy == constants.RULE_POLICY.WHITELIST,
-        base.Rule.in_effect == True,
+    rule_query = rule_models.Rule.query(
+        rule_models.Rule.policy == constants.RULE_POLICY.WHITELIST,
+        rule_models.Rule.in_effect == True,
         ancestor=self.blockable.key)
     # pylint: enable=g-explicit-bool-comparison, singleton-comparison
     existing_rules = rule_query.fetch()
@@ -740,8 +757,8 @@ class BallotBox(object):
   def _CheckRules(self):
     """Checks that only appropriate rules exist for a blockable."""
     # pylint: disable=g-explicit-bool-comparison, singleton-comparison
-    all_rules = base.Rule.query(
-        base.Rule.in_effect == True, ancestor=self.blockable.key)
+    all_rules = rule_models.Rule.query(
+        rule_models.Rule.in_effect == True, ancestor=self.blockable.key)
     # pylint: enable=g-explicit-bool-comparison, singleton-comparison
     global_whitelist_rule_exists = False
     blacklist_rule_exists = False
@@ -836,7 +853,7 @@ class SantaBallotBox(BallotBox):
     Returns:
       An un-persisted SantaRule corresponding to the blockable being voted on.
     """
-    return santa.SantaRule(
+    return rule_models.SantaRule(
         parent=self.blockable.key,
         rule_type=self.blockable.rule_type,
         **kwargs)
@@ -853,7 +870,7 @@ class SantaBallotBox(BallotBox):
     Returns:
       set<str>, IDs of Hosts for which whitelist rules should be created.
     """
-    username = user_map.EmailToUsername(user_key.id())
+    username = user_utils.EmailToUsername(user_key.id())
     query = host_models.SantaHost.query(
         host_models.SantaHost.primary_user == username)
     return {host_key.id() for host_key in query.fetch(keys_only=True)}
@@ -911,7 +928,7 @@ class Bit9BallotBox(BallotBox):
     Returns:
       An un-persisted Bit9Rule corresponding to the blockable being voted on.
     """
-    return bit9.Bit9Rule(
+    return rule_models.Bit9Rule(
         parent=self.blockable.key,
         rule_type=self.blockable.rule_type,
         **kwargs)
@@ -934,7 +951,7 @@ class Bit9BallotBox(BallotBox):
     Returns:
       set<str>, IDs of Hosts for which whitelist rules should be created.
     """
-    username = user_map.EmailToUsername(user_key.id())
+    username = user_utils.EmailToUsername(user_key.id())
     query = host_models.Bit9Host.query(host_models.Bit9Host.users == username)
     return {host_key.id() for host_key in query.fetch(keys_only=True)}
 

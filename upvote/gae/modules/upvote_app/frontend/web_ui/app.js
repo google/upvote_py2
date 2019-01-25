@@ -26,6 +26,7 @@ goog.require('upvote.detailpage.BlockableDetailsController');
 goog.require('upvote.errornotifier.module');
 goog.require('upvote.events.module');
 goog.require('upvote.exemptionrequestpage.ExemptionRequestController');
+goog.require('upvote.exemptions.module');
 goog.require('upvote.hostblockablespage.HostBlockableListController');
 goog.require('upvote.hostlistpage.HostListController');
 goog.require('upvote.hosts.module');
@@ -53,6 +54,7 @@ upvote.app.module = angular.module('upvote.app', [
   upvote.common.module.name,
   upvote.errornotifier.module.name,
   upvote.events.module.name,
+  upvote.exemptions.module.name,
   upvote.hosts.module.name,
   upvote.listing.module.name,
   upvote.morefooter.module.name,

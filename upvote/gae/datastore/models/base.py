@@ -25,13 +25,7 @@ from upvote.gae.datastore import utils as datastore_utils
 from upvote.gae.datastore.models import mixin
 from upvote.gae.datastore.models import user as user_models
 from upvote.gae.datastore.models import vote as vote_models
-from upvote.gae.shared.common import user_map
 from upvote.shared import constants
-
-
-# Done for the sake of brevity.
-LOCAL = constants.RULE_SCOPE.LOCAL
-GLOBAL = constants.RULE_SCOPE.GLOBAL
 
 
 class Error(Exception):
@@ -252,22 +246,6 @@ class Blockable(mixin.Base, polymodel.PolyModel):
     self.InsertBigQueryRow(
         constants.BLOCK_ACTION.STATE_CHANGE, timestamp=self.state_change_dt)
 
-  def GetRules(self, in_effect=True):
-    """Queries for all Rules associated with blockable.
-
-    Args:
-      in_effect: bool, return only rules that are currently in effect.
-
-    Returns:
-      A list of Rules.
-    """
-    query = Rule.query(ancestor=self.key)
-    if in_effect:
-      # pylint: disable=g-explicit-bool-comparison, singleton-comparison
-      query = query.filter(Rule.in_effect == True)
-      # pylint: enable=g-explicit-bool-comparison, singleton-comparison
-    return query.fetch()
-
   def GetVotes(self):
     """Queries for all Votes cast for this Blockable.
 
@@ -449,47 +427,3 @@ class Package(Blockable):
   @property
   def rule_type(self):
     return constants.RULE_TYPE.PACKAGE
-
-
-class Rule(mixin.Base, polymodel.PolyModel):
-  """A rule generated from voting or manually inserted by an authorized user.
-
-  Attributes:
-    rule_type: string, the type of blockable the rule applies to, ie
-        binary, certificate.
-    policy: string, the assertion of the rule, ie whitelisted, blacklisted.
-    in_effect: bool, is this rule still in effect. Set to False when superceded.
-    recorded_dt: datetime, insertion time.
-    host_id: str, id of the host or blank for global.
-    user_key: key, for locally scoped rules, the user for whom the rule was
-        created.
-  """
-  rule_type = ndb.StringProperty(
-      choices=constants.RULE_TYPE.SET_ALL, required=True)
-  policy = ndb.StringProperty(
-      choices=constants.RULE_POLICY.SET_ALL, required=True)
-  in_effect = ndb.BooleanProperty(default=True)
-  recorded_dt = ndb.DateTimeProperty(auto_now_add=True)
-  updated_dt = ndb.DateTimeProperty(auto_now=True)
-  host_id = ndb.StringProperty(default='')
-  user_key = ndb.KeyProperty()
-
-  def MarkDisabled(self):
-    self.in_effect = False
-
-  def InsertBigQueryRow(self, **kwargs):
-
-    user = (
-        user_map.EmailToUsername(self.user_key.id()) if self.user_key else None)
-
-    defaults = {
-        'sha256': self.key.parent().id(),
-        'timestamp': datetime.datetime.utcnow(),
-        'scope': LOCAL if self.host_id or self.user_key else GLOBAL,
-        'policy': self.policy,
-        'target_type': self.rule_type,
-        'device_id': self.host_id if self.host_id else None,
-        'user': user}
-    defaults.update(kwargs.copy())
-
-    tables.RULE.InsertRow(**defaults)

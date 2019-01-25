@@ -24,6 +24,7 @@ from upvote.gae.datastore import utils as datastore_utils
 from upvote.gae.datastore.models import base
 from upvote.gae.datastore.models import bit9
 from upvote.gae.datastore.models import host as host_models
+from upvote.gae.datastore.models import rule as rule_models
 from upvote.gae.datastore.models import santa
 from upvote.gae.datastore.models import user as user_models
 from upvote.gae.datastore.models import vote as vote_models
@@ -66,6 +67,23 @@ class GetPlatformTest(basetest.UpvoteTestCase):
     blockable = test_utils.CreateBlockable()
     with self.assertRaises(api.UnsupportedPlatformError):
       api._GetPlatform(blockable)
+
+
+class GetRulesForBlockableTest(basetest.UpvoteTestCase):
+
+  def testSuccess(self):
+
+    blockable = test_utils.CreateBlockable()
+    self.assertLen(api._GetRulesForBlockable(blockable), 0)
+
+    in_effect_rule_count = 7
+    test_utils.CreateSantaRules(blockable.key, in_effect_rule_count)
+
+    not_in_effect_rule_count = 10
+    test_utils.CreateSantaRules(
+        blockable.key, not_in_effect_rule_count, in_effect=False)
+
+    self.assertLen(api._GetRulesForBlockable(blockable), in_effect_rule_count)
 
 
 class VoteTest(basetest.UpvoteTestCase):
@@ -150,7 +168,7 @@ class BallotBoxTest(basetest.UpvoteTestCase):
 
     self.assertEqual(self.local_threshold, binary.score)
 
-    rules = binary.GetRules()
+    rules = api._GetRulesForBlockable(binary)
     self.assertLen(rules, 1)
     self.assertFalse(rules[0].is_committed)
     self.assertTrue(rules[0].in_effect)
@@ -176,7 +194,7 @@ class BallotBoxTest(basetest.UpvoteTestCase):
       ballot_box.Vote(True, user, vote_weight=self.local_threshold)
 
     self.assertEqual(self.local_threshold, binary.score)
-    self.assertLen(binary.GetRules(), 0)
+    self.assertLen(api._GetRulesForBlockable(binary), 0)
     self.assertEqual(0, bit9.RuleChangeSet.query().count())
 
     self.assertTaskCount(constants.TASK_QUEUE.BIT9_COMMIT_CHANGE, 0)
@@ -501,7 +519,7 @@ class BallotBoxTest(basetest.UpvoteTestCase):
       ballot_box.Vote(True, admin_user)
 
     # Verify that global whitelist rule was created for the bundle.
-    rules = santa.SantaRule.query(ancestor=self.santa_bundle.key).fetch()
+    rules = rule_models.SantaRule.query(ancestor=self.santa_bundle.key).fetch()
     self.assertLen(rules, 1)
     self.assertEqual(constants.RULE_TYPE.PACKAGE, rules[0].rule_type)
     self.assertEqual(constants.RULE_POLICY.WHITELIST, rules[0].policy)
@@ -542,7 +560,7 @@ class BallotBoxTest(basetest.UpvoteTestCase):
         ballot_box.Vote(True, user)
 
     # Verify that local whitelist rules were created for the bundle.
-    rules = santa.SantaRule.query(ancestor=self.santa_bundle.key).fetch()
+    rules = rule_models.SantaRule.query(ancestor=self.santa_bundle.key).fetch()
     self.assertLen(rules, self.local_threshold)
     self.assertEqual(constants.RULE_TYPE.PACKAGE, rules[0].rule_type)
     self.assertEqual(constants.RULE_POLICY.WHITELIST, rules[0].policy)
@@ -592,7 +610,8 @@ class BallotBoxTest(basetest.UpvoteTestCase):
     self.assertIsNotNone(base.Blockable.get_by_id(sha))
     self.assertEqual(len(users) - 1, len(blockable.GetVotes()))
     self.assertLen(users, host_models.Host.query().count())
-    self.assertEqual(len(users) - 1, len(blockable.GetRules()))
+    rules = api._GetRulesForBlockable(blockable)
+    self.assertEqual(len(users) - 1, len(rules))
 
     # Ensure that even with a yes vote, the voter can't globally whitelist the
     # Blockable, i.e. can't trigger a state change.
@@ -608,7 +627,8 @@ class BallotBoxTest(basetest.UpvoteTestCase):
         constants.STATE.APPROVED_FOR_LOCAL_WHITELISTING, blockable.state)
     self.assertLess(blockable.score, 50)
     self.assertEqual(len(users), len(blockable.GetVotes()))
-    self.assertEqual(len(users), len(blockable.GetRules()))
+    rules = api._GetRulesForBlockable(blockable)
+    self.assertEqual(len(users), len(rules))
 
     self.assertBigQueryInsertions([TABLE.VOTE, TABLE.BINARY, TABLE.RULE])
 
@@ -634,7 +654,7 @@ class BallotBoxTest(basetest.UpvoteTestCase):
 
   def testGloballyWhitelist_RuleNoRules(self):
     """Change a blockable state to Globally whitelisted."""
-    self.rule1 = base.Rule(
+    self.rule1 = rule_models.Rule(
         rule_type=constants.RULE_TYPE.BINARY,
         policy=constants.RULE_POLICY.BLACKLIST,
         in_effect=True,
@@ -657,12 +677,12 @@ class BallotBoxTest(basetest.UpvoteTestCase):
 
     ballot_box._GloballyWhitelist().get_result()
 
-    rule_query = base.Rule.query(ancestor=self.santa_blockable1.key)
+    rule_query = rule_models.Rule.query(ancestor=self.santa_blockable1.key)
 
     self.assertEqual(rule_query.count(), 2)
 
     # pylint: disable=g-explicit-bool-comparison, singleton-comparison
-    rule_query = rule_query.filter(base.Rule.in_effect == True)
+    rule_query = rule_query.filter(rule_models.Rule.in_effect == True)
     # pylint: enable=g-explicit-bool-comparison, singleton-comparison
 
     self.assertEqual(rule_query.count(), 1)
@@ -697,7 +717,7 @@ class BallotBoxTest(basetest.UpvoteTestCase):
 
     self.assertLen(blockable.GetVotes(), self.local_threshold)
 
-    rules = base.Rule.query().fetch()
+    rules = rule_models.Rule.query().fetch()
     self.assertLen(rules, self.local_threshold)
     self.assertEqual(
         set([other.key for other in other_users] + [user.key]),
@@ -738,7 +758,7 @@ class BallotBoxTest(basetest.UpvoteTestCase):
 
     self.assertLen(blockable.GetVotes(), self.local_threshold + 1)
 
-    rules = base.Rule.query().fetch()
+    rules = rule_models.Rule.query().fetch()
     self.assertLen(rules, self.local_threshold + 1)
     self.assertEqual(
         set([other.key for other in other_users] + [user.key]),
@@ -765,7 +785,7 @@ class BallotBoxTest(basetest.UpvoteTestCase):
           user_key=user.key,
           host_id=host.key.id())
 
-    rule_query = base.Rule.query(ancestor=blockable.key)
+    rule_query = rule_models.Rule.query(ancestor=blockable.key)
 
     self.assertEqual(len(hosts) - 1, rule_query.count())
 
@@ -833,7 +853,7 @@ class BallotBoxTest(basetest.UpvoteTestCase):
         constants.STATE.APPROVED_FOR_LOCAL_WHITELISTING, blockable.state)
 
     # We should expect to see one local rule for each machine.
-    rules = base.Rule.query().fetch()
+    rules = rule_models.Rule.query().fetch()
     expected_rule_count = num_voters * num_hosts_per_voter
     self.assertLen(rules, expected_rule_count)
     self.assertEqual(
@@ -1102,19 +1122,19 @@ class BallotBoxTest(basetest.UpvoteTestCase):
     santa_blockable.state = constants.STATE.UNTRUSTED
     santa_blockable.put()
 
-    test_rule1 = santa.SantaRule(
+    test_rule1 = rule_models.SantaRule(
         parent=santa_blockable.key,
         rule_type=constants.RULE_TYPE.BINARY,
         policy=constants.RULE_POLICY.WHITELIST,
         in_effect=True,
         host_id='aaaaa-1111-bbbbbbbbbb')
-    test_rule2 = santa.SantaRule(
+    test_rule2 = rule_models.SantaRule(
         parent=santa_blockable.key,
         rule_type=constants.RULE_TYPE.BINARY,
         policy=constants.RULE_POLICY.WHITELIST,
         in_effect=True,
         host_id='bbbbb-2222-ccccccccc')
-    test_rule3 = santa.SantaRule(
+    test_rule3 = rule_models.SantaRule(
         parent=santa_blockable.key,
         rule_type=constants.RULE_TYPE.BINARY,
         policy=constants.RULE_POLICY.WHITELIST,
@@ -1129,7 +1149,7 @@ class BallotBoxTest(basetest.UpvoteTestCase):
 
     ballot_box._CheckRules()
 
-    rule_query = santa.SantaRule.query()
+    rule_query = rule_models.SantaRule.query()
 
     self.assertEqual(rule_query.count(), 3)
 
@@ -1145,19 +1165,19 @@ class BallotBoxTest(basetest.UpvoteTestCase):
     santa_blockable.state = constants.STATE.APPROVED_FOR_LOCAL_WHITELISTING
     santa_blockable.put()
 
-    test_rule1 = santa.SantaRule(
+    test_rule1 = rule_models.SantaRule(
         parent=santa_blockable.key,
         rule_type=constants.RULE_TYPE.BINARY,
         policy=constants.RULE_POLICY.WHITELIST,
         in_effect=True,
         host_id='aaaaa-1111-bbbbbbbbbb')
-    test_rule2 = santa.SantaRule(
+    test_rule2 = rule_models.SantaRule(
         parent=santa_blockable.key,
         rule_type=constants.RULE_TYPE.BINARY,
         policy=constants.RULE_POLICY.WHITELIST,
         in_effect=True,
         host_id='bbbbb-2222-ccccccccc')
-    test_rule3 = santa.SantaRule(
+    test_rule3 = rule_models.SantaRule(
         parent=santa_blockable.key,
         rule_type=constants.RULE_TYPE.BINARY,
         policy=constants.RULE_POLICY.WHITELIST,
@@ -1172,7 +1192,7 @@ class BallotBoxTest(basetest.UpvoteTestCase):
 
     ballot_box._CheckRules()
 
-    rule_query = santa.SantaRule.query()
+    rule_query = rule_models.SantaRule.query()
 
     self.assertEqual(rule_query.count(), 3)
 
@@ -1188,7 +1208,7 @@ class BallotBoxTest(basetest.UpvoteTestCase):
     santa_blockable.state = constants.STATE.GLOBALLY_WHITELISTED
     santa_blockable.put()
 
-    test_rule = santa.SantaRule(
+    test_rule = rule_models.SantaRule(
         parent=santa_blockable.key,
         rule_type=constants.RULE_TYPE.BINARY,
         policy=constants.RULE_POLICY.WHITELIST,
@@ -1200,7 +1220,7 @@ class BallotBoxTest(basetest.UpvoteTestCase):
 
     ballot_box._CheckRules()
 
-    rule_query = santa.SantaRule.query()
+    rule_query = rule_models.SantaRule.query()
 
     self.assertEqual(rule_query.count(), 1)
 
@@ -1214,7 +1234,7 @@ class BallotBoxTest(basetest.UpvoteTestCase):
     santa_blockable.state = constants.STATE.BANNED
     santa_blockable.put()
 
-    test_rule = santa.SantaRule(
+    test_rule = rule_models.SantaRule(
         parent=santa_blockable.key,
         rule_type=constants.RULE_TYPE.BINARY,
         policy=constants.RULE_POLICY.BLACKLIST,
@@ -1226,7 +1246,7 @@ class BallotBoxTest(basetest.UpvoteTestCase):
 
     ballot_box._CheckRules()
 
-    rule_query = santa.SantaRule.query()
+    rule_query = rule_models.SantaRule.query()
 
     self.assertEqual(rule_query.count(), 1)
 
@@ -1240,7 +1260,7 @@ class BallotBoxTest(basetest.UpvoteTestCase):
     santa_blockable.state = constants.STATE.UNTRUSTED
     santa_blockable.put()
 
-    test_rule = santa.SantaRule(
+    test_rule = rule_models.SantaRule(
         parent=santa_blockable.key,
         rule_type=constants.RULE_TYPE.BINARY,
         policy=constants.RULE_POLICY.WHITELIST,
@@ -1252,7 +1272,7 @@ class BallotBoxTest(basetest.UpvoteTestCase):
 
     ballot_box._CheckRules()
 
-    rule_query = santa.SantaRule.query()
+    rule_query = rule_models.SantaRule.query()
 
     self.assertEqual(rule_query.count(), 1)
 
@@ -1266,19 +1286,19 @@ class BallotBoxTest(basetest.UpvoteTestCase):
     santa_blockable.state = constants.STATE.BANNED
     santa_blockable.put()
 
-    test_rule1 = santa.SantaRule(
+    test_rule1 = rule_models.SantaRule(
         parent=santa_blockable.key,
         rule_type=constants.RULE_TYPE.BINARY,
         policy=constants.RULE_POLICY.WHITELIST,
         in_effect=True,
         host_id='aaaaa-1111-bbbbbbbbbb')
-    test_rule2 = santa.SantaRule(
+    test_rule2 = rule_models.SantaRule(
         parent=santa_blockable.key,
         rule_type=constants.RULE_TYPE.BINARY,
         policy=constants.RULE_POLICY.WHITELIST,
         in_effect=True,
         host_id='bbbbb-2222-ccccccccc')
-    test_rule3 = santa.SantaRule(
+    test_rule3 = rule_models.SantaRule(
         parent=santa_blockable.key,
         rule_type=constants.RULE_TYPE.BINARY,
         policy=constants.RULE_POLICY.WHITELIST,
@@ -1293,7 +1313,7 @@ class BallotBoxTest(basetest.UpvoteTestCase):
 
     ballot_box._CheckRules()
 
-    rule_query = santa.SantaRule.query()
+    rule_query = rule_models.SantaRule.query()
     self.assertEqual(4, rule_query.count())
     # Exacly one rule (the blacklist one) should be in effect.
     self.assertEqual(1, sum(rule.in_effect for rule in rule_query))
@@ -1306,7 +1326,7 @@ class BallotBoxTest(basetest.UpvoteTestCase):
     santa_blockable.state = constants.STATE.UNTRUSTED
     santa_blockable.put()
 
-    test_rule = santa.SantaRule(
+    test_rule = rule_models.SantaRule(
         parent=santa_blockable.key,
         rule_type=constants.RULE_TYPE.BINARY,
         policy=constants.RULE_POLICY.WHITELIST,
@@ -1318,7 +1338,7 @@ class BallotBoxTest(basetest.UpvoteTestCase):
 
     ballot_box._CheckRules()
 
-    rule_query = santa.SantaRule.query()
+    rule_query = rule_models.SantaRule.query()
 
     self.assertEqual(rule_query.count(), 1)
 
@@ -1332,7 +1352,7 @@ class BallotBoxTest(basetest.UpvoteTestCase):
     santa_blockable.state = constants.STATE.UNTRUSTED
     santa_blockable.put()
 
-    test_rule = santa.SantaRule(
+    test_rule = rule_models.SantaRule(
         parent=santa_blockable.key,
         rule_type=constants.RULE_TYPE.BINARY,
         policy=constants.RULE_POLICY.BLACKLIST,
@@ -1344,7 +1364,7 @@ class BallotBoxTest(basetest.UpvoteTestCase):
 
     ballot_box._CheckRules()
 
-    rule_query = santa.SantaRule.query()
+    rule_query = rule_models.SantaRule.query()
 
     self.assertEqual(rule_query.count(), 1)
 
@@ -1391,10 +1411,10 @@ class ResetTest(basetest.UpvoteTestCase):
     self.assertEqual(constants.STATE.UNTRUSTED, blockable.key.get().state)
 
     total_votes = vote_models.Vote.query()
-    retrieved_rules = base.Rule.query(ancestor=blockable.key)
+    retrieved_rules = rule_models.Rule.query(ancestor=blockable.key)
     # pylint: disable=g-explicit-bool-comparison, singleton-comparison
-    retrieved_in_effect_rules = base.Rule.query(
-        base.Rule.in_effect == True, ancestor=blockable.key)
+    retrieved_in_effect_rules = rule_models.Rule.query(
+        rule_models.Rule.in_effect == True, ancestor=blockable.key)
     # pylint: enable=g-explicit-bool-comparison, singleton-comparison
 
     self.assertEqual(total_votes.count(), 11)
@@ -1417,17 +1437,17 @@ class ResetTest(basetest.UpvoteTestCase):
       api.Vote(user, binary.key.id(), True, self.local_threshold)
 
     self.assertEqual(self.local_threshold, binary.score)
-    self.assertEntityCount(bit9.Bit9Rule, 1)
+    self.assertEntityCount(rule_models.Bit9Rule, 1)
     self.assertEntityCount(bit9.RuleChangeSet, 1)
 
     api.Reset(binary.key.id())
 
     self.assertEqual(0, binary.score)
 
-    self.assertEntityCount(bit9.Bit9Rule, 2)
+    self.assertEntityCount(rule_models.Bit9Rule, 2)
     self.assertEntityCount(bit9.RuleChangeSet, 2)
 
-    rules = binary.GetRules()
+    rules = api._GetRulesForBlockable(binary)
     self.assertLen(rules, 1)
     self.assertFalse(rules[0].is_committed)
     self.assertTrue(rules[0].in_effect)

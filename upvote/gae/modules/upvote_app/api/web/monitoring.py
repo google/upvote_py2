@@ -14,25 +14,28 @@
 
 """Monitoring metrics for the upvote_app AppEngine module."""
 
-from upvote.gae.shared.common import monitoring
+from upvote.gae.utils import monitoring_utils
 from upvote.monitoring import metrics
 
 
 blockable_requests = (
-    monitoring.RequestCounter(metrics.UPVOTE_APP.BLOCKABLE_REQUESTS))
+    monitoring_utils.RequestCounter(metrics.UPVOTE_APP.BLOCKABLE_REQUESTS))
 
-event_requests = monitoring.RequestCounter(metrics.UPVOTE_APP.EVENT_REQUESTS)
+event_requests = monitoring_utils.RequestCounter(metrics.UPVOTE_APP.EVENT_REQUESTS)
 
-host_requests = monitoring.RequestCounter(metrics.UPVOTE_APP.HOST_REQUESTS)
+host_requests = monitoring_utils.RequestCounter(metrics.UPVOTE_APP.HOST_REQUESTS)
 
-lookup_requests = monitoring.RequestCounter(metrics.UPVOTE_APP.LOOKUP_REQUESTS)
+lookup_requests = monitoring_utils.RequestCounter(
+    metrics.UPVOTE_APP.LOOKUP_REQUESTS)
 
-user_requests = monitoring.RequestCounter(metrics.UPVOTE_APP.USER_REQUESTS)
+user_requests = monitoring_utils.RequestCounter(metrics.UPVOTE_APP.USER_REQUESTS)
 
-report_requests = monitoring.RequestCounter(metrics.UPVOTE_APP.REPORT_REQUESTS)
+report_requests = monitoring_utils.RequestCounter(
+    metrics.UPVOTE_APP.REPORT_REQUESTS)
 
-rule_requests = monitoring.RequestCounter(metrics.UPVOTE_APP.RULE_REQUESTS)
+rule_requests = monitoring_utils.RequestCounter(metrics.UPVOTE_APP.RULE_REQUESTS)
 
-setting_requests = monitoring.RequestCounter(metrics.UPVOTE_APP.SETTING_REQUESTS)
+setting_requests = monitoring_utils.RequestCounter(
+    metrics.UPVOTE_APP.SETTING_REQUESTS)
 
-vote_requests = monitoring.RequestCounter(metrics.UPVOTE_APP.VOTE_REQUESTS)
+vote_requests = monitoring_utils.RequestCounter(metrics.UPVOTE_APP.VOTE_REQUESTS)

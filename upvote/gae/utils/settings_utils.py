@@ -14,6 +14,7 @@
 
 """Utilities for defining Upvote settings."""
 
+import collections
 import logging
 import os
 
@@ -86,3 +87,8 @@ def CurrentEnvironment():
   # Well shit...
   logging.warning('Unable to determine the current environment')
   raise UnknownEnvironmentError
+
+
+# A namedtuple for defining critical Rules that must be present in Datastore.
+CriticalRule = collections.namedtuple(
+    'CriticalRule', ['sha256', 'platform', 'rule_type', 'rule_policy'])

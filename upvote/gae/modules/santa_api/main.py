@@ -15,36 +15,10 @@
 """API Main URL Handling."""
 
 import webapp2
-from webapp2_extras import routes
 
 from upvote.gae.modules.santa_api import sync
 from upvote.gae.utils import handler_utils
 
 
-UUID_RE = r'[0-9A-F]{8}-[A-F0-9]{4}-[A-F0-9]{4}-[A-F0-9]{4}-[A-F0-9]{12}'
-
-app = webapp2.WSGIApplication([
-    # Warmup
-    webapp2.Route(r'/_ah/warmup', handler_utils.AckHandler),
-    routes.PathPrefixRoute(
-        r'/api/santa',
-        [
-            # Verifies the module is reachable.
-            webapp2.Route(r'/ack', handler_utils.AckHandler),
-
-            # Santa API. All handlers expect a UUID in the URL
-            webapp2.Route(r'/xsrf/<:%s>' % UUID_RE, sync.XsrfHandler),
-            webapp2.Route(r'/preflight/<:%s>' % UUID_RE, sync.PreflightHandler),
-            webapp2.Route(r'/logupload/<:%s>' % UUID_RE, sync.LogUploadHandler),
-            webapp2.Route(r'/eventupload/<:%s>' % UUID_RE,
-                          sync.EventUploadHandler),
-            webapp2.Route(r'/binaryupload/<:%s>' % UUID_RE,
-                          sync.BinaryUploadHandler),
-            webapp2.Route(r'/ruledownload/<:%s>' % UUID_RE,
-                          sync.RuleDownloadHandler),
-            webapp2.Route(r'/postflight/<:%s>' % UUID_RE,
-                          sync.PostflightHandler),
-        ]),
-])
-
+app = webapp2.WSGIApplication(routes=sync.ROUTES)
 handler_utils.CreateErrorHandlersForApplications([app])

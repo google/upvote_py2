@@ -165,7 +165,6 @@ class ConstantsTest(absltest.TestCase):
   def testPermissions_EnsureHierarchy(self):
 
     hierarchy = [
-        constants.PERMISSIONS.SET_BASE,
         constants.PERMISSIONS.SET_UNTRUSTED_USER,
         constants.PERMISSIONS.SET_USER,
         constants.PERMISSIONS.SET_TRUSTED_USER,
