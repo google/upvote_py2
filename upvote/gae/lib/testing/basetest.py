@@ -36,8 +36,8 @@ from common.testing import basetest
 from upvote.gae import settings
 from upvote.gae.bigquery import tables
 from upvote.gae.datastore import test_utils
+from upvote.gae.utils import env_utils
 from upvote.gae.utils import handler_utils
-from upvote.gae.utils import settings_utils
 from upvote.gae.utils import xsrf_utils
 from upvote.shared import constants
 
@@ -287,7 +287,7 @@ class UpvoteTestCase(basetest.AppEngineTestCase):
 
     # Create a dummy environment if one wasn't provided.
     if new_env is None:
-      class DummyEnv(settings_utils.DefaultEnv):
+      class DummyEnv(env_utils.DefaultEnv):
         pass
 
       new_env = DummyEnv()
@@ -298,7 +298,7 @@ class UpvoteTestCase(basetest.AppEngineTestCase):
         setattr(new_env, name, value)
 
     self._env_patcher = mock.patch.object(
-        settings, 'ENV', new_callable=mock.PropertyMock(return_value=new_env))
+        env_utils, 'ENV', new_callable=mock.PropertyMock(return_value=new_env))
     self._env_patcher.start()
 
   def UnpatchEnv(self):

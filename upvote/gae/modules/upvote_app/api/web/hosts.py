@@ -13,7 +13,7 @@
 # limitations under the License.
 
 """Views related to hosts."""
-import abc
+
 import datetime
 import httplib
 import logging
@@ -24,10 +24,11 @@ from webapp2_extras import routes
 
 from google.appengine.ext import ndb
 
-from upvote.gae.bigquery import tables
+from upvote.gae.datastore.models import exemption as exemption_models
 from upvote.gae.datastore.models import host as host_models
 from upvote.gae.datastore.models import user as user_models
 from upvote.gae.datastore.models import utils as model_utils
+from upvote.gae.lib.exemption import api as exemption_api
 from upvote.gae.modules.upvote_app.api.web import monitoring
 from upvote.gae.utils import handler_utils
 from upvote.gae.utils import xsrf_utils
@@ -149,23 +150,8 @@ class AssociatedHostHandler(handler_utils.UserFacingHandler):
 class BooleanPropertyHandler(handler_utils.UserFacingHandler):
   """Base class for handlers that toggle a BooleanProperty on a Host."""
 
-  __metaclass__ = abc.ABCMeta
-
-  @abc.abstractproperty
-  def property_name(self):
-    pass
-
   def _GetHost(self):
     return host_models.Host.get_by_id(self._normalized_host_id)
-
-  @ndb.transactional
-  def _UpdateHost(self):
-    host = self._GetHost()
-    logging.info(
-        'Changing %s to %s for %s',
-        self.property_name, self._bool_new_value, host.hostname)
-    setattr(host, self.property_name, self._bool_new_value)
-    host.put()
 
   def dispatch(self):
 
@@ -196,29 +182,27 @@ class BooleanPropertyHandler(handler_utils.UserFacingHandler):
       self.abort(
           httplib.BAD_REQUEST, explanation='Invalid new_value: %s' % new_value)
 
-    self._bool_new_value = new_value.lower() == 'true'
-
     super(BooleanPropertyHandler, self).dispatch()
 
 
 class VisibilityHandler(BooleanPropertyHandler):
   """Handler for changing the hidden attribute of a host."""
 
-  @property
-  def property_name(self):
-    return 'hidden'
+  @ndb.transactional
+  def _SetVisibility(self, hidden):
+    host = self._GetHost()
+    logging.info('Changing hidden to %s for %s', hidden, host.hostname)
+    host.hidden = hidden
+    host.put()
 
   @xsrf_utils.RequireToken
   def put(self, host_id, new_value):
-    self._UpdateHost()
+    hidden = new_value.lower() == 'true'
+    self._SetVisibility(hidden)
 
 
 class TransitiveHandler(BooleanPropertyHandler):
   """Handler for changing the transitive whitelisting status of a macOS host."""
-
-  @property
-  def property_name(self):
-    return 'transitive_whitelisting_enabled'
 
   @xsrf_utils.RequireToken
   def put(self, host_id, new_value):
@@ -230,22 +214,16 @@ class TransitiveHandler(BooleanPropertyHandler):
           httplib.FORBIDDEN,
           explanation='Only Santa clients support transitive whitelisting')
 
-    self._UpdateHost()
+    enable = new_value.lower() == 'true'
+    host_models.SantaHost.ChangeTransitiveWhitelisting(host_id, enable)
 
-    # Note the state change in BigQuery.
-    users = model_utils.GetUsersAssociatedWithSantaHost(
-        self._normalized_host_id)
-    comment = 'Transitive whitelisting %s by %s' % (
-        'enabled' if self._bool_new_value else 'disabled', self.user.nickname)
-    tables.HOST.InsertRow(
-        device_id=host_id,
-        timestamp=datetime.datetime.utcnow(),
-        action=constants.HOST_ACTION.COMMENT,
-        hostname=host.hostname,
-        platform=constants.PLATFORM.MACOS,
-        users=users,
-        mode=host.client_mode,
-        comment=comment)
+    # If enabling transitive whitelisting and the SantaHost has an APPROVED
+    # Exemption, revoke it.
+    exm_key = exemption_models.Exemption.CreateKey(host_id)
+    exm = exm_key.get()
+    if enable and exm and exm.state == constants.EXEMPTION_STATE.APPROVED:
+      exemption_api.Revoke(
+          exm_key, ['Revoked because transitive whitelisting was enabled'])
 
 
 # The Webapp2 routes defined for these handlers.

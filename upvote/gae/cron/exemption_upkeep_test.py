@@ -22,10 +22,10 @@ import webapp2
 
 from google.appengine.api import memcache
 
-from upvote.gae import settings
 from upvote.gae.cron import exemption_upkeep
 from upvote.gae.datastore import test_utils
 from upvote.gae.lib.testing import basetest
+from upvote.gae.utils import env_utils
 from upvote.gae.utils import user_utils
 from upvote.shared import constants
 

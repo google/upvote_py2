@@ -15,11 +15,16 @@
 """Model definitions for the various hosts Upvote interacts with."""
 
 import datetime
+import logging
 
 from google.appengine.ext import ndb
 from google.appengine.ext.ndb import polymodel
 
+from upvote.gae.bigquery import tables
 from upvote.gae.datastore.models import mixin
+from upvote.gae.utils import env_utils
+from upvote.gae.utils import mail_utils
+from upvote.gae.utils import template_utils
 from upvote.shared import constants
 
 
@@ -129,8 +134,8 @@ class SantaHost(mixin.Santa, Host):
   last_preflight_ip = ndb.StringProperty()
   last_postflight_dt = ndb.DateTimeProperty()
   client_mode = ndb.StringProperty(
-      choices=constants.SANTA_CLIENT_MODE.SET_ALL,
-      default=constants.SANTA_CLIENT_MODE.LOCKDOWN)
+      choices=constants.CLIENT_MODE.SET_ALL,
+      default=constants.CLIENT_MODE.LOCKDOWN)
 
   client_mode_lock = ndb.BooleanProperty(default=False)
   # If True, the client will upload logs on the next run
@@ -154,3 +159,58 @@ class SantaHost(mixin.Santa, Host):
     host.client_mode_lock = True
     host.client_mode = new_client_mode
     host.put()
+
+  @classmethod
+  @ndb.transactional
+  def _InnerChangeTransitiveWhitelisting(cls, host_id, enable):
+    """Modifies the transitive whitelisting state for a SantaHost.
+
+    Args:
+      host_id: The ID of the SantaHost to modify.
+      enable: Whether to enable or disable transitive whitelisting.
+
+    Returns:
+      Whether the change was successful or not.
+    """
+    host = cls.get_by_id(host_id)
+
+    # Note the request if nothing is changing.
+    if host.transitive_whitelisting_enabled == enable:
+      logging.warning(
+          'Transitive whitelisting is already %s for %s',
+          'enabled' if enable else 'disabled', host.hostname)
+      return False
+
+    host.transitive_whitelisting_enabled = enable
+    host.put()
+    return True
+
+  @classmethod
+  def ChangeTransitiveWhitelisting(cls, host_id, enable):
+
+    host = cls.get_by_id(host_id)
+
+    # Flip the switch on the SantaHost.
+    if cls._InnerChangeTransitiveWhitelisting(host_id, enable):
+      modification = 'enabled' if enable else 'disabled'
+      logging.info(
+          'Transitive whitelisting %s for %s', modification, host.hostname)
+
+      # Notify the user of the mode change.
+      body = template_utils.RenderEmailTemplate(
+          'transitive_modified.html', modification=modification,
+          device_hostname=host.hostname, upvote_hostname=env_utils.ENV.HOSTNAME)
+      subject = 'Developer mode changed: %s' % host.hostname
+      mail_utils.Send(subject, body, to=[host.primary_user], html=True)
+
+      # Note the state change in BigQuery.
+      comment = 'Transitive whitelisting %s' % modification
+      tables.HOST.InsertRow(
+          device_id=host_id,
+          timestamp=datetime.datetime.utcnow(),
+          action=constants.HOST_ACTION.COMMENT,
+          hostname=host.hostname,
+          platform=constants.PLATFORM.MACOS,
+          users=[host.primary_user],
+          mode=host.client_mode,
+          comment=comment)

@@ -27,67 +27,6 @@ from upvote.gae.datastore.models import user as user_models
 from upvote.shared import constants
 
 
-class QuarantineMetadata(ndb.Model):
-  """Metadata provided by macOS File Quarantine.
-
-  Attributes:
-    data_url: str, the URL the file was downloaded from
-    referer_url: str, the referer of the above URL
-    downloaded_dt: datetime, when the file was downloaded
-    agent_bundle_id: str, the program that downloaded the file
-  """
-  data_url = ndb.StringProperty(indexed=False)
-  referer_url = ndb.StringProperty(indexed=False)
-  downloaded_dt = ndb.DateTimeProperty()
-  agent_bundle_id = ndb.StringProperty()
-
-
-class SantaEvent(mixin.Santa, base.Event):
-  """An event from Santa.
-
-  Attributes:
-    bundle_key: ndb.Key, If present, the key of the bundle to which the
-        associated Blockable belongs.
-    quarantine: QuarantineMetadata, metadata detailing the provenance of the
-        Blockable.
-    event_type: str, the reason that the last block was generated
-    bundle_path: str, path of the associated bundle on the last block.
-
-    DEPRECATED
-    cert_sha256: the SHA-256 of the cert this file was signed with
-  """
-  bundle_key = ndb.KeyProperty()
-  quarantine = ndb.StructuredProperty(QuarantineMetadata)
-  event_type = ndb.StringProperty(
-      choices=constants.EVENT_TYPE.SET_ALL, required=True)
-  bundle_path = ndb.StringProperty()
-
-  # DEPRECATED
-  cert_sha256 = ndb.StringProperty()
-
-  @property
-  def run_by_local_admin(self):
-    return self.executing_user == constants.LOCAL_ADMIN.MACOS
-
-  def _DedupeMoreRecentEvent(self, more_recent_event):
-    """Updates if the related Event is more recent than the current one."""
-    super(SantaEvent, self)._DedupeMoreRecentEvent(more_recent_event)
-
-    self.bundle_path = more_recent_event.bundle_path
-    # Keep the newest non-null quarantine information
-    if more_recent_event.quarantine:
-      self.quarantine = more_recent_event.quarantine
-
-  def _DedupeEarlierEvent(self, earlier_event):
-    """Updates if the related Event occurred earlier than the current one."""
-    super(SantaEvent, self)._DedupeEarlierEvent(earlier_event)
-
-    # If an older Event has quarantine information and this one does not, pull
-    # in the older Event's data
-    if not self.quarantine and earlier_event.quarantine:
-      self.quarantine = earlier_event.quarantine
-
-
 class SantaBlockable(mixin.Santa, base.Binary):
   """An binary that has been blocked by Santa.
 

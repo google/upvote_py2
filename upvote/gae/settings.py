@@ -14,9 +14,10 @@
 
 """Common Upvote GAE settings."""
 
-from common import context
+import collections
+import functools
 
-from upvote.gae.utils import settings_utils
+from upvote.gae.utils import env_utils
 from upvote.shared import constants
 
 
@@ -47,7 +48,7 @@ ENABLE_BINARY_ANALYSIS_PRECACHING = False
 EVENT_CREATION = constants.EVENT_CREATION.HOST_OWNER
 
 # The default execution mode for clients syncing for the first time.
-SANTA_DEFAULT_CLIENT_MODE = constants.SANTA_CLIENT_MODE.LOCKDOWN
+SANTA_DEFAULT_CLIENT_MODE = constants.CLIENT_MODE.LOCKDOWN
 # If provided, a regex string that matches execution paths (read: not files)
 # from which executions will be allowed.
 # NOTE: This regex must be written in ICU format. Docs can be found here:
@@ -123,32 +124,32 @@ GROUP_ROLE_ASSIGNMENTS = {
 }
 
 
+# A namedtuple for defining critical Rules that must be present in Datastore.
+CriticalRule = collections.namedtuple(
+    'CriticalRule', ['sha256', 'platform', 'rule_type', 'rule_policy'])
+
+
+CriticalMacOsCertRule = functools.partial(  # pylint: disable=invalid-name
+    CriticalRule,
+    platform=constants.PLATFORM.MACOS,
+    rule_type=constants.RULE_TYPE.CERTIFICATE,
+    rule_policy=constants.RULE_POLICY.WHITELIST)
+
+
 # Critical Rules that must be present in Datastore.
 CRITICAL_RULES = [
 
     # Google Certificate for Chrome
-    settings_utils.CriticalRule(
-        sha256=(
-            '345a8e098bd04794aaeefda8c9ef56a0bf3d3706d67d35bc0e23f11bb3bffce5'),
-        platform=constants.PLATFORM.MACOS,
-        rule_type=constants.RULE_TYPE.CERTIFICATE,
-        rule_policy=constants.RULE_POLICY.WHITELIST),
+    CriticalMacOsCertRule(
+        '345a8e098bd04794aaeefda8c9ef56a0bf3d3706d67d35bc0e23f11bb3bffce5'),
 
     # Apple Software Signing for macOS 10.10, 10.11, 10.12, and 10.13
-    settings_utils.CriticalRule(
-        sha256=(
-            '2aa4b9973b7ba07add447ee4da8b5337c3ee2c3a991911e80e7282e8a751fc32'),
-        platform=constants.PLATFORM.MACOS,
-        rule_type=constants.RULE_TYPE.CERTIFICATE,
-        rule_policy=constants.RULE_POLICY.WHITELIST),
+    CriticalMacOsCertRule(
+        '2aa4b9973b7ba07add447ee4da8b5337c3ee2c3a991911e80e7282e8a751fc32'),
 
     # Google Certificate for Santa
-    settings_utils.CriticalRule(
-        sha256=(
-            '33b9aee3b089c922952c9240a40a0daa271bebf192cf3f7d964722e8f2170e48'),
-        platform=constants.PLATFORM.MACOS,
-        rule_type=constants.RULE_TYPE.CERTIFICATE,
-        rule_policy=constants.RULE_POLICY.WHITELIST),
+    CriticalMacOsCertRule(
+        '33b9aee3b089c922952c9240a40a0daa271bebf192cf3f7d964722e8f2170e48'),
 ]
 
 
@@ -181,7 +182,7 @@ SITE_ALERT = {
 }
 
 
-class ProdEnv(settings_utils.DefaultEnv):
+class ProdEnv(env_utils.DefaultEnv):
   """The production environment namespace."""
   NAME = 'Prod'
 
@@ -203,7 +204,7 @@ class ProdEnv(settings_utils.DefaultEnv):
   ENABLE_BIGQUERY_STREAMING = False
 
 
-class LocalEnv(settings_utils.DefaultEnv):
+class LocalEnv(env_utils.DefaultEnv):
   """The Local environment namespace."""
   NAME = 'Local'
 
@@ -212,8 +213,3 @@ class LocalEnv(settings_utils.DefaultEnv):
   PROJECT_ID = 'auto'
 
   ENABLE_BIGQUERY_STREAMING = False
-
-
-@context.LazyProxy
-def ENV():
-  return settings_utils.CurrentEnvironment()

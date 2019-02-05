@@ -28,6 +28,7 @@ from upvote.gae import settings
 from upvote.gae.datastore import utils as datastore_utils
 from upvote.gae.datastore.models import base
 from upvote.gae.datastore.models import bit9
+from upvote.gae.datastore.models import event as event_models
 from upvote.gae.datastore.models import exemption as exemption_models
 from upvote.gae.datastore.models import host as host_models
 from upvote.gae.datastore.models import rule as rule_models
@@ -392,14 +393,14 @@ def CreateEvent(blockable, **kwargs):
   Returns:
     The newly-created Event entity.
   """
-  return _CreateEvent(base.Event, blockable, **kwargs)
+  return _CreateEvent(event_models.Event, blockable, **kwargs)
 
 
 def CreateSantaEvent(blockable, **kwargs):
   defaults = {
       'event_type': constants.EVENT_TYPE.UNKNOWN}
   defaults.update(kwargs)
-  return _CreateEvent(santa.SantaEvent, blockable, **defaults)
+  return _CreateEvent(event_models.SantaEvent, blockable, **defaults)
 
 
 def CreateBit9Event(blockable, **kwargs):
@@ -407,7 +408,7 @@ def CreateBit9Event(blockable, **kwargs):
       'bit9_id': RandomInt(),
   }
   defaults.update(kwargs)
-  return _CreateEvent(bit9.Bit9Event, blockable, **defaults)
+  return _CreateEvent(event_models.Bit9Event, blockable, **defaults)
 
 
 def CreateEvents(blockable, event_count):

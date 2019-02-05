@@ -32,6 +32,7 @@ from upvote.gae.bigquery import tables
 from upvote.gae.datastore import utils as datastore_utils
 from upvote.gae.datastore.models import base
 from upvote.gae.datastore.models import bit9
+from upvote.gae.datastore.models import event as event_models
 from upvote.gae.datastore.models import host as host_models
 from upvote.gae.datastore.models import rule as rule_models
 from upvote.gae.datastore.models import user as user_models
@@ -128,7 +129,8 @@ def _Now():
 
 
 def GetLastSyncedId():
-  event = bit9.Bit9Event.query().order(-bit9.Bit9Event.bit9_id).get()
+  event = event_models.Bit9Event.query().order(
+      -event_models.Bit9Event.bit9_id).get()
   unsynced_event = _UnsyncedEvent.query().order(-_UnsyncedEvent.bit9_id).get()
   return max(
       event and event.bit9_id, unsynced_event and unsynced_event.bit9_id, 0)
@@ -909,7 +911,7 @@ def _PersistBit9Events(event, file_catalog, computer, signing_chain):
 
   _CheckAndResolveAnomalousBlock(blockable_key, host_id)
 
-  new_event = bit9.Bit9Event(
+  new_event = event_models.Bit9Event(
       blockable_key=blockable_key,
       cert_key=_GetCertKey(signing_chain),
       event_type=constants.EVENT_TYPE.BLOCK_BINARY,

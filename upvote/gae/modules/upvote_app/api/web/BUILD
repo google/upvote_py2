@@ -47,6 +47,7 @@ py_library(
         "//upvote/gae/bigquery:tables",
         "//upvote/gae/datastore/models:base",
         "//upvote/gae/datastore/models:bit9",
+        "//upvote/gae/datastore/models:event",
         "//upvote/gae/datastore/models:rule",
         "//upvote/gae/datastore/models:santa",
         "//upvote/gae/lib/bit9:change_set",
@@ -75,7 +76,7 @@ py_library(
     deps = [
         ":monitoring",
         "//upvote/gae/datastore/models:base",
-        "//upvote/gae/datastore/models:bit9",
+        "//upvote/gae/datastore/models:event",
         "//upvote/gae/datastore/models:host",
         "//upvote/gae/datastore/models:santa",
         "//upvote/gae/datastore/models:vote",
@@ -106,11 +107,12 @@ py_library(
     srcs = ["hosts.py"],
     deps = [
         ":monitoring",
-        "//upvote/gae/bigquery:tables",
         "//upvote/gae/datastore/models:exemption",
         "//upvote/gae/datastore/models:host",
         "//upvote/gae/datastore/models:utils",
+        "//upvote/gae/lib/exemption:api",
         "//upvote/gae/utils:handler_utils",
+        "//upvote/gae/utils:xsrf_utils",
         "//upvote/shared:constants",
     ],
 )
@@ -210,10 +212,7 @@ py_appengine_library(
 py_appengine_library(
     name = "monitoring",
     srcs = ["monitoring.py"],
-    visibility = [
-        "//upvote",
-        "//upvote/gae/modules/upvote_app/api/web:__pkg__",
-    ],
+    visibility = ["//visibility:private"],
     deps = [
         "//upvote/gae/utils:monitoring_utils",
         "//upvote/monitoring:metrics",
@@ -334,7 +333,7 @@ upvote_appengine_test(
         "//upvote/gae/datastore/models:base",
         "//upvote/gae/lib/analysis:api",
         "//upvote/gae/lib/testing:basetest",
-        "//upvote/gae/utils:settings_utils",
+        "//upvote/gae/utils:env_utils",
         "//upvote/shared:constants",
     ],
 )

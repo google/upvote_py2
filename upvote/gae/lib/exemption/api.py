@@ -154,17 +154,24 @@ def _ChangeEnforcementInSanta(host_id, new_client_mode):
     InvalidClientModeError: if the provided client mode is invalid.
   """
   # Verify the host_id corresponds to an actual SantaHost.
-  if not host_models.SantaHost.get_by_id(host_id):
+  host = host_models.SantaHost.get_by_id(host_id)
+  if not host:
     monitoring.enforcement_errors.Increment()
     raise UnknownHostError('Host %s is unknown' % host_id)
 
   # Verify the specified client mode is valid.
-  if new_client_mode not in constants.SANTA_CLIENT_MODE.SET_ALL:
+  if new_client_mode not in constants.CLIENT_MODE.SET_ALL:
     monitoring.enforcement_errors.Increment()
     raise InvalidClientModeError(
         'Invalid Santa client mode: %s' % new_client_mode)
 
   host_models.SantaHost.ChangeClientMode(host_id, new_client_mode)
+
+  # If changing to MONITOR mode and transitive whitelisting is enabled, disable
+  # it.
+  if (new_client_mode == constants.CLIENT_MODE.MONITOR and
+      host.transitive_whitelisting_enabled):
+    host_models.SantaHost.ChangeTransitiveWhitelisting(host_id, False)
 
   host = host_models.Host.get_by_id(host_id)
   tables.HOST.InsertRow(
@@ -196,7 +203,7 @@ def _EnableLockdown(exm_key):
     _ChangeEnforcementInBit9(host_id, constants.BIT9_ENFORCEMENT_LEVEL.LOCKDOWN)
 
   elif platform == constants.PLATFORM.MACOS:
-    _ChangeEnforcementInSanta(host_id, constants.SANTA_CLIENT_MODE.LOCKDOWN)
+    _ChangeEnforcementInSanta(host_id, constants.CLIENT_MODE.LOCKDOWN)
 
   else:
     monitoring.enforcement_errors.Increment()
@@ -222,7 +229,7 @@ def _DisableLockdown(exm_key):
     _ChangeEnforcementInBit9(host_id, constants.BIT9_ENFORCEMENT_LEVEL.MONITOR)
 
   elif platform == constants.PLATFORM.MACOS:
-    _ChangeEnforcementInSanta(host_id, constants.SANTA_CLIENT_MODE.MONITOR)
+    _ChangeEnforcementInSanta(host_id, constants.CLIENT_MODE.MONITOR)
 
   else:
     monitoring.enforcement_errors.Increment()

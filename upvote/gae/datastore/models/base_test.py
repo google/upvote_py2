@@ -14,7 +14,6 @@
 
 """Unit tests for base.py."""
 
-import datetime
 
 import mock
 
@@ -23,7 +22,6 @@ from google.appengine.ext import ndb
 from upvote.gae.datastore import test_utils
 from upvote.gae.datastore import utils as datastore_utils
 from upvote.gae.datastore.models import base
-from upvote.gae.datastore.models import utils as model_utils
 from upvote.gae.datastore.models import vote as vote_models
 from upvote.gae.lib.testing import basetest
 from upvote.gae.utils import user_utils
@@ -31,108 +29,6 @@ from upvote.shared import constants
 
 
 _TEST_EMAIL = user_utils.UsernameToEmail('testemail')
-
-
-class EventTest(basetest.UpvoteTestCase):
-
-  def setUp(self):
-    super(EventTest, self).setUp()
-
-    self.earlier = datetime.datetime.utcnow()
-    self.middle = self.earlier + datetime.timedelta(seconds=1)
-    self.later = self.earlier + datetime.timedelta(seconds=2)
-
-    self.blockable = test_utils.CreateBlockable()
-    self.user = test_utils.CreateUser()
-    self.other_user = test_utils.CreateUser()
-    self.event_1 = test_utils.CreateEvent(
-        self.blockable, first_blocked_dt=self.earlier,
-        last_blocked_dt=self.earlier, executing_user=self.user.nickname)
-    self.event_2 = test_utils.CreateEvent(
-        self.blockable, first_blocked_dt=self.later, last_blocked_dt=self.later,
-        executing_user=self.other_user.nickname)
-
-    self.PatchSetting('EVENT_CREATION', constants.EVENT_CREATION.EXECUTING_USER)
-
-  def testRunByLocalAdmin(self):
-    self.assertFalse(self.event_1.run_by_local_admin)
-
-  def testUserKey(self):
-    keys = model_utils.GetEventKeysToInsert(self.event_1, [], [])
-    self.event_1.key = keys[0]
-    self.event_1.put()
-
-    self.assertEqual(self.user.key, self.event_1.user_key)
-
-  def testUserKey_BadKey(self):
-    self.event_1.key = None
-    self.assertIsNone(self.event_1.user_key)
-
-  def testDedupe_Later(self):
-    self.event_1.Dedupe(self.event_2)
-
-    self.assertEqual(self.earlier, self.event_1.first_blocked_dt)
-    self.assertEqual(self.later, self.event_1.last_blocked_dt)
-    self.assertEqual(self.event_2.executing_user, self.event_1.executing_user)
-    self.assertEqual(2, self.event_1.count)
-
-  def testDedupe_Earlier(self):
-    self.event_2.Dedupe(self.event_1)
-
-    self.assertEqual(self.earlier, self.event_2.first_blocked_dt)
-    self.assertEqual(self.later, self.event_2.last_blocked_dt)
-    self.assertNotEqual(
-        self.event_2.executing_user, self.event_1.executing_user)
-    self.assertEqual(2, self.event_2.count)
-
-  def testDedupe_Both(self):
-    self.event_1.first_blocked_dt = self.middle
-    self.event_1.last_blocked_dt = self.middle
-    self.event_1.put()
-
-    self.event_2.first_blocked_dt = self.earlier
-    self.event_2.last_blocked_dt = self.later
-    self.event_2.put()
-
-    self.event_1.Dedupe(self.event_2)
-
-    self.assertEqual(self.earlier, self.event_1.first_blocked_dt)
-    self.assertEqual(self.later, self.event_1.last_blocked_dt)
-    self.assertEqual(self.event_2.executing_user, self.event_1.executing_user)
-    self.assertEqual(2, self.event_1.count)
-
-  def testDedupe_NoCount(self):
-    datastore_utils.DeleteProperty(self.event_2, 'count')
-
-    self.event_1.Dedupe(self.event_2)
-
-    self.assertEqual(2, self.event_1.count)
-
-  def testDedupeMultiple(self):
-    keys = model_utils.GetEventKeysToInsert(self.event_1, ['foo'], [])
-    event1 = datastore_utils.CopyEntity(
-        self.event_1,
-        new_key=keys[0],
-        first_blocked_dt=self.middle,
-        last_blocked_dt=self.middle)
-    event2 = datastore_utils.CopyEntity(
-        self.event_1,
-        new_key=keys[0],
-        first_blocked_dt=self.earlier,
-        last_blocked_dt=self.later)
-    event3 = datastore_utils.CopyEntity(
-        self.event_1,
-        new_key=keys[0],
-        first_blocked_dt=self.middle,
-        last_blocked_dt=self.later)
-
-    events = base.Event.DedupeMultiple([event1, event2, event3])
-
-    self.assertLen(events, 1)
-
-    self.assertEqual(self.earlier, events[0].first_blocked_dt)
-    self.assertEqual(self.later, events[0].last_blocked_dt)
-    self.assertEqual(3, events[0].count)
 
 
 class NoteTest(basetest.UpvoteTestCase):

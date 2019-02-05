@@ -14,75 +14,11 @@
 
 """Unit tests for bit9.py."""
 
-import datetime
-
 from upvote.gae import settings
 from upvote.gae.datastore import test_utils
-from upvote.gae.datastore import utils as datastore_utils
 from upvote.gae.datastore.models import bit9
 from upvote.gae.lib.testing import basetest
 from upvote.shared import constants
-
-
-class Bit9EventTest(basetest.UpvoteTestCase):
-
-  def setUp(self):
-    super(Bit9EventTest, self).setUp()
-
-    self.user = test_utils.CreateUser()
-
-    self.bit9_host = test_utils.CreateBit9Host()
-
-    self.bit9_binary = test_utils.CreateBit9Binary()
-    now = test_utils.Now()
-    self.bit9_event = test_utils.CreateBit9Event(
-        self.bit9_binary,
-        host_id=self.bit9_host.key.id(),
-        executing_user=self.user.nickname,
-        first_blocked_dt=now,
-        last_blocked_dt=now,
-        id='1',
-        parent=datastore_utils.ConcatenateKeys(
-            self.user.key, self.bit9_host.key,
-            self.bit9_binary.key))
-
-  def testDedupe(self):
-    earlier_dt = self.bit9_event.last_blocked_dt - datetime.timedelta(hours=1)
-    earlier_bit9_event = datastore_utils.CopyEntity(
-        self.bit9_event,
-        first_blocked_dt=earlier_dt,
-        last_blocked_dt=earlier_dt,
-        bit9_id=self.bit9_event.bit9_id - 1,
-    )
-
-    # Always choose the larger ID.
-
-    more_recent_deduped = datastore_utils.CopyEntity(earlier_bit9_event)
-    more_recent_deduped.Dedupe(self.bit9_event)
-    self.assertEquals(self.bit9_event.bit9_id, more_recent_deduped.bit9_id)
-
-    earlier_deduped = datastore_utils.CopyEntity(self.bit9_event)
-    earlier_deduped.Dedupe(earlier_bit9_event)
-    self.assertEquals(self.bit9_event.bit9_id, earlier_deduped.bit9_id)
-
-  def testDedupe_OutOfOrder(self):
-    earlier_dt = self.bit9_event.last_blocked_dt - datetime.timedelta(hours=1)
-    earlier_bit9_event = datastore_utils.CopyEntity(
-        self.bit9_event,
-        first_blocked_dt=earlier_dt,
-        last_blocked_dt=earlier_dt,
-        bit9_id=self.bit9_event.bit9_id + 1,  # Earlier event has larger ID
-    )
-
-    # Always choose the larger ID.
-
-    more_recent_deduped = datastore_utils.CopyEntity(earlier_bit9_event)
-    more_recent_deduped.Dedupe(self.bit9_event)
-    self.assertEquals(self.bit9_event.bit9_id + 1, more_recent_deduped.bit9_id)
-
-    earlier_deduped = datastore_utils.CopyEntity(self.bit9_event)
-    earlier_deduped.Dedupe(earlier_bit9_event)
-    self.assertEquals(self.bit9_event.bit9_id + 1, earlier_deduped.bit9_id)
 
 
 class Bit9BinaryTest(basetest.UpvoteTestCase):

@@ -23,7 +23,7 @@ from google.appengine.ext import ndb
 from upvote.gae import settings
 from upvote.gae.datastore import test_utils
 from upvote.gae.datastore import utils as datastore_utils
-from upvote.gae.datastore.models import base as base_models
+from upvote.gae.datastore.models import event as event_models
 from upvote.gae.datastore.models import host as host_models
 from upvote.gae.datastore.models import rule as rule_models
 from upvote.gae.datastore.models import santa as santa_models
@@ -208,7 +208,7 @@ class GetEventKeysToInsertTest(basetest.UpvoteTestCase):
   def testGetEventKeysToInsert_Admin(self):
     usernames = ['foo', 'bar']
     with mock.patch.object(
-        base_models.Event, 'run_by_local_admin', return_value=True):
+        event_models.Event, 'run_by_local_admin', return_value=True):
       event = datastore_utils.CopyEntity(self.event)
       keys = model_utils.GetEventKeysToInsert(event, usernames, [])
 
@@ -389,15 +389,27 @@ class EnsureCriticalRulesTest(basetest.UpvoteTestCase):
   def testSuccess(self):
 
     self.assertEntityCount(santa_models.SantaCertificate, 0)
+    self.assertEntityCount(santa_models.SantaBlockable, 0)
     self.assertEntityCount(rule_models.SantaRule, 0)
 
     model_utils.EnsureCriticalRules(settings.CRITICAL_RULES)
 
-    expected_count = len(settings.CRITICAL_RULES)
-    self.assertEntityCount(santa_models.SantaCertificate, expected_count)
-    self.assertEntityCount(rule_models.SantaRule, expected_count)
+    expected_cert_count = len([
+        rule for rule in settings.CRITICAL_RULES
+        if rule.rule_type == constants.RULE_TYPE.CERTIFICATE])
+    expected_binary_count = len([
+        rule for rule in settings.CRITICAL_RULES
+        if rule.rule_type == constants.RULE_TYPE.BINARY])
+    expected_rule_count = len(settings.CRITICAL_RULES)
+
+    self.assertEntityCount(santa_models.SantaCertificate, expected_cert_count)
+    self.assertEntityCount(santa_models.SantaBlockable, expected_binary_count)
+    self.assertEntityCount(rule_models.SantaRule, expected_rule_count)
+
     self.assertBigQueryInsertions(
-        [_TABLE.CERTIFICATE, _TABLE.RULE] * expected_count)
+        [_TABLE.CERTIFICATE] * expected_cert_count +
+        [_TABLE.BINARY] * expected_binary_count +
+        [_TABLE.RULE] * expected_rule_count)
 
 
 if __name__ == '__main__':

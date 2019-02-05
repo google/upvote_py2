@@ -16,6 +16,7 @@ py_appengine_library(
         ":base",
         ":bit9",
         ":cache",
+        ":event",
         ":host",
         ":metrics",
         ":mixin",
@@ -38,6 +39,7 @@ py_appengine_library(
     name = "base",
     srcs = ["base.py"],
     deps = [
+        ":event",
         ":mixin",
         ":user",
         ":vote",
@@ -66,6 +68,14 @@ py_appengine_library(
 )
 
 py_appengine_library(
+    name = "event",
+    srcs = ["event.py"],
+    deps = [
+        ":mixin",
+    ],
+)
+
+py_appengine_library(
     name = "exemption",
     srcs = ["exemption.py"],
     deps = [
@@ -81,6 +91,10 @@ py_appengine_library(
     srcs = ["host.py"],
     deps = [
         ":mixin",
+        "//upvote/gae/bigquery:tables",
+        "//upvote/gae/utils:env_utils",
+        "//upvote/gae/utils:mail_utils",
+        "//upvote/gae/utils:template_utils",
         "//upvote/shared:constants",
     ],
 )
@@ -150,7 +164,7 @@ py_appengine_library(
     name = "utils",
     srcs = ["utils.py"],
     deps = [
-        ":base",
+        ":event",
         ":exemption",
         ":host",
         ":rule",
@@ -231,6 +245,19 @@ upvote_appengine_test(
 )
 
 upvote_appengine_test(
+    name = "event_test",
+    size = "small",
+    srcs = ["event_test.py"],
+    deps = [
+        ":event",
+        "//upvote/gae/datastore:test_utils",
+        "//upvote/gae/datastore/models:utils",
+        "//upvote/gae/lib/testing:basetest",
+        "@absl_git//absl/testing:absltest",
+    ],
+)
+
+upvote_appengine_test(
     name = "exemption_test",
     size = "small",
     srcs = ["exemption_test.py"],
@@ -286,7 +313,7 @@ upvote_appengine_test(
         "//common/testing:basetest",
         "//external:mock",
         "//upvote/gae/datastore:test_utils",
-        "//upvote/gae/datastore:utils",
+        "//upvote/gae/datastore/models:event",
         "//upvote/gae/lib/testing:basetest",
         "//upvote/shared:constants",
         "@absl_git//absl/testing:absltest",
@@ -328,7 +355,7 @@ upvote_appengine_test(
     size = "small",
     srcs = ["utils_test.py"],
     deps = [
-        ":base",
+        ":event",
         ":host",
         ":rule",
         ":santa",

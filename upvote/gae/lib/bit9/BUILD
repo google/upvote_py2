@@ -122,6 +122,7 @@ py_appengine_library(
         "//upvote/gae:settings",
         "//upvote/gae/datastore/models:bit9",
         "//upvote/gae/lib/bit9:api",
+        "//upvote/gae/utils:env_utils",
     ],
 )
 

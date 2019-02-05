@@ -32,7 +32,7 @@ from upvote.shared import constants
 # Done for brevity.
 _STATE = constants.EXEMPTION_STATE
 _BIT9_LEVEL = constants.BIT9_ENFORCEMENT_LEVEL
-_SANTA_MODE = constants.SANTA_CLIENT_MODE
+_SANTA_MODE = constants.CLIENT_MODE
 _REASON = constants.EXEMPTION_REASON
 _DURATION = constants.EXEMPTION_DURATION
 
@@ -88,13 +88,29 @@ class ChangeEnforcementInSantaTest(basetest.UpvoteTestCase):
     self.assertEqual(_SANTA_MODE.LOCKDOWN, host_key.get().client_mode)
     self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.HOST)
 
-  def testMonitor(self):
+  @mock.patch.object(api.host_models.SantaHost, 'ChangeTransitiveWhitelisting')
+  def testMonitor_TransitiveDisabled(self, mock_change_tw):
     host_key = test_utils.CreateSantaHost(
         client_mode=_SANTA_MODE.LOCKDOWN,
         last_postflight_dt=datetime.datetime.now(),
-        primary_user='aaaa').key
+        primary_user='aaaa',
+        transitive_whitelisting_enabled=False).key
     api._ChangeEnforcementInSanta(host_key.id(), _SANTA_MODE.MONITOR)
     self.assertEqual(_SANTA_MODE.MONITOR, host_key.get().client_mode)
+    mock_change_tw.assert_not_called()
+    self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.HOST)
+
+  @mock.patch.object(api.host_models.SantaHost, 'ChangeTransitiveWhitelisting')
+  def testMonitor_TransitiveEnabled(self, mock_change_tw):
+    host_key = test_utils.CreateSantaHost(
+        client_mode=_SANTA_MODE.LOCKDOWN,
+        last_postflight_dt=datetime.datetime.now(),
+        primary_user='aaaa',
+        transitive_whitelisting_enabled=True).key
+    api._ChangeEnforcementInSanta(host_key.id(), _SANTA_MODE.MONITOR)
+    self.assertEqual(_SANTA_MODE.MONITOR, host_key.get().client_mode)
+    mock_change_tw.assert_called_once()
+    self.assertFalse(mock_change_tw.call_args_list[0][0][1])
     self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.HOST)
 
 

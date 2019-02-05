@@ -24,7 +24,7 @@ from upvote.gae.datastore import test_utils
 from upvote.gae.lib.analysis import api as analysis_api
 from upvote.gae.lib.testing import basetest
 from upvote.gae.modules.upvote_app.api.web import lookups
-from upvote.gae.utils import settings_utils
+from upvote.gae.utils import env_utils
 from upvote.shared import constants
 
 

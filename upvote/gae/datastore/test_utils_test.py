@@ -17,6 +17,7 @@
 from upvote.gae import settings
 from upvote.gae.datastore import test_utils
 from upvote.gae.datastore.models import bit9
+from upvote.gae.datastore.models import event as event_models
 from upvote.gae.datastore.models import host as host_models
 from upvote.gae.datastore.models import santa
 from upvote.gae.datastore.models import user
@@ -31,7 +32,8 @@ class CreateTestEntitiesTest(basetest.UpvoteTestCase):
 
     model_classes = [
         user.User, host_models.SantaHost, santa.SantaBlockable,
-        santa.SantaEvent, host_models.Bit9Host, bit9.Bit9Binary, bit9.Bit9Event]
+        event_models.SantaEvent, host_models.Bit9Host, bit9.Bit9Binary,
+        event_models.Bit9Event]
 
     for model_class in model_classes:
       self.assertNoEntitiesExist(model_class)
@@ -49,7 +51,8 @@ class CreateTestEntitiesTest(basetest.UpvoteTestCase):
 
     model_classes = [
         user.User, host_models.SantaHost, santa.SantaBlockable,
-        santa.SantaEvent, host_models.Bit9Host, bit9.Bit9Binary, bit9.Bit9Event]
+        event_models.SantaEvent, host_models.Bit9Host, bit9.Bit9Binary,
+        event_models.Bit9Event]
 
     for model_class in model_classes:
       self.assertNoEntitiesExist(model_class)

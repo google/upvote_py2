@@ -17,7 +17,7 @@
 from google.appengine.ext import ndb
 
 from upvote.gae import settings
-from upvote.gae.datastore.models import base as base_models
+from upvote.gae.datastore.models import event as event_models
 from upvote.gae.datastore.models import exemption as exemption_models
 from upvote.gae.datastore.models import host as host_models
 from upvote.gae.datastore.models import rule as rule_models
@@ -72,9 +72,9 @@ def GetSantaHostKeysForUser(user):
 
   # If a user has been logged in to a Host when an Event was registered, they
   # are associated with that Host.
-  events_query = santa_models.SantaEvent.query(
+  events_query = event_models.SantaEvent.query(
       ancestor=user.key,
-      projection=[santa_models.SantaEvent.host_id],
+      projection=[event_models.SantaEvent.host_id],
       distinct=True)
   events_future = events_query.fetch_async()
 
@@ -149,7 +149,7 @@ def GetEventKeysToInsert(event, logged_in_users, host_owners):
         (user_models.User, email.lower()),
         (host_models.Host, event.host_id)]
     key_pairs += event.blockable_key.pairs()
-    key_pairs += [(base_models.Event, '1')]
+    key_pairs += [(event_models.Event, '1')]
     keys.append(ndb.Key(pairs=key_pairs))
   return keys
 
@@ -167,7 +167,7 @@ def IsSantaHostAssociatedWithUser(host, user):
   # If a user has been logged in to this Host when an Event was registered,
   # they are associated with this Host.
   parent_key = ndb.Key(host_models.SantaHost, host.key.id(), parent=user.key)
-  query = santa_models.SantaEvent.query(ancestor=parent_key)
+  query = event_models.SantaEvent.query(ancestor=parent_key)
   return query.get(keys_only=True) is not None
 
 
@@ -193,9 +193,9 @@ def IsHostAssociatedWithUser(host, user):
 
 def GetUsersAssociatedWithSantaHost(host_id):
 
-  event_query = base_models.Event.query(
-      base_models.Event.host_id == host_id,
-      projection=[base_models.Event.executing_user],
+  event_query = event_models.Event.query(
+      event_models.Event.host_id == host_id,
+      projection=[event_models.Event.executing_user],
       distinct=True)
 
   return [
@@ -222,11 +222,11 @@ def EnsureCriticalRule(critical_rule):
   """Pre-populates Datastore with a critical Rule entity.
 
   Args:
-    critical_rule: A settings_utils.CriticalRule namedtuple.
+    critical_rule: A settings.CriticalRule namedtuple.
 
   Raises:
-    UnsupportedPlatformError:
-    UnsupportedRuleTypeError:
+    UnsupportedPlatformError: if an unsupported platform is encountered.
+    UnsupportedRuleTypeError: if an unsupported rule type is encountered.
   """
   # Start off by determining the necessary Blockable and Rule subclasses we'll
   # need before we continue.
@@ -269,7 +269,7 @@ def EnsureCriticalRules(critical_rules):
   """Pre-populates Datastore with critical Rule entities.
 
   Args:
-    critical_rules: A list of settings_utils.CriticalRule namedtuples.
+    critical_rules: A list of settings.CriticalRule namedtuples.
   """
   for critical_rule in critical_rules:
     EnsureCriticalRule(critical_rule)

@@ -15,8 +15,8 @@
 """Module containing Exemption-related notification logic."""
 
 from google.appengine.ext import deferred
-from upvote.gae import settings
 from upvote.gae.datastore.models import exemption as exemption_models
+from upvote.gae.utils import env_utils
 from upvote.gae.utils import mail_utils
 from upvote.gae.utils import template_utils
 from upvote.shared import constants
@@ -88,7 +88,7 @@ def SendUpdateEmail(exm_key, new_state, details=None):
   hostname = exm_key.parent().get().hostname
   body = template_utils.RenderEmailTemplate(
       template_name, details=details, device_hostname=hostname,
-      upvote_hostname=settings.ENV.HOSTNAME)
+      upvote_hostname=env_utils.ENV.HOSTNAME)
 
   _SendEmail(exm_key, body)
 
@@ -115,6 +115,6 @@ def SendExpirationEmail(exm_key):
   hostname = exm_key.parent().get().hostname
   body = template_utils.RenderEmailTemplate(
       'exemption_will_expire.html', expiration_str=expiration_str,
-      device_hostname=hostname, upvote_hostname=settings.ENV.HOSTNAME)
+      device_hostname=hostname, upvote_hostname=env_utils.ENV.HOSTNAME)
 
   _SendEmail(exm_key, body)

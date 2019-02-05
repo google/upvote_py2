@@ -16,8 +16,8 @@ py_appengine_library(
         ":monitoring",
         "//external:gcloud_auth",
         "//external:gcloud_bigquery",
-        "//upvote/gae:settings",
         "//upvote/gae/lib/cloud:google_cloud_lib_fixer",
+        "//upvote/gae/utils:env_utils",
         "//upvote/shared:constants",
     ],
 )

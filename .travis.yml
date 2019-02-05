@@ -11,6 +11,17 @@ addons:
 virtualenv:
   system_site_packages: true
 
+branches:
+  only:
+  - master
+  - staging
+
+notifications:
+  email:
+    recipients:
+      - chief@google.com
+  on_failure: always
+
 before_install:
     # Install Bazel
   - wget https://github.com/bazelbuild/bazel/releases/download/0.9.0/bazel_0.9.0-linux-x86_64.deb

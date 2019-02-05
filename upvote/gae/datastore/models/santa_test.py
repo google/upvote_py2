@@ -14,8 +14,6 @@
 
 """Unit tests for santa.py."""
 
-import datetime
-
 import mock
 
 from google.appengine.ext import db
@@ -23,7 +21,6 @@ from google.appengine.ext import ndb
 
 from upvote.gae import settings
 from upvote.gae.datastore import test_utils
-from upvote.gae.datastore import utils as datastore_utils
 from upvote.gae.datastore.models import santa
 from upvote.gae.lib.testing import basetest
 from upvote.shared import constants
@@ -56,26 +53,8 @@ class SantaModelTest(basetest.UpvoteTestCase):
         organization='Big Lucky',
         organizational_unit='The Unit')
 
-    quarantine = santa.QuarantineMetadata(
-        data_url='http://notbad.com',
-        referer_url='http://sourceforge.com',
-        downloaded_dt=datetime.datetime.utcnow(),
-        agent_bundle_id='123456')
-
-    now = datetime.datetime.utcnow()
-    self.santa_event = santa.SantaEvent(
-        blockable_key=self.santa_blockable.key,
-        event_type=constants.EVENT_TYPE.ALLOW_BINARY,
-        file_name='Mac.app',
-        file_path='/',
-        executing_user='foo',
-        first_blocked_dt=now,
-        last_blocked_dt=now,
-        quarantine=quarantine)
-
     self.santa_blockable.put()
     self.santa_certificate.put()
-    self.santa_event.put()
 
     self.PatchEnv(settings.ProdEnv, ENABLE_BIGQUERY_STREAMING=True)
 
@@ -219,71 +198,6 @@ class SantaCertificateTest(basetest.UpvoteTestCase):
     self.assertEqual(actual_cert.state, constants.STATE.UNTRUSTED)
     self.assertFalse(actual_cert.flagged)
     self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.CERTIFICATE)
-
-
-class SantaEventTest(SantaModelTest):
-
-  def testRunByLocalAdminSantaEvent(self):
-    self.assertFalse(self.santa_event.run_by_local_admin)
-
-    self.santa_event.executing_user = constants.LOCAL_ADMIN.MACOS
-    self.assertTrue(self.santa_event.run_by_local_admin)
-
-  def testDedupeSantaEvent(self):
-    later_dt = (
-        self.santa_event.last_blocked_dt + datetime.timedelta(seconds=1))
-    later_event = datastore_utils.CopyEntity(
-        self.santa_event,
-        quarantine=None,
-        event_type=constants.EVENT_TYPE.BLOCK_CERTIFICATE,
-        last_blocked_dt=later_dt)
-
-    self.santa_event.Dedupe(later_event)
-
-    self.assertEqual(
-        constants.EVENT_TYPE.BLOCK_CERTIFICATE, self.santa_event.event_type)
-    self.assertIsNotNone(self.santa_event.quarantine)
-
-  def testDedupeSantaEvent_AddOldQuarantineData(self):
-    quarantine = self.santa_event.quarantine
-    self.santa_event.quarantine = None
-    self.santa_event.put()
-
-    earlier_dt = (
-        self.santa_event.first_blocked_dt - datetime.timedelta(seconds=1))
-    earlier_event = datastore_utils.CopyEntity(
-        self.santa_event,
-        quarantine=quarantine,
-        event_type=constants.EVENT_TYPE.BLOCK_CERTIFICATE,
-        first_blocked_dt=earlier_dt)
-
-    self.santa_event.Dedupe(earlier_event)
-
-    self.assertNotEqual(
-        constants.EVENT_TYPE.BLOCK_CERTIFICATE, self.santa_event.event_type)
-    self.assertIsNotNone(self.santa_event.quarantine)
-
-  def testDedupeSantaEvent_AddNewerQuarantineData(self):
-    new_quarantine = datastore_utils.CopyEntity(
-        self.santa_event.quarantine, data_url='http://3vil.com')
-
-    later_dt = (
-        self.santa_event.last_blocked_dt + datetime.timedelta(seconds=1))
-    later_event = datastore_utils.CopyEntity(
-        self.santa_event,
-        quarantine=new_quarantine,
-        last_blocked_dt=later_dt)
-
-    self.santa_event.Dedupe(later_event)
-
-    self.assertEqual(
-        'http://3vil.com', self.santa_event.quarantine.data_url)
-
-  def testGiantQuarantineUrl(self):
-    # Ensure URLs that exceed the NDB size limit for indexed properties (1500
-    # bytes) may be set on QuarantineMetadata URL fields.
-    self.santa_event.quarantine.data_url = 'http://3vil.com/' + 'a' * 1500
-    self.santa_event.put()
 
 
 class SantaBundleTest(SantaModelTest):

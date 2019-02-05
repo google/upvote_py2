@@ -30,7 +30,7 @@ from google.appengine.ext import deferred
 from google.appengine.ext import ndb
 
 from upvote.gae.bigquery import monitoring
-from upvote.gae import settings
+from upvote.gae.utils import env_utils
 from upvote.shared import constants
 
 
@@ -346,7 +346,7 @@ class BigQueryTable(object):
       monitoring.row_insertions.Failure()
 
   def InsertRow(self, **kwargs):
-    if settings.ENV.ENABLE_BIGQUERY_STREAMING:
+    if env_utils.ENV.ENABLE_BIGQUERY_STREAMING:
       logging.info('Sending a row to BigQuery %s table', self.name)
       deferred.defer(
           self._DoInsertRow, _queue=constants.TASK_QUEUE.BIGQUERY_STREAMING,

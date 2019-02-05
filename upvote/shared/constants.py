@@ -196,7 +196,10 @@ EVENT_TYPE = UppercaseNamespace([
     'BUNDLE_BINARY', 'UNKNOWN'])
 
 
-CLIENT = UppercaseNamespace(['BIT9', 'SANTA', 'UNKNOWN'])
+CLIENT = UppercaseNamespace([
+    'BIT9',
+    'SANTA',
+    'UNKNOWN'])
 
 
 USER_ROLE = UppercaseNamespace([
@@ -278,7 +281,7 @@ VOTING_PROHIBITED_REASONS = Namespace(tuples=[
     ('FLAGGED_CERT', 'FLAGGED_CERT')])
 
 
-SANTA_CLIENT_MODE = UppercaseNamespace(['MONITOR', 'LOCKDOWN'])
+CLIENT_MODE = UppercaseNamespace(['MONITOR', 'LOCKDOWN'])
 
 
 RULE_TYPE = UppercaseNamespace(['BINARY', 'CERTIFICATE', 'PACKAGE'])

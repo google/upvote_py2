@@ -18,11 +18,11 @@ import collections
 import functools
 import logging
 
-from upvote.gae import settings
 from upvote.gae.datastore.models import exemption as exemption_models
 from upvote.gae.datastore.models import host as host_models
 from upvote.gae.datastore.models import utils as model_utils
 from upvote.gae.lib.exemption import monitoring
+from upvote.gae.utils import env_utils
 from upvote.gae.utils import group_utils
 from upvote.shared import constants
 

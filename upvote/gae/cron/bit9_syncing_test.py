@@ -34,6 +34,7 @@ from upvote.gae.datastore import test_utils
 from upvote.gae.datastore import utils as datastore_utils
 from upvote.gae.datastore.models import base as base_models
 from upvote.gae.datastore.models import bit9 as bit9_models
+from upvote.gae.datastore.models import event as event_models
 from upvote.gae.datastore.models import host as host_models
 from upvote.gae.datastore.models import rule as rule_models
 from upvote.gae.datastore.models import user as user_models
@@ -1274,10 +1275,10 @@ class PersistBit9EventsTest(basetest.UpvoteTestCase):
     file_catalog = event.get_expand(api.Event.file_catalog_id)
     computer = event.get_expand(api.Event.computer_id)
 
-    self.assertEntityCount(bit9_models.Bit9Event, 0)
+    self.assertEntityCount(event_models.Bit9Event, 0)
     bit9_syncing._PersistBit9Events(
         event, file_catalog, computer, [cert]).wait()
-    self.assertEntityCount(bit9_models.Bit9Event, 1)
+    self.assertEntityCount(event_models.Bit9Event, 1)
 
     self.assertBigQueryInsertions([constants.BIGQUERY_TABLE.EXECUTION])
 
@@ -1290,10 +1291,10 @@ class PersistBit9EventsTest(basetest.UpvoteTestCase):
         event_kwargs=event_kwargs, computer_kwargs=computer_kwargs)
     file_catalog = event.get_expand(api.Event.file_catalog_id)
 
-    self.assertEntityCount(bit9_models.Bit9Event, 0)
+    self.assertEntityCount(event_models.Bit9Event, 0)
     bit9_syncing._PersistBit9Events(
         event, file_catalog, computer, [cert]).wait()
-    self.assertEntityCount(bit9_models.Bit9Event, 2)
+    self.assertEntityCount(event_models.Bit9Event, 2)
 
     self.assertBigQueryInsertions([constants.BIGQUERY_TABLE.EXECUTION])
 
