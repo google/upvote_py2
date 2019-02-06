@@ -28,7 +28,6 @@ from google.appengine.ext import db
 from upvote.gae.cron import datastore_backup
 from upvote.gae.lib.testing import basetest
 from upvote.gae import settings
-from upvote.gae.utils import settings_utils
 from upvote.gae.utils import env_utils
 
 
@@ -90,7 +89,7 @@ class DatastoreBackupTest(basetest.UpvoteTestCase):
 
   @mock.patch.object(taskqueue, 'add')
   @mock.patch.object(
-      settings_utils, 'CurrentEnvironment', return_value=settings.ProdEnv)
+      env_utils, 'CurrentEnvironment', return_value=settings.ProdEnv)
   @mock.patch.object(datastore_backup, '_DailyBackupExists', return_value=False)
   @mock.patch.object(env_utils, 'RunningInProd', return_value=True)
   def testSuccessfulBackup(

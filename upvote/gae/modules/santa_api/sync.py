@@ -31,6 +31,7 @@ from google.appengine.ext import ndb
 from upvote.gae import settings
 from upvote.gae.bigquery import tables
 from upvote.gae.datastore import utils as datastore_utils
+from upvote.gae.datastore.models import event as event_models
 from upvote.gae.datastore.models import host as host_models
 from upvote.gae.datastore.models import rule as rule_models
 from upvote.gae.datastore.models import santa as santa_models
@@ -40,6 +41,7 @@ from upvote.gae.lib.analysis import metrics
 from upvote.gae.modules.santa_api import auth
 from upvote.gae.modules.santa_api import monitoring
 from upvote.gae.shared.common import big_red
+from upvote.gae.utils import env_utils
 from upvote.gae.utils import handler_utils
 from upvote.gae.utils import user_utils
 from upvote.gae.utils import xsrf_utils
@@ -88,7 +90,7 @@ class XsrfHandler(handler_utils.UpvoteRequestHandler):
     self.response.set_status(httplib.OK)
 
 
-class BaseSantaApiHandler(handler_utils.UpvoteRequestHandler):
+class SantaRequestHandler(handler_utils.UpvoteRequestHandler):
   """Base class for Santa API handlers.
 
   Before calling the handler method, does the following:
@@ -160,7 +162,7 @@ class BaseSantaApiHandler(handler_utils.UpvoteRequestHandler):
         logging.info('Malformed JSON: "%s"', body)
         self.abort(httplib.BAD_REQUEST, explanation='Bad JSON body')
 
-    super(BaseSantaApiHandler, self).dispatch()
+    super(SantaRequestHandler, self).dispatch()
 
 
 def _CopyLocalRules(user_key, dest_host_id):
@@ -203,7 +205,7 @@ def _CopyLocalRules(user_key, dest_host_id):
   return datastore_utils.GetMultiFuture(futures)
 
 
-class PreflightHandler(BaseSantaApiHandler):
+class PreflightHandler(SantaRequestHandler):
   """Preflight is the first stage of the sync process for a full sync."""
   REQUIRE_HOST_OBJECT = False
 
@@ -275,9 +277,9 @@ class PreflightHandler(BaseSantaApiHandler):
     actual_client_mode = self.host.client_mode
     big_red_button = big_red.BigRedButton()
     if big_red_button.stop_stop_stop:
-      actual_client_mode = constants.SANTA_CLIENT_MODE.MONITOR
+      actual_client_mode = constants.CLIENT_MODE.MONITOR
     elif big_red_button.go_go_go:
-      actual_client_mode = constants.SANTA_CLIENT_MODE.LOCKDOWN
+      actual_client_mode = constants.CLIENT_MODE.LOCKDOWN
 
     # Prepare response.
     response = {
@@ -324,7 +326,7 @@ class PreflightHandler(BaseSantaApiHandler):
     self.respond_json(response)
 
 
-class EventUploadHandler(BaseSantaApiHandler):
+class EventUploadHandler(SantaRequestHandler):
   """Event Upload is the optional second stage of a full sync.
 
   Event Upload can also occur outside of a full sync when a client blocks a
@@ -445,7 +447,7 @@ class EventUploadHandler(BaseSantaApiHandler):
     Returns:
       A list of the created-but-not-persisted SantaEvent entities.
     """
-    dbevent = santa_models.SantaEvent()
+    dbevent = event_models.SantaEvent()
     dbevent.host_id = host.key.id()
     dbevent.file_name = event.get(_EVENT_UPLOAD.FILE_NAME)
     dbevent.file_path = event.get(_EVENT_UPLOAD.FILE_PATH)
@@ -473,7 +475,7 @@ class EventUploadHandler(BaseSantaApiHandler):
     quarantine_timestamp = event.get(_EVENT_UPLOAD.QUARANTINE_TIMESTAMP, 0)
     if quarantine_timestamp:
       quarantine_time = datetime.datetime.utcfromtimestamp(quarantine_timestamp)
-      dbevent.quarantine = santa_models.QuarantineMetadata(
+      dbevent.quarantine = event_models.QuarantineMetadata(
           data_url=event.get(_EVENT_UPLOAD.QUARANTINE_DATA_URL),
           referer_url=event.get(_EVENT_UPLOAD.QUARANTINE_REFERER_URL),
           agent_bundle_id=event.get(_EVENT_UPLOAD.QUARANTINE_AGENT_BUNDLE_ID),
@@ -745,7 +747,7 @@ class EventUploadHandler(BaseSantaApiHandler):
   def _CreateEvents(cls, events):
     """Create each users' Events asynchronously in their own transactions."""
     futures = []
-    distinct_events = santa_models.SantaEvent.DedupeMultiple(events)
+    distinct_events = event_models.SantaEvent.DedupeMultiple(events)
     unique_user_keys = {event.user_key for event in events}
     for user_key in unique_user_keys:
       events_for_user = [
@@ -867,7 +869,7 @@ class EventUploadHandler(BaseSantaApiHandler):
     self.respond_json(response_dict)
 
 
-class RuleDownloadHandler(BaseSantaApiHandler):
+class RuleDownloadHandler(SantaRequestHandler):
   """Rule download handler sends new rules to clients."""
 
   @property
@@ -933,7 +935,7 @@ class RuleDownloadHandler(BaseSantaApiHandler):
     self.respond_json(response)
 
 
-class PostflightHandler(BaseSantaApiHandler):
+class PostflightHandler(SantaRequestHandler):
   """Postflight handler. Updates the sync timestamp for the next sync."""
   # Client do not send any JSON with this request.
   SHOULD_PARSE_JSON = False

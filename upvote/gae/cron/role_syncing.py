@@ -39,7 +39,7 @@ from upvote.shared import constants
 BATCH_SIZE = 1000
 
 # Done for the sake of brevity.
-_SANTA_CLIENT_MODE = constants.SANTA_CLIENT_MODE
+_CLIENT_MODE = constants.CLIENT_MODE
 
 _SYNCING_ERRORS = monitoring_utils.Counter(metrics.ROLES.SYNCING_ERRORS)
 
@@ -197,7 +197,7 @@ class LockItDown(ClientModeChangeHandler):
 
   def get(self):  # pylint: disable=g-bad-name
     self._ChangeModeForGroup(
-        _SANTA_CLIENT_MODE.LOCKDOWN, settings.LOCKDOWN_GROUP, honor_lock=False)
+        _CLIENT_MODE.LOCKDOWN, settings.LOCKDOWN_GROUP, honor_lock=False)
 
 
 class MonitorIt(ClientModeChangeHandler):
@@ -205,7 +205,7 @@ class MonitorIt(ClientModeChangeHandler):
 
   def get(self):  # pylint: disable=g-bad-name
     self._ChangeModeForGroup(
-        _SANTA_CLIENT_MODE.MONITOR, settings.MONITOR_GROUP, honor_lock=False)
+        _CLIENT_MODE.MONITOR, settings.MONITOR_GROUP, honor_lock=False)
 
 
 class LockSpider(handler_utils.CronJobHandler):
@@ -214,7 +214,7 @@ class LockSpider(handler_utils.CronJobHandler):
   def get(self):  # pylint: disable=g-bad-name
     # pylint: disable=g-explicit-bool-comparison, singleton-comparison
     query = host_models.SantaHost.query(
-        host_models.SantaHost.client_mode == _SANTA_CLIENT_MODE.MONITOR,
+        host_models.SantaHost.client_mode == _CLIENT_MODE.MONITOR,
         host_models.SantaHost.client_mode_lock == False)
     datastore_utils.QueuedPaginatedBatchApply(
         query, _SpiderBite, page_size=BATCH_SIZE,
@@ -224,7 +224,7 @@ class LockSpider(handler_utils.CronJobHandler):
 def _SpiderBite(host_keys):
   hosts = ndb.get_multi(host_keys)
   for host in hosts:
-    host.client_mode = _SANTA_CLIENT_MODE.LOCKDOWN
+    host.client_mode = _CLIENT_MODE.LOCKDOWN
 
   ndb.put_multi(hosts)
   logging.info(

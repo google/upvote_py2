@@ -14,6 +14,8 @@
 
 """Unit tests for host.py."""
 
+import mock
+
 from google.appengine.ext import ndb
 
 from upvote.gae.datastore import test_utils
@@ -63,17 +65,35 @@ class SantaHostTest(basetest.UpvoteTestCase):
   def testChangeClientMode(self):
 
     host_key = test_utils.CreateSantaHost(
-        client_mode=constants.SANTA_CLIENT_MODE.MONITOR,
+        client_mode=constants.CLIENT_MODE.MONITOR,
         client_mode_lock=False).key
 
     self.assertEqual(
-        constants.SANTA_CLIENT_MODE.MONITOR, host_key.get().client_mode)
+        constants.CLIENT_MODE.MONITOR, host_key.get().client_mode)
     self.assertFalse(host_key.get().client_mode_lock)
     host_models.SantaHost.ChangeClientMode(
-        host_key.id(), constants.SANTA_CLIENT_MODE.LOCKDOWN)
+        host_key.id(), constants.CLIENT_MODE.LOCKDOWN)
     self.assertEqual(
-        constants.SANTA_CLIENT_MODE.LOCKDOWN, host_key.get().client_mode)
+        constants.CLIENT_MODE.LOCKDOWN, host_key.get().client_mode)
     self.assertTrue(host_key.get().client_mode_lock)
+
+  @mock.patch.object(host_models.mail_utils, 'Send')
+  def testChangeTransitiveWhitelisting_NoChange(self, mock_send):
+    host_key = test_utils.CreateSantaHost(
+        transitive_whitelisting_enabled=True).key
+    host_models.SantaHost.ChangeTransitiveWhitelisting(host_key.id(), True)
+    self.assertTrue(host_key.get().transitive_whitelisting_enabled)
+    mock_send.assert_not_called()
+    self.assertNoBigQueryInsertions()
+
+  @mock.patch.object(host_models.mail_utils, 'Send')
+  def testChangeTransitiveWhitelisting_Success(self, mock_send):
+    host_key = test_utils.CreateSantaHost(
+        transitive_whitelisting_enabled=False, primary_user='asdf').key
+    host_models.SantaHost.ChangeTransitiveWhitelisting(host_key.id(), True)
+    self.assertTrue(host_key.get().transitive_whitelisting_enabled)
+    mock_send.assert_called_once()
+    self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.HOST)
 
 
 if __name__ == '__main__':

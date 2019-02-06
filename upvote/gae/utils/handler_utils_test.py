@@ -105,7 +105,7 @@ class UpvoteRequestHandlerTest(basetest.UpvoteTestCase):
 
     # Mocking out the call to dispatch(), because any exceptions that occur
     # within the bulk of that method (or in an override of dispatch() by us, for
-    # example, in BaseSantaApiHandler) aren't caught by the handle_exception()
+    # example, in SantaRequestHandler) aren't caught by the handle_exception()
     # method.
     # Rather, they bubble up to the WSGIApplication.error_handlers.
     mock_dispatch.side_effect = exc.HTTPForbidden
@@ -128,7 +128,7 @@ class UpvoteRequestHandlerTest(basetest.UpvoteTestCase):
 
     # Mocking out the call to dispatch(), because any exceptions that occur
     # within the bulk of that method (or in an override of dispatch() by us, for
-    # example, in BaseSantaApiHandler) aren't caught by the handle_exception()
+    # example, in SantaRequestHandler) aren't caught by the handle_exception()
     # method. Rather, they bubble up to the WSGIApplication.error_handlers.
     mock_dispatch.side_effect = exc.HTTPForbidden
 

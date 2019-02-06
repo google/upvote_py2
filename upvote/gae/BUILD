@@ -43,25 +43,7 @@ py_appengine_library(
     name = "settings",
     srcs = ["settings.py"],
     deps = [
-        "//common:context",
-        "//upvote/gae/utils:settings_utils",
-        "//upvote/shared:constants",
-    ],
-)
-
-# AppEngine Unit Tests
-# ==============================================================================
-
-upvote_appengine_test(
-    name = "appengine_config_test",
-    size = "small",
-    srcs = ["appengine_config_test.py"],
-    deps = [
-        ":appengine_config",
-        ":settings",
-        "//upvote/gae/datastore/models:rule",
-        "//upvote/gae/datastore/models:santa",
-        "//upvote/gae/lib/testing:basetest",
+        "//upvote/gae/utils:env_utils",
         "//upvote/shared:constants",
     ],
 )

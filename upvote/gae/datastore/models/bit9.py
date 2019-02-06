@@ -14,8 +14,6 @@
 
 """Models specific to Bit9."""
 
-import logging
-
 from google.appengine.ext import ndb
 
 from common.cloud_kms import kms_ndb
@@ -41,39 +39,6 @@ class Bit9ApiAuth(singleton.Singleton):
   Bit9 API key associated with a project.
   """
   api_key = kms_ndb.EncryptedBlobProperty(_KEY_NAME, _KEY_RING, _KEY_LOC)
-
-
-class Bit9Event(mixin.Bit9, base.Event):
-  """An event from Bit9.
-
-  Attributes:
-    description: str, Description.
-    bit9_id: int, The largest Bit9 database ID associated with this event.
-  """
-  description = ndb.StringProperty()
-  bit9_id = ndb.IntegerProperty(default=0)
-
-  @property
-  def run_by_local_admin(self):
-    return self.executing_user == constants.LOCAL_ADMIN.WINDOWS
-
-  def _DedupeMoreRecentEvent(self, more_recent_event):
-    """Updates if the related Event is more recent than the current one."""
-    if self.bit9_id > more_recent_event.bit9_id:
-      logging.warning(
-          'Database ID out-of-order with respect to event timestamp: '
-          '(id=%s, dt=%s) occurred earlier than (id=%s, dt=%s)', self.bit9_id,
-          self.last_blocked_dt, more_recent_event.bit9_id,
-          more_recent_event.last_blocked_dt)
-
-    super(Bit9Event, self)._DedupeMoreRecentEvent(more_recent_event)
-
-  def Dedupe(self, related_event):
-    """See base class."""
-    super(Bit9Event, self).Dedupe(related_event)
-
-    # We only care about the most recent event with respect to its ID in Bit9.
-    self.bit9_id = max(self.bit9_id, related_event.bit9_id)
 
 
 class Bit9Binary(mixin.Bit9, base.Binary):

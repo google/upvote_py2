@@ -22,12 +22,12 @@ from webapp2_extras import routes
 
 from google.appengine.ext import deferred
 
-from upvote.gae import settings
 from upvote.gae.datastore.models import exemption as exemption_models
 from upvote.gae.datastore.models import utils as model_utils
 from upvote.gae.lib.exemption import api as exemption_api
 from upvote.gae.lib.exemption import notify
 from upvote.gae.lib.exemption import monitoring
+from upvote.gae.utils import env_utils
 from upvote.gae.utils import group_utils
 from upvote.gae.utils import handler_utils
 from upvote.gae.utils import user_utils

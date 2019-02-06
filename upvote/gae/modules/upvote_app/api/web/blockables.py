@@ -25,6 +25,7 @@ from google.appengine.ext import ndb
 from upvote.gae.bigquery import tables
 from upvote.gae.datastore.models import base as base_models
 from upvote.gae.datastore.models import bit9 as bit9_models
+from upvote.gae.datastore.models import event as event_models
 from upvote.gae.datastore.models import rule as rule_models
 from upvote.gae.datastore.models import santa as santa_models
 from upvote.gae.lib.bit9 import change_set
@@ -126,7 +127,7 @@ class BlockableQueryHandler(handler_utils.UserFacingQueryHandler):
       query = self._SuspectBlockablesQuery()
     elif query_filter == 'own':
       logging.info('Filtering for own blockables.')
-      own_events = base_models.Event.query(ancestor=self.user.key)
+      own_events = event_models.Event.query(ancestor=self.user.key)
       blockable_keys = [e.blockable_key for e in own_events]
 
       # NOTE: We need to return None here because passing an empty list
@@ -312,11 +313,11 @@ class UniqueEventCountHandler(handler_utils.UserFacingHandler):
     if not blockable:
       self.abort(httplib.NOT_FOUND, explanation='Blockable not found.')
     elif isinstance(blockable, santa_models.SantaBlockable):
-      query = santa_models.SantaEvent.query(
-          santa_models.SantaEvent.blockable_key == blockable.key)
+      query = event_models.SantaEvent.query(
+          event_models.SantaEvent.blockable_key == blockable.key)
     elif isinstance(blockable, santa_models.SantaCertificate):
-      query = santa_models.SantaEvent.query(
-          santa_models.SantaEvent.cert_sha256 == blockable.key.id())
+      query = event_models.SantaEvent.query(
+          event_models.SantaEvent.cert_sha256 == blockable.key.id())
     else:
       self.abort(
           httplib.BAD_REQUEST,

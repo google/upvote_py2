@@ -9,8 +9,8 @@ py_appengine_library(
     name = "env_utils",
     srcs = ["env_utils.py"],
     deps = [
-        ":settings_utils",
-        "//upvote/gae:settings",
+        "//common:context",
+        "//external:six",
         "//upvote/shared:constants",
     ],
 )
@@ -52,14 +52,6 @@ py_appengine_library(
     srcs = ["memcache_utils.py"],
     deps = [
         "//common:memcache_decorator",
-    ],
-)
-
-py_appengine_library(
-    name = "settings_utils",
-    srcs = ["settings_utils.py"],
-    deps = [
-        "//external:six",
     ],
 )
 
@@ -121,7 +113,8 @@ upvote_appengine_test(
     srcs = ["env_utils_test.py"],
     deps = [
         ":env_utils",
-        "//common/testing:basetest",
+        "//upvote/gae:settings",
+        "//upvote/gae/lib/testing:basetest",
         "//upvote/shared:constants",
     ],
 )
@@ -158,6 +151,7 @@ upvote_appengine_test(
     deps = [
         ":json_utils",
         "//common/testing:basetest",
+        "//upvote/gae/datastore/models:event",
         "//upvote/gae/datastore/models:santa",
         "//upvote/shared:constants",
     ],
@@ -183,17 +177,6 @@ upvote_appengine_test(
         ":memcache_utils",
         "//common/testing:basetest",
         "//external:mock",
-    ],
-)
-
-upvote_appengine_test(
-    name = "settings_utils_test",
-    size = "small",
-    srcs = ["settings_utils_test.py"],
-    deps = [
-        ":settings_utils",
-        "//upvote/gae:settings",
-        "//upvote/gae/lib/testing:basetest",
     ],
 )
 

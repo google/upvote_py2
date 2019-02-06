@@ -11,12 +11,25 @@ addons:
 virtualenv:
   system_site_packages: true
 
+branches:
+  only:
+  - master
+  - staging
+
+notifications:
+  email:
+    recipients:
+      - chief@google.com
+  on_failure: always
+
 before_install:
+
     # Install Bazel
-  - wget https://github.com/bazelbuild/bazel/releases/download/0.9.0/bazel_0.9.0-linux-x86_64.deb
-  - echo a600454ec218bffd1a1cea0f5bb511031081d23c4de15bfde674164dc2f9cd7f bazel_0.9.0-linux-x86_64.deb | sha256sum -c -
-  - sudo dpkg -i bazel_0.9.0-linux-x86_64.deb
-  - rm bazel_0.9.0-linux-x86_64.deb
+  - wget https://github.com/bazelbuild/bazel/releases/download/0.22.0/bazel_0.22.0-linux-x86_64.deb
+  - echo 0799bfff7959a9e4ee1a5028e5a80260e55f9526bbdd4268ea867f4e7f7c122d bazel_0.22.0-linux-x86_64.deb | sha256sum -c -
+  - sudo dpkg -i bazel_0.22.0-linux-x86_64.deb
+  - rm bazel_0.22.0-linux-x86_64.deb
+
     # Install App Engine test dependency
   - pip install Pillow
 

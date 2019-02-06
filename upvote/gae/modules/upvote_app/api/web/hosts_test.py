@@ -17,6 +17,7 @@
 import datetime
 import httplib
 
+import mock
 import webapp2
 
 from upvote.gae.datastore import test_utils
@@ -49,7 +50,7 @@ class HostsTest(basetest.UpvoteTestCase):
     self.santa_host_3 = host_models.SantaHost(
         id='A-COOL-UUID3',
         hostname='deck-the-halls.goog.co',
-        client_mode=constants.SANTA_CLIENT_MODE.LOCKDOWN,
+        client_mode=constants.CLIENT_MODE.LOCKDOWN,
         client_mode_lock=False,
         primary_user='bubblebuddy',
         last_postflight_dt=datetime.datetime.utcnow())
@@ -223,13 +224,13 @@ class HostHandlerTest(HostsTest):
     """Admin posts a single host with update params."""
     self.santa_host_1.should_upload_logs = False
     self.santa_host_1.client_mode_lock = True
-    self.santa_host_1.client_mode = constants.SANTA_CLIENT_MODE.MONITOR
+    self.santa_host_1.client_mode = constants.CLIENT_MODE.MONITOR
     self.santa_host_1.put()
 
     params = {
         'shouldUploadLogs': 'true',
         'clientModeLock': 'false',
-        'clientMode': constants.SANTA_CLIENT_MODE.LOCKDOWN}
+        'clientMode': constants.CLIENT_MODE.LOCKDOWN}
 
     with self.LoggedInUser(admin=True):
       response = self.testapp.post(
@@ -242,7 +243,7 @@ class HostHandlerTest(HostsTest):
 
     self.assertTrue(self.santa_host_1.should_upload_logs)
     self.assertEqual(self.santa_host_1.client_mode,
-                     constants.SANTA_CLIENT_MODE.LOCKDOWN)
+                     constants.CLIENT_MODE.LOCKDOWN)
     self.assertFalse(self.santa_host_1.client_mode_lock)
 
 
@@ -491,7 +492,8 @@ class TransitiveHandlerTest(basetest.UpvoteTestCase):
       url = self.ROUTE % (host.key.id(), 'true')
       self.testapp.put(url, status=httplib.FORBIDDEN)
 
-  def testEnable(self):
+  @mock.patch.object(hosts.host_models.mail_utils, 'Send')
+  def testEnable_NoExemption(self, mock_send):
 
     user = test_utils.CreateUser()
     host = test_utils.CreateSantaHost(
@@ -502,9 +504,49 @@ class TransitiveHandlerTest(basetest.UpvoteTestCase):
       self.testapp.put(url, status=httplib.OK)
 
     self.assertTrue(host.key.get().transitive_whitelisting_enabled)
+    mock_send.assert_called_once()
     self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.HOST)
 
-  def testDisable(self):
+  @mock.patch.object(hosts.exemption_api, 'Revoke')
+  @mock.patch.object(hosts.host_models.mail_utils, 'Send')
+  def testEnable_InactiveExemption(self, mock_send, mock_revoke):
+
+    user = test_utils.CreateUser()
+    host = test_utils.CreateSantaHost(
+        primary_user=user.nickname, transitive_whitelisting_enabled=False)
+    test_utils.CreateExemption(
+        host.key.id(), initial_state=constants.EXEMPTION_STATE.CANCELLED)
+
+    with self.LoggedInUser(user=user):
+      url = self.ROUTE % (host.key.id(), 'true')
+      self.testapp.put(url, status=httplib.OK)
+
+    self.assertTrue(host.key.get().transitive_whitelisting_enabled)
+    mock_send.assert_called_once()
+    self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.HOST)
+    mock_revoke.assert_not_called()
+
+  @mock.patch.object(hosts.exemption_api, 'Revoke')
+  @mock.patch.object(hosts.host_models.mail_utils, 'Send')
+  def testEnable_ActiveExemption(self, mock_send, mock_revoke):
+
+    user = test_utils.CreateUser()
+    host = test_utils.CreateSantaHost(
+        primary_user=user.nickname, transitive_whitelisting_enabled=False)
+    test_utils.CreateExemption(
+        host.key.id(), initial_state=constants.EXEMPTION_STATE.APPROVED)
+
+    with self.LoggedInUser(user=user):
+      url = self.ROUTE % (host.key.id(), 'true')
+      self.testapp.put(url, status=httplib.OK)
+
+    self.assertTrue(host.key.get().transitive_whitelisting_enabled)
+    mock_send.assert_called_once()
+    self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.HOST)
+    mock_revoke.assert_called_once()
+
+  @mock.patch.object(hosts.host_models.mail_utils, 'Send')
+  def testDisable(self, mock_send):
 
     user = test_utils.CreateUser()
     host = test_utils.CreateSantaHost(
@@ -515,6 +557,7 @@ class TransitiveHandlerTest(basetest.UpvoteTestCase):
       self.testapp.put(url, status=httplib.OK)
 
     self.assertFalse(host.key.get().transitive_whitelisting_enabled)
+    mock_send.assert_called_once()
     self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.HOST)
 
 

@@ -26,7 +26,6 @@ import upvote.gae.lib.cloud.google_cloud_lib_fixer  # pylint: disable=unused-imp
 from google.appengine.api import datastore
 from google.appengine.api import taskqueue
 from google.appengine.ext.ndb import metadata
-from upvote.gae import settings
 from upvote.shared import constants
 from upvote.gae.utils import monitoring_utils
 from upvote.gae.utils import env_utils
@@ -73,8 +72,8 @@ class DatastoreBackup(handler_utils.CronJobHandler):
       return
 
     kinds = [k for k in metadata.get_kinds() if not k.startswith('_')]
-    bucket = '%s/%s' % (settings.ENV.DATASTORE_BACKUP_BUCKET,
-                        _CreateDayString())
+    bucket = '%s/%s' % (
+        env_utils.ENV.DATASTORE_BACKUP_BUCKET, _CreateDayString())
     params = {
         'kind': kinds,
         'name': _BACKUP_PREFIX + '_',  # Date suffix is automatically added.

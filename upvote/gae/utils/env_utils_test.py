@@ -16,20 +16,44 @@
 
 import os
 
-from common.testing import basetest
-
+from upvote.gae import settings
+from upvote.gae.lib.testing import basetest
 from upvote.gae.utils import env_utils
 
 
-class EnvUtilsTest(basetest.AppEngineTestCase):
+class RunningLocallyTest(basetest.UpvoteTestCase):
 
-  def testRunningLocally(self):
-
+  def testNotLocal(self):
     os.environ['SERVER_SOFTWARE'] = 'Google App Engine/whatever'
     self.assertFalse(env_utils.RunningLocally())
 
+  def testLocal(self):
     os.environ['SERVER_SOFTWARE'] = 'Development/whatever'
     self.assertTrue(env_utils.RunningLocally())
+
+
+class CurrentEnvironmentTest(basetest.UpvoteTestCase):
+
+  def testHostnameCheck(self):
+    os.environ['DEFAULT_VERSION_HOSTNAME'] = settings.ProdEnv.HOSTNAME
+    self.assertEqual(settings.ProdEnv, env_utils.CurrentEnvironment())
+
+  def testHostnameCheck_Unknown(self):
+    os.environ['DEFAULT_VERSION_HOSTNAME'] = 'something_else'
+    with self.assertRaises(env_utils.UnknownEnvironmentError):
+      env_utils.CurrentEnvironment()
+
+  def testAppIdCheck(self):
+    os.environ['APPLICATION_ID'] = settings.ProdEnv.PROJECT_ID
+    self.assertEqual(settings.ProdEnv, env_utils.CurrentEnvironment())
+
+    os.environ['APPLICATION_ID'] = 'something_else'
+    with self.assertRaises(env_utils.UnknownEnvironmentError):
+      env_utils.CurrentEnvironment()
+
+  def testUnknown(self):
+    with self.assertRaises(env_utils.UnknownEnvironmentError):
+      env_utils.CurrentEnvironment()
 
 
 if __name__ == '__main__':
