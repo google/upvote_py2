@@ -24,6 +24,8 @@ from google.appengine.ext import ndb
 from upvote.gae import settings
 from upvote.gae.bigquery import tables
 from upvote.gae.datastore.models import mixin
+from upvote.gae.utils import mail_utils
+from upvote.gae.utils import template_utils
 from upvote.gae.utils import user_utils
 from upvote.shared import constants
 
@@ -182,9 +184,11 @@ class User(mixin.Base, ndb.Model):
       return
 
     # Log the roles changes.
-    for role in old_roles - new_roles:
+    roles_removed = old_roles - new_roles
+    for role in roles_removed:
       logging.info('Removing the %s role from %s', role, user.nickname)
-    for role in new_roles - old_roles:
+    roles_added = new_roles - old_roles
+    for role in roles_added:
       logging.info('Adding the %s role to %s', role, user.nickname)
 
     # Recalculate the voting weight.
@@ -200,6 +204,16 @@ class User(mixin.Base, ndb.Model):
     user.vote_weight = new_vote_weight
     user.put()
 
+    # Notify the user of the change.
+    roles_added_str = ', '.join(sorted(roles_added))
+    roles_removed_str = ', '.join(sorted(roles_removed))
+    body = template_utils.RenderEmailTemplate(
+        'user_role_change.html', roles_added=roles_added_str,
+        roles_removed=roles_removed_str)
+    subject = 'Your user roles have changed'
+    mail_utils.Send(subject, body, to=[user.email], html=True)
+
+    # Note the role change in BigQuery.
     tables.USER.InsertRow(
         email=user.email,
         timestamp=datetime.datetime.utcnow(),

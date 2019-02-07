@@ -155,6 +155,8 @@ py_appengine_library(
         "//upvote/gae/bigquery:tables",
         "//upvote/gae/datastore:utils",
         "//upvote/gae/taskqueue:utils",
+        "//upvote/gae/utils:mail_utils",
+        "//upvote/gae/utils:template_utils",
         "//upvote/gae/utils:user_utils",
         "//upvote/shared:constants",
     ],

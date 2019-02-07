@@ -14,6 +14,8 @@
 
 """Unit tests for user.py."""
 
+import mock
+
 from upvote.gae import settings
 from upvote.gae.datastore import test_utils
 from upvote.gae.datastore.models import user as user_models
@@ -118,7 +120,8 @@ class UserTest(basetest.UpvoteTestCase):
 
     self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.USER)
 
-  def testSetRoles_RemoveAll(self):
+  @mock.patch.object(user_models.mail_utils, 'Send')
+  def testSetRoles_RemoveAll(self, mock_send):
     with self.LoggedInUser() as user:
       self.assertListEqual([constants.USER_ROLE.USER], user.roles)
 
@@ -128,14 +131,18 @@ class UserTest(basetest.UpvoteTestCase):
       user = user_models.User.GetOrInsert(email_addr=email_addr)
       self.assertListEqual([constants.USER_ROLE.USER], user.roles)
 
+    mock_send.assert_not_called()
     self.assertNoBigQueryInsertions()
 
-  def testSetRoles_InvalidUserRole(self):
+  @mock.patch.object(user_models.mail_utils, 'Send')
+  def testSetRoles_InvalidUserRole(self, mock_send):
     with self.LoggedInUser() as user:
       with self.assertRaises(user_models.InvalidUserRoleError):
         user_models.User.SetRoles(user.email, ['INVALID_ROLE'])
+    mock_send.assert_not_called()
 
-  def testSetRoles_NoChanges(self):
+  @mock.patch.object(user_models.mail_utils, 'Send')
+  def testSetRoles_NoChanges(self, mock_send):
 
     with self.LoggedInUser() as user:
       self.assertListEqual([constants.USER_ROLE.USER], user.roles)
@@ -147,9 +154,11 @@ class UserTest(basetest.UpvoteTestCase):
     self.assertListEqual([constants.USER_ROLE.USER], user.roles)
     self.assertEqual(user.vote_weight, old_vote_weight)
 
+    mock_send.assert_not_called()
     self.assertNoBigQueryInsertions()
 
-  def testSetRoles_AddRole(self):
+  @mock.patch.object(user_models.mail_utils, 'Send')
+  def testSetRoles_AddRole(self, mock_send):
 
     with self.LoggedInUser() as user:
       self.assertListEqual([constants.USER_ROLE.USER], user.roles)
@@ -164,14 +173,17 @@ class UserTest(basetest.UpvoteTestCase):
     self.assertEqual(
         self._voting_weights[constants.USER_ROLE.SUPERUSER], user.vote_weight)
 
+    mock_send.assert_called_once()
     self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.USER)
 
-  def testSetRoles_RemoveRole(self):
+  @mock.patch.object(user_models.mail_utils, 'Send')
+  def testSetRoles_RemoveRole(self, mock_send):
 
     old_roles = [constants.USER_ROLE.SUPERUSER, constants.USER_ROLE.USER]
     user = test_utils.CreateUser(email=_TEST_EMAIL, roles=old_roles)
     self.assertEqual(
         self._voting_weights[constants.USER_ROLE.SUPERUSER], user.vote_weight)
+    mock_send.reset_mock()
 
     new_roles = [constants.USER_ROLE.USER]
     user_models.User.SetRoles(_TEST_EMAIL, new_roles)
@@ -180,9 +192,11 @@ class UserTest(basetest.UpvoteTestCase):
     self.assertEqual(
         self._voting_weights[constants.USER_ROLE.USER], user.vote_weight)
 
+    mock_send.assert_called_once()
     self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.USER)
 
-  def testUpdateRoles_AddRole(self):
+  @mock.patch.object(user_models.mail_utils, 'Send')
+  def testUpdateRoles_AddRole(self, mock_send):
 
     with self.LoggedInUser() as user:
       self.assertListEqual([constants.USER_ROLE.USER], user.roles)
@@ -197,15 +211,18 @@ class UserTest(basetest.UpvoteTestCase):
     self.assertEqual(
         self._voting_weights[constants.USER_ROLE.SUPERUSER], user.vote_weight)
 
+    mock_send.assert_called_once()
     self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.USER)
 
-  def testUpdateRoles_RemoveRole(self):
+  @mock.patch.object(user_models.mail_utils, 'Send')
+  def testUpdateRoles_RemoveRole(self, mock_send):
 
     old_roles = [constants.USER_ROLE.SUPERUSER, constants.USER_ROLE.USER]
     user = test_utils.CreateUser(email=_TEST_EMAIL, roles=old_roles)
     with self.LoggedInUser(user=user):
       self.assertEqual(
           self._voting_weights[constants.USER_ROLE.SUPERUSER], user.vote_weight)
+    mock_send.reset_mock()
 
     user_models.User.UpdateRoles(
         _TEST_EMAIL, remove=[constants.USER_ROLE.SUPERUSER])
@@ -214,6 +231,7 @@ class UserTest(basetest.UpvoteTestCase):
     self.assertEqual(
         self._voting_weights[constants.USER_ROLE.USER], user.vote_weight)
 
+    mock_send.assert_called_once()
     self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.USER)
 
   def testHighestRole_Default(self):
