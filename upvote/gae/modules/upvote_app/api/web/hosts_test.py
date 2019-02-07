@@ -222,13 +222,11 @@ class HostHandlerTest(HostsTest):
 
   def testAdminPost_Update(self):
     """Admin posts a single host with update params."""
-    self.santa_host_1.should_upload_logs = False
     self.santa_host_1.client_mode_lock = True
     self.santa_host_1.client_mode = constants.CLIENT_MODE.MONITOR
     self.santa_host_1.put()
 
     params = {
-        'shouldUploadLogs': 'true',
         'clientModeLock': 'false',
         'clientMode': constants.CLIENT_MODE.LOCKDOWN}
 
@@ -241,9 +239,8 @@ class HostHandlerTest(HostsTest):
     self.assertIn('application/json', response.headers['Content-type'])
     self.assertIsInstance(output, dict)
 
-    self.assertTrue(self.santa_host_1.should_upload_logs)
-    self.assertEqual(self.santa_host_1.client_mode,
-                     constants.CLIENT_MODE.LOCKDOWN)
+    self.assertEqual(
+        self.santa_host_1.client_mode, constants.CLIENT_MODE.LOCKDOWN)
     self.assertFalse(self.santa_host_1.client_mode_lock)
 
 

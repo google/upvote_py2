@@ -117,8 +117,6 @@ class SantaHost(mixin.Santa, Host):
     client_mode: str, the mode Santa should be running in on this host.
     client_mode_lock: bool, True if role-based mode setting should be ignored.
 
-    should_upload_logs: bool, True if Santa should upload logs on next sync.
-
     directory_whitelist_regex: str, binaries run from paths matched with this
         regex will be allowed to run.
     directory_blacklist_regex: str, binaries run from paths matched with this
@@ -138,8 +136,6 @@ class SantaHost(mixin.Santa, Host):
       default=constants.CLIENT_MODE.LOCKDOWN)
 
   client_mode_lock = ndb.BooleanProperty(default=False)
-  # If True, the client will upload logs on the next run
-  should_upload_logs = ndb.BooleanProperty(default=False)
 
   directory_whitelist_regex = ndb.StringProperty()
   directory_blacklist_regex = ndb.StringProperty()

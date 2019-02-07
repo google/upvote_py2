@@ -25,7 +25,6 @@ import webapp2
 from webapp2_extras import routes
 
 from google.appengine.datastore import datastore_query
-from google.appengine.ext import blobstore
 from google.appengine.ext import ndb
 
 from upvote.gae import settings
@@ -54,8 +53,8 @@ _SANTA_ACTION = 'santa_action'
 _PREFLIGHT = constants.LowercaseNamespace([
     'BATCH_SIZE', 'BLACKLIST_REGEX', 'CLEAN_SYNC', 'CLIENT_MODE',
     'HOSTNAME', 'OS_BUILD', 'OS_VERSION', 'PRIMARY_USER', 'REQUEST_CLEAN_SYNC',
-    'SANTA_VERSION', 'SERIAL_NUM', 'UPLOAD_LOGS_URL', 'WHITELIST_REGEX',
-    'BUNDLES_ENABLED', 'TRANSITIVE_WHITELISTING_ENABLED',])
+    'SANTA_VERSION', 'SERIAL_NUM', 'WHITELIST_REGEX', 'BUNDLES_ENABLED',
+    'TRANSITIVE_WHITELISTING_ENABLED',])
 
 
 _EVENT_UPLOAD = constants.LowercaseNamespace([
@@ -301,9 +300,6 @@ class PreflightHandler(SantaRequestHandler):
             self.host.transitive_whitelisting_enabled),
     }
 
-    if self.host.should_upload_logs:
-      response[_PREFLIGHT.UPLOAD_LOGS_URL] = (
-          blobstore.create_upload_url('/api/santa/logupload/%s' % uuid))
 
     # Verify all futures resolved successfully.
     for future in futures:

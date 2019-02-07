@@ -298,7 +298,6 @@ upvote.shared.models.Exemption;
  *   lastPreflightIp: string,
  *   lastPostflightDt: string,
  *   clientMode: string,
- *   shouldUploadLogs: boolean,
  *   directoryWhitelistRegex: string,
  *   directoryBlacklistRegex: string,
  *   ruleSyncDt: string,
