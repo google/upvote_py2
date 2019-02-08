@@ -229,7 +229,8 @@ class PreflightHandler(SantaRequestHandler):
     if first_preflight:
       logging.info('Host %s is syncing for the first time', uuid)
       self.host = host_models.SantaHost(key=self.host_key)
-      self.host.client_mode = settings.SANTA_DEFAULT_CLIENT_MODE
+      self.host.client_mode = settings.DEFAULT_CLIENT_MODE[
+          constants.CLIENT.SANTA]
       futures.append(_CopyLocalRules(user.key, uuid))
 
     # Update host entity on every sync.

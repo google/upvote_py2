@@ -27,7 +27,7 @@ to create or modify policy.
 Santa clients can be configured in default-deny or default-approve mode (often
 referred to as "lockdown" and "monitor," respectively). By default, Upvote
 configures all Santa clients in lockdown mode. This can be changed using the
-`SANTA_DEFAULT_CLIENT_MODE` setting
+`DEFAULT_CLIENT_MODE` setting
 
 #### Progressive Lockdown Rollout
 

@@ -48,29 +48,38 @@ ENABLE_BINARY_ANALYSIS_PRECACHING = False
 EVENT_CREATION = constants.EVENT_CREATION.HOST_OWNER
 
 # The default execution mode for clients syncing for the first time.
-SANTA_DEFAULT_CLIENT_MODE = constants.CLIENT_MODE.LOCKDOWN
+DEFAULT_CLIENT_MODE = {
+    constants.CLIENT.SANTA: constants.CLIENT_MODE.LOCKDOWN,
+}
+
 # If provided, a regex string that matches execution paths (read: not files)
 # from which executions will be allowed.
 # NOTE: This regex must be written in ICU format. Docs can be found here:
 # https://developer.apple.com/documentation/foundation/nsregularexpression
 SANTA_DIRECTORY_WHITELIST_REGEX = None
+
 # If provided, a regex string that matches execution paths (read: not files)
 # from which executions will be blocked.
 # NOTE: This regex must be written in ICU format. Docs can be found here:
 # https://developer.apple.com/documentation/foundation/nsregularexpression
 SANTA_DIRECTORY_BLACKLIST_REGEX = None
+
 # The maximum number of events that a Santa client will attempt to upload in a
 # single request.
 SANTA_EVENT_BATCH_SIZE = 100
+
 # The maximum number of rules that Upvote will attempt to send to clients in a
 # single request.
 SANTA_RULE_BATCH_SIZE = 250
+
 # Whether Upvote will require connecting clients to provide an XSRF token.
 SANTA_REQUIRE_XSRF = True
+
 # Whether Santa clients will upload bundles.
 #
 # See docs for feature details.
 SANTA_BUNDLES_ENABLED = True
+
 # The failure mode of Santa client authentication.
 #
 # NOTE: By default, there is no authentication mechanism implemented for Santa
