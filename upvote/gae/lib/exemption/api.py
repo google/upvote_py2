@@ -316,6 +316,18 @@ def Process(exm_key):
   # Change state from REQUESTED to PENDING.
   try:
     exemption_models.Exemption.ChangeState(exm_key, _STATE.PENDING)
+
+  # Process() shouldn't be transactional due to all the potential calls out made
+  # below. Because of this, it's entirely possible that the calls to Process()
+  # in RequestExemptionHandler and ProcessExemptions could both end up trying to
+  # transition this Exemption to PENDING at the same time. It's a benign race
+  # condition, so we should just note it and move on.
+  except exemption_models.InvalidStateChangeError:
+    logging.warning(
+        'Error encountered while processing Exemption for host %s', host_id)
+    return
+
+  # Any other Exceptions should make noise.
   except Exception:  # pylint: disable=broad-except
     monitoring.processing_errors.Increment()
     logging.exception(

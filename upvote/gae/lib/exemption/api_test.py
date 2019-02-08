@@ -254,12 +254,34 @@ class ProcessTest(basetest.UpvoteTestCase):
     patcher.start()
 
   @mock.patch.object(api.monitoring, 'processing_errors')
-  @mock.patch.object(api.exemption_models.Exemption, 'ChangeState')
-  def testException_InitialStateChange(self, mock_change_state, mock_metric):
+  def testInitialStateChange_InvalidStateChangeError(self, mock_metric):
 
-    mock_change_state.side_effect = exemption_models.InvalidStateChangeError
+    # Simulate a user creating a new Exemption in the REQUESTED state.
     exm_key = test_utils.CreateExemption('12345')
     self.assertEqual(_STATE.REQUESTED, exm_key.get().state)
+
+    # Simulate the Exemption transitioning to PENDING due to either the user
+    # request, or the processing cron. Both end up calling Process().
+    exemption_models.Exemption.ChangeState(exm_key, _STATE.PENDING)
+    self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.EXEMPTION)
+
+    # If the user request and processing cron occur around the same time,
+    # they will both be trying to transition from REQUESTED to PENDING, a benign
+    # race condition that shouldn't make noise.
+    api.Process(exm_key)
+    self.assertEqual(_STATE.PENDING, exm_key.get().state)
+    mock_metric.Increment.assert_not_called()
+
+  @mock.patch.object(api.monitoring, 'processing_errors')
+  @mock.patch.object(api.exemption_models.Exemption, 'ChangeState')
+  def testInitialStateChange_Exception(self, mock_change_state, mock_metric):
+
+    exm_key = test_utils.CreateExemption('12345')
+    self.assertEqual(_STATE.REQUESTED, exm_key.get().state)
+
+    # If the initial state change fails unexpectedly, ensure that the state
+    # remains as REQUESTED, and noise is made.
+    mock_change_state.side_effect = Exception
 
     api.Process(exm_key)
     self.assertEqual(_STATE.REQUESTED, exm_key.get().state)
