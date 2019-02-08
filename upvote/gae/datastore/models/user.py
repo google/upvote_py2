@@ -87,27 +87,8 @@ class User(mixin.Base, ndb.Model):
       default=_UNASSIGNED_ROLLOUT_GROUP)
 
   @classmethod
-  @ndb.transactional
-  def _InnerGetOrInsert(cls, email_addr):
-    email_addr = email_addr.lower()
-    user = cls.get_by_id(email_addr)
-    if user is None:
-
-      logging.info('Creating new user %s', email_addr)
-      initial_roles = [constants.USER_ROLE.USER]
-      user = cls(id=email_addr, roles=initial_roles)
-      user.AssignRolloutGroup()
-      user.put()
-
-      tables.USER.InsertRow(
-          email=email_addr,
-          timestamp=datetime.datetime.utcnow(),
-          action=constants.USER_ACTION.FIRST_SEEN,
-          roles=initial_roles)
-    return user
-
-  @classmethod
-  def GetOrInsert(cls, email_addr=None, appengine_user=None):
+  @ndb.transactional_async
+  def GetOrInsertAsync(cls, email_addr=None, appengine_user=None):
     """Creates a new User, or retrieves an existing one.
 
     NOTE: Use this anywhere you would otherwise do an __init__() and put(). We
@@ -119,7 +100,7 @@ class User(mixin.Base, ndb.Model):
       appengine_user: Optional AppEngine User to create the User from.
 
     Returns:
-      The User instance.
+      A Future whose result is the existing or new User instance.
 
     Raises:
       UnknownUserError: The current user cannot be determined via either email
@@ -136,15 +117,38 @@ class User(mixin.Base, ndb.Model):
 
       email_addr = appengine_user.email()
 
-    # Do a simple get to see if an User entity already exists for this
-    # user. Otherwise, incur a transaction in order to create a new one.
-    return cls.GetById(email_addr) or cls._InnerGetOrInsert(email_addr)
+    email_addr = email_addr.lower()
+    user = cls.get_by_id(email_addr)
+
+    if user is None:
+
+      # If there's no corresponding User, create one.
+      logging.info('Creating new user %s', email_addr)
+      initial_roles = [constants.USER_ROLE.USER]
+      user = cls(id=email_addr, roles=initial_roles)
+      user.AssignRolloutGroup()
+      user.put()
+
+      # Note the creation in BigQuery.
+      tables.USER.InsertRow(
+          email=email_addr,
+          timestamp=datetime.datetime.utcnow(),
+          action=constants.USER_ACTION.FIRST_SEEN,
+          roles=initial_roles)
+
+    return user
 
   @classmethod
-  def GetById(cls, email_addr):
+  def GetOrInsert(cls, email_addr=None, appengine_user=None):
+    future = cls.GetOrInsertAsync(
+        email_addr=email_addr, appengine_user=appengine_user)
+    return future.get_result()
+
+  @classmethod
+  def GetByIdAsync(cls, email_addr):
     """Retrieves an existing User.
 
-    NOTE: Use this anywhere you would otherwise do a get_by_id(). We
+    NOTE: Use this anywhere you would otherwise do a get_by_id_async(). We
     need to ensure that the email address is properly tranlated to the internal
     form.
 
@@ -153,9 +157,25 @@ class User(mixin.Base, ndb.Model):
           User.
 
     Returns:
+      A Future whose result is the User instance or None.
+    """
+    return cls.get_by_id_async(email_addr.lower())
+
+  @classmethod
+  def GetById(cls, email_addr):
+    """Retrieves an existing User.
+
+    NOTE: Use this anywhere you would otherwise do a get_by_id(). We need to
+    ensure that the email address is properly tranlated to the internal form.
+
+    Args:
+      email_addr: The email address string associated with the desired
+          User.
+
+    Returns:
       The User instance or None.
     """
-    return cls.get_by_id(email_addr.lower())
+    return cls.GetByIdAsync(email_addr).get_result()
 
   @classmethod
   @ndb.transactional(xg=True)  # User and KeyValueCache
