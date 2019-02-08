@@ -35,8 +35,7 @@ upvote.admin.hosts.HostResource = buildResource(API_PREFIX + ':id', {
     'params': {
       'id': '@id',
       'clientMode': '@clientMode',
-      'clientModeLock': '@clientModeLock',
-      'shouldUploadLogs': '@shouldUploadLogs'
+      'clientModeLock': '@clientModeLock'
     }
   }
 });

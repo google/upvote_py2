@@ -83,9 +83,6 @@ class HostHandler(handler_utils.UserFacingHandler):
       host.client_mode = self.request.get('clientMode')
     if self.request.get('clientModeLock'):
       host.client_mode_lock = (self.request.get('clientModeLock') == 'true')
-    if self.request.get('shouldUploadLogs'):
-      host.should_upload_logs = (
-          self.request.get('shouldUploadLogs') == 'true')
 
     host.put()
 

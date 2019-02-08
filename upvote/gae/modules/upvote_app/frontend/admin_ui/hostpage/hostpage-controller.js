@@ -113,18 +113,6 @@ upvote.admin.hostpage.HostController = class extends ModelController {
     this.location_.path(requestPath);
   }
 
-  /**
-   * Requests logs for a santa host
-   * @param {!Object} host
-   * @export
-   */
-  requestLogs(host) {
-    host['shouldUploadLogs'] = true;
-    this.resource.update(host)['$promise'].catch(() => {
-      host['shouldUploadLogs'] = false;
-    });
-  }
-
   canEnableMonitorMode(host) {
     return (
         this.hostUtils.isSantaHost(host) && this.hostUtils.isInLockdown(host) &&

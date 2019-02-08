@@ -417,19 +417,6 @@ class PreflightHandlerTest(SantaApiTestCase):
 
     self.assertBigQueryInsertion(TABLE.USER)
 
-  def testCheckin_ShouldUploadLogs(self):
-
-    host_models.SantaHost(
-        key=ndb.Key('Host', 'my-uuid'), should_upload_logs=True).put()
-
-    response = self.testapp.post_json('/my-uuid', self.request_json)
-
-    self.assertTrue(response.json[PREFLIGHT.UPLOAD_LOGS_URL])
-    self.assertEqual(httplib.OK, response.status_int)
-    self.VerifyIncrementCalls(self.mock_metric, httplib.OK)
-
-    self.assertBigQueryInsertion(TABLE.USER)
-
   def testCheckin_RequestCleanSync(self):
     host_models.SantaHost(
         key=ndb.Key('Host', 'my-uuid'),
