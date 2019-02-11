@@ -23,7 +23,7 @@ import re
 from common import context
 
 from upvote.gae import settings
-from upvote.gae.datastore.models import bit9
+from upvote.gae.datastore.models import singleton
 from upvote.gae.lib.bit9 import constants as bit9_constants
 from upvote.gae.lib.bit9 import api  # pylint: disable=g-line-too-long
 from upvote.gae.utils import env_utils
@@ -78,7 +78,7 @@ def ExpandHostname(bit9_hostname):
 
 @context.LazyProxy
 def CONTEXT():  # pylint: disable=g-bad-name
-  api_key = bit9.Bit9ApiAuth.GetInstance().api_key
+  api_key = singleton.Bit9ApiAuth.GetInstance().api_key
   return api.Context(env_utils.ENV.BIT9_REST_URL, api_key, 30)
 
 

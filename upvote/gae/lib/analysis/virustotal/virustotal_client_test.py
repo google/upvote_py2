@@ -19,12 +19,12 @@ import mock
 from google.appengine.api import urlfetch
 
 from common.testing import basetest
-from upvote.gae.datastore.models import virustotal
+from upvote.gae.datastore.models import singleton
 from upvote.gae.lib.analysis.virustotal import virustotal_client
 
 
 @mock.patch.object(urlfetch, 'fetch')
-@mock.patch.object(virustotal.VirusTotalApiAuth, 'GetInstance')
+@mock.patch.object(singleton.VirusTotalApiAuth, 'GetInstance')
 class ClientTest(basetest.AppEngineTestCase):
 
   def testLookup(self, mock_get_inst, mock_fetch):

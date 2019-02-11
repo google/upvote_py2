@@ -21,8 +21,7 @@ import webapp2
 from webapp2_extras import routes
 
 from upvote.gae import settings
-from upvote.gae.datastore.models import bit9
-from upvote.gae.datastore.models import virustotal
+from upvote.gae.datastore.models import singleton
 from upvote.gae.modules.upvote_app.api.web import monitoring
 from upvote.gae.utils import handler_utils
 from upvote.gae.utils import string_utils
@@ -64,9 +63,9 @@ class ApiKeys(handler_utils.AdminOnlyHandler):
       self.abort(httplib.BAD_REQUEST, explanation='No value provided')
 
     if key_name == 'virustotal':
-      virustotal.VirusTotalApiAuth.SetInstance(api_key=value)
+      singleton.VirusTotalApiAuth.SetInstance(api_key=value)
     elif key_name == 'bit9':
-      bit9.Bit9ApiAuth.SetInstance(api_key=value)
+      singleton.Bit9ApiAuth.SetInstance(api_key=value)
     else:
       self.abort(httplib.BAD_REQUEST, explanation='Invalid key name')
 

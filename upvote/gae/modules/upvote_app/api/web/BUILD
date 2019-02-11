@@ -148,7 +148,7 @@ py_library(
     deps = [
         ":monitoring",
         "//upvote/gae:settings",
-        "//upvote/gae/datastore/models:virustotal",
+        "//upvote/gae/datastore/models:singleton",
         "//upvote/gae/utils:handler_utils",
         "//upvote/gae/utils:string_utils",
         "//upvote/gae/utils:xsrf_utils",

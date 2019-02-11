@@ -49,5 +49,11 @@ class SingletonTest(basetest.UpvoteTestCase):
     self.assertEqual('1', inst.key.id())
 
 
+# @mock.patch.object(os, 'urandom', return_value='foo'*4)
+# def testNewXsrfSecret(self, mock_urandom):
+#   xsrf_utils.SiteXsrfSecret.GetInstance().key.delete()
+#   self.assertEqual('foofoofoofoo', xsrf_utils.SiteXsrfSecret.GetSecret())
+
+
 if __name__ == '__main__':
   basetest.main()

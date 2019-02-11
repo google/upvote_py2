@@ -16,29 +16,14 @@
 
 from google.appengine.ext import ndb
 
-from common.cloud_kms import kms_ndb
 from upvote.gae.datastore.models import base
 from upvote.gae.datastore.models import mixin
 from upvote.gae.datastore.models import rule as rule_models
-from upvote.gae.datastore.models import singleton
 from upvote.shared import constants
-
-_KEY_LOC = 'global'
-_KEY_RING = 'ring'
-_KEY_NAME = 'bit9'
 
 
 # Done for the sake of brevity.
 _POLICY = constants.RULE_POLICY
-
-
-class Bit9ApiAuth(singleton.Singleton):
-  """The Bit9 API key.
-
-  This class is intended to be a singleton as there should only be a single
-  Bit9 API key associated with a project.
-  """
-  api_key = kms_ndb.EncryptedBlobProperty(_KEY_NAME, _KEY_RING, _KEY_LOC)
 
 
 class Bit9Binary(mixin.Bit9, base.Binary):
