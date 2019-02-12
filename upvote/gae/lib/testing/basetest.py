@@ -36,9 +36,9 @@ from common.testing import basetest
 from upvote.gae import settings
 from upvote.gae.bigquery import tables
 from upvote.gae.datastore import test_utils
+from upvote.gae.datastore.models import singleton
 from upvote.gae.utils import env_utils
 from upvote.gae.utils import handler_utils
-from upvote.gae.utils import xsrf_utils
 from upvote.shared import constants
 
 
@@ -98,7 +98,7 @@ class UpvoteTestCase(basetest.AppEngineTestCase):
       self.mock_send_to_bigquery = self.Patch(tables, '_SendToBigQuery')
 
     self.secret_key = 'test-secret'
-    xsrf_utils.SiteXsrfSecret.SetInstance(secret=self.secret_key.encode('hex'))
+    singleton.SiteXsrfSecret.SetInstance(secret=self.secret_key.encode('hex'))
 
     if patch_generate_token:
       self.Patch(xsrfutil, 'generate_token', return_value='token')

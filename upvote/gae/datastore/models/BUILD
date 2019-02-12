@@ -23,7 +23,6 @@ py_appengine_library(
         ":rule",
         ":santa",
         ":singleton",
-        ":virustotal",
     ],
 )
 
@@ -56,8 +55,6 @@ py_appengine_library(
         ":base",
         ":mixin",
         ":rule",
-        "//common/cloud_kms:kms_ndb",
-        "//upvote/gae/datastore/models:singleton",
         "//upvote/shared:constants",
     ],
 )
@@ -143,7 +140,9 @@ py_appengine_library(
 py_appengine_library(
     name = "singleton",
     srcs = ["singleton.py"],
-    deps = [],
+    deps = [
+        "//common/cloud_kms:kms_ndb",
+    ],
 )
 
 py_appengine_library(
@@ -175,15 +174,6 @@ py_appengine_library(
         "//upvote/gae:settings",
         "//upvote/gae/utils:user_utils",
         "//upvote/shared:constants",
-    ],
-)
-
-py_appengine_library(
-    name = "virustotal",
-    srcs = ["virustotal.py"],
-    deps = [
-        "//common/cloud_kms:kms_ndb",
-        "//upvote/gae/datastore/models:singleton",
     ],
 )
 

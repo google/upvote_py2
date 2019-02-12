@@ -15,7 +15,6 @@
 """Tests for XSRF protection middleware."""
 
 import httplib
-import os
 
 import mock
 from oauth2client.contrib import xsrfutil
@@ -50,11 +49,6 @@ class XsrfTest(basetest.UpvoteTestCase):
     self.user_email = user_utils.UsernameToEmail('test')
     self.Login(self.user_email)
     self.user_id = users.get_current_user().user_id()
-
-  @mock.patch.object(os, 'urandom', return_value='foo'*4)
-  def testNewXsrfSecret(self, mock_urandom):
-    xsrf_utils.SiteXsrfSecret.GetInstance().key.delete()
-    self.assertEqual('foofoofoofoo', xsrf_utils.SiteXsrfSecret.GetSecret())
 
   @mock.patch.object(xsrfutil, 'generate_token')
   def testGenerateToken(self, mock_generate_token):

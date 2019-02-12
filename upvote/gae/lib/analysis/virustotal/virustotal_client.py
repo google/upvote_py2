@@ -20,7 +20,7 @@ import urllib
 
 from google.appengine.api import urlfetch
 
-from upvote.gae.datastore.models import virustotal
+from upvote.gae.datastore.models import singleton
 from upvote.gae.lib.analysis.virustotal import constants
 from upvote.gae.utils import memcache_utils
 
@@ -70,7 +70,7 @@ def Lookup(binary_hash):
   """
   # Decrypt our VirusTotal API key. If something blows up, just let the
   # exception bubble up to binary_health._PerformLookup().
-  vt_auth = virustotal.VirusTotalApiAuth.GetInstance()
+  vt_auth = singleton.VirusTotalApiAuth.GetInstance()
 
   payload = urllib.urlencode({
       'apikey': vt_auth.api_key,

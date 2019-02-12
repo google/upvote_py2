@@ -6,6 +6,9 @@ load(
 
 package(default_visibility = ["//upvote"])
 
+# AppEngine Libraries
+# ==============================================================================
+
 py_appengine_library(
     name = "constants",
     srcs = ["constants.py"],
@@ -19,10 +22,13 @@ py_appengine_library(
     srcs = ["virustotal_client.py"],
     deps = [
         ":constants",
-        "//upvote/gae/datastore/models:virustotal",
+        "//upvote/gae/datastore/models:singleton",
         "//upvote/gae/utils:memcache_utils",
     ],
 )
+
+# AppEngine Unit Tests
+# ==============================================================================
 
 upvote_appengine_test(
     name = "virustotal_client_test",

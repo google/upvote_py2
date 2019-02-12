@@ -68,14 +68,14 @@ class ApiKeysTest(basetest.UpvoteTestCase):
 
   def testUpdateVirusTotalKey(self):
     with mock.patch.object(
-        settings.virustotal.VirusTotalApiAuth, 'SetInstance') as mock_set:
+        settings.singleton.VirusTotalApiAuth, 'SetInstance') as mock_set:
       with self.LoggedInUser(admin=True):
         self.testapp.post(self.ROUTE % 'virustotal', {'value': 'abc'})
       mock_set.assert_called_once_with(api_key='abc')
 
   def testUpdateBit9Key(self):
     with mock.patch.object(
-        settings.bit9.Bit9ApiAuth, 'SetInstance') as mock_set:
+        settings.singleton.Bit9ApiAuth, 'SetInstance') as mock_set:
       with self.LoggedInUser(admin=True):
         self.testapp.post(self.ROUTE % 'bit9', {'value': 'abc'})
       mock_set.assert_called_once_with(api_key='abc')

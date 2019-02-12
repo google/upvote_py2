@@ -19,6 +19,11 @@ api_version: 1
 threadsafe: true
 inbound_services:
 - warmup
+
+libraries:
+- name: jinja2
+  version: latest
+
 automatic_scaling:
     min_pending_latency: 5s
     max_pending_latency: 10s

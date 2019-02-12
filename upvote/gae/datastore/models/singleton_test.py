@@ -14,6 +14,8 @@
 
 """Unit tests for singleton.py."""
 
+import mock
+
 from google.appengine.ext import ndb
 
 from upvote.gae.datastore.models import singleton
@@ -47,6 +49,14 @@ class SingletonTest(basetest.UpvoteTestCase):
 
     inst = A.SetInstance(a='abcd')
     self.assertEqual('1', inst.key.id())
+
+
+class SiteXsrfSecretTest(basetest.UpvoteTestCase):
+
+  @mock.patch.object(singleton.os, 'urandom', return_value='foo'*4)
+  def testNewXsrfSecret(self, mock_urandom):
+    singleton.SiteXsrfSecret.GetInstance().key.delete()
+    self.assertEqual('foofoofoofoo', singleton.SiteXsrfSecret.GetSecret())
 
 
 if __name__ == '__main__':

@@ -30,12 +30,10 @@ import datetime
 import functools
 import httplib
 import logging
-import os
 
 from oauth2client.contrib import xsrfutil
 
 from google.appengine.api import users
-from google.appengine.ext import ndb
 
 from upvote.gae.datastore.models import singleton
 
@@ -61,19 +59,6 @@ class TokenInvalidError(Error):
 
 class UserNotFoundError(Error):
   """Error raised if the user identifier cannot be determined."""
-
-
-class SiteXsrfSecret(singleton.Singleton):
-  """A model for storing the site's xsrf key."""
-  secret = ndb.StringProperty()
-
-  @classmethod
-  def GetSecret(cls):
-    inst = super(SiteXsrfSecret, cls).GetInstance()
-    if inst is None:
-      # The secret length should match the block size of the hash function.
-      inst = cls.SetInstance(secret=os.urandom(64).encode('hex'))
-    return inst.secret.decode('hex')
 
 
 def _GetCurrentUserId():
@@ -113,7 +98,7 @@ def GenerateToken(action_id=_UPVOTE_DEFAULT_ACTION_ID, user_id=None):
   if not user_id:
     user_id = _GetCurrentUserId()
   return xsrfutil.generate_token(
-      SiteXsrfSecret.GetSecret(), user_id, action_id=action_id)
+      singleton.SiteXsrfSecret.GetSecret(), user_id, action_id=action_id)
 
 
 def ValidateToken(token, action_id=_UPVOTE_DEFAULT_ACTION_ID, user_id=None):
@@ -138,7 +123,8 @@ def ValidateToken(token, action_id=_UPVOTE_DEFAULT_ACTION_ID, user_id=None):
     raise
   else:
     success = xsrfutil.validate_token(
-        SiteXsrfSecret.GetSecret(), token, user_id, action_id=action_id)
+        singleton.SiteXsrfSecret.GetSecret(), token, user_id,
+        action_id=action_id)
     if not success:
       logging.error('Token failed to validate')
       raise TokenInvalidError()

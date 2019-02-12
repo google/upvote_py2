@@ -120,7 +120,7 @@ py_appengine_library(
         ":constants",
         "//common:context",
         "//upvote/gae:settings",
-        "//upvote/gae/datastore/models:bit9",
+        "//upvote/gae/datastore/models:singleton",
         "//upvote/gae/lib/bit9:api",
         "//upvote/gae/utils:env_utils",
     ],

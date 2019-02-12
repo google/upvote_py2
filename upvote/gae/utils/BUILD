@@ -22,6 +22,7 @@ py_appengine_library(
         ":env_utils",
         ":json_utils",
         ":string_utils",
+        ":xsrf_utils",
         "//upvote/gae/datastore:utils",
         "//upvote/gae/datastore/models:user",
     ],
@@ -96,6 +97,7 @@ py_appengine_library(
     srcs = ["xsrf_utils.py"],
     deps = [
         "//external:oauth2client",
+        "//upvote/gae/datastore/models:singleton",
     ],
 )
 

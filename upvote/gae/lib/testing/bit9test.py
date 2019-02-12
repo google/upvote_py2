@@ -16,7 +16,7 @@ import os
 import mock
 
 from common import context
-from upvote.gae.datastore.models import bit9 as bit9_models
+from upvote.gae.datastore.models import singleton
 from upvote.gae.lib.bit9 import utils as bit9_utils
 from upvote.gae.lib.testing import basetest
 from absl.testing import absltest
@@ -34,12 +34,12 @@ class Bit9TestCase(basetest.UpvoteTestCase):
         'upvote/gae/lib/bit9',
         'fake_credentials.json')
     self.Patch(
-        bit9_utils.bit9.kms_ndb.EncryptedBlobProperty, '_Encrypt',
+        bit9_utils.singleton.kms_ndb.EncryptedBlobProperty, '_Encrypt',
         return_value='blah')
     self.Patch(
-        bit9_utils.bit9.kms_ndb.EncryptedBlobProperty, '_Decrypt',
+        bit9_utils.singleton.kms_ndb.EncryptedBlobProperty, '_Decrypt',
         return_value='blah')
-    bit9_models.Bit9ApiAuth.SetInstance(api_key='blah')
+    singleton.Bit9ApiAuth.SetInstance(api_key='blah')
 
     self.mock_ctx = mock.Mock(spec=bit9_utils.api.Context)
     self.Patch(

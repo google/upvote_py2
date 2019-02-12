@@ -19,9 +19,9 @@ py_appengine_library(
         "//upvote/gae:settings",
         "//upvote/gae/bigquery:tables",
         "//upvote/gae/datastore:test_utils",
+        "//upvote/gae/datastore/models:singleton",
         "//upvote/gae/utils:env_utils",
         "//upvote/gae/utils:handler_utils",
-        "//upvote/gae/utils:xsrf_utils",
         "//upvote/shared:constants",
     ],
 )
@@ -40,6 +40,7 @@ py_appengine_library(
         "//upvote/gae:settings",
         "//upvote/gae/bigquery:tables",
         "//upvote/gae/datastore:test_utils",
+        "//upvote/gae/datastore/models:singleton",
         "//upvote/gae/lib/bit9:utils",
         "//upvote/gae/utils:handler_utils",
         "//upvote/gae/utils:xsrf_utils",
