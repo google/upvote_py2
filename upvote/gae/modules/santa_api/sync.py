@@ -261,7 +261,7 @@ class PreflightHandler(SantaRequestHandler):
           action=constants.HOST_ACTION.COMMENT,
           hostname=self.host.hostname,
           platform=constants.PLATFORM.MACOS,
-          users=model_utils.GetUsersAssociatedWithSantaHost(uuid),
+          users=[self.host.primary_user],
           mode=reported_mode,
           comment=message)
 
@@ -317,7 +317,7 @@ class PreflightHandler(SantaRequestHandler):
           action=constants.HOST_ACTION.FIRST_SEEN,
           hostname=new_host.hostname,
           platform=constants.PLATFORM.MACOS,
-          users=model_utils.GetUsersAssociatedWithSantaHost(uuid),
+          users=[new_host.primary_user],
           mode=new_host.client_mode)
 
     self.respond_json(response)
@@ -954,7 +954,7 @@ class PostflightHandler(SantaRequestHandler):
         action=constants.HOST_ACTION.FULL_SYNC,
         hostname=self.host.hostname,
         platform=constants.PLATFORM.MACOS,
-        users=model_utils.GetUsersAssociatedWithSantaHost(host_id),
+        users=[self.host.primary_user],
         mode=self.host.client_mode)
 
 

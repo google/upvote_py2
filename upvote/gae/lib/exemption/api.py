@@ -180,7 +180,6 @@ def _ChangeEnforcementInSanta(host_id, new_client_mode):
       action=constants.HOST_ACTION.MODE_CHANGE,
       hostname=host.hostname,
       platform=constants.PLATFORM.MACOS,
-      # Can't use GetUsersAssociatedWithSantaHost() due to non-ancestor query.
       users=[host.primary_user],
       mode=host.client_mode)
 
