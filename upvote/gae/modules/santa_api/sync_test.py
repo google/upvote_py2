@@ -383,7 +383,8 @@ class PreflightHandlerTest(SantaApiTestCase):
         key=ndb.Key('Host', 'my-uuid'),
         client_mode=constants.CLIENT_MODE.LOCKDOWN,
         directory_whitelist_regex='^/[Bb]uild/.*',
-        transitive_whitelisting_enabled=True).put()
+        transitive_whitelisting_enabled=True,
+        primary_user='user').put()
 
     response = self.testapp.post_json('/my-uuid', self.request_json)
 
@@ -404,7 +405,7 @@ class PreflightHandlerTest(SantaApiTestCase):
     self.assertBigQueryInsertion(TABLE.USER)
 
   def testCheckin_DefaultDirectoryRegex(self):
-    host_models.SantaHost(id='my-uuid').put()
+    host_models.SantaHost(id='my-uuid', primary_user='user').put()
     self.PatchSetting('SANTA_DIRECTORY_WHITELIST_REGEX', '^/[Bb]uild/.*')
 
     response = self.testapp.post_json('/my-uuid', self.request_json)
@@ -420,7 +421,8 @@ class PreflightHandlerTest(SantaApiTestCase):
   def testCheckin_RequestCleanSync(self):
     host_models.SantaHost(
         key=ndb.Key('Host', 'my-uuid'),
-        rule_sync_dt=datetime.datetime.now()).put()
+        rule_sync_dt=datetime.datetime.now(),
+        primary_user='user').put()
 
     self.request_json[PREFLIGHT.REQUEST_CLEAN_SYNC] = True
 
@@ -436,10 +438,11 @@ class PreflightHandlerTest(SantaApiTestCase):
 
   def testCheckin_ModeMismatch(self):
 
+    user = test_utils.CreateUser()
     host_models.SantaHost(
         key=ndb.Key('Host', 'my-uuid'),
-        client_mode=CLIENT_MODE.LOCKDOWN).put()
-    user = test_utils.CreateUser()
+        client_mode=CLIENT_MODE.LOCKDOWN,
+        primary_user=user.nickname).put()
     request_json = {
         PREFLIGHT.SERIAL_NUM: 'serial',
         PREFLIGHT.HOSTNAME: 'vogon',
@@ -456,10 +459,11 @@ class PreflightHandlerTest(SantaApiTestCase):
     self.assertBigQueryInsertion(TABLE.HOST)
 
   def testCheckin_ClientModeUnsupported(self):
+    user = test_utils.CreateUser()
     host_models.SantaHost(
         key=ndb.Key('Host', 'my-uuid'),
-        client_mode=CLIENT_MODE.LOCKDOWN).put()
-    user = test_utils.CreateUser()
+        client_mode=CLIENT_MODE.LOCKDOWN,
+        primary_user=user.nickname).put()
     request_json = {
         PREFLIGHT.SERIAL_NUM: 'serial',
         PREFLIGHT.HOSTNAME: 'vogon',
@@ -479,10 +483,11 @@ class PreflightHandlerTest(SantaApiTestCase):
     self.assertEqual(constants.HOST_MODE.UNKNOWN, calls[0][1].get('mode'))
 
   def testCheckin_ClientModeMissing(self):
+    user = test_utils.CreateUser()
     host_models.SantaHost(
         key=ndb.Key('Host', 'my-uuid'),
-        client_mode=CLIENT_MODE.LOCKDOWN).put()
-    user = test_utils.CreateUser()
+        client_mode=CLIENT_MODE.LOCKDOWN,
+        primary_user=user.nickname).put()
     request_json = {
         PREFLIGHT.SERIAL_NUM: 'serial',
         PREFLIGHT.HOSTNAME: 'vogon',
@@ -499,6 +504,31 @@ class PreflightHandlerTest(SantaApiTestCase):
     calls = self.GetBigQueryCalls()
     self.assertEqual(constants.HOST_MODE.UNKNOWN, calls[0][1].get('mode'))
 
+  def testCheckin_PrimaryUserChange(self):
+
+    user1 = test_utils.CreateUser()
+    user2 = test_utils.CreateUser()
+    host = test_utils.CreateSantaHost(
+        primary_user=user1.nickname, client_mode=CLIENT_MODE.LOCKDOWN)
+
+    request_json = {
+        PREFLIGHT.SERIAL_NUM: 'serial',
+        PREFLIGHT.HOSTNAME: 'vogon',
+        PREFLIGHT.PRIMARY_USER: user2.nickname,
+        PREFLIGHT.SANTA_VERSION: '1.0.0',
+        PREFLIGHT.OS_VERSION: '10.9.3',
+        PREFLIGHT.OS_BUILD: '13D65',
+        PREFLIGHT.CLIENT_MODE: CLIENT_MODE.LOCKDOWN}
+
+    response = self.testapp.post_json('/%s' % host.key.id(), request_json)
+
+    self.assertEqual(httplib.OK, response.status_int)
+    self.VerifyIncrementCalls(self.mock_metric, httplib.OK)
+    self.assertBigQueryInsertion(TABLE.HOST, reset_mock=False)
+    calls = self.GetBigQueryCalls()
+    self.assertEqual(
+        constants.HOST_ACTION.USERS_CHANGE, calls[0][1].get('action'))
+    self.assertEqual([user2.nickname], calls[0][1].get('users'))
 
 
 class EventUploadHandlerTest(SantaApiTestCase):

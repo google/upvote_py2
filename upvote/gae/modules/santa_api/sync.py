@@ -216,17 +216,20 @@ class PreflightHandler(SantaRequestHandler):
   def post(self, uuid):
     futures = []
 
-    # Create an User for the primary_user on any preflight if one doesn't
-    # already exist.
+    # Create an User for the reported user on any preflight,
+    # if one doesn't already exist.
     primary_user = self.parsed_json.get(_PREFLIGHT.PRIMARY_USER)
     user = user_models.User.GetOrInsert(
         user_utils.UsernameToEmail(primary_user))
+
     # Ensures the returned username is consistent with the User entity.
     primary_user = user.nickname
 
+    first_seen = not self.host
+    users_change = not first_seen and primary_user != self.host.primary_user
+
     # Create a SantaHost on the first preflight.
-    first_preflight = not self.host
-    if first_preflight:
+    if first_seen:
       logging.info('Host %s is syncing for the first time', uuid)
       self.host = host_models.SantaHost(key=self.host_key)
       self.host.client_mode = settings.DEFAULT_CLIENT_MODE[
@@ -309,7 +312,7 @@ class PreflightHandler(SantaRequestHandler):
     # If this is the first preflight, create a FIRST_SEEN HostRow. This has to
     # occur after the new SantaHost entity is put(), since SantaHost.recorded_dt
     # is an auto_now_add.
-    if first_preflight:
+    if first_seen:
       new_host = ndb.Key('Host', uuid).get()
       tables.HOST.InsertRow(
           device_id=uuid,
@@ -319,6 +322,17 @@ class PreflightHandler(SantaRequestHandler):
           platform=constants.PLATFORM.MACOS,
           users=[new_host.primary_user],
           mode=new_host.client_mode)
+
+    # If there was a user change, create a USERS_CHANGE HostRow.
+    if users_change:
+      tables.HOST.InsertRow(
+          device_id=uuid,
+          timestamp=self.host.recorded_dt,
+          action=constants.HOST_ACTION.USERS_CHANGE,
+          hostname=self.host.hostname,
+          platform=constants.PLATFORM.MACOS,
+          users=[self.host.primary_user],
+          mode=self.host.client_mode)
 
     self.respond_json(response)
 
