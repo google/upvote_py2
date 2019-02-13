@@ -26,6 +26,7 @@ from upvote.gae.bigquery import tables
 from upvote.gae.datastore.models import base as base_models
 from upvote.gae.datastore.models import bit9 as bit9_models
 from upvote.gae.datastore.models import event as event_models
+from upvote.gae.datastore.models import note as note_models
 from upvote.gae.datastore.models import rule as rule_models
 from upvote.gae.datastore.models import santa as santa_models
 from upvote.gae.lib.bit9 import change_set
@@ -240,8 +241,8 @@ class BlockableHandler(handler_utils.UserFacingHandler):
       # If one was provided, create a note to accompany the blockable.
       note_text = self.request.get('notes')
       if note_text:
-        note_key = base_models.Note.GenerateKey(note_text, blockable.key)
-        note = base_models.Note(
+        note_key = note_models.Note.GenerateKey(note_text, blockable.key)
+        note = note_models.Note(
             key=note_key, message=note_text, author=self.user.key.id())
         note.put()
 

@@ -25,6 +25,7 @@ from upvote.gae.datastore import test_utils
 from upvote.gae.datastore import utils as datastore_utils
 from upvote.gae.datastore.models import base
 from upvote.gae.datastore.models import bit9
+from upvote.gae.datastore.models import note as note_models
 from upvote.gae.datastore.models import rule as rule_models
 from upvote.gae.datastore.models import santa
 from upvote.gae.lib.testing import basetest
@@ -394,8 +395,8 @@ class BlockableHandlerTest(BlockablesTest):
     blockable = base.Blockable.get_by_id(sha256)
     self.assertEqual('bar', blockable.file_name)
 
-    self.assertEntityCount(base.Note, 1)
-    note = base.Note.query().fetch()[0]
+    self.assertEntityCount(note_models.Note, 1)
+    note = note_models.Note.query().fetch()[0]
 
     self.assertEqual(note.message, 'foo')
     self.assertEqual(note.key.parent(), blockable.key)

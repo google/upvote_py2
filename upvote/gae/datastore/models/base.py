@@ -14,7 +14,6 @@
 
 """Model definitions for Upvote."""
 import datetime
-import hashlib
 import logging
 
 from google.appengine.ext import ndb
@@ -24,6 +23,7 @@ from upvote.gae.bigquery import tables
 from upvote.gae.datastore import utils as datastore_utils
 from upvote.gae.datastore.models import event as event_models
 from upvote.gae.datastore.models import mixin
+from upvote.gae.datastore.models import note as note_models
 from upvote.gae.datastore.models import user as user_models
 from upvote.gae.datastore.models import vote as vote_models
 from upvote.shared import constants
@@ -35,29 +35,6 @@ class Error(Exception):
 
 class InvalidArgumentError(Error):
   """The called function received an invalid argument."""
-
-
-class Note(polymodel.PolyModel):
-  """An entity used for annotating other entities.
-
-  Attributes:
-    message: The text of the note.
-    author: The username of this note's author.
-    changelists: Integer list of relevant changelist IDs.
-    bugs: Integer list of relevant bug IDs.
-    tickets: Integer list of relevant ticket IDs.
-  """
-  message = ndb.TextProperty()
-  author = ndb.StringProperty()
-  changelists = ndb.IntegerProperty(repeated=True)
-  bugs = ndb.IntegerProperty(repeated=True)
-  tickets = ndb.IntegerProperty(repeated=True)
-  recorded_dt = ndb.DateTimeProperty(auto_now_add=True)
-
-  @classmethod
-  def GenerateKey(cls, message, parent):
-    key_hash = hashlib.sha256(message).hexdigest()
-    return ndb.Key(Note, key_hash, parent=parent)
 
 
 class Blockable(mixin.Base, polymodel.PolyModel):
@@ -117,7 +94,7 @@ class Blockable(mixin.Base, polymodel.PolyModel):
 
   flagged = ndb.BooleanProperty(default=False)
 
-  notes = ndb.KeyProperty(kind=Note, repeated=True)
+  notes = ndb.KeyProperty(kind=note_models.Note, repeated=True)
   state = ndb.StringProperty(
       choices=constants.STATE.SET_ALL,
       required=True,

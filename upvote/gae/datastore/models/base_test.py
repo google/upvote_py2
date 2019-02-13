@@ -31,21 +31,6 @@ from upvote.shared import constants
 _TEST_EMAIL = user_utils.UsernameToEmail('testemail')
 
 
-class NoteTest(basetest.UpvoteTestCase):
-
-  def setUp(self):
-    super(NoteTest, self).setUp()
-    self.blockable = test_utils.CreateBlockable()
-
-  def tearDown(self):
-    self.testbed.deactivate()
-
-  def testGenerateKey(self):
-    key = base.Note.GenerateKey('fake_message', self.blockable.key)
-    self.assertEqual(key.parent(), self.blockable.key)
-    self.assertLen(key.id(), 64)
-
-
 class BlockableTest(basetest.UpvoteTestCase):
 
   def setUp(self):

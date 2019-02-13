@@ -127,13 +127,6 @@ class Bit9Certificate(mixin.Bit9, base.Certificate):
     super(Bit9Certificate, self).InsertBigQueryRow(action, **defaults)
 
 
-class BanDescriptionNote(base.Note):
-  """Description of why a binary was banned.
-
-  Used to uniquely identify ban descriptions from other notes.
-  """
-
-
 class RuleChangeSet(ndb.Model):
   """A group of rules to be committed to Bit9's DB.
 

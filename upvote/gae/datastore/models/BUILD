@@ -20,6 +20,7 @@ py_appengine_library(
         ":host",
         ":metrics",
         ":mixin",
+        ":note",
         ":rule",
         ":santa",
         ":singleton",
@@ -40,6 +41,7 @@ py_appengine_library(
     deps = [
         ":event",
         ":mixin",
+        ":note",
         ":user",
         ":vote",
         "//upvote/gae/bigquery:tables",
@@ -107,6 +109,14 @@ py_appengine_library(
 py_appengine_library(
     name = "mixin",
     srcs = ["mixin.py"],
+    deps = [
+        "//upvote/shared:constants",
+    ],
+)
+
+py_appengine_library(
+    name = "note",
+    srcs = ["note.py"],
     deps = [
         "//upvote/shared:constants",
     ],
@@ -279,6 +289,18 @@ upvote_appengine_test(
     srcs = ["mixin_test.py"],
     deps = [
         ":mixin",
+        "//upvote/gae/lib/testing:basetest",
+        "@absl_git//absl/testing:absltest",
+    ],
+)
+
+upvote_appengine_test(
+    name = "note_test",
+    size = "small",
+    srcs = ["note_test.py"],
+    deps = [
+        ":note",
+        "//upvote/gae/datastore:test_utils",
         "//upvote/gae/lib/testing:basetest",
         "@absl_git//absl/testing:absltest",
     ],
