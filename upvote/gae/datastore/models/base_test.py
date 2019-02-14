@@ -80,28 +80,6 @@ class BlockableTest(basetest.UpvoteTestCase):
 
     self.assertLen(self.blockable_1.GetVotes(), 0)
 
-  def testGetStrongestVote_Upvote(self):
-
-    self.assertIsNone(self.blockable_1.GetStrongestVote())
-
-    for weight in [-1, -1, 1, 2, 6]:
-      test_utils.CreateVote(self.blockable_1, weight=weight)
-
-    vote = self.blockable_1.GetStrongestVote()
-    self.assertIsNotNone(vote)
-    self.assertEqual(6, vote.weight)
-
-  def testGetStrongestVote_Downvote(self):
-
-    self.assertIsNone(self.blockable_1.GetStrongestVote())
-
-    for weight in [-6, -1, -1, 1, 2]:
-      test_utils.CreateVote(self.blockable_1, weight=weight)
-
-    vote = self.blockable_1.GetStrongestVote()
-    self.assertIsNotNone(vote)
-    self.assertEqual(-6, vote.weight)
-
   def testGetEvents(self):
     self.assertLen(self.blockable_1.GetEvents(), 0)
     test_utils.CreateEvents(self.blockable_1, 5)

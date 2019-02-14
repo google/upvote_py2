@@ -127,19 +127,6 @@ class Blockable(mixin.Base, polymodel.PolyModel):
         vote_models.Vote.in_effect == True, ancestor=self.key).fetch()
     # pylint: enable=g-explicit-bool-comparison, singleton-comparison
 
-  def GetStrongestVote(self):
-    """Retrieves the 'strongest' vote cast for this Blockable.
-
-    Intended to help replace the need for the 'social_tag' property of the
-    models.Request class.
-
-    Returns:
-      The 'strongest' Vote cast for this Blockable (i.e. the Vote whose value
-      has the largest magnitude), or None if no Votes have been cast.
-    """
-    votes = self.GetVotes()
-    return max(votes, key=lambda vote: abs(vote.weight)) if votes else None
-
   def GetEvents(self):
     """Retrieves all Events for this Blockable.
 
