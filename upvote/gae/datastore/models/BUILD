@@ -311,7 +311,6 @@ upvote_appengine_test(
     size = "small",
     srcs = ["rule_test.py"],
     deps = [
-        ":rule",
         "//upvote/gae/datastore:test_utils",
         "//upvote/gae/lib/testing:basetest",
         "//upvote/shared:constants",

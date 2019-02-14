@@ -76,7 +76,7 @@ class Rule(mixin.Base, polymodel.PolyModel):
 
 
 class Bit9Rule(mixin.Bit9, Rule):
-  """A rule dictating a certain policy should be applied to a blockable.
+  """A Rule specific to the Bit9 client..
 
   Attributes:
     is_committed: bool, Whether the policy has been committed to Bit9.
@@ -126,7 +126,7 @@ class RuleChangeSet(ndb.Model):
 
 
 class SantaRule(mixin.Santa, Rule):
-  """Represents a Rule that should be downloaded by Santa clients.
+  """A Rule specific to the Santa client.
 
   Attributes:
     custom_msg: str, a custom message to show when the rule is activated.
