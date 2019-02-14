@@ -24,7 +24,6 @@ from google.appengine.ext import ndb
 from upvote.gae.datastore import test_utils
 from upvote.gae.datastore import utils as datastore_utils
 from upvote.gae.datastore.models import base
-from upvote.gae.datastore.models import bit9
 from upvote.gae.datastore.models import note as note_models
 from upvote.gae.datastore.models import rule as rule_models
 from upvote.gae.datastore.models import santa
@@ -912,7 +911,7 @@ class SetInstallerStateHandlerTest(BlockablesTest):
     self.assertTrue(output)
 
     self.assertEntityCount(rule_models.Bit9Rule, 1)
-    self.assertEntityCount(bit9.RuleChangeSet, 1)
+    self.assertEntityCount(rule_models.RuleChangeSet, 1)
     self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.BINARY)
     self.assertTrue(self.bit9_blockable.key.get().is_installer)
     self.assertTaskCount(constants.TASK_QUEUE.BIT9_COMMIT_CHANGE, 1)
@@ -931,7 +930,7 @@ class SetInstallerStateHandlerTest(BlockablesTest):
     self.assertFalse(output)
 
     self.assertEntityCount(rule_models.Bit9Rule, 2)
-    self.assertEntityCount(bit9.RuleChangeSet, 1)
+    self.assertEntityCount(rule_models.RuleChangeSet, 1)
     self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.BINARY)
     self.assertFalse(self.bit9_blockable.key.get().is_installer)
     self.assertTaskCount(constants.TASK_QUEUE.BIT9_COMMIT_CHANGE, 1)
@@ -950,7 +949,7 @@ class SetInstallerStateHandlerTest(BlockablesTest):
     self.assertTrue(output)
 
     self.assertEntityCount(rule_models.Bit9Rule, 1)
-    self.assertEntityCount(bit9.RuleChangeSet, 0)
+    self.assertEntityCount(rule_models.RuleChangeSet, 0)
     self.assertTrue(self.bit9_blockable.key.get().is_installer)
     self.assertTaskCount(constants.TASK_QUEUE.BIT9_COMMIT_CHANGE, 0)
 

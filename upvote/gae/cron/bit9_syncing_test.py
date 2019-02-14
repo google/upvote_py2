@@ -1241,7 +1241,7 @@ class CheckAndResolveAnomalousBlockTest(basetest.UpvoteTestCase):
         policy=constants.RULE_POLICY.BLACKLIST)
 
     # Verify a RuleChangeSet doesn't yet exist.
-    self.assertEntityCount(bit9_models.RuleChangeSet, 0)
+    self.assertEntityCount(rule_models.RuleChangeSet, 0)
 
     result = bit9_syncing._CheckAndResolveAnomalousBlock(
         bit9_binary.key, '12345')
@@ -1258,7 +1258,7 @@ class CheckAndResolveAnomalousBlockTest(basetest.UpvoteTestCase):
     self.assertFalse(rule3.key.get().is_committed)
 
     # Verify the creation of a RuleChangeSet.
-    self.assertEntityCount(bit9_models.RuleChangeSet, 1)
+    self.assertEntityCount(rule_models.RuleChangeSet, 1)
 
     # Verify the deferred commit to Bit9.
     self.assertTrue(change_set.DeferCommitBlockableChangeSet.called)

@@ -21,6 +21,7 @@ from google.appengine.ext import deferred
 from google.appengine.ext import ndb
 
 from upvote.gae.datastore.models import bit9
+from upvote.gae.datastore.models import rule as rule_models
 from upvote.gae.lib.bit9 import api
 from upvote.gae.lib.bit9 import constants as bit9_constants
 from upvote.gae.lib.bit9 import monitoring
@@ -198,8 +199,8 @@ def _CommitBlockableChangeSet(
     tail_defer_count: int, The number of tail defers that have preceded this
         defer.
   """
-  change_query = bit9.RuleChangeSet.query(
-      ancestor=blockable_key).order(bit9.RuleChangeSet.recorded_dt)
+  change_query = rule_models.RuleChangeSet.query(
+      ancestor=blockable_key).order(rule_models.RuleChangeSet.recorded_dt)
   changes = change_query.fetch(limit=2)
   if not changes:
     logging.info('No changes to commit for %s', blockable_key.id())

@@ -444,7 +444,7 @@ class SetInstallerStateHandler(handler_utils.UserFacingHandler):
         policy=new_policy,
         parent=blockable.key)
     new_rule.put()
-    change = bit9_models.RuleChangeSet(
+    change = rule_models.RuleChangeSet(
         rule_keys=[new_rule.key],
         change_type=new_rule.policy,
         parent=blockable.key)

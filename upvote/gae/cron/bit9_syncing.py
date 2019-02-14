@@ -704,7 +704,7 @@ def _CopyLocalRules(user_key, dest_host_id):
   # Create the change sets necessary to submit the new rules to Bit9.
   changes = []
   for new_rule in new_rules:
-    change = bit9.RuleChangeSet(
+    change = rule_models.RuleChangeSet(
         rule_keys=[new_rule.key], change_type=new_rule.policy,
         parent=new_rule.key.parent())
     changes.append(change)
@@ -880,7 +880,7 @@ def _CheckAndResolveAnomalousBlock(blockable_key, host_id):
     unfulfilled_rules[-1].is_committed = False
 
     # Create and trigger a change set to commit the most recent rule.
-    change = bit9.RuleChangeSet(
+    change = rule_models.RuleChangeSet(
         rule_keys=[unfulfilled_rules[-1].key],
         change_type=unfulfilled_rules[-1].policy, parent=blockable_key)
 
@@ -962,8 +962,9 @@ class CommitAllChangeSets(handler_utils.CronJobHandler):
 
     start_time = datetime.datetime.utcnow()
 
-    changes = bit9.RuleChangeSet.query(
-        projection=[bit9.RuleChangeSet.blockable_key], distinct=True).fetch()
+    changes = rule_models.RuleChangeSet.query(
+        projection=[rule_models.RuleChangeSet.blockable_key],
+        distinct=True).fetch()
 
     # Count the number of distinct SHA256s that have outstanding RuleChangeSets.
     blockable_keys = [change.blockable_key for change in changes]

@@ -22,7 +22,6 @@ from upvote.gae import settings
 from upvote.gae.datastore import test_utils
 from upvote.gae.datastore import utils as datastore_utils
 from upvote.gae.datastore.models import base
-from upvote.gae.datastore.models import bit9
 from upvote.gae.datastore.models import host as host_models
 from upvote.gae.datastore.models import rule as rule_models
 from upvote.gae.datastore.models import santa
@@ -175,7 +174,7 @@ class BallotBoxTest(basetest.UpvoteTestCase):
     self.assertEqual(user.key, rules[0].user_key)
     self.assertEqual(host.key.id(), rules[0].host_id)
 
-    changes = bit9.RuleChangeSet.query().fetch()
+    changes = rule_models.RuleChangeSet.query().fetch()
     self.assertLen(changes, 1)
     self.assertSameElements([rules[0].key], changes[0].rule_keys)
     self.assertEqual(constants.RULE_POLICY.WHITELIST, changes[0].change_type)
@@ -195,7 +194,7 @@ class BallotBoxTest(basetest.UpvoteTestCase):
 
     self.assertEqual(self.local_threshold, binary.score)
     self.assertLen(api._GetRulesForBlockable(binary), 0)
-    self.assertEqual(0, bit9.RuleChangeSet.query().count())
+    self.assertEqual(0, rule_models.RuleChangeSet.query().count())
 
     self.assertTaskCount(constants.TASK_QUEUE.BIT9_COMMIT_CHANGE, 0)
 
@@ -1438,14 +1437,14 @@ class ResetTest(basetest.UpvoteTestCase):
 
     self.assertEqual(self.local_threshold, binary.score)
     self.assertEntityCount(rule_models.Bit9Rule, 1)
-    self.assertEntityCount(bit9.RuleChangeSet, 1)
+    self.assertEntityCount(rule_models.RuleChangeSet, 1)
 
     api.Reset(binary.key.id())
 
     self.assertEqual(0, binary.score)
 
     self.assertEntityCount(rule_models.Bit9Rule, 2)
-    self.assertEntityCount(bit9.RuleChangeSet, 2)
+    self.assertEntityCount(rule_models.RuleChangeSet, 2)
 
     rules = api._GetRulesForBlockable(binary)
     self.assertLen(rules, 1)
@@ -1453,7 +1452,7 @@ class ResetTest(basetest.UpvoteTestCase):
     self.assertTrue(rules[0].in_effect)
     self.assertEqual(constants.RULE_POLICY.REMOVE, rules[0].policy)
 
-    changes = bit9.RuleChangeSet.query().fetch()
+    changes = rule_models.RuleChangeSet.query().fetch()
     types = [change.change_type for change in changes]
     self.assertSameElements(
         [constants.RULE_POLICY.WHITELIST, constants.RULE_POLICY.REMOVE], types)

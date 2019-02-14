@@ -125,37 +125,3 @@ class Bit9Certificate(mixin.Bit9, base.Certificate):
     defaults.update(kwargs.copy())
 
     super(Bit9Certificate, self).InsertBigQueryRow(action, **defaults)
-
-
-class RuleChangeSet(ndb.Model):
-  """A group of rules to be committed to Bit9's DB.
-
-  While Rule.policy provides the same type of field to change_type, change_type
-  is included here so that the underlying Rule policies can change or Rule(s)
-  can be marked in_effect=False and the RuleChangeSet entities can still be
-  committed to the DB accurately and in-order.
-
-  Attributes:
-    blockable_key: Key, The key of the blockable for which the change set
-        applies. This allows distinct projection queries for all Blockables with
-        outstanding change sets.
-    rule_keys: list<Key>, The list of rule keys to be modified by this change.
-    change_type: RULE_POLICY, The change in policy that should be applied to the
-        provided rules.
-    recorded_dt: datetime, The time at which this entity was created.
-  """
-
-  def _GetBlockableKey(self):
-    if self.key is None:
-      raise ValueError('Parent must be provided.')
-    blockable_key = self.key.parent()
-    # If self.key is not None, self.key should be at least 2 pairs long.
-    assert blockable_key is not None
-    if blockable_key.kind() != 'Blockable':
-      raise ValueError('Parent must be a Blockable key.')
-    return blockable_key
-
-  blockable_key = ndb.ComputedProperty(_GetBlockableKey)
-  rule_keys = ndb.KeyProperty(repeated=True)
-  change_type = ndb.StringProperty(choices=constants.RULE_POLICY.SET_BIT9)
-  recorded_dt = ndb.DateTimeProperty(auto_now_add=True)

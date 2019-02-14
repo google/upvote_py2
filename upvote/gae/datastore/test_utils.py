@@ -602,7 +602,7 @@ def CreateRuleChangeSet(blockable_key, **kwargs):
       'rule_keys': []
   }
   defaults.update(kwargs.copy())
-  change = bit9.RuleChangeSet(parent=blockable_key, **defaults)
+  change = rule_models.RuleChangeSet(parent=blockable_key, **defaults)
   change.put()
   return change
 
