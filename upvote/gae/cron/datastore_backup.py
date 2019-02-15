@@ -15,6 +15,8 @@
 """Cron job for performing a scheduled Datastore backup."""
 
 import datetime
+import httplib
+import json
 import logging
 
 import webapp2
@@ -23,10 +25,14 @@ from webapp2_extras import routes
 import upvote.gae.lib.cloud.google_cloud_lib_fixer  # pylint: disable=unused-import
 # pylint: disable=g-bad-import-order,g-import-not-at-top
 
-from google.appengine.api import datastore
-from google.appengine.api import taskqueue
+# pylint: disable=g-import-not-at-top
+try:
+  from google.appengine.api import app_identity
+except ImportError:
+  app_identity = None
+
+from google.appengine.api import urlfetch
 from google.appengine.ext.ndb import metadata
-from upvote.shared import constants
 from upvote.gae.utils import monitoring_utils
 from upvote.gae.utils import env_utils
 from upvote.gae.utils import handler_utils
@@ -35,21 +41,6 @@ from upvote.monitoring import metrics
 
 _DATASTORE_BACKUPS = monitoring_utils.Counter(metrics.DATASTORE.BACKUPS)
 
-_BACKUP_PREFIX = 'datastore_backup'
-
-
-def _CreateDayString(dt=None):
-  if not dt:
-    dt = datetime.datetime.utcnow()
-  return dt.strftime('%Y_%m_%d')
-
-
-def _DailyBackupExists():
-  expected_backup_name = '%s_%s' % (_BACKUP_PREFIX, _CreateDayString())
-  query = datastore.Query(kind='_AE_Backup_Information', keys_only=True)
-  query['name ='] = expected_backup_name
-  return query.Get(1)
-
 
 class DatastoreBackup(handler_utils.CronJobHandler):
   """Handler for performing Datastore backups.
@@ -57,6 +48,9 @@ class DatastoreBackup(handler_utils.CronJobHandler):
   NOTE: This backup does not pause writes to datastore during processing so the
   resulting backup does not reflect a snapshot of a single point in time. As
   such, there may be inconsistencies in the data across entity types.
+
+  Based on:
+    https://cloud.google.com/datastore/docs/schedule-export
   """
 
   def get(self):  # pylint: disable=g-bad-name
@@ -66,33 +60,50 @@ class DatastoreBackup(handler_utils.CronJobHandler):
       logging.info('Datastore backups are only run in prod')
       return
 
-    # Only run one backup per day.
-    if _DailyBackupExists():
-      logging.info('A backup was already performed today.')
-      return
-
-    kinds = [k for k in metadata.get_kinds() if not k.startswith('_')]
-    bucket = '%s/%s' % (
-        env_utils.ENV.DATASTORE_BACKUP_BUCKET, _CreateDayString())
-    params = {
-        'kind': kinds,
-        'name': _BACKUP_PREFIX + '_',  # Date suffix is automatically added.
-        'filesystem': 'gs',
-        'gs_bucket_name': bucket,
-        'queue': constants.TASK_QUEUE.BACKUP,
-    }
-
-    # Dump the backup onto a task queue. Don't worry about catching Exceptions,
-    # anything that gets raised will be dealt with in UpvoteRequestHandler and
-    # reported as a 500.
     logging.info('Starting a new Datastore backup')
-    taskqueue.add(
-        url='/_ah/datastore_admin/backup.create',
-        params=params,
-        target='ah-builtin-python-bundle',
-        queue_name=constants.TASK_QUEUE.BACKUP)
 
-    _DATASTORE_BACKUPS.Increment()
+    access_token, _ = app_identity.get_access_token(
+        'https://www.googleapis.com/auth/datastore')
+    app_id = app_identity.get_application_id()
+
+    # Configure a backup of all Datastore kinds, stored in a separate Cloud
+    # Storage bucket for each day.
+    output_url_prefix = 'gs://%s/%s/' % (
+        env_utils.ENV.DATASTORE_BACKUP_BUCKET,
+        datetime.datetime.utcnow().strftime('%Y_%m_%d'))
+    kinds = [k for k in metadata.get_kinds() if not k.startswith('_')]
+    request = {
+        'project_id': app_id,
+        'output_url_prefix': output_url_prefix,
+        'entity_filter': {'kinds': kinds}
+    }
+    headers = {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + access_token
+    }
+    url = 'https://datastore.googleapis.com/v1/projects/%s:export' % app_id
+
+    logging.info('Backing up %d kind(s) to %s', len(kinds), output_url_prefix)
+
+    try:
+      result = urlfetch.fetch(
+          url=url,
+          payload=json.dumps(request),
+          method=urlfetch.POST,
+          deadline=60,
+          headers=headers)
+
+      if result.status_code == httplib.OK:
+        logging.info(result.content)
+        _DATASTORE_BACKUPS.Increment()
+      else:
+        logging.warning(result.content)
+
+      self.response.status_int = result.status_code
+
+    except urlfetch.Error:
+      logging.exception('Datastore backup failed')
+      self.response.status_int = httplib.INTERNAL_SERVER_ERROR
 
 
 ROUTES = routes.PathPrefixRoute('/datastore', [
