@@ -32,7 +32,7 @@ class MetricNamespaceTest(absltest.TestCase):
     self.assertLen(metrics.DATASTORE.ALL, 1)
 
   def testSantaApi(self):
-    self.assertLen(metrics.SANTA_API.ALL, 4)
+    self.assertLen(metrics.SANTA_API.ALL, 6)
 
   def testBit9Api(self):
     self.assertLen(metrics.BIT9_API.ALL, 11)

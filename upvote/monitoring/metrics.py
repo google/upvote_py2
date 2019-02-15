@@ -59,6 +59,8 @@ DATASTORE = UpvoteNamespace('datastore/', [
 
 
 SANTA_API = UpvoteNamespace('santa_api/', [
+    ('xsrf_requests', 'XSRF Requests'),
+    ('client_validations', 'Client Validations'),
     ('preflight_requests', 'Preflight Requests'),
     ('event_upload_requests', 'Event Upload Requests'),
     ('rule_download_requests', 'Rule Download Requests'),

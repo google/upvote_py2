@@ -17,6 +17,10 @@
 from upvote.gae.utils import monitoring_utils
 from upvote.monitoring import metrics
 
+xsrf_requests = monitoring_utils.RequestCounter(metrics.SANTA_API.XSRF_REQUESTS)
+
+client_validations = monitoring_utils.SuccessFailureCounter(
+    metrics.SANTA_API.CLIENT_VALIDATIONS)
 
 preflight_requests = monitoring_utils.RequestCounter(
     metrics.SANTA_API.PREFLIGHT_REQUESTS)

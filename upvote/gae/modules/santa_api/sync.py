@@ -83,6 +83,11 @@ _UUID_RE = r'[0-9A-F]{8}-[A-F0-9]{4}-[A-F0-9]{4}-[A-F0-9]{4}-[A-F0-9]{12}'
 class XsrfHandler(handler_utils.UpvoteRequestHandler):
   """Simple handler to provide XSRF tokens to clients."""
 
+  @property
+  def RequestCounter(self):
+    return monitoring.xsrf_requests
+
+  @handler_utils.RecordRequest
   def post(self, uuid):
     token = xsrf_utils.GenerateToken(action_id=_SANTA_ACTION, user_id=uuid)
     self.response.headers[xsrf_utils.DEFAULT_HEADER] = token
@@ -131,7 +136,10 @@ class SantaRequestHandler(handler_utils.UpvoteRequestHandler):
         logging.warning('Client validation failed: %s', e)
         is_valid = mode == constants.VALIDATION_MODE.FAIL_OPEN
 
-      if not is_valid:
+      if is_valid:
+        monitoring.client_validations.Success()
+      else:
+        monitoring.client_validations.Failure()
         self.abort(httplib.FORBIDDEN, explanation='Failed to validate client.')
 
     # Validate the client's XSRF token.
