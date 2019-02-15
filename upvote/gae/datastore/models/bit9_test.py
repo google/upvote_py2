@@ -144,38 +144,5 @@ class Bit9CertificateTest(basetest.UpvoteTestCase):
     self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.CERTIFICATE)
 
 
-class RuleChangeSetTest(basetest.UpvoteTestCase):
-
-  def setUp(self):
-    super(RuleChangeSetTest, self).setUp()
-    self.bit9_binary = test_utils.CreateBit9Binary()
-
-  def testBlockableKey(self):
-    change = bit9.RuleChangeSet(
-        rule_keys=[],
-        change_type=constants.RULE_POLICY.WHITELIST,
-        parent=self.bit9_binary.key)
-    change.put()
-
-    self.assertEqual(self.bit9_binary.key, change.blockable_key)
-
-  def testBlockableKey_NoParent(self):
-    change = bit9.RuleChangeSet(
-        rule_keys=[],
-        change_type=constants.RULE_POLICY.WHITELIST,
-        parent=None)
-    with self.assertRaises(ValueError):
-      change.put()
-
-  def testBlockableKey_NotABlockableKey(self):
-    host = test_utils.CreateBit9Host()
-    change = bit9.RuleChangeSet(
-        rule_keys=[],
-        change_type=constants.RULE_POLICY.WHITELIST,
-        parent=host.key)
-    with self.assertRaises(ValueError):
-      change.put()
-
-
 if __name__ == '__main__':
   basetest.main()

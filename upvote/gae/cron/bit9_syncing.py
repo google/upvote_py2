@@ -34,6 +34,7 @@ from upvote.gae.datastore.models import base
 from upvote.gae.datastore.models import bit9
 from upvote.gae.datastore.models import event as event_models
 from upvote.gae.datastore.models import host as host_models
+from upvote.gae.datastore.models import note as note_models
 from upvote.gae.datastore.models import rule as rule_models
 from upvote.gae.datastore.models import user as user_models
 from upvote.gae.datastore.models import utils as model_utils
@@ -643,13 +644,13 @@ def _PersistBanNote(file_catalog):
     full_message = '\n'.join(ban_strings)
 
     blockable_key = ndb.Key(bit9.Bit9Binary, file_catalog.sha256)
-    note_key = base.Note.GenerateKey(full_message, blockable_key)
+    note_key = note_models.Note.GenerateKey(full_message, blockable_key)
 
     if note_key.get() is None:
       logging.info(
           'Persisting new ban Note for %s: %s', file_catalog.sha256,
           ', '.join(ban_strings))
-      note = base.Note(key=note_key, message=full_message)
+      note = note_models.Note(key=note_key, message=full_message)
       return note.put_async()
 
   return datastore_utils.GetNoOpFuture()
@@ -703,7 +704,7 @@ def _CopyLocalRules(user_key, dest_host_id):
   # Create the change sets necessary to submit the new rules to Bit9.
   changes = []
   for new_rule in new_rules:
-    change = bit9.RuleChangeSet(
+    change = rule_models.RuleChangeSet(
         rule_keys=[new_rule.key], change_type=new_rule.policy,
         parent=new_rule.key.parent())
     changes.append(change)
@@ -879,7 +880,7 @@ def _CheckAndResolveAnomalousBlock(blockable_key, host_id):
     unfulfilled_rules[-1].is_committed = False
 
     # Create and trigger a change set to commit the most recent rule.
-    change = bit9.RuleChangeSet(
+    change = rule_models.RuleChangeSet(
         rule_keys=[unfulfilled_rules[-1].key],
         change_type=unfulfilled_rules[-1].policy, parent=blockable_key)
 
@@ -961,8 +962,9 @@ class CommitAllChangeSets(handler_utils.CronJobHandler):
 
     start_time = datetime.datetime.utcnow()
 
-    changes = bit9.RuleChangeSet.query(
-        projection=[bit9.RuleChangeSet.blockable_key], distinct=True).fetch()
+    changes = rule_models.RuleChangeSet.query(
+        projection=[rule_models.RuleChangeSet.blockable_key],
+        distinct=True).fetch()
 
     # Count the number of distinct SHA256s that have outstanding RuleChangeSets.
     blockable_keys = [change.blockable_key for change in changes]

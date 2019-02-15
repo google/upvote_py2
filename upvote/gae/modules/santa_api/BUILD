@@ -105,6 +105,7 @@ upvote_appengine_test(
         "//upvote/gae/datastore/models:singleton",
         "//upvote/gae/lib/testing:basetest",
         "//upvote/gae/utils:handler_utils",
+        "//upvote/gae/utils:xsrf_utils",
         "//upvote/shared:constants",
     ],
 )

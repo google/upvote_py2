@@ -100,6 +100,7 @@ py_appengine_library(
         ":monitoring",
         ":utils",
         "//upvote/gae/datastore/models:bit9",
+        "//upvote/gae/datastore/models:rule",
         "//upvote/shared:constants",
     ],
 )
@@ -184,7 +185,7 @@ upvote_appengine_test(
         "//common:context",
         "//external:mock",
         "//upvote/gae/datastore:test_utils",
-        "//upvote/gae/datastore/models:bit9",
+        "//upvote/gae/datastore/models:rule",
         "//upvote/gae/lib/testing:basetest",
         "//upvote/gae/lib/testing:bit9test",
     ],

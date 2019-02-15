@@ -23,7 +23,6 @@ from upvote.gae import settings
 from upvote.gae.bigquery import tables
 from upvote.gae.datastore import utils as datastore_utils
 from upvote.gae.datastore.models import base
-from upvote.gae.datastore.models import bit9
 from upvote.gae.datastore.models import host as host_models
 from upvote.gae.datastore.models import rule as rule_models
 from upvote.gae.datastore.models import santa
@@ -907,7 +906,7 @@ class Bit9BallotBox(BallotBox):
       return
 
     keys = [rule.key for rule in rules]
-    change = bit9.RuleChangeSet(
+    change = rule_models.RuleChangeSet(
         rule_keys=keys, change_type=new_policy, parent=self.blockable.key)
     change.put()
 

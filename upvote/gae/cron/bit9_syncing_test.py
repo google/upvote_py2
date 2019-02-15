@@ -36,6 +36,7 @@ from upvote.gae.datastore.models import base as base_models
 from upvote.gae.datastore.models import bit9 as bit9_models
 from upvote.gae.datastore.models import event as event_models
 from upvote.gae.datastore.models import host as host_models
+from upvote.gae.datastore.models import note as note_models
 from upvote.gae.datastore.models import rule as rule_models
 from upvote.gae.datastore.models import user as user_models
 from upvote.gae.lib.bit9 import api
@@ -952,9 +953,9 @@ class PersistBanNoteTest(basetest.UpvoteTestCase):
         file_state=bit9_constants.APPROVAL_STATE.APPROVED,
         publisher_state=bit9_constants.APPROVAL_STATE.APPROVED)
 
-    self.assertEntityCount(base_models.Note, 0)
+    self.assertEntityCount(note_models.Note, 0)
     bit9_syncing._PersistBanNote(file_catalog).wait()
-    self.assertEntityCount(base_models.Note, 0)
+    self.assertEntityCount(note_models.Note, 0)
 
   def testNewBan(self):
     bit9_binary = test_utils.CreateBit9Binary()
@@ -967,9 +968,9 @@ class PersistBanNoteTest(basetest.UpvoteTestCase):
         file_state=bit9_constants.APPROVAL_STATE.APPROVED,
         publisher_state=bit9_constants.APPROVAL_STATE.APPROVED)
 
-    self.assertEntityCount(base_models.Note, 0)
+    self.assertEntityCount(note_models.Note, 0)
     bit9_syncing._PersistBanNote(file_catalog).wait()
-    self.assertEntityCount(base_models.Note, 1)
+    self.assertEntityCount(note_models.Note, 1)
 
   def testDupeBan(self):
     bit9_binary = test_utils.CreateBit9Binary()
@@ -981,11 +982,11 @@ class PersistBanNoteTest(basetest.UpvoteTestCase):
         file_state=bit9_constants.APPROVAL_STATE.APPROVED,
         publisher_state=bit9_constants.APPROVAL_STATE.APPROVED)
 
-    self.assertEntityCount(base_models.Note, 0)
+    self.assertEntityCount(note_models.Note, 0)
     bit9_syncing._PersistBanNote(file_catalog).wait()
-    self.assertEntityCount(base_models.Note, 1)
+    self.assertEntityCount(note_models.Note, 1)
     bit9_syncing._PersistBanNote(file_catalog).wait()
-    self.assertEntityCount(base_models.Note, 1)
+    self.assertEntityCount(note_models.Note, 1)
 
 
 class CopyLocalRulesTest(basetest.UpvoteTestCase):
@@ -1240,7 +1241,7 @@ class CheckAndResolveAnomalousBlockTest(basetest.UpvoteTestCase):
         policy=constants.RULE_POLICY.BLACKLIST)
 
     # Verify a RuleChangeSet doesn't yet exist.
-    self.assertEntityCount(bit9_models.RuleChangeSet, 0)
+    self.assertEntityCount(rule_models.RuleChangeSet, 0)
 
     result = bit9_syncing._CheckAndResolveAnomalousBlock(
         bit9_binary.key, '12345')
@@ -1257,7 +1258,7 @@ class CheckAndResolveAnomalousBlockTest(basetest.UpvoteTestCase):
     self.assertFalse(rule3.key.get().is_committed)
 
     # Verify the creation of a RuleChangeSet.
-    self.assertEntityCount(bit9_models.RuleChangeSet, 1)
+    self.assertEntityCount(rule_models.RuleChangeSet, 1)
 
     # Verify the deferred commit to Bit9.
     self.assertTrue(change_set.DeferCommitBlockableChangeSet.called)

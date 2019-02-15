@@ -20,7 +20,7 @@ import mock
 
 from google.appengine.ext import deferred
 from upvote.gae.datastore import test_utils
-from upvote.gae.datastore.models import bit9
+from upvote.gae.datastore.models import rule as rule_models
 from upvote.gae.lib.bit9 import api
 from upvote.gae.lib.bit9 import change_set
 from upvote.gae.lib.bit9 import constants as bit9_constants
@@ -363,7 +363,7 @@ class CommitBlockableChangeSetTest(bit9test.Bit9TestCase):
       # Only the local rule should have been committed first.
       self.assertTrue(self.local_rule.key.get().is_committed)
       self.assertFalse(self.global_rule.key.get().is_committed)
-      self.assertEntityCount(bit9.RuleChangeSet, 1)
+      self.assertEntityCount(rule_models.RuleChangeSet, 1)
 
       # Run the deferred commit attempt.
       self.RunDeferredTasks(constants.TASK_QUEUE.BIT9_COMMIT_CHANGE)
@@ -373,7 +373,7 @@ class CommitBlockableChangeSetTest(bit9test.Bit9TestCase):
       # Both rules should now have been committed.
       self.assertTrue(self.local_rule.key.get().is_committed)
       self.assertTrue(self.global_rule.key.get().is_committed)
-      self.assertEntityCount(bit9.RuleChangeSet, 0)
+      self.assertEntityCount(rule_models.RuleChangeSet, 0)
 
   def testNoChange(self):
     with mock.patch.object(change_set, '_CommitChangeSet') as mock_commit:

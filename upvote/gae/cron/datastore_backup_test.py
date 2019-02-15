@@ -14,7 +14,6 @@
 
 """Unit tests for datastore_backup.py."""
 
-import datetime
 import httplib
 
 import upvote.gae.lib.cloud.google_cloud_lib_fixer  # pylint: disable=unused-import
@@ -23,36 +22,11 @@ import upvote.gae.lib.cloud.google_cloud_lib_fixer  # pylint: disable=unused-imp
 import mock
 import webapp2
 
-from google.appengine.api import taskqueue
-from google.appengine.ext import db
+from google.appengine.api import urlfetch
 from upvote.gae.cron import datastore_backup
 from upvote.gae.lib.testing import basetest
 from upvote.gae import settings
 from upvote.gae.utils import env_utils
-
-
-class FakeBackup(db.Model):
-  name = db.ByteStringProperty()
-  complete_time = db.DateTimeProperty()
-
-  @classmethod
-  def kind(cls):
-    return '_AE_Backup_Information'
-
-
-class DailyBackupExistsTest(basetest.UpvoteTestCase):
-
-  def testDoesNotExist(self):
-    self.assertFalse(datastore_backup._DailyBackupExists())
-
-  def testExists(self):
-
-    now = datetime.datetime.utcnow()
-    today_str = now.strftime('%Y_%m_%d')
-    expected_name = '%s_%s' % (datastore_backup._BACKUP_PREFIX, today_str)
-
-    FakeBackup(name=expected_name, complete_time=now).put()
-    self.assertTrue(datastore_backup._DailyBackupExists())
 
 
 class DatastoreBackupTest(basetest.UpvoteTestCase):
@@ -78,26 +52,48 @@ class DatastoreBackupTest(basetest.UpvoteTestCase):
         status=httplib.FORBIDDEN)
     self.mock_metric.Increment.assert_not_called()
 
-  @mock.patch.object(taskqueue, 'add')
-  @mock.patch.object(datastore_backup, '_DailyBackupExists', return_value=True)
-  @mock.patch.object(env_utils, 'RunningInProd', return_value=True)
-  def testBackupExists(self, mock_prod, mock_exists, mock_add):
-    self.testapp.get(
-        self.ROUTE, headers={'X-AppEngine-Cron': 'true'}, status=httplib.OK)
-    self.assertEqual(0, mock_add.call_count)
-    self.mock_metric.Increment.assert_not_called()
-
-  @mock.patch.object(taskqueue, 'add')
+  @mock.patch.object(datastore_backup.urlfetch, 'fetch')
   @mock.patch.object(
       env_utils, 'CurrentEnvironment', return_value=settings.ProdEnv)
-  @mock.patch.object(datastore_backup, '_DailyBackupExists', return_value=False)
   @mock.patch.object(env_utils, 'RunningInProd', return_value=True)
-  def testSuccessfulBackup(
-      self, mock_prod, mock_exists, mock_env, mock_add):
+  def testSuccessfulBackup(self, mock_prod, mock_env, mock_fetch):
+
+    mock_result = mock.Mock(status_code=httplib.OK)
+    mock_fetch.return_value = mock_result
+
     self.testapp.get(
         self.ROUTE, headers={'X-AppEngine-Cron': 'true'}, status=httplib.OK)
-    self.assertEqual(1, mock_add.call_count)
+
     self.mock_metric.Increment.assert_called_once()
+
+  @mock.patch.object(datastore_backup.urlfetch, 'fetch')
+  @mock.patch.object(
+      env_utils, 'CurrentEnvironment', return_value=settings.ProdEnv)
+  @mock.patch.object(env_utils, 'RunningInProd', return_value=True)
+  def testUnsuccessfulBackup(self, mock_prod, mock_env, mock_fetch):
+
+    mock_result = mock.Mock(status_code=httplib.BAD_REQUEST)
+    mock_fetch.return_value = mock_result
+
+    self.testapp.get(
+        self.ROUTE, headers={'X-AppEngine-Cron': 'true'},
+        status=httplib.BAD_REQUEST)
+
+    self.mock_metric.Increment.assert_not_called()
+
+  @mock.patch.object(datastore_backup.urlfetch, 'fetch')
+  @mock.patch.object(
+      env_utils, 'CurrentEnvironment', return_value=settings.ProdEnv)
+  @mock.patch.object(env_utils, 'RunningInProd', return_value=True)
+  def testException(self, mock_prod, mock_env, mock_fetch):
+
+    mock_fetch.side_effect = urlfetch.Error
+
+    self.testapp.get(
+        self.ROUTE, headers={'X-AppEngine-Cron': 'true'},
+        status=httplib.INTERNAL_SERVER_ERROR)
+
+    self.mock_metric.Increment.assert_not_called()
 
 
 if __name__ == '__main__':

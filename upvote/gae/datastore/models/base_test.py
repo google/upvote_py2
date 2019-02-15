@@ -31,21 +31,6 @@ from upvote.shared import constants
 _TEST_EMAIL = user_utils.UsernameToEmail('testemail')
 
 
-class NoteTest(basetest.UpvoteTestCase):
-
-  def setUp(self):
-    super(NoteTest, self).setUp()
-    self.blockable = test_utils.CreateBlockable()
-
-  def tearDown(self):
-    self.testbed.deactivate()
-
-  def testGenerateKey(self):
-    key = base.Note.GenerateKey('fake_message', self.blockable.key)
-    self.assertEqual(key.parent(), self.blockable.key)
-    self.assertLen(key.id(), 64)
-
-
 class BlockableTest(basetest.UpvoteTestCase):
 
   def setUp(self):
@@ -94,28 +79,6 @@ class BlockableTest(basetest.UpvoteTestCase):
     ndb.put_multi(new_votes)
 
     self.assertLen(self.blockable_1.GetVotes(), 0)
-
-  def testGetStrongestVote_Upvote(self):
-
-    self.assertIsNone(self.blockable_1.GetStrongestVote())
-
-    for weight in [-1, -1, 1, 2, 6]:
-      test_utils.CreateVote(self.blockable_1, weight=weight)
-
-    vote = self.blockable_1.GetStrongestVote()
-    self.assertIsNotNone(vote)
-    self.assertEqual(6, vote.weight)
-
-  def testGetStrongestVote_Downvote(self):
-
-    self.assertIsNone(self.blockable_1.GetStrongestVote())
-
-    for weight in [-6, -1, -1, 1, 2]:
-      test_utils.CreateVote(self.blockable_1, weight=weight)
-
-    vote = self.blockable_1.GetStrongestVote()
-    self.assertIsNotNone(vote)
-    self.assertEqual(-6, vote.weight)
 
   def testGetEvents(self):
     self.assertLen(self.blockable_1.GetEvents(), 0)

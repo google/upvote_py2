@@ -17,6 +17,7 @@
 import datetime
 import httplib
 import json
+import uuid
 import zlib
 
 import mock
@@ -35,6 +36,7 @@ from upvote.gae.lib.testing import basetest
 from upvote.gae.modules.santa_api import auth
 from upvote.gae.modules.santa_api import sync
 from upvote.gae.utils import user_utils
+from upvote.gae.utils import xsrf_utils
 from upvote.shared import constants
 
 
@@ -46,11 +48,36 @@ EVENT_UPLOAD = sync._EVENT_UPLOAD
 RULE_DOWNLOAD = sync._RULE_DOWNLOAD
 
 
+class XsrfHandlerTest(basetest.UpvoteTestCase):
+
+  ROUTE = '/api/santa/xsrf/%s'
+
+  def setUp(self):
+
+    app = webapp2.WSGIApplication(routes=sync.ROUTES)
+    super(XsrfHandlerTest, self).setUp(wsgi_app=app)
+
+    self.mock_request_metric = mock.Mock()
+    self.Patch(
+        sync.XsrfHandler,
+        'RequestCounter',
+        new_callable=mock.PropertyMock,
+        return_value=self.mock_request_metric)
+
+  @mock.patch.object(sync.xsrf_utils, 'GenerateToken')
+  def testPost(self, mock_generate):
+    mock_generate.return_value = 'fake_token'
+    fake_uuid = str(uuid.uuid4()).upper()
+    response = self.testapp.post(self.ROUTE % fake_uuid, status=httplib.OK)
+    self.assertEqual('fake_token', response.headers[xsrf_utils.DEFAULT_HEADER])
+    self.VerifyIncrementCalls(self.mock_request_metric, httplib.OK)
+
+
 class SantaApiTestCase(basetest.UpvoteTestCase):
 
   def setUp(self, wsgi_app=None):
     super(SantaApiTestCase, self).setUp(wsgi_app=wsgi_app)
-    self.mock_metric = mock.Mock()
+    self.mock_request_metric = mock.Mock()
     self.PatchValidateXSRFToken()
     self.Patch(auth, 'ValidateClient')
 
@@ -65,7 +92,9 @@ class SantaRequestHandlerTest(SantaApiTestCase):
         sync.SantaRequestHandler,
         'RequestCounter',
         new_callable=mock.PropertyMock,
-        return_value=self.mock_metric)
+        return_value=self.mock_request_metric)
+
+    self.Patch(sync.monitoring, 'client_validations')
 
     sync.SantaRequestHandler.post = lambda x, y: 'A'
 
@@ -77,7 +106,7 @@ class SantaRequestHandlerTest(SantaApiTestCase):
     self.PatchEnv(settings.ProdEnv, ENABLE_BIGQUERY_STREAMING=True)
 
   @mock.patch.object(sync.auth, 'ValidateClient', return_value=True)
-  def testClientValidation_Success(self, mock_validate):
+  def testDispatch_ClientValidation_Success(self, mock_validate):
     sync.SantaRequestHandler.REQUIRE_HOST_OBJECT = False
 
     self.PatchSetting(
@@ -87,18 +116,20 @@ class SantaRequestHandlerTest(SantaApiTestCase):
 
     mock_validate.assert_called_once_with(mock.ANY, 'my-uuid')
     self.assertContainsSubset(headers, mock_validate.call_args[0][0])
+    sync.monitoring.client_validations.Success.assert_called_once()
 
   @mock.patch.object(sync.auth, 'ValidateClient', return_value=False)
-  def testClientValidation_Failure(self, mock_validate):
+  def testDispatch_ClientValidation_Failure(self, mock_validate):
     sync.SantaRequestHandler.REQUIRE_HOST_OBJECT = False
 
     self.PatchSetting(
         'SANTA_CLIENT_VALIDATION', constants.VALIDATION_MODE.FAIL_CLOSED)
     self.testapp.post_json(
         '/my-uuid', {}, headers={'Foo': 'bar'}, status=httplib.FORBIDDEN)
+    sync.monitoring.client_validations.Failure.assert_called_once()
 
   @mock.patch.object(sync.auth, 'ValidateClient', return_value=False)
-  def testClientValidation_NoValidation(self, mock_validate):
+  def testDispatch_ClientValidation_NoValidation(self, mock_validate):
     sync.SantaRequestHandler.REQUIRE_HOST_OBJECT = False
 
     self.PatchSetting(
@@ -107,9 +138,11 @@ class SantaRequestHandlerTest(SantaApiTestCase):
     self.testapp.post_json('/my-uuid', {}, headers=headers)
 
     self.assertFalse(mock_validate.called)
+    sync.monitoring.client_validations.Success.assert_not_called()
+    sync.monitoring.client_validations.Failure.assert_not_called()
 
   @mock.patch.object(sync.auth, 'ValidateClient', side_effect=Exception)
-  def testClientValidation_FailOpen(self, mock_validate):
+  def testDispatch_ClientValidation_FailOpen(self, mock_validate):
     sync.SantaRequestHandler.REQUIRE_HOST_OBJECT = False
 
     self.PatchSetting(
@@ -119,9 +152,10 @@ class SantaRequestHandlerTest(SantaApiTestCase):
 
     mock_validate.assert_called_once_with(mock.ANY, 'my-uuid')
     self.assertContainsSubset(headers, mock_validate.call_args[0][0])
+    sync.monitoring.client_validations.Success.assert_called_once()
 
   @mock.patch.object(sync.auth, 'ValidateClient', side_effect=Exception)
-  def testClientValidation_FailClosed(self, mock_validate):
+  def testDispatch_ClientValidation_FailClosed(self, mock_validate):
     sync.SantaRequestHandler.REQUIRE_HOST_OBJECT = False
 
     self.PatchSetting(
@@ -132,9 +166,10 @@ class SantaRequestHandlerTest(SantaApiTestCase):
 
     mock_validate.assert_called_once_with(mock.ANY, 'my-uuid')
     self.assertContainsSubset(headers, mock_validate.call_args[0][0])
+    sync.monitoring.client_validations.Failure.assert_called_once()
 
   @mock.patch.object(sync.auth, 'ValidateClient', side_effect=Exception)
-  def testClientValidation_BadMode(self, mock_validate):
+  def testDispatch_ClientValidation_BadMode(self, mock_validate):
     sync.SantaRequestHandler.REQUIRE_HOST_OBJECT = False
 
     self.PatchSetting('SANTA_CLIENT_VALIDATION', 'not a real value')
@@ -144,21 +179,23 @@ class SantaRequestHandlerTest(SantaApiTestCase):
 
     mock_validate.assert_called_once_with(mock.ANY, 'my-uuid')
     self.assertContainsSubset(headers, mock_validate.call_args[0][0])
+    sync.monitoring.client_validations.Success.assert_not_called()
+    sync.monitoring.client_validations.Failure.assert_called_once()
 
-  def testRejectNoComputer(self):
+  def testDispatch_RejectNoComputer(self):
     response = self.testapp.post('/', {}, status=httplib.BAD_REQUEST)
     self.assertEqual(httplib.BAD_REQUEST, response.status_int)
-    self.VerifyIncrementCalls(self.mock_metric, httplib.BAD_REQUEST)
+    self.VerifyIncrementCalls(self.mock_request_metric, httplib.BAD_REQUEST)
 
-  def testRejectUnknownComputer(self):
+  def testDispatch_RejectUnknownComputer(self):
     sync.SantaRequestHandler.REQUIRE_HOST_OBJECT = True
 
     response = self.testapp.post('/my-uuid', {}, status=httplib.FORBIDDEN)
 
     self.assertEqual(httplib.FORBIDDEN, response.status_int)
-    self.VerifyIncrementCalls(self.mock_metric, httplib.FORBIDDEN)
+    self.VerifyIncrementCalls(self.mock_request_metric, httplib.FORBIDDEN)
 
-  def testAllowKnownComputer(self):
+  def testDispatch_AllowKnownComputer(self):
     sync.SantaRequestHandler.REQUIRE_HOST_OBJECT = True
     sync.SantaRequestHandler.SHOULD_PARSE_JSON = False
 
@@ -166,13 +203,13 @@ class SantaRequestHandlerTest(SantaApiTestCase):
 
     self.testapp.post('/my-uuid', {})
 
-  def testParseJson_NoCompression(self):
+  def testDispatch_ParseJson_NoCompression(self):
     sync.SantaRequestHandler.REQUIRE_HOST_OBJECT = False
     sync.SantaRequestHandler.SHOULD_PARSE_JSON = True
 
     self.testapp.post_json('/my-uuid', {'some-json-key': 'some-json-value'})
 
-  def testParseJson_ZlibCompression(self):
+  def testDispatch_ParseJson_ZlibCompression(self):
     sync.SantaRequestHandler.REQUIRE_HOST_OBJECT = False
     sync.SantaRequestHandler.SHOULD_PARSE_JSON = True
 
@@ -182,7 +219,7 @@ class SantaRequestHandlerTest(SantaApiTestCase):
     self.testapp.post(
         '/my-uuid', compressed_data, headers={'Content-Encoding': 'zlib'})
 
-  def testParseJson_BadJson(self):
+  def testDispatch_ParseJson_BadJson(self):
 
     sync.SantaRequestHandler.REQUIRE_HOST_OBJECT = False
     sync.SantaRequestHandler.SHOULD_PARSE_JSON = True
@@ -191,7 +228,7 @@ class SantaRequestHandlerTest(SantaApiTestCase):
         '/my-uuid', 'this{is}bad{json}', status=httplib.BAD_REQUEST)
 
     self.assertEqual(httplib.BAD_REQUEST, response.status_int)
-    self.VerifyIncrementCalls(self.mock_metric, httplib.BAD_REQUEST)
+    self.VerifyIncrementCalls(self.mock_request_metric, httplib.BAD_REQUEST)
 
 
 class CopyLocalRulesTest(SantaApiTestCase):
@@ -260,7 +297,7 @@ class PreflightHandlerTest(SantaApiTestCase):
         sync.PreflightHandler,
         'RequestCounter',
         new_callable=mock.PropertyMock,
-        return_value=self.mock_metric)
+        return_value=self.mock_request_metric)
 
     self.request_json = {
         PREFLIGHT.SERIAL_NUM: 'serial',
@@ -288,7 +325,7 @@ class PreflightHandlerTest(SantaApiTestCase):
     response = self.testapp.post_json('/my-uuid', self.request_json)
 
     self.assertEqual(httplib.OK, response.status_int)
-    self.VerifyIncrementCalls(self.mock_metric, httplib.OK)
+    self.VerifyIncrementCalls(self.mock_request_metric, httplib.OK)
 
     self.assertEntityCount(host_models.SantaHost, 2)
     self.assertBigQueryInsertions([TABLE.USER, TABLE.HOST, TABLE.RULE])
@@ -321,7 +358,7 @@ class PreflightHandlerTest(SantaApiTestCase):
     response = self.testapp.post_json('/my-uuid', self.request_json)
 
     self.assertEqual(httplib.OK, response.status_int)
-    self.VerifyIncrementCalls(self.mock_metric, httplib.OK)
+    self.VerifyIncrementCalls(self.mock_request_metric, httplib.OK)
 
     self.assertEntityCount(host_models.SantaHost, 2)
     self.assertBigQueryInsertions([TABLE.USER, TABLE.HOST])
@@ -334,7 +371,7 @@ class PreflightHandlerTest(SantaApiTestCase):
     response = self.testapp.post_json('/my-uuid', self.request_json)
 
     self.assertEqual(httplib.OK, response.status_int)
-    self.VerifyIncrementCalls(self.mock_metric, httplib.OK)
+    self.VerifyIncrementCalls(self.mock_request_metric, httplib.OK)
 
     self.assertEntityCount(host_models.SantaHost, 1)
     self.assertBigQueryInsertions([TABLE.USER, TABLE.HOST])
@@ -358,7 +395,7 @@ class PreflightHandlerTest(SantaApiTestCase):
     self.assertNoBigQueryInsertions()
     self.assertEqual(httplib.OK, response.status_int)
 
-    self.VerifyIncrementCalls(self.mock_metric, httplib.OK, httplib.OK)
+    self.VerifyIncrementCalls(self.mock_request_metric, httplib.OK, httplib.OK)
 
   def testFirstCheckin_UserCreation(self):
 
@@ -376,14 +413,15 @@ class PreflightHandlerTest(SantaApiTestCase):
     self.assertNoBigQueryInsertions()
     self.assertEqual(httplib.OK, response.status_int)
 
-    self.VerifyIncrementCalls(self.mock_metric, httplib.OK, httplib.OK)
+    self.VerifyIncrementCalls(self.mock_request_metric, httplib.OK, httplib.OK)
 
   def testCheckin_Success(self):
     host_models.SantaHost(
         key=ndb.Key('Host', 'my-uuid'),
         client_mode=constants.CLIENT_MODE.LOCKDOWN,
         directory_whitelist_regex='^/[Bb]uild/.*',
-        transitive_whitelisting_enabled=True).put()
+        transitive_whitelisting_enabled=True,
+        primary_user='user').put()
 
     response = self.testapp.post_json('/my-uuid', self.request_json)
 
@@ -396,7 +434,7 @@ class PreflightHandlerTest(SantaApiTestCase):
     self.assertTrue(
         response.json[PREFLIGHT.TRANSITIVE_WHITELISTING_ENABLED])
     self.assertEqual(httplib.OK, response.status_int)
-    self.VerifyIncrementCalls(self.mock_metric, httplib.OK)
+    self.VerifyIncrementCalls(self.mock_request_metric, httplib.OK)
 
     host = host_models.SantaHost.get_by_id('my-uuid')
     self.assertEqual('serial', host.serial_num)
@@ -404,7 +442,7 @@ class PreflightHandlerTest(SantaApiTestCase):
     self.assertBigQueryInsertion(TABLE.USER)
 
   def testCheckin_DefaultDirectoryRegex(self):
-    host_models.SantaHost(id='my-uuid').put()
+    host_models.SantaHost(id='my-uuid', primary_user='user').put()
     self.PatchSetting('SANTA_DIRECTORY_WHITELIST_REGEX', '^/[Bb]uild/.*')
 
     response = self.testapp.post_json('/my-uuid', self.request_json)
@@ -413,14 +451,15 @@ class PreflightHandlerTest(SantaApiTestCase):
         '^/[Bb]uild/.*',
         response.json[PREFLIGHT.WHITELIST_REGEX])
     self.assertEqual(httplib.OK, response.status_int)
-    self.VerifyIncrementCalls(self.mock_metric, httplib.OK)
+    self.VerifyIncrementCalls(self.mock_request_metric, httplib.OK)
 
     self.assertBigQueryInsertion(TABLE.USER)
 
   def testCheckin_RequestCleanSync(self):
     host_models.SantaHost(
         key=ndb.Key('Host', 'my-uuid'),
-        rule_sync_dt=datetime.datetime.now()).put()
+        rule_sync_dt=datetime.datetime.now(),
+        primary_user='user').put()
 
     self.request_json[PREFLIGHT.REQUEST_CLEAN_SYNC] = True
 
@@ -430,16 +469,17 @@ class PreflightHandlerTest(SantaApiTestCase):
     self.assertIsNone(host.rule_sync_dt)
     self.assertTrue(response.json[PREFLIGHT.CLEAN_SYNC])
     self.assertEqual(httplib.OK, response.status_int)
-    self.VerifyIncrementCalls(self.mock_metric, httplib.OK)
+    self.VerifyIncrementCalls(self.mock_request_metric, httplib.OK)
 
     self.assertBigQueryInsertion(TABLE.USER)
 
   def testCheckin_ModeMismatch(self):
 
+    user = test_utils.CreateUser()
     host_models.SantaHost(
         key=ndb.Key('Host', 'my-uuid'),
-        client_mode=CLIENT_MODE.LOCKDOWN).put()
-    user = test_utils.CreateUser()
+        client_mode=CLIENT_MODE.LOCKDOWN,
+        primary_user=user.nickname).put()
     request_json = {
         PREFLIGHT.SERIAL_NUM: 'serial',
         PREFLIGHT.HOSTNAME: 'vogon',
@@ -452,14 +492,15 @@ class PreflightHandlerTest(SantaApiTestCase):
     response = self.testapp.post_json('/my-uuid', request_json)
 
     self.assertEqual(httplib.OK, response.status_int)
-    self.VerifyIncrementCalls(self.mock_metric, httplib.OK)
+    self.VerifyIncrementCalls(self.mock_request_metric, httplib.OK)
     self.assertBigQueryInsertion(TABLE.HOST)
 
   def testCheckin_ClientModeUnsupported(self):
+    user = test_utils.CreateUser()
     host_models.SantaHost(
         key=ndb.Key('Host', 'my-uuid'),
-        client_mode=CLIENT_MODE.LOCKDOWN).put()
-    user = test_utils.CreateUser()
+        client_mode=CLIENT_MODE.LOCKDOWN,
+        primary_user=user.nickname).put()
     request_json = {
         PREFLIGHT.SERIAL_NUM: 'serial',
         PREFLIGHT.HOSTNAME: 'vogon',
@@ -472,17 +513,18 @@ class PreflightHandlerTest(SantaApiTestCase):
     response = self.testapp.post_json('/my-uuid', request_json)
 
     self.assertEqual(httplib.OK, response.status_int)
-    self.VerifyIncrementCalls(self.mock_metric, httplib.OK)
+    self.VerifyIncrementCalls(self.mock_request_metric, httplib.OK)
 
     self.assertBigQueryInsertion(TABLE.HOST, reset_mock=False)
     calls = self.GetBigQueryCalls()
     self.assertEqual(constants.HOST_MODE.UNKNOWN, calls[0][1].get('mode'))
 
   def testCheckin_ClientModeMissing(self):
+    user = test_utils.CreateUser()
     host_models.SantaHost(
         key=ndb.Key('Host', 'my-uuid'),
-        client_mode=CLIENT_MODE.LOCKDOWN).put()
-    user = test_utils.CreateUser()
+        client_mode=CLIENT_MODE.LOCKDOWN,
+        primary_user=user.nickname).put()
     request_json = {
         PREFLIGHT.SERIAL_NUM: 'serial',
         PREFLIGHT.HOSTNAME: 'vogon',
@@ -494,11 +536,36 @@ class PreflightHandlerTest(SantaApiTestCase):
     response = self.testapp.post_json('/my-uuid', request_json)
 
     self.assertEqual(httplib.OK, response.status_int)
-    self.VerifyIncrementCalls(self.mock_metric, httplib.OK)
+    self.VerifyIncrementCalls(self.mock_request_metric, httplib.OK)
     self.assertBigQueryInsertion(TABLE.HOST, reset_mock=False)
     calls = self.GetBigQueryCalls()
     self.assertEqual(constants.HOST_MODE.UNKNOWN, calls[0][1].get('mode'))
 
+  def testCheckin_PrimaryUserChange(self):
+
+    user1 = test_utils.CreateUser()
+    user2 = test_utils.CreateUser()
+    host = test_utils.CreateSantaHost(
+        primary_user=user1.nickname, client_mode=CLIENT_MODE.LOCKDOWN)
+
+    request_json = {
+        PREFLIGHT.SERIAL_NUM: 'serial',
+        PREFLIGHT.HOSTNAME: 'vogon',
+        PREFLIGHT.PRIMARY_USER: user2.nickname,
+        PREFLIGHT.SANTA_VERSION: '1.0.0',
+        PREFLIGHT.OS_VERSION: '10.9.3',
+        PREFLIGHT.OS_BUILD: '13D65',
+        PREFLIGHT.CLIENT_MODE: CLIENT_MODE.LOCKDOWN}
+
+    response = self.testapp.post_json('/%s' % host.key.id(), request_json)
+
+    self.assertEqual(httplib.OK, response.status_int)
+    self.VerifyIncrementCalls(self.mock_request_metric, httplib.OK)
+    self.assertBigQueryInsertion(TABLE.HOST, reset_mock=False)
+    calls = self.GetBigQueryCalls()
+    self.assertEqual(
+        constants.HOST_ACTION.USERS_CHANGE, calls[0][1].get('action'))
+    self.assertEqual([user2.nickname], calls[0][1].get('users'))
 
 
 class EventUploadHandlerTest(SantaApiTestCase):
@@ -510,7 +577,7 @@ class EventUploadHandlerTest(SantaApiTestCase):
         sync.EventUploadHandler,
         'RequestCounter',
         new_callable=mock.PropertyMock,
-        return_value=self.mock_metric)
+        return_value=self.mock_request_metric)
 
     now = datetime.datetime.utcnow()
     before = now - datetime.timedelta(seconds=10)
@@ -607,7 +674,7 @@ class EventUploadHandlerTest(SantaApiTestCase):
     self.assertEqual(httplib.OK, response.status_int)
 
     self.assertEqual(httplib.OK, response.status_int)
-    self.VerifyIncrementCalls(self.mock_metric, httplib.OK, httplib.OK)
+    self.VerifyIncrementCalls(self.mock_request_metric, httplib.OK, httplib.OK)
 
     self.assertBigQueryInsertions([TABLE.BINARY] + [TABLE.EXECUTION] * 2)
 
@@ -628,7 +695,7 @@ class EventUploadHandlerTest(SantaApiTestCase):
     self.assertIsNone(event.bundle_key)
     self.assertIsNone(event.cert_key)
     self.assertEqual(httplib.OK, response.status_int)
-    self.VerifyIncrementCalls(self.mock_metric, httplib.OK)
+    self.VerifyIncrementCalls(self.mock_request_metric, httplib.OK)
 
     self.assertBigQueryInsertions([TABLE.BINARY, TABLE.EXECUTION])
 
@@ -657,7 +724,7 @@ class EventUploadHandlerTest(SantaApiTestCase):
     self.assertEqual('Acme Corp.', cert.organization)
     self.assertEqual(event.cert_key, cert.key)
     self.assertEqual(httplib.OK, response.status_int)
-    self.VerifyIncrementCalls(self.mock_metric, httplib.OK)
+    self.VerifyIncrementCalls(self.mock_request_metric, httplib.OK)
 
     self.assertBigQueryInsertions(
         [TABLE.BINARY, TABLE.EXECUTION] + [TABLE.CERTIFICATE] * 3)
@@ -984,7 +1051,7 @@ class EventUploadHandlerTest(SantaApiTestCase):
     expected_time = datetime.datetime.utcfromtimestamp(later_timestamp)
     self.assertEqual(expected_time, event.last_blocked_dt)
     self.assertEqual(httplib.OK, response.status_int)
-    self.VerifyIncrementCalls(self.mock_metric, httplib.OK)
+    self.VerifyIncrementCalls(self.mock_request_metric, httplib.OK)
 
     self.assertBigQueryInsertions([TABLE.BINARY] + [TABLE.EXECUTION] * 2)
 
@@ -1273,7 +1340,7 @@ class RuleDownloadHandlerTest(SantaApiTestCase):
         sync.RuleDownloadHandler,
         'RequestCounter',
         new_callable=mock.PropertyMock,
-        return_value=self.mock_metric)
+        return_value=self.mock_request_metric)
 
     self.host = host_models.SantaHost(
         key=ndb.Key('Host', 'my-uuid'),
@@ -1291,7 +1358,7 @@ class RuleDownloadHandlerTest(SantaApiTestCase):
   def testDownloadRules(self):
     response = self.testapp.post_json('/my-uuid', {})
     self.assertEqual(httplib.OK, response.status_int)
-    self.VerifyIncrementCalls(self.mock_metric, httplib.OK)
+    self.VerifyIncrementCalls(self.mock_request_metric, httplib.OK)
     self.assertFalse(RULE_DOWNLOAD.CURSOR in response.json)
 
     rules = response.json[RULE_DOWNLOAD.RULES]
@@ -1315,7 +1382,7 @@ class RuleDownloadHandlerTest(SantaApiTestCase):
     self.assertLen(response.json[RULE_DOWNLOAD.RULES], 1)
     self.assertFalse(RULE_DOWNLOAD.CURSOR in response.json)
     self.assertEqual(httplib.OK, response.status_int)
-    self.VerifyIncrementCalls(self.mock_metric, httplib.OK)
+    self.VerifyIncrementCalls(self.mock_request_metric, httplib.OK)
 
   def testOnlySyncNewRules(self):
     self.host.rule_sync_dt = datetime.datetime.utcnow()
@@ -1325,7 +1392,7 @@ class RuleDownloadHandlerTest(SantaApiTestCase):
     self.assertLen(response.json[RULE_DOWNLOAD.RULES], 0)
     self.assertFalse(RULE_DOWNLOAD.CURSOR in response.json)
     self.assertEqual(httplib.OK, response.status_int)
-    self.VerifyIncrementCalls(self.mock_metric, httplib.OK)
+    self.VerifyIncrementCalls(self.mock_request_metric, httplib.OK)
 
   def testLocalRule(self):
     self.rule.host_id = 'my-uuid'
@@ -1345,7 +1412,7 @@ class RuleDownloadHandlerTest(SantaApiTestCase):
     self.assertLen(response.json[RULE_DOWNLOAD.RULES], 0)
     self.assertEqual(httplib.OK, response.status_int)
 
-    self.VerifyIncrementCalls(self.mock_metric, httplib.OK, httplib.OK)
+    self.VerifyIncrementCalls(self.mock_request_metric, httplib.OK, httplib.OK)
 
   def testReplacedRule(self):
     self.host.rule_sync_dt = datetime.datetime.utcnow()
@@ -1369,7 +1436,7 @@ class RuleDownloadHandlerTest(SantaApiTestCase):
         constants.RULE_POLICY.WHITELIST, latest_rule[RULE_DOWNLOAD.POLICY])
     self.assertEqual(httplib.OK, response.status_int)
 
-    self.VerifyIncrementCalls(self.mock_metric, httplib.OK)
+    self.VerifyIncrementCalls(self.mock_request_metric, httplib.OK)
 
   def testBundleRule(self):
     self.rule.key.delete()
@@ -1401,7 +1468,7 @@ class RuleDownloadHandlerTest(SantaApiTestCase):
       self.assertEqual(
           bundle.key.id(), rule[RULE_DOWNLOAD.FILE_BUNDLE_HASH])
 
-    self.VerifyIncrementCalls(self.mock_metric, httplib.OK)
+    self.VerifyIncrementCalls(self.mock_request_metric, httplib.OK)
 
   def testCursor(self):
     blockable = test_utils.CreateBlockable()
@@ -1427,7 +1494,7 @@ class RuleDownloadHandlerTest(SantaApiTestCase):
     self.assertFalse(RULE_DOWNLOAD.CURSOR in response.json)
     self.assertEqual(httplib.OK, response.status_int)
 
-    self.VerifyIncrementCalls(self.mock_metric, httplib.OK, httplib.OK)
+    self.VerifyIncrementCalls(self.mock_request_metric, httplib.OK, httplib.OK)
 
 
 class PostflightHandlerTest(SantaApiTestCase):
@@ -1439,7 +1506,7 @@ class PostflightHandlerTest(SantaApiTestCase):
         sync.PostflightHandler,
         'RequestCounter',
         new_callable=mock.PropertyMock,
-        return_value=self.mock_metric)
+        return_value=self.mock_request_metric)
 
     self.preflight_dt = datetime.datetime.utcnow()
 
@@ -1454,7 +1521,7 @@ class PostflightHandlerTest(SantaApiTestCase):
     self.assertEqual(host.rule_sync_dt, self.preflight_dt)
     self.assertTrue(host.last_postflight_dt)
     self.assertEqual(httplib.OK, response.status_int)
-    self.VerifyIncrementCalls(self.mock_metric, httplib.OK)
+    self.VerifyIncrementCalls(self.mock_request_metric, httplib.OK)
     self.assertBigQueryInsertion(TABLE.HOST)
 
 
