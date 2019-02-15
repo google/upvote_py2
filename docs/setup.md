@@ -132,9 +132,11 @@ useful to set up in case of corruption or bad policy updates.
 
 To enable backups:
 
-1.  Set `HOSTNAME` in settings to your App Engine hostname e.g.
+1.  [Configure the proper permissions](https://cloud.google.com/datastore/docs/schedule-export#configuring_access_permissions) 
+    needed to run Datastore backups to Cloud Storage.
+2.  Set `HOSTNAME` in settings to your App Engine hostname e.g.
     "`<my-app>.appspot.com`"
-2.  Set `DATASTORE_BACKUP_BUCKET` to the
+3.  Set `DATASTORE_BACKUP_BUCKET` to the
     [GCS](https://cloud.google.com/storage/) bucket to which you'd like to store
     your backups.
     -   You can use the app default bucket that's created with your Cloud
@@ -142,13 +144,13 @@ To enable backups:
         "`<my-app>.appspot.com`".
     -   To view and/or create your project's GCS buckets, see
         https://console.cloud.google.com/storage/browser.
-3.  `./manage_crons.py enable daily_backup`
+4.  `./manage_crons.py enable daily_backup`
     -   You may want to review the frequency settings as the default is once per
         day and is likely much more frequent than is desirable. You can view and
         edit the frequency of the "daily datastore backup" cron in
         [`cron.yaml`](../upvote/gae/cron.yaml).
-4.  `bazel run upvote/gae:monolith_binary.deploy -- ${PROJ_ID}`
-5.  https://console.cloud.google.com/datastore/settings "Enable Datastore Admin"
+5.  `bazel run upvote/gae:monolith_binary.deploy -- ${PROJ_ID}`
+6.  https://console.cloud.google.com/datastore/settings "Enable Datastore Admin"
 
 Done! You can test it out to make sure it works by manually invoking the cron on
 the [cron page](https://console.cloud.google.com/appengine/taskqueues/cron).
