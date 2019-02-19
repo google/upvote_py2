@@ -467,8 +467,8 @@ class BlockableHandlerTest(BlockablesTest):
 
   @mock.patch.object(
       blockables.voting_api, 'Recount',
-      side_effect=voting_api.UnsupportedPlatformError)
-  def testPost_Admin_Recount_UnsupportedPlatformError(self, mock_recount):
+      side_effect=voting_api.UnsupportedClientError)
+  def testPost_Admin_Recount_UnsupportedClientError(self, mock_recount):
     with self.LoggedInUser(admin=True):
       self.testapp.post(
           self.ROUTE % test_utils.RandomSHA256(),
@@ -520,8 +520,8 @@ class BlockableHandlerTest(BlockablesTest):
 
   @mock.patch.object(
       blockables.voting_api, 'Reset',
-      side_effect=voting_api.UnsupportedPlatformError)
-  def testPost_Admin_Reset_UnsupportedPlatformError(self, mock_reset):
+      side_effect=voting_api.UnsupportedClientError)
+  def testPost_Admin_Reset_UnsupportedClientError(self, mock_reset):
     with self.LoggedInUser(admin=True):
       self.testapp.post(
           self.ROUTE % test_utils.RandomSHA256(),

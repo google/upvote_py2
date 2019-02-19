@@ -42,8 +42,8 @@ class BlockableNotFoundError(Error):
   """The SHA256 provided does not correspond to a Blockable entity."""
 
 
-class UnsupportedPlatformError(Error):
-  """The specified Blockable has an unsupported platform."""
+class UnsupportedClientError(Error):
+  """The specified Blockable came from an unsupported client."""
 
 
 class InvalidVoteWeightError(Error):
@@ -65,11 +65,11 @@ def _GetBlockable(sha256):
   return blockable
 
 
-def _GetPlatform(blockable):
-  platform = blockable.GetPlatformName()
-  if platform not in constants.PLATFORM.SET_ALL:
-    raise UnsupportedPlatformError(platform)
-  return platform
+def _GetClient(blockable):
+  client = blockable.GetClientName()
+  if client not in constants.CLIENT.SET_ALL:
+    raise UnsupportedClientError(client)
+  return client
 
 
 def _GetUpvoters(blockable):
@@ -161,16 +161,16 @@ def Vote(user, sha256, upvote, weight):
 
   Raises:
     BlockableNotFoundError: if the target blockable ID is not a known Blockable.
-    UnsupportedPlatformError: if the specified Blockable has an unsupported
-        platform.
+    UnsupportedClientError: if the specified Blockable came from an unsupported
+        client.
     InvalidVoteWeightError: if the vote weight is less than zero.
   """
   blockable = _GetBlockable(sha256)
-  platform = _GetPlatform(blockable)
+  client = _GetClient(blockable)
   if weight < 0:
     raise InvalidVoteWeightError(weight)
 
-  ballot_box = _BALLOT_BOX_MAP[platform](sha256)
+  ballot_box = _BALLOT_BOX_MAP[client](sha256)
   ballot_box.Vote(upvote, user, weight)
   return ballot_box.new_vote
 
@@ -183,13 +183,13 @@ def Recount(sha256):
 
   Raises:
     BlockableNotFoundError: if the target blockable ID is not a known Blockable.
-    UnsupportedPlatformError: if the specified Blockable has an unsupported
-        platform.
+    UnsupportedClientError: if the specified Blockable came from an unsupported
+        client.
   """
   blockable = _GetBlockable(sha256)
-  platform = _GetPlatform(blockable)
+  client = _GetClient(blockable)
 
-  ballot_box = _BALLOT_BOX_MAP[platform](sha256)
+  ballot_box = _BALLOT_BOX_MAP[client](sha256)
   ballot_box.Recount()
 
 
@@ -201,14 +201,14 @@ def Reset(sha256):
 
   Raises:
     BlockableNotFoundError: if the target blockable ID is not a known Blockable.
-    UnsupportedPlatformError: if the specified Blockable has an unsupported
-        platform.
+    UnsupportedClientError: if the specified Blockable came from an unsupported
+        client.
     OperationNotAllowedError: if a reset is not allowed for some reason.
   """
   blockable = _GetBlockable(sha256)
-  platform = _GetPlatform(blockable)
+  client = _GetClient(blockable)
 
-  ballot_box = _BALLOT_BOX_MAP[platform](sha256)
+  ballot_box = _BALLOT_BOX_MAP[client](sha256)
   ballot_box.Reset()
 
 
@@ -983,6 +983,6 @@ class Bit9BallotBox(BallotBox):
 
 
 _BALLOT_BOX_MAP = {
-    constants.PLATFORM.MACOS: SantaBallotBox,
-    constants.PLATFORM.WINDOWS: Bit9BallotBox,
+    constants.CLIENT.SANTA: SantaBallotBox,
+    constants.CLIENT.BIT9: Bit9BallotBox,
 }

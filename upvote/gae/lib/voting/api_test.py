@@ -55,17 +55,17 @@ class GetBlockableTest(basetest.UpvoteTestCase):
       api._GetBlockable('abcdef')
 
 
-class GetPlatformTest(basetest.UpvoteTestCase):
+class GetClientTest(basetest.UpvoteTestCase):
 
   def testSupported(self):
     blockable = test_utils.CreateSantaBlockable()
-    platform = api._GetPlatform(blockable)
-    self.assertEqual(constants.PLATFORM.MACOS, platform)
+    client = api._GetClient(blockable)
+    self.assertEqual(constants.CLIENT.SANTA, client)
 
   def testUnsupported(self):
     blockable = test_utils.CreateBlockable()
-    with self.assertRaises(api.UnsupportedPlatformError):
-      api._GetPlatform(blockable)
+    with self.assertRaises(api.UnsupportedClientError):
+      api._GetClient(blockable)
 
 
 class GetRulesForBlockableTest(basetest.UpvoteTestCase):

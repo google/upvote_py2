@@ -190,8 +190,8 @@ class BlockableHandler(handler_utils.UserFacingHandler):
         voting_api.Recount(blockable_id)
       except voting_api.BlockableNotFoundError:
         self.abort(httplib.NOT_FOUND, explanation='Blockable not found')
-      except voting_api.UnsupportedPlatformError:
-        self.abort(httplib.BAD_REQUEST, explanation='Unsupported platform')
+      except voting_api.UnsupportedClientError:
+        self.abort(httplib.BAD_REQUEST, explanation='Unsupported client')
       except Exception as e:  # pylint: disable=broad-except
         self.abort(httplib.INTERNAL_SERVER_ERROR, explanation=e.message)
       else:
@@ -258,8 +258,8 @@ class BlockableHandler(handler_utils.UserFacingHandler):
       voting_api.Reset(blockable_id)
     except voting_api.BlockableNotFoundError:
       self.abort(httplib.NOT_FOUND)
-    except voting_api.UnsupportedPlatformError:
-      self.abort(httplib.BAD_REQUEST, explanation='Unsupported platform')
+    except voting_api.UnsupportedClientError:
+      self.abort(httplib.BAD_REQUEST, explanation='Unsupported client')
     except voting_api.OperationNotAllowedError as e:
       self.abort(httplib.FORBIDDEN, explanation=e.message)
     except Exception as e:  # pylint: disable=broad-except

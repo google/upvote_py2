@@ -292,8 +292,8 @@ class VoteCastHandlerTest(VotesTest):
           status=httplib.NOT_FOUND)
 
   @mock.patch.object(
-      votes.voting_api, 'Vote', side_effect=voting_api.UnsupportedPlatformError)
-  def testPost_UnsupportedPlatformError(self, mock_vote):
+      votes.voting_api, 'Vote', side_effect=voting_api.UnsupportedClientError)
+  def testPost_UnsupportedClientError(self, mock_vote):
     with self.LoggedInUser():
       self.testapp.post(
           self.ROUTE % test_utils.RandomSHA256(),
