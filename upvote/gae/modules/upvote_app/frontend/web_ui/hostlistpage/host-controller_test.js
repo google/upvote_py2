@@ -25,8 +25,7 @@ const HostListController = upvote.hostlistpage.HostListController;
 
 
 describe('Host List Controller', () => {
-  let exemptionService, hostService, hostUtilsService, errorService, location,
-      q, rootScope, page;
+  let exemptionService, hostService, errorService, location, q, rootScope, page;
   let ctrl;
 
   beforeEach(/** @suppress {missingProperties} */ () => {
@@ -35,12 +34,11 @@ describe('Host List Controller', () => {
     angular.mock.module(upvote.hosts.module.name);
 
     angular.mock.inject(
-        (_exemptionService_, _hostService_, _hostUtilsService_, _errorService_,
-         $location, $q, $rootScope) => {
+        (_exemptionService_, _hostService_, _errorService_, $location, $q,
+         $rootScope) => {
           // Store injected components.
           exemptionService = _exemptionService_;
           hostService = _hostService_;
-          hostUtilsService = _hostUtilsService_;
           errorService = _errorService_;
           location = $location;
           q = $q;
@@ -74,8 +72,7 @@ describe('Host List Controller', () => {
   });
 
   let buildController = () => new HostListController(
-      exemptionService, hostService, hostUtilsService, errorService, location,
-      page);
+      exemptionService, hostService, errorService, location, page);
 
   /**
    * @param {?Object=} opt_properties
@@ -148,7 +145,7 @@ describe('Host List Controller', () => {
     it('when it is fresh', () => {
       let fakeHost = getHost({'ruleSyncDt': new Date().toISOString()});
 
-      expect(ctrl.hostUtils.isInLockdown(fakeHost)).toBe(false);
+      expect(ctrl.hostService.isInLockdown(fakeHost)).toBe(false);
     });
   });
 
@@ -225,6 +222,5 @@ describe('Host List Controller', () => {
       expect(ctrl.isExemptionRenewable(host)).toBe(true);
     });
   });
-
 });
 });  // goog.scope

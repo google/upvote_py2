@@ -18,7 +18,6 @@ goog.require('upvote.errornotifier.ErrorService');
 goog.require('upvote.exemptions.ExemptionService');
 goog.require('upvote.hosts.ExemptionState');
 goog.require('upvote.hosts.HostService');
-goog.require('upvote.hosts.HostUtilsService');
 goog.require('upvote.shared.Page');
 goog.require('upvote.shared.models.AnyHost');
 
@@ -29,26 +28,21 @@ upvote.hostlistpage.HostListController = class {
   /**
    * @param {!upvote.exemptions.ExemptionService} exemptionService
    * @param {!upvote.hosts.HostService} hostService
-   * @param {!upvote.hosts.HostUtilsService} hostUtilsService
    * @param {!upvote.errornotifier.ErrorService} errorService
    * @param {!angular.$location} $location
    * @param {!upvote.shared.Page} page Details about the active page
    * @ngInject
    */
-  constructor(
-      exemptionService, hostService, hostUtilsService, errorService, $location,
-      page) {
+  constructor(exemptionService, hostService, errorService, $location, page) {
     /** @const @private {!upvote.exemptions.ExemptionService} */
     this.exemptionService_ = exemptionService;
-    /** @private {!upvote.hosts.HostService} */
-    this.hostService_ = hostService;
+    /** @export {!upvote.hosts.HostService} */
+    this.hostService = hostService;
     /** @private {!upvote.errornotifier.ErrorService} errorService */
     this.errorService_ = errorService;
     /** @private {!angular.$location} $location */
     this.location_ = $location;
 
-    /** @export {!upvote.hosts.HostUtilsService} */
-    this.hostUtils = hostUtilsService;
     /** @export {?Array<?upvote.shared.models.AnyHost>} */
     this.hosts = null;
 
@@ -62,7 +56,7 @@ upvote.hostlistpage.HostListController = class {
 
   /** @private */
   init_() {
-    this.hostService_.getAssociatedHosts()
+    this.hostService.getAssociatedHosts()
         .then((response) => {
           this.hosts = response['data'];
         })
@@ -172,7 +166,7 @@ upvote.hostlistpage.HostListController = class {
    * @export
    */
   toggleVisibility(host) {
-    this.hostService_.setHidden(host.id, !host.hidden)
+    this.hostService.setHidden(host.id, !host.hidden)
         .then((response) => {
           host.hidden = !host.hidden;
         })
