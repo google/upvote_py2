@@ -278,10 +278,3 @@ class Certificate(Blockable):
     defaults.update(kwargs.copy())
 
     tables.CERTIFICATE.InsertRow(**defaults)
-
-
-class Package(Blockable):
-
-  @property
-  def rule_type(self):
-    return constants.RULE_TYPE.PACKAGE

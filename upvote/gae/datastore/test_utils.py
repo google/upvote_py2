@@ -31,6 +31,7 @@ from upvote.gae.datastore.models import bit9
 from upvote.gae.datastore.models import event as event_models
 from upvote.gae.datastore.models import exemption as exemption_models
 from upvote.gae.datastore.models import host as host_models
+from upvote.gae.datastore.models import package as package_models
 from upvote.gae.datastore.models import rule as rule_models
 from upvote.gae.datastore.models import santa
 from upvote.gae.datastore.models import user as user_models
@@ -288,16 +289,20 @@ def CreateSantaBundle(bundle_binaries=None, **kwargs):
       'uploaded_dt': Now()}
   defaults.update(kwargs.copy())
 
-  santa_bundle = CreateBlockableEntity(santa.SantaBundle, **defaults)
+  santa_bundle = CreateBlockableEntity(package_models.SantaBundle, **defaults)
   santa_bundle.put()
 
-  # Create the BundleBinaryRelations, if any bundle binaries were specified.
+  # Create the SantaBundleBinary entities, if any bundle binaries were
+  # specified.
   if bundle_binaries:
-    ndb.put_multi(
-        santa.SantaBundleBinary.Generate(
-            santa_bundle.key, binary.key, cert_key=binary.cert_key,
-            file_name=binary.file_name, rel_path='Content/MacOS')
-        for binary in bundle_binaries)
+    entities = []
+    for binary in bundle_binaries:
+      entity = package_models.SantaBundleBinary.Generate(
+          santa_bundle.key, binary.key, cert_key=binary.cert_key,
+          file_name=binary.file_name, rel_path='Content/MacOS')
+      entities.append(entity)
+
+    ndb.put_multi(entities)
 
   return santa_bundle
 

@@ -21,6 +21,7 @@ import webapp2
 from webapp2_extras import routes
 
 from upvote.gae.datastore.models import base as base_models
+from upvote.gae.datastore.models import package as package_models
 from upvote.gae.datastore.models import santa as santa_models
 from upvote.gae.lib.analysis import api as analysis_api
 from upvote.gae.lib.analysis.virustotal import constants as vt_constants
@@ -41,8 +42,8 @@ class Lookup(handler_utils.UserFacingHandler):
     if not blockable:
       self.abort(httplib.NOT_FOUND, explanation='Blockable not found')
 
-    if isinstance(blockable, santa_models.SantaBundle):
-      keys = santa_models.SantaBundle.GetBundleBinaryKeys(blockable.key)
+    if isinstance(blockable, package_models.SantaBundle):
+      keys = package_models.SantaBundle.GetBundleBinaryKeys(blockable.key)
       all_results = {
           'response_code': vt_constants.RESPONSE_CODE.UNKNOWN,
           'positives': 0,

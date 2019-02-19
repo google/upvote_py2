@@ -20,6 +20,7 @@ from upvote.gae import settings
 from upvote.gae.datastore.models import event as event_models
 from upvote.gae.datastore.models import exemption as exemption_models
 from upvote.gae.datastore.models import host as host_models
+from upvote.gae.datastore.models import package as package_models
 from upvote.gae.datastore.models import rule as rule_models
 from upvote.gae.datastore.models import santa as santa_models
 from upvote.gae.datastore.models import user as user_models
@@ -205,7 +206,7 @@ def GetUsersAssociatedWithSantaHost(host_id):
 
 def GetBundleBinaryIdsForRule(rule):
   if rule.rule_type == constants.RULE_TYPE.PACKAGE:
-    keys = santa_models.SantaBundle.GetBundleBinaryKeys(rule.key.parent())
+    keys = package_models.SantaBundle.GetBundleBinaryKeys(rule.key.parent())
     return [key.id() for key in keys]
   return []
 

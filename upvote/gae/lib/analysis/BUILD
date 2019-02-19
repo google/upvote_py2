@@ -23,6 +23,7 @@ py_appengine_library(
         "//upvote/gae:settings",
         "//upvote/gae/datastore/models:base",
         "//upvote/gae/datastore/models:metrics",
+        "//upvote/gae/datastore/models:package",
         "//upvote/gae/lib/analysis/virustotal:constants",
         "//upvote/shared:constants",
     ],

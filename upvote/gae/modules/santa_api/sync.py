@@ -32,6 +32,7 @@ from upvote.gae.bigquery import tables
 from upvote.gae.datastore import utils as datastore_utils
 from upvote.gae.datastore.models import event as event_models
 from upvote.gae.datastore.models import host as host_models
+from upvote.gae.datastore.models import package as package_models
 from upvote.gae.datastore.models import rule as rule_models
 from upvote.gae.datastore.models import santa as santa_models
 from upvote.gae.datastore.models import user as user_models
@@ -444,7 +445,7 @@ class EventUploadHandler(SantaRequestHandler):
     name = json_event.get(_EVENT_UPLOAD.FILE_BUNDLE_NAME)
     name = name if name is None else name[:200]
 
-    return santa_models.SantaBundle(
+    return package_models.SantaBundle(
         key=bundle_key,
         name=name,
         version=json_event.get(_EVENT_UPLOAD.FILE_BUNDLE_VERSION),
@@ -564,13 +565,14 @@ class EventUploadHandler(SantaRequestHandler):
   def _GetBlockableKeyFromJsonEvent(cls, json_event):
     file_hash = json_event.get(_EVENT_UPLOAD.FILE_SHA256)
     assert file_hash
-    return ndb.Key(santa_models.SantaBundle, file_hash)
+    return ndb.Key(package_models.SantaBundle, file_hash)
 
   @classmethod
   def _GetBundleKeyFromJsonEvent(cls, json_event):
     bundle_hash = json_event.get(_EVENT_UPLOAD.FILE_BUNDLE_HASH)
     return (
-        ndb.Key(santa_models.SantaBundle, bundle_hash) if bundle_hash else None)
+        ndb.Key(package_models.SantaBundle, bundle_hash)
+        if bundle_hash else None)
 
   @classmethod
   def _GetBundleRelPathFromJsonEvent(cls, json_event):
@@ -700,7 +702,7 @@ class EventUploadHandler(SantaRequestHandler):
             bundle.key.id())
         continue
 
-      bundle_binary = santa_models.SantaBundleBinary.Generate(
+      bundle_binary = package_models.SantaBundleBinary.Generate(
           bundle_key, blockable.key, rel_path=rel_path, file_name=file_name,
           cert_key=signing_cert_key)
       bundle_binaries.append(bundle_binary)
@@ -732,7 +734,7 @@ class EventUploadHandler(SantaRequestHandler):
     bundle = yield bundle_key.get_async()
     assert bundle is not None
 
-    total_uploaded = yield santa_models.SantaBundleBinary.query(
+    total_uploaded = yield package_models.SantaBundleBinary.query(
         ancestor=bundle_key).count_async()
     assert total_uploaded <= bundle.binary_count
 

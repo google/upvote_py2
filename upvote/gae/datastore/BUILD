@@ -27,6 +27,7 @@ py_appengine_library(
         "//upvote/gae/datastore/models:event",
         "//upvote/gae/datastore/models:exemption",
         "//upvote/gae/datastore/models:host",
+        "//upvote/gae/datastore/models:package",
         "//upvote/gae/datastore/models:rule",
         "//upvote/gae/datastore/models:santa",
         "//upvote/gae/datastore/models:user",

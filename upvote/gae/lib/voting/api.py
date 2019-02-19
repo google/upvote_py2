@@ -24,8 +24,8 @@ from upvote.gae.bigquery import tables
 from upvote.gae.datastore import utils as datastore_utils
 from upvote.gae.datastore.models import base
 from upvote.gae.datastore.models import host as host_models
+from upvote.gae.datastore.models import package as package_models
 from upvote.gae.datastore.models import rule as rule_models
-from upvote.gae.datastore.models import santa
 from upvote.gae.datastore.models import user as user_models
 from upvote.gae.datastore.models import vote as vote_models
 from upvote.gae.lib.analysis import metrics
@@ -341,7 +341,7 @@ class BallotBox(object):
     self.blockable = self.blockable.key.get()
 
     # Record Lookup Metrics for the vote.
-    if not isinstance(self.blockable, base.Package):
+    if not isinstance(self.blockable, package_models.Package):
       reason = (
           constants.ANALYSIS_REASON.UPVOTE
           if was_yes_vote
@@ -357,7 +357,8 @@ class BallotBox(object):
     self.blockable = _GetBlockable(blockable_id)
     self._CheckVotingAllowed()
 
-    if isinstance(self.blockable, santa.SantaBundle) and not was_yes_vote:
+    if (isinstance(self.blockable, package_models.SantaBundle)
+        and not was_yes_vote):
       raise OperationNotAllowedError('Downvoting not supported for Bundles')
 
     initial_state = self.blockable.state
@@ -832,7 +833,7 @@ class SantaBallotBox(BallotBox):
       OperationNotAllowedError: The user may not vote on the blockable due to
           one of the VOTING_PROHIBITED_REASONS.
     """
-    if isinstance(self.blockable, santa.SantaBundle):
+    if isinstance(self.blockable, package_models.SantaBundle):
       allowed, reason = self.blockable.IsVotingAllowed(
           current_user=self.user,
           enable_flagged_checks=not ndb.in_transaction())
@@ -888,7 +889,7 @@ class SantaBallotBox(BallotBox):
   @ndb.transactional
   def Reset(self):
     self.blockable = base.Blockable.get_by_id(self.blockable_id)
-    if isinstance(self.blockable, santa.SantaBundle):
+    if isinstance(self.blockable, package_models.SantaBundle):
       raise OperationNotAllowedError('Resetting not supported for Bundles')
 
     super(SantaBallotBox, self).Reset()
