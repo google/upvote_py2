@@ -344,6 +344,7 @@ class BigQueryTable(object):
       logging.exception(
           'Error encountered while inserting row into the %s table', self.name)
       monitoring.row_insertions.Failure()
+      raise  # Must re-raise in order to trigger a retry.
 
   def InsertRow(self, **kwargs):
     if env_utils.ENV.ENABLE_BIGQUERY_STREAMING:
