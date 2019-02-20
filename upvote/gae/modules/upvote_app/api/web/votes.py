@@ -128,8 +128,8 @@ class VoteCastHandler(handler_utils.UserFacingHandler):
       vote = voting_api.Vote(self.user, blockable_id, was_yes_vote, vote_weight)
     except voting_api.BlockableNotFoundError:
       self.abort(httplib.NOT_FOUND, explanation='Application not found')
-    except voting_api.UnsupportedPlatformError:
-      self.abort(httplib.BAD_REQUEST, explanation='Unsupported platform')
+    except voting_api.UnsupportedClientError:
+      self.abort(httplib.BAD_REQUEST, explanation='Unsupported client')
     except voting_api.InvalidVoteWeightError:
       self.abort(httplib.BAD_REQUEST, explanation='Invalid voting weight')
     except voting_api.DuplicateVoteError:

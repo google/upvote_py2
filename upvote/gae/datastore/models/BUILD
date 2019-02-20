@@ -21,6 +21,7 @@ py_appengine_library(
         ":metrics",
         ":mixin",
         ":note",
+        ":package",
         ":rule",
         ":santa",
         ":singleton",
@@ -123,6 +124,19 @@ py_appengine_library(
 )
 
 py_appengine_library(
+    name = "package",
+    srcs = ["package.py"],
+    deps = [
+        ":base",
+        ":mixin",
+        ":user",
+        "//upvote/gae/bigquery:tables",
+        "//upvote/gae/datastore:utils",
+        "//upvote/shared:constants",
+    ],
+)
+
+py_appengine_library(
     name = "rule",
     srcs = ["rule.py"],
     deps = [
@@ -178,6 +192,7 @@ py_appengine_library(
         ":event",
         ":exemption",
         ":host",
+        ":package",
         ":rule",
         ":santa",
         ":user",
@@ -300,6 +315,18 @@ upvote_appengine_test(
     srcs = ["note_test.py"],
     deps = [
         ":note",
+        "//upvote/gae/datastore:test_utils",
+        "//upvote/gae/lib/testing:basetest",
+        "@absl_git//absl/testing:absltest",
+    ],
+)
+
+upvote_appengine_test(
+    name = "package_test",
+    size = "small",
+    srcs = ["package_test.py"],
+    deps = [
+        ":package",
         "//upvote/gae/datastore:test_utils",
         "//upvote/gae/lib/testing:basetest",
         "@absl_git//absl/testing:absltest",

@@ -26,6 +26,7 @@ from upvote.gae.datastore import utils as datastore_utils
 from upvote.gae.datastore.models import base as base_models
 from upvote.gae.datastore.models import event as event_models
 from upvote.gae.datastore.models import host as host_models
+from upvote.gae.datastore.models import package as package_models
 from upvote.gae.datastore.models import santa as santa_models
 from upvote.gae.datastore.models import user as user_models
 from upvote.gae.datastore.models import vote as vote_models
@@ -208,7 +209,7 @@ class RecentEventHandler(handler_utils.UserFacingHandler):
     # of 'blockable_key'.
     blockable_filter = (
         event_models.SantaEvent.bundle_key == blockable.key
-        if isinstance(blockable, santa_models.SantaBundle) else
+        if isinstance(blockable, package_models.SantaBundle) else
         event_models.Event.blockable_key == blockable.key)
 
     event_query = (event_models.Event

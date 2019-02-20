@@ -25,6 +25,7 @@ from upvote.gae.datastore import test_utils
 from upvote.gae.datastore import utils as datastore_utils
 from upvote.gae.datastore.models import base
 from upvote.gae.datastore.models import note as note_models
+from upvote.gae.datastore.models import package as package_models
 from upvote.gae.datastore.models import rule as rule_models
 from upvote.gae.datastore.models import santa
 from upvote.gae.lib.testing import basetest
@@ -467,8 +468,8 @@ class BlockableHandlerTest(BlockablesTest):
 
   @mock.patch.object(
       blockables.voting_api, 'Recount',
-      side_effect=voting_api.UnsupportedPlatformError)
-  def testPost_Admin_Recount_UnsupportedPlatformError(self, mock_recount):
+      side_effect=voting_api.UnsupportedClientError)
+  def testPost_Admin_Recount_UnsupportedClientError(self, mock_recount):
     with self.LoggedInUser(admin=True):
       self.testapp.post(
           self.ROUTE % test_utils.RandomSHA256(),
@@ -520,8 +521,8 @@ class BlockableHandlerTest(BlockablesTest):
 
   @mock.patch.object(
       blockables.voting_api, 'Reset',
-      side_effect=voting_api.UnsupportedPlatformError)
-  def testPost_Admin_Reset_UnsupportedPlatformError(self, mock_reset):
+      side_effect=voting_api.UnsupportedClientError)
+  def testPost_Admin_Reset_UnsupportedClientError(self, mock_reset):
     with self.LoggedInUser(admin=True):
       self.testapp.post(
           self.ROUTE % test_utils.RandomSHA256(),
@@ -691,7 +692,7 @@ class PackageContentsHandlerTest(BlockablesTest):
     expected_path_order = ['a/y', 'a/z', 'a/b/z', 'a/b/c/x']
     for rel_path, file_name in path_pairs:
       binary = test_utils.CreateSantaBlockable()
-      santa.SantaBundleBinary.Generate(
+      package_models.SantaBundleBinary.Generate(
           bundle.key,
           binary.key,
           cert_key=binary.cert_key,
@@ -717,7 +718,7 @@ class PackageContentsHandlerTest(BlockablesTest):
           self.ROUTE % blockable.key.id(), status=httplib.BAD_REQUEST)
 
   def testGet_NotASantaBundle(self):
-    package_key = base.Package(id='foo', id_type='SHA256').put()
+    package_key = package_models.Package(id='foo', id_type='SHA256').put()
     with self.LoggedInUser():
       self.testapp.get(
           self.ROUTE % package_key.id(), status=httplib.BAD_REQUEST)

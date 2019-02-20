@@ -41,15 +41,44 @@ describe('Host Service', () => {
   });
 
   afterEach(function() {
-    httpBackend.flush();
     httpBackend.verifyNoOutstandingExpectation();
     httpBackend.verifyNoOutstandingRequest();
   });
+
+  /**
+   * @param {?Object=} opt_properties
+   * @return {!Object}
+   */
+  let getHost = (opt_properties) =>
+      Object.assign({'id': 'foo', 'class_': ['Host']}, opt_properties);
+
+  /**
+   * @param {?Object=} opt_properties
+   * @return {!Object}
+   */
+  let getBit9Host = (opt_properties) => Object.assign(
+      getHost({
+        'class_': ['Host', 'Bit9Host'],
+        'operatingSystemFamily': upvote.app.constants.PLATFORMS.WINDOWS,
+      }),
+      opt_properties);
+
+  /**
+   * @param {?Object=} opt_properties
+   * @return {!Object}
+   */
+  let getSantaHost = (opt_properties) => Object.assign(
+      getHost({
+        'class_': ['Host', 'SantaHost'],
+        'operatingSystemFamily': upvote.app.constants.PLATFORMS.MACOS,
+      }),
+      opt_properties);
 
   describe('should request the proper URL', () => {
     it('when retrieving a host by its ID', () => {
       httpBackend.expectGET('/api/web/hosts/abc').respond(200);
       hostService.get('abc');
+      httpBackend.flush();
     });
 
     describe('when getting associated hosts', () => {
@@ -57,11 +86,13 @@ describe('Host Service', () => {
         httpBackend.expectGET('/api/web/hosts/associated/user@foo.com')
             .respond(200);
         hostService.getAssociatedHosts('user@foo.com');
+        httpBackend.flush();
       });
 
       it('for the current user', () => {
         httpBackend.expectGET('/api/web/hosts/associated').respond(200);
         hostService.getAssociatedHosts();
+        httpBackend.flush();
       });
     });
 
@@ -81,6 +112,7 @@ describe('Host Service', () => {
         let params =
             Object.assign({'platform': upvote.hosts.Platform.SANTA}, qParams);
         hostService.search(params);
+        httpBackend.flush();
       });
     });
 
@@ -88,11 +120,13 @@ describe('Host Service', () => {
       it('true', () => {
         httpBackend.expectPUT('/api/web/hosts/12345/hidden/true').respond(200);
         hostService.setHidden('12345', true);
+        httpBackend.flush();
       });
 
       it('false', () => {
         httpBackend.expectPUT('/api/web/hosts/12345/hidden/false').respond(200);
         hostService.setHidden('12345', false);
+        httpBackend.flush();
       });
     });
 
@@ -101,13 +135,92 @@ describe('Host Service', () => {
         httpBackend.expectPUT('/api/web/hosts/12345/transitive/true')
             .respond(200);
         hostService.setTransitive('12345', true);
+        httpBackend.flush();
       });
 
       it('false', () => {
         httpBackend.expectPUT('/api/web/hosts/12345/transitive/false')
             .respond(200);
         hostService.setTransitive('12345', false);
+        httpBackend.flush();
       });
+    });
+  });
+
+  describe('should supply the correct platform Image URL', () => {
+    it('for Santa hosts', () => {
+      let fakeHost = getSantaHost();
+
+      expect(hostService.getPlatformImageURL(fakeHost))
+          .toBe('/static/images/apple_logo.svg');
+    });
+
+    it('for Bit9 hosts', () => {
+      let fakeHost = getBit9Host();
+
+      expect(hostService.getPlatformImageURL(fakeHost))
+          .toBe('/static/images/windows_logo.svg');
+    });
+  });
+
+  describe('should reflect the proper host type', () => {
+    it('for Santa hosts', () => {
+      let fakeHost = getSantaHost();
+
+      expect(hostService.isSantaHost(fakeHost)).toBe(true);
+      expect(hostService.isBit9Host(fakeHost)).toBe(false);
+    });
+
+    it('for Bit9 hosts', () => {
+      let fakeHost = getBit9Host();
+
+      expect(hostService.isSantaHost(fakeHost)).toBe(false);
+      expect(hostService.isBit9Host(fakeHost)).toBe(true);
+    });
+
+    it('for other hosts', () => {
+      let fakeHost = getHost();
+
+      expect(hostService.isSantaHost(fakeHost)).toBe(false);
+      expect(hostService.isBit9Host(fakeHost)).toBe(false);
+    });
+  });
+
+  describe('should return', () => {
+    describe('whether the Host is in lockdown mode', () => {
+      describe('for a Santa host', () => {
+        it('when it is in lockdown', () => {
+          let fakeHost = getSantaHost({'clientMode': 'LOCKDOWN'});
+
+          expect(hostService.isInLockdown(fakeHost)).toBe(true);
+        });
+
+        it('when it is in an unexpected mode', () => {
+          let fakeHost = getSantaHost({'clientMode': 'not anything'});
+
+          expect(hostService.isInLockdown(fakeHost)).toBe(false);
+        });
+      });
+
+      describe('for a Bit9 host', () => {
+        it('when it is in lockdown', () => {
+          let fakeHost = getBit9Host({'policyEnforcementLevel': 'LOCKDOWN'});
+
+          expect(hostService.isInLockdown(fakeHost)).toBe(true);
+        });
+
+        it('when it is in an unexpected mode', () => {
+          let fakeHost = getBit9Host({'policyEnforcementLevel': 'nothing'});
+
+          expect(hostService.isInLockdown(fakeHost)).toBe(false);
+        });
+      });
+    });
+
+    it('false for unexpected host types', () => {
+      let fakeHost = getHost({'clientMode': 'LOCKDOWN'});
+
+      expect(hostService.isInLockdown(fakeHost)).toBe(false);
     });
   });
 });

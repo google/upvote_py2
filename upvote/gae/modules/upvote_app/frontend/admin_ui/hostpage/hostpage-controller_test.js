@@ -22,9 +22,8 @@ goog.require('upvote.shared.Page');
 
 
 describe('HostController', () => {
-  let hostResource, hostQueryResource, userResource, hostService,
-      hostUtilsService, errorService, location, httpBackend, routeParams, q,
-      rootScope, page;
+  let hostResource, hostQueryResource, userResource, hostService, errorService,
+      location, httpBackend, routeParams, q, rootScope, page;
 
   beforeEach(() => {
     module(upvote.admin.hosts.module.name);
@@ -33,14 +32,12 @@ describe('HostController', () => {
 
     inject(
         (_hostResource_, _hostQueryResource_, _userResource_, _hostService_,
-         _hostUtilsService_, _errorService_, $location, $httpBackend, $q,
-         $rootScope) => {
+         _errorService_, $location, $httpBackend, $q, $rootScope) => {
           // Store injected components.
           hostResource = _hostResource_;
           hostQueryResource = _hostQueryResource_;
           userResource = _userResource_;
           hostService = _hostService_;
-          hostUtilsService = _hostUtilsService_;
           errorService = _errorService_;
           location = $location;
           httpBackend = $httpBackend;
@@ -62,9 +59,8 @@ describe('HostController', () => {
   });
 
   let buildController = () => new upvote.admin.hostpage.HostController(
-      hostResource, hostQueryResource, userResource, hostService,
-      hostUtilsService, errorService, routeParams, rootScope, rootScope,
-      location, page);
+      hostResource, hostQueryResource, userResource, hostService, errorService,
+      routeParams, rootScope, rootScope, location, page);
 
   beforeEach(() => {
     hostResource.get.and.returnValue(promiseValue({}));

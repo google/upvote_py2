@@ -213,26 +213,6 @@ class SantaBundleTest(SantaModelTest):
     # uploaded.
     self.assertEqual(0, bundle.key.get().score)
 
-  def testTranslatePropertyQuery_CertId(self):
-    field, val = 'cert_id', 'bar'
-
-    new_field, new_val = santa.SantaBundle.TranslatePropertyQuery(field, val)
-
-    self.assertEqual(val, ndb.Key(urlsafe=new_val).id())
-    self.assertEqual('main_cert_key', new_field)
-
-  def testTranslatePropertyQuery_CertId_NoQueryValue(self):
-    field, val = 'cert_id', None
-
-    new_field, new_val = santa.SantaBundle.TranslatePropertyQuery(field, val)
-
-    self.assertIsNone(new_val)
-    self.assertEqual('main_cert_key', new_field)
-
-  def testTranslatePropertyQuery_NotCertId(self):
-    pair = ('foo', 'bar')
-    self.assertEqual(pair, santa.SantaBundle.TranslatePropertyQuery(*pair))
-
   def testIsVotingAllowed_BundleUpload(self):
     bundle = test_utils.CreateSantaBundle(uploaded_dt=None)
     self.assertFalse(bundle.has_been_uploaded)

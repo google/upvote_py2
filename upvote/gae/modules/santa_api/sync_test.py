@@ -29,6 +29,7 @@ from upvote.gae.datastore import test_utils
 from upvote.gae.datastore import utils as datastore_utils
 from upvote.gae.datastore.models import event as event_models
 from upvote.gae.datastore.models import host as host_models
+from upvote.gae.datastore.models import package as package_models
 from upvote.gae.datastore.models import rule as rule_models
 from upvote.gae.datastore.models import santa as santa_models
 from upvote.gae.datastore.models import user as user_models
@@ -769,9 +770,9 @@ class EventUploadHandlerTest(SantaApiTestCase):
     request_json = {EVENT_UPLOAD.EVENTS: [event]}
     self.testapp.post_json('/my-uuid', request_json)
 
-    self.assertEqual(1, santa_models.SantaBundleBinary.query().count())
+    self.assertEqual(1, package_models.SantaBundleBinary.query().count())
 
-    member = santa_models.SantaBundleBinary.query().get()
+    member = package_models.SantaBundleBinary.query().get()
     self.assertEqual('Contents/MacOS/bar', member.rel_path)
     self.assertEqual('Contents/MacOS/bar/baz', member.full_path)
 
@@ -792,7 +793,7 @@ class EventUploadHandlerTest(SantaApiTestCase):
     self.testapp.post_json('/my-uuid', request_json)
 
     # Bundle binary should have been skipped.
-    self.assertEqual(0, santa_models.SantaBundleBinary.query().count())
+    self.assertEqual(0, package_models.SantaBundleBinary.query().count())
 
     # No Tasks should be triggered.
     self.assertNoBigQueryInsertions()
@@ -808,7 +809,7 @@ class EventUploadHandlerTest(SantaApiTestCase):
     request_json = {EVENT_UPLOAD.EVENTS: [event]}
     self.testapp.post_json('/my-uuid', request_json)
 
-    self.assertEqual(0, santa_models.SantaBundleBinary.query().count())
+    self.assertEqual(0, package_models.SantaBundleBinary.query().count())
 
     # No Tasks should be triggered.
     self.assertNoBigQueryInsertions()
@@ -828,11 +829,11 @@ class EventUploadHandlerTest(SantaApiTestCase):
     self.testapp.post_json('/my-uuid', request_json)
 
     self.assertEntityCount(santa_models.SantaCertificate, 3)
-    self.assertEntityCount(santa_models.SantaBundleBinary, 1)
+    self.assertEntityCount(package_models.SantaBundleBinary, 1)
 
     self.assertFalse(bundle.key.get().has_unsigned_contents)
 
-    bundle_binary = santa_models.SantaBundleBinary.query().get()
+    bundle_binary = package_models.SantaBundleBinary.query().get()
     self.assertEqual('Contents/MacOS', bundle_binary.rel_path)
     self.assertEqual('Contents/MacOS/foo', bundle_binary.full_path)
     self.assertEqual('cert-sha256', bundle_binary.cert_key.id())
@@ -870,12 +871,13 @@ class EventUploadHandlerTest(SantaApiTestCase):
     self.assertIsNotNone(event.blockable_key.get())
     # SantaBundleBinary SHOULD NOT have been created.
     member_key = ndb.Key(
-        santa_models.SantaBundle, 'foo', santa_models.SantaBundleBinary,
+        package_models.SantaBundle, 'foo', package_models.SantaBundleBinary,
         'the-sha256')
     self.assertIsNone(member_key.get())
 
     # Validate the created bundle.
-    self.assertEqual(ndb.Key(santa_models.SantaBundle, 'foo'), event.bundle_key)
+    self.assertEqual(
+        ndb.Key(package_models.SantaBundle, 'foo'), event.bundle_key)
     bundle = event.bundle_key.get()
     self.assertEqual('foo', bundle.bundle_id)
     self.assertEqual('bar', bundle.version)
@@ -901,7 +903,7 @@ class EventUploadHandlerTest(SantaApiTestCase):
     output = response.json  # pylint: disable=unused-variable
 
     self.assertEntityCount(event_models.SantaEvent, 0)
-    self.assertEntityCount(santa_models.SantaBundleBinary, 1)
+    self.assertEntityCount(package_models.SantaBundleBinary, 1)
 
     # Ensure the bundle hasn't been marked as uploaded.
     bundle = bundle.key.get()
@@ -930,7 +932,7 @@ class EventUploadHandlerTest(SantaApiTestCase):
     # Ensure the new blockable doesn't get added to the bundle.
     self.assertEntityCount(event_models.SantaEvent, 0)
     self.assertEntityCount(
-        santa_models.SantaBundleBinary, 1, ancestor=bundle.key)
+        package_models.SantaBundleBinary, 1, ancestor=bundle.key)
 
     self.assertBigQueryInsertion(TABLE.BINARY)
 
@@ -1105,7 +1107,7 @@ class EventUploadHandlerTest(SantaApiTestCase):
 
     self.assertEqual(0, event_models.SantaEvent.query().count())
     self.assertEqual(
-        1, santa_models.SantaBundleBinary.query(ancestor=bundle.key).count())
+        1, package_models.SantaBundleBinary.query(ancestor=bundle.key).count())
     self.assertFalse(bundle.key.get().has_been_uploaded)
 
     self.assertBigQueryInsertion(TABLE.BUNDLE_BINARY)
@@ -1136,7 +1138,7 @@ class EventUploadHandlerTest(SantaApiTestCase):
       self.assertIsNotNone(santa_models.SantaBlockable.get_by_id('bar%s' % i))
     self.assertEqual(
         num_binaries,
-        santa_models.SantaBundleBinary.query(ancestor=bundle.key).count())
+        package_models.SantaBundleBinary.query(ancestor=bundle.key).count())
 
     # Should have marked the bundle as uploaded
     self.assertTrue(bundle.key.get().has_been_uploaded)
@@ -1172,9 +1174,9 @@ class EventUploadHandlerTest(SantaApiTestCase):
     self.assertEqual(0, event_models.SantaEvent.query().count())
 
     self.assertEntityCount(
-        santa_models.SantaBundleBinary, 1, ancestor=bundle.key)
+        package_models.SantaBundleBinary, 1, ancestor=bundle.key)
     self.assertEntityCount(
-        santa_models.SantaBundleBinary, 1, ancestor=other_bundle.key)
+        package_models.SantaBundleBinary, 1, ancestor=other_bundle.key)
     self.assertTrue(bundle.key.get().has_been_uploaded)
     self.assertTrue(other_bundle.key.get().has_been_uploaded)
 
@@ -1200,15 +1202,15 @@ class EventUploadHandlerTest(SantaApiTestCase):
     self.assertEqual(0, event_models.SantaEvent.query().count())
 
     # Should have created the bundle.
-    bundle = santa_models.SantaBundle.get_by_id(bundle_hash)
+    bundle = package_models.SantaBundle.get_by_id(bundle_hash)
     self.assertIsNotNone(bundle)
 
     # Should have created the bundle member.
     expected_binary_key = datastore_utils.ConcatenateKeys(
-        bundle.key, ndb.Key(santa_models.SantaBundleBinary, event_hash))
+        bundle.key, ndb.Key(package_models.SantaBundleBinary, event_hash))
     self.assertIsNotNone(expected_binary_key.get())
     self.assertEqual(
-        1, santa_models.SantaBundleBinary.query(ancestor=bundle.key).count())
+        1, package_models.SantaBundleBinary.query(ancestor=bundle.key).count())
 
     self.assertBigQueryInsertions(
         [TABLE.BINARY, TABLE.BUNDLE, TABLE.BUNDLE_BINARY])
@@ -1236,7 +1238,7 @@ class EventUploadHandlerTest(SantaApiTestCase):
     self.assertIsNotNone(santa_models.SantaBlockable.get_by_id('blah'))
 
     self.assertEqual(
-        1, santa_models.SantaBundleBinary.query(ancestor=bundle.key).count())
+        1, package_models.SantaBundleBinary.query(ancestor=bundle.key).count())
     self.assertTrue(bundle.key.get().has_been_uploaded)
 
     self.assertBigQueryInsertions(
@@ -1263,15 +1265,15 @@ class EventUploadHandlerTest(SantaApiTestCase):
     self.assertEqual(0, event_models.SantaEvent.query().count())
 
     # Should have created the bundle.
-    bundle = santa_models.SantaBundle.get_by_id(bundle_hash)
+    bundle = package_models.SantaBundle.get_by_id(bundle_hash)
     self.assertIsNotNone(bundle)
 
     # Should have created the bundle member.
     expected_binary_key = datastore_utils.ConcatenateKeys(
-        bundle.key, ndb.Key(santa_models.SantaBundleBinary, event_hash))
+        bundle.key, ndb.Key(package_models.SantaBundleBinary, event_hash))
     self.assertIsNotNone(expected_binary_key.get())
     self.assertEqual(
-        1, santa_models.SantaBundleBinary.query(ancestor=bundle.key).count())
+        1, package_models.SantaBundleBinary.query(ancestor=bundle.key).count())
 
     self.assertBigQueryInsertions(
         [TABLE.BINARY, TABLE.BUNDLE, TABLE.BUNDLE_BINARY])

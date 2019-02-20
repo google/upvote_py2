@@ -17,7 +17,6 @@ goog.provide('upvote.admin.hostpage.HostController');
 goog.require('upvote.admin.lib.controllers.ModelController');
 goog.require('upvote.errornotifier.ErrorService');
 goog.require('upvote.hosts.HostService');
-goog.require('upvote.hosts.HostUtilsService');
 goog.require('upvote.shared.Page');
 
 goog.scope(() => {
@@ -31,7 +30,6 @@ upvote.admin.hostpage.HostController = class extends ModelController {
    * @param {!angular.Resource} hostQueryResource
    * @param {!angular.Resource} userResource
    * @param {!upvote.hosts.HostService} hostService
-   * @param {!upvote.hosts.HostUtilsService} hostUtilsService
    * @param {!upvote.errornotifier.ErrorService} errorService
    * @param {!angular.$routeParams} $routeParams
    * @param {!angular.Scope} $scope
@@ -41,21 +39,18 @@ upvote.admin.hostpage.HostController = class extends ModelController {
    * @ngInject
    */
   constructor(
-      hostResource, hostQueryResource, userResource, hostService,
-      hostUtilsService, errorService, $routeParams, $scope, $rootScope,
-      $location, page) {
+      hostResource, hostQueryResource, userResource, hostService, errorService,
+      $routeParams, $scope, $rootScope, $location, page) {
     super(hostResource, hostQueryResource, $routeParams, $scope, $location);
 
     /** @export {!Object<string, !upvote.admin.lib.controllers.Field>} */
     this.fields = HostController.BASE_FIELDS_;
     /** @private {!upvote.errornotifier.ErrorService} errorService */
     this.errorService_ = errorService;
-    /** @private {!upvote.hosts.HostService} */
-    this.hostService_ = hostService;
+    /** @export {!upvote.hosts.HostService} */
+    this.hostService = hostService;
     /** @private {!angular.Resource} */
     this.userResource_ = userResource;
-    /** @export {!upvote.hosts.HostUtilsService} */
-    this.hostUtils = hostUtilsService;
     /** @export {!angular.Scope} */
     this.rootScope = $rootScope;
     /** @export {?upvote.shared.models.User} */
@@ -115,8 +110,8 @@ upvote.admin.hostpage.HostController = class extends ModelController {
 
   canEnableMonitorMode(host) {
     return (
-        this.hostUtils.isSantaHost(host) && this.hostUtils.isInLockdown(host) &&
-        this.userCanEditHosts());
+        this.hostService.isSantaHost(host) &&
+        this.hostService.isInLockdown(host) && this.userCanEditHosts());
   }
 
   enableMonitorMode(host) {
@@ -129,8 +124,8 @@ upvote.admin.hostpage.HostController = class extends ModelController {
 
   canEnableLockdownMode(host) {
     return (
-        this.hostUtils.isSantaHost(host) &&
-        !this.hostUtils.isInLockdown(host) && this.userCanEditHosts());
+        this.hostService.isSantaHost(host) &&
+        !this.hostService.isInLockdown(host) && this.userCanEditHosts());
   }
 
   enableLockdownMode(host) {
@@ -142,7 +137,7 @@ upvote.admin.hostpage.HostController = class extends ModelController {
   }
 
   canToggleClientModeLock(host) {
-    return this.hostUtils.isSantaHost(host) && this.userCanEditHosts();
+    return this.hostService.isSantaHost(host) && this.userCanEditHosts();
   }
 
   toggleClientModeLock(host) {

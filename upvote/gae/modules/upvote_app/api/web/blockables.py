@@ -27,6 +27,7 @@ from upvote.gae.datastore.models import base as base_models
 from upvote.gae.datastore.models import bit9 as bit9_models
 from upvote.gae.datastore.models import event as event_models
 from upvote.gae.datastore.models import note as note_models
+from upvote.gae.datastore.models import package as package_models
 from upvote.gae.datastore.models import rule as rule_models
 from upvote.gae.datastore.models import santa as santa_models
 from upvote.gae.lib.bit9 import change_set
@@ -55,13 +56,13 @@ _MODEL_MAP = {
         _BlockableType.ALL: base_models.Blockable,
         _BlockableType.BINARY: base_models.Binary,
         _BlockableType.CERTIFICATE: base_models.Certificate,
-        _BlockableType.PACKAGE: base_models.Package,
+        _BlockableType.PACKAGE: package_models.Package,
     },
     _Platform.SANTA: {
         _BlockableType.ALL: None,
         _BlockableType.BINARY: santa_models.SantaBlockable,
         _BlockableType.CERTIFICATE: santa_models.SantaCertificate,
-        _BlockableType.PACKAGE: santa_models.SantaBundle,
+        _BlockableType.PACKAGE: package_models.SantaBundle,
     },
     _Platform.BIT9: {
         _BlockableType.ALL: None,
@@ -190,8 +191,8 @@ class BlockableHandler(handler_utils.UserFacingHandler):
         voting_api.Recount(blockable_id)
       except voting_api.BlockableNotFoundError:
         self.abort(httplib.NOT_FOUND, explanation='Blockable not found')
-      except voting_api.UnsupportedPlatformError:
-        self.abort(httplib.BAD_REQUEST, explanation='Unsupported platform')
+      except voting_api.UnsupportedClientError:
+        self.abort(httplib.BAD_REQUEST, explanation='Unsupported client')
       except Exception as e:  # pylint: disable=broad-except
         self.abort(httplib.INTERNAL_SERVER_ERROR, explanation=e.message)
       else:
@@ -258,8 +259,8 @@ class BlockableHandler(handler_utils.UserFacingHandler):
       voting_api.Reset(blockable_id)
     except voting_api.BlockableNotFoundError:
       self.abort(httplib.NOT_FOUND)
-    except voting_api.UnsupportedPlatformError:
-      self.abort(httplib.BAD_REQUEST, explanation='Unsupported platform')
+    except voting_api.UnsupportedClientError:
+      self.abort(httplib.BAD_REQUEST, explanation='Unsupported client')
     except voting_api.OperationNotAllowedError as e:
       self.abort(httplib.FORBIDDEN, explanation=e.message)
     except Exception as e:  # pylint: disable=broad-except
@@ -337,20 +338,21 @@ class PackageContentsHandler(handler_utils.UserFacingHandler):
     blockable = base_models.Blockable.get_by_id(package_id)
     if not blockable:
       self.abort(httplib.NOT_FOUND, explanation='Package not found.')
-    elif not isinstance(blockable, base_models.Package):
+    elif not isinstance(blockable, package_models.Package):
       self.abort(
           httplib.BAD_REQUEST,
           explanation='Blockable is not a Package: %s' % blockable)
-    elif not isinstance(blockable, santa_models.SantaBundle):
+    elif not isinstance(blockable, package_models.SantaBundle):
       self.abort(
           httplib.BAD_REQUEST,
           explanation='Only SantaBundles currently supported')
 
     # Order by the rel_path first, and then by the file_name which should
     # effectively sort by the full relative path in the bundle.
-    query = santa_models.SantaBundleBinary.query(ancestor=blockable.key).order(
-        santa_models.SantaBundleBinary.rel_path,
-        santa_models.SantaBundleBinary.file_name)
+    query = package_models.SantaBundleBinary.query(
+        ancestor=blockable.key).order(
+            package_models.SantaBundleBinary.rel_path,
+            package_models.SantaBundleBinary.file_name)
 
     binaries = query.fetch()
     self.respond_json(binaries)

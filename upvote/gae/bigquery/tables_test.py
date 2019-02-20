@@ -63,6 +63,14 @@ TEST_TABLE = tables.BigQueryTable(
     ])
 
 
+class Error(Exception):
+  """Base Exception class."""
+
+
+class VerySpecificError(Error):
+  """Test Exception."""
+
+
 class RowValueToStrTest(basetest.UpvoteTestCase):
 
   def testList(self):
@@ -309,11 +317,12 @@ class BigQueryTableTest(basetest.UpvoteTestCase):
 
   def testDoInsertRow_Exception(self):
 
-    self.mock_send_to_bigquery.side_effect = Exception
+    self.mock_send_to_bigquery.side_effect = VerySpecificError
 
     now = datetime.datetime.utcnow()
     row_values = {'aaa': True, 'bbb': 4, 'ccc': ['ccc'], 'ddd': now}
-    TEST_TABLE._DoInsertRow(**row_values)
+    with self.assertRaises(VerySpecificError):
+      TEST_TABLE._DoInsertRow(**row_values)
 
     self.assertTrue(tables.monitoring.row_insertions.Failure.called)
     self.mock_send_to_bigquery.reset_mock()

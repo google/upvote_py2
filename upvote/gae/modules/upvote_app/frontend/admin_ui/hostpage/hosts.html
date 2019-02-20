@@ -47,7 +47,7 @@
              class="md-card-medium _md md-default-theme">
       <md-card-title>
         <md-card-title-media class="uv-platform-logo">
-          <img ng-src="{{hostCtrl.hostUtils.getPlatformImageURL(host)}}"
+          <img ng-src="{{hostCtrl.hostService.getPlatformImageURL(host)}}"
                class="md-card-image uv-platform-logo"
                alt="{{host.operatingSystemFamily}}">
         </md-card-title-media>
@@ -57,16 +57,16 @@
           </span>
           <span class="md-subhead uv-host-card-detail">
             Status:
-            <span ng-class="hostCtrl.hostUtils.isInLockdown(host) ? 'protected-host' : 'unprotected-host'"
-                  ng-if="hostCtrl.hostUtils.isBit9Host(host)">
+            <span ng-class="hostCtrl.hostService.isInLockdown(host) ? 'protected-host' : 'unprotected-host'"
+                  ng-if="hostCtrl.hostService.isBit9Host(host)">
               {{ host.policyEnforcementLevel | prettifyEnforcementLevel }}
             </span>
-            <span ng-class="hostCtrl.hostUtils.isInLockdown(host) ? 'protected-host' : 'unprotected-host'"
-                  ng-if="hostCtrl.hostUtils.isSantaHost(host)">
+            <span ng-class="hostCtrl.hostService.isInLockdown(host) ? 'protected-host' : 'unprotected-host'"
+                  ng-if="hostCtrl.hostService.isSantaHost(host)">
               {{ host.clientMode | prettifyMode }}
             </span>
           </span>
-          <span ng-if="hostCtrl.hostUtils.isSantaHost(host)"
+          <span ng-if="hostCtrl.hostService.isSantaHost(host)"
                 class="md-subhead uv-host-card-detail">
             Primary User:
             <span class="uv-host-card-value">
@@ -81,35 +81,35 @@
             </span>
           </span>
           <span class="md-subhead uv-host-card-detail"
-                ng-if="hostCtrl.hostUtils.isSantaHost(host) && hostCtrl.detailsVisible(host.id)">
+                ng-if="hostCtrl.hostService.isSantaHost(host) && hostCtrl.detailsVisible(host.id)">
             OS Version:
             <span class="uv-host-card-value">
               {{ host.osVersion }}
             </span>
           </span>
           <span class="md-subhead uv-host-card-detail"
-                ng-if="hostCtrl.hostUtils.isSantaHost(host) && hostCtrl.detailsVisible(host.id)">
+                ng-if="hostCtrl.hostService.isSantaHost(host) && hostCtrl.detailsVisible(host.id)">
             Client Version:
             <span class="uv-host-card-value">
               {{ host.santaVersion }}
             </span>
           </span>
           <span class="md-subhead uv-host-card-detail"
-                ng-if="hostCtrl.hostUtils.isSantaHost(host) && hostCtrl.detailsVisible(host.id)">
+                ng-if="hostCtrl.hostService.isSantaHost(host) && hostCtrl.detailsVisible(host.id)">
             Last Rule Sync:
             <span class="uv-host-card-value">
               {{ host.ruleSyncDt | date:'mediumDate' }}
             </span>
           </span>
           <span class="md-subhead uv-host-card-detail"
-                ng-if="hostCtrl.hostUtils.isSantaHost(host) && hostCtrl.detailsVisible(host.id)">
+                ng-if="hostCtrl.hostService.isSantaHost(host) && hostCtrl.detailsVisible(host.id)">
             Last Preflight:
             <span class="uv-host-card-value">
               {{ host.lastPreflightDt | date:'yyyy-MM-dd HH:mm:ss Z' }}
             </span>
           </span>
           <span class="md-subhead uv-host-card-detail"
-                ng-if="hostCtrl.hostUtils.isSantaHost(host) && hostCtrl.detailsVisible(host.id)">
+                ng-if="hostCtrl.hostService.isSantaHost(host) && hostCtrl.detailsVisible(host.id)">
             Last Postflight:
             <span class="uv-host-card-value">
               {{ host.lastPostflightDt | date:'yyyy-MM-dd HH:mm:ss Z' }}
