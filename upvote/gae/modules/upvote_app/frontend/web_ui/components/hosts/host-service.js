@@ -17,6 +17,7 @@ goog.provide('upvote.hosts.ExemptionState');
 goog.provide('upvote.hosts.HostService');
 goog.provide('upvote.hosts.Platform');
 goog.provide('upvote.hosts.PolicyLevel');
+goog.provide('upvote.hosts.ProtectionLevel');
 goog.provide('upvote.hosts.SearchParams');
 
 goog.require('upvote.app.constants');
@@ -68,6 +69,18 @@ upvote.hosts.ExemptionState = {
   'CANCELLED': 'CANCELLED',
   'REVOKED': 'REVOKED',
   'EXPIRED': 'EXPIRED',
+};
+
+
+/**
+ * The protection levels a host can have.
+ * @enum {string}
+ * @export
+ */
+upvote.hosts.ProtectionLevel = {
+  'FULL': 'FULL',        // Lockdown enabled, transitive whitelisting disabled.
+  'DEVMODE': 'DEVMODE',  // Lockdown enabled, transitive whitelisting enabled.
+  'MINIMAL': 'MINIMAL',  // Lockdown disabled, transitive whitelisting disabled.
 };
 
 
@@ -214,7 +227,51 @@ upvote.hosts.HostService = class {
       return false;
     }
   }
+
+  /**
+   * Return whether a host has an APPROVED Exemption.
+   * @param {!upvote.shared.models.AnyHost} host
+   * @return {boolean}
+   * @export
+   */
+  hasApprovedExemption(host) {
+    if (host && host.exemption && host.exemption.state) {
+      return host.exemption.state == upvote.hosts.ExemptionState.APPROVED;
+    }
+    return false;
+  }
+
+  /**
+   * Return whether a host has transitive whitelisting enabled.
+   * @param {!upvote.shared.models.AnyHost} host
+   * @return {boolean}
+   * @export
+   */
+  isTransitiveWhitelistingEnabled(host) {
+    if (this.isSantaHost(host)) {
+      return host['transitiveWhitelistingEnabled'];
+    } else {
+      return false;
+    }
+  }
+
+  /**
+   * Return the protection level of a host.
+   * @param {!upvote.shared.models.AnyHost} host
+   * @return {!upvote.hosts.ProtectionLevel}
+   * @export
+   */
+  getProtectionLevel(host) {
+    if (this.hasApprovedExemption(host)) {
+      return upvote.hosts.ProtectionLevel.MINIMAL;
+    } else if (this.isTransitiveWhitelistingEnabled(host)) {
+      return upvote.hosts.ProtectionLevel.DEVMODE;
+    } else {
+      return upvote.hosts.ProtectionLevel.FULL;
+    }
+  }
 };
+
 let HostService = upvote.hosts.HostService;
 
 /** @private {string} */

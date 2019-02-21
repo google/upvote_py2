@@ -16,11 +16,12 @@ goog.setTestOnly();
 
 goog.require('upvote.hosts.HostService');
 goog.require('upvote.hosts.Platform');
+goog.require('upvote.hosts.ProtectionLevel');
 goog.require('upvote.hosts.module');
 
 goog.scope(() => {
 const HostService = upvote.hosts.HostService;
-
+const ProtectionLevel = upvote.hosts.ProtectionLevel;
 
 describe('Host Service', () => {
   let http, httpBackend;
@@ -223,5 +224,94 @@ describe('Host Service', () => {
       expect(hostService.isInLockdown(fakeHost)).toBe(false);
     });
   });
+
+  describe('should indicate if host has an approved exemption', () => {
+    it('when no exemption exists', () => {
+      let fakeHost = {};
+      expect(hostService.hasApprovedExemption(fakeHost)).toBe(false);
+    });
+
+    it('when the exemption is not approved', () => {
+      let fakeHost = {
+        'exemption': {
+          'state': 'CANCELLED',
+        },
+      };
+      expect(hostService.hasApprovedExemption(fakeHost)).toBe(false);
+    });
+
+    it('when the exemption is approved', () => {
+      let fakeHost = {
+        'exemption': {
+          'state': 'APPROVED',
+        },
+      };
+      expect(hostService.hasApprovedExemption(fakeHost)).toBe(true);
+    });
+  });
+
+  describe('should indicate if transitive whitelisting enabled', () => {
+    it('for Bit9 hosts', () => {
+      let fakeHost = {
+        'class_': ['Host', 'Bit9Host'],
+      };
+      expect(hostService.isTransitiveWhitelistingEnabled(fakeHost)).toBe(false);
+    });
+
+    it('when it is enabled', () => {
+      let fakeHost = {
+        'class_': ['Host', 'SantaHost'],
+        'transitiveWhitelistingEnabled': true,
+      };
+      expect(hostService.isTransitiveWhitelistingEnabled(fakeHost)).toBe(true);
+    });
+
+    it('when it is disabled', () => {
+      let fakeHost = {
+        'class_': ['Host', 'SantaHost'],
+        'transitiveWhitelistingEnabled': false,
+      };
+      expect(hostService.isTransitiveWhitelistingEnabled(fakeHost)).toBe(false);
+    });
+  });
+
+  describe('should indicate the correct protection level', () => {
+    it('when a host has an approved exemption', () => {
+      let fakeHost = {
+        'class_': ['Host', 'SantaHost'],
+        'exemption': {
+          'state': 'APPROVED',
+        },
+        'transitiveWhitelistingEnabled': false,
+      };
+      expect(hostService.getProtectionLevel(fakeHost))
+          .toBe(ProtectionLevel['MINIMAL']);
+    });
+
+    it('when a host has transitive whitelisting enabled', () => {
+      let fakeHost = {
+        'class_': ['Host', 'SantaHost'],
+        'exemption': {
+          'state': 'CANCELLED',
+        },
+        'transitiveWhitelistingEnabled': true,
+      };
+      expect(hostService.getProtectionLevel(fakeHost))
+          .toBe(ProtectionLevel['DEVMODE']);
+    });
+
+    it('when a host is fully protected', () => {
+      let fakeHost = {
+        'class_': ['Host', 'SantaHost'],
+        'exemption': {
+          'state': 'CANCELLED',
+        },
+        'transitiveWhitelistingEnabled': false,
+      };
+      expect(hostService.getProtectionLevel(fakeHost))
+          .toBe(ProtectionLevel['FULL']);
+    });
+  });
+
 });
 });  // goog.scope
