@@ -311,6 +311,11 @@ describe('Host Service', () => {
       expect(hostService.getProtectionLevel(fakeHost))
           .toBe(ProtectionLevel['FULL']);
     });
+
+    it('when a host is not provided', () => {
+      expect(hostService.getProtectionLevel(null))
+          .toBe(ProtectionLevel['UNKNOWN']);
+    });
   });
 
 });

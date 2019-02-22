@@ -81,6 +81,7 @@ upvote.hosts.ProtectionLevel = {
   'FULL': 'FULL',        // Lockdown enabled, transitive whitelisting disabled.
   'DEVMODE': 'DEVMODE',  // Lockdown enabled, transitive whitelisting enabled.
   'MINIMAL': 'MINIMAL',  // Lockdown disabled, transitive whitelisting disabled.
+  'UNKNOWN': 'UNKNOWN',  // Cannot be determined.
 };
 
 
@@ -266,8 +267,10 @@ upvote.hosts.HostService = class {
       return upvote.hosts.ProtectionLevel.MINIMAL;
     } else if (this.isTransitiveWhitelistingEnabled(host)) {
       return upvote.hosts.ProtectionLevel.DEVMODE;
-    } else {
+    } else if (host) {
       return upvote.hosts.ProtectionLevel.FULL;
+    } else {
+      return upvote.hosts.ProtectionLevel.UNKNOWN;
     }
   }
 };
