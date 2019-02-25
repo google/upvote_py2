@@ -34,6 +34,21 @@ span.bad-exemption-state {
   font-weight: bold;
 }
 
+span.full-protection {
+  color: #34A853;
+  font-weight: bold;
+}
+
+span.developer-mode {
+  color: #FBBC04;
+  font-weight: bold;
+}
+
+span.minimal-protection {
+  color: #EA4335;
+  font-weight: bold;
+}
+
 button.visibility-button {
   float: right;
   min-width: 40px;
