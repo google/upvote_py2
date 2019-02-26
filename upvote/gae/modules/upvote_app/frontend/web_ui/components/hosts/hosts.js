@@ -28,5 +28,4 @@ upvote.hosts.module =
         .filter(
             'prettifyEnforcementLevel',
             () => upvote.hosts.prettifyEnforcementLevel)
-        .filter('prettifyExemption', () => upvote.hosts.prettifyExemption)
         .config(upvote.app.httpProvider);

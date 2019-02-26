@@ -102,31 +102,6 @@ upvote.hostlistpage.HostListController = class {
   }
 
   /**
-   * Return whether to display exemption status for a host.
-   * @param {!upvote.shared.models.AnyHost} host
-   * @return {boolean}
-   * @export
-   */
-  isExemptionStatusVisible(host) {
-    return (
-        host.exemption != null &&
-        host.exemption.state != upvote.hosts.ExemptionState.CANCELLED);
-  }
-
-  /**
-   * Return whether the exemption is in a bad state.
-   * @param {!upvote.shared.models.AnyHost} host
-   * @return {boolean}
-   * @export
-   */
-  isExemptionInBadState(host) {
-    return (
-        host.exemption != null &&
-        (host.exemption.state == upvote.hosts.ExemptionState.DENIED ||
-         host.exemption.state == upvote.hosts.ExemptionState.REVOKED));
-  }
-
-  /**
    * Return whether the exemption is in a state where it can be renewed.
    * @param {!upvote.shared.models.AnyHost} host
    * @return {boolean}
