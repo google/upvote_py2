@@ -156,6 +156,25 @@ class Exemption(mixin.Base, polymodel.PolyModel):
 
   @classmethod
   @ndb.transactional
+  def _InnerChangeState(cls, exm_key, new_state, details=None):
+
+    host_id = exm_key.parent().id()
+
+    # Verify that we're trying to change state on a valid Exemption.
+    exm = exm_key.get()
+    if not exm:
+      raise InvalidExemptionError('No Exemption exists for host %s' % host_id)
+
+    # Verify that the desired state can be reached from the current state.
+    if exm.CanChangeToState(new_state):
+      exm.state = new_state
+      exm.history.append(Record(state=new_state, details=details))
+      exm.put()
+      return exm
+
+    raise InvalidStateChangeError('%s to %s' % (exm.state, new_state))
+
+  @classmethod
   def ChangeState(cls, exm_key, new_state, details=None):
     """Changes the state of a given Exemption.
 
@@ -173,15 +192,6 @@ class Exemption(mixin.Base, polymodel.PolyModel):
     """
     host_id = exm_key.parent().id()
 
-    # Verify that we're trying to change state on a valid Exemption.
-    exm = exm_key.get()
-    if not exm:
-      raise InvalidExemptionError('No Exemption exists for host %s' % host_id)
-
-    # Verify that the desired state can be reached from the current state.
-    if not exm.CanChangeToState(new_state):
-      raise InvalidStateChangeError('%s to %s' % (exm.state, new_state))
-
     if details is None:
       details = []
 
@@ -189,12 +199,10 @@ class Exemption(mixin.Base, polymodel.PolyModel):
     if details and any(not detail for detail in details):
       raise InvalidDetailsError
 
+    exm = cls._InnerChangeState(exm_key, new_state, details=details)
     logging.info(
-        'Exemption for host %s changing state from %s to %s', host_id,
+        'Exemption for host %s changed state from %s to %s', host_id,
         exm.state, new_state)
-    exm.state = new_state
-    exm.history.append(Record(state=new_state, details=details))
-    exm.put()
 
     monitoring.state_changes.Increment(new_state)
 
