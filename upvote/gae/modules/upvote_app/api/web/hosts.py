@@ -60,14 +60,22 @@ class HostHandler(handler_utils.UserFacingHandler):
   """Handler for interacting with specific hosts."""
 
   def get(self, host_id):
+
     host_id = host_models.Host.NormalizeId(host_id)
     logging.info('Host handler get method called with ID=%s.', host_id)
     host = host_models.Host.get_by_id(host_id)
+
     if host is None:
       self.abort(httplib.NOT_FOUND, explanation='Host not found')
     elif not model_utils.IsHostAssociatedWithUser(host, self.user):
       self.RequireCapability(constants.PERMISSIONS.VIEW_OTHER_HOSTS)
-    self.respond_json(host)
+
+    # Include Exemption data with the Host.
+    exm = exemption_models.Exemption.Get(host.key.id())
+    host_dict = host.to_dict()
+    host_dict['exemption'] = exm.to_dict()
+
+    self.respond_json(host_dict)
 
   @handler_utils.RequireCapability(constants.PERMISSIONS.EDIT_HOSTS)
   @xsrf_utils.RequireToken

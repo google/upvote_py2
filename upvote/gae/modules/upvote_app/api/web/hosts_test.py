@@ -150,98 +150,110 @@ class HostHandlerTest(HostsTest):
 
   ROUTE = '/hosts/%s'
 
-  def testAssociatedUserGet(self):
-    """Normal user associated with a host gets it by ID."""
+  def testGet_AssociatedUser(self):
+
+    user = test_utils.CreateUser()
+    host = test_utils.CreateSantaHost(primary_user=user.nickname)
+    test_utils.CreateExemption(host.key.id())
     blockable = test_utils.CreateBlockable()
-    with self.LoggedInUser() as user:
-      test_utils.CreateSantaEvent(
-          blockable, host_id=self.santa_host_1.key.id(),
-          executing_user=user.nickname,
-          parent=datastore_utils.ConcatenateKeys(
-              user.key, self.santa_host_1.key, blockable.key))
-      self.assertTrue(
-          model_utils.IsHostAssociatedWithUser(self.santa_host_1, user))
-      response = self.testapp.get(self.ROUTE % self.santa_host_1.key.id())
+    test_utils.CreateSantaEvent(
+        blockable, host_id=host.key.id(), executing_user=user.nickname,
+        parent=datastore_utils.ConcatenateKeys(
+            user.key, host.key, blockable.key))
+    self.assertTrue(model_utils.IsHostAssociatedWithUser(host, user))
+
+    with self.LoggedInUser(user=user):
+      response = self.testapp.get(self.ROUTE % host.key.id())
 
     output = response.json
 
     self.assertIn('application/json', response.headers['Content-type'])
     self.assertIsInstance(output, dict)
+    self.assertIn('exemption', output)
 
-  def testAssociatedUserGet_PrimaryUser(self):
-    """Normal user associated with a host gets it by ID."""
-    with self.LoggedInUser() as user:
-      self.santa_host_3.primary_user = user.nickname
-      self.santa_host_3.put()
-      self.assertTrue(
-          model_utils.IsHostAssociatedWithUser(self.santa_host_3, user))
-      response = self.testapp.get(self.ROUTE % self.santa_host_3.key.id())
+  def testGet_AssociatedUser_PrimaryUser(self):
+
+    user = test_utils.CreateUser()
+    host = test_utils.CreateSantaHost(primary_user=user.nickname)
+    test_utils.CreateExemption(host.key.id())
+    self.assertTrue(model_utils.IsHostAssociatedWithUser(host, user))
+
+    with self.LoggedInUser(user=user):
+      response = self.testapp.get(self.ROUTE % host.key.id())
 
     output = response.json
 
     self.assertIn('application/json', response.headers['Content-type'])
     self.assertIsInstance(output, dict)
+    self.assertIn('exemption', output)
 
-  def testUnknownUserGet(self):
-    """Normal user not associated with a host attempts to get it by ID."""
-    with self.LoggedInUser() as user:
-      self.assertFalse(
-          model_utils.IsHostAssociatedWithUser(self.santa_host_1, user))
-      self.testapp.get(
-          self.ROUTE % self.santa_host_1.key.id(), status=httplib.FORBIDDEN)
+  def testGet_UnknownUser(self):
 
-  def testAdminGet(self):
-    """Admin gets a single host by ID."""
+    user = test_utils.CreateUser()
+    host = test_utils.CreateSantaHost(primary_user=user.nickname)
+
+    with self.LoggedInUser() as other_user:
+      self.assertFalse(model_utils.IsHostAssociatedWithUser(host, other_user))
+      self.testapp.get(self.ROUTE % host.key.id(), status=httplib.FORBIDDEN)
+
+  def testGet_Admin(self):
+
+    user = test_utils.CreateUser()
+    host = test_utils.CreateSantaHost(primary_user=user.nickname)
+    test_utils.CreateExemption(host.key.id())
+
     with self.LoggedInUser(admin=True):
-      response = self.testapp.get(self.ROUTE % self.santa_host_1.key.id())
+      response = self.testapp.get(self.ROUTE % host.key.id())
 
     output = response.json
 
     self.assertIn('application/json', response.headers['Content-type'])
     self.assertIsInstance(output, dict)
+    self.assertIn('exemption', output)
 
-  def testAdminGet_UnknownID(self):
-    """Admin attempts to get an unknown ID."""
+  def testGet_Admin_UnknownID(self):
     with self.LoggedInUser(admin=True):
       self.testapp.get(self.ROUTE % 'UnknownID', status=httplib.NOT_FOUND)
 
-  def testAdminPost(self):
-    """Admin posts a single host with no update params."""
+  def testPost_Admin(self):
+
+    user = test_utils.CreateUser()
+    host = test_utils.CreateSantaHost(primary_user=user.nickname)
+    test_utils.CreateExemption(host.key.id())
+
     with self.LoggedInUser(admin=True):
-      response = self.testapp.post(self.ROUTE % self.santa_host_1.key.id())
+      response = self.testapp.post(self.ROUTE % host.key.id())
 
     output = response.json
 
     self.assertIn('application/json', response.headers['Content-type'])
     self.assertIsInstance(output, dict)
 
-  def testAdminPost_UnknownID(self):
-    """Admin attempts to post an unknown ID."""
+  def testPost_Admin_UnknownID(self):
     with self.LoggedInUser(admin=True):
       self.testapp.post(self.ROUTE % 'UnknownID', status=httplib.NOT_FOUND)
 
-  def testAdminPost_Update(self):
-    """Admin posts a single host with update params."""
-    self.santa_host_1.client_mode_lock = True
-    self.santa_host_1.client_mode = constants.CLIENT_MODE.MONITOR
-    self.santa_host_1.put()
+  def testPost_Admin_Update(self):
+
+    user = test_utils.CreateUser()
+    host = test_utils.CreateSantaHost(
+        primary_user=user.nickname, client_mode_lock=True,
+        client_mode=constants.CLIENT_MODE.MONITOR)
 
     params = {
         'clientModeLock': 'false',
         'clientMode': constants.CLIENT_MODE.LOCKDOWN}
 
     with self.LoggedInUser(admin=True):
-      response = self.testapp.post(
-          self.ROUTE % self.santa_host_1.key.id(), params)
+      response = self.testapp.post(self.ROUTE % host.key.id(), params)
 
     output = response.json
 
     self.assertIn('application/json', response.headers['Content-type'])
     self.assertIsInstance(output, dict)
 
-    self.assertEqual(
-        self.santa_host_1.client_mode, constants.CLIENT_MODE.LOCKDOWN)
-    self.assertFalse(self.santa_host_1.client_mode_lock)
+    self.assertEqual(host.client_mode, constants.CLIENT_MODE.LOCKDOWN)
+    self.assertFalse(host.client_mode_lock)
 
 
 class AssociatedHostHandlerTest(HostsTest):
