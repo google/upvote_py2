@@ -18,6 +18,7 @@ import logging
 
 from google.appengine.api import mail
 from upvote.gae import settings
+from upvote.gae.utils import env_utils
 from upvote.gae.utils import user_utils
 
 
@@ -89,7 +90,8 @@ def Send(subject, body, to=None, cc=None, bcc=None, html=False):
   try:
     logging.info('Sending email to %s', recipients)
     message.check_initialized()
-    message.send()
+    if env_utils.RunningInProd():
+      message.send()
 
   # If something blows up, log it and move on. Failure to send an email is not
   # something that should take the caller off the rails.
