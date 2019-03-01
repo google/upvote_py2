@@ -154,6 +154,8 @@ class RequestExemptionHandler(ExemptionHandler):
     except exemption_models.InvalidStateChangeError:
       logging.warning('Error encountered while processing Exemption')
 
+    self.respond_json(exm_key.get())
+
 
 class EscalateExemptionHandler(ExemptionHandler):
   """Handler for escalating an exemption request to a ticket."""
