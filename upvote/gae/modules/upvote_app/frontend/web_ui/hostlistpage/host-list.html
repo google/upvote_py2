@@ -30,22 +30,10 @@
             </md-button>
           </span>
           <span class="md-subhead uv-host-card-detail">
-            Status:
-            <span ng-class="hostListCtrl.hostService.isInLockdown(host) ? 'protected-host' : 'unprotected-host'"
-                  ng-if="hostListCtrl.hostService.isBit9Host(host)">
-              {{ host.policyEnforcementLevel | prettifyEnforcementLevel }}
-            </span>
-            <span ng-class="hostListCtrl.hostService.isInLockdown(host) ? 'protected-host' : 'unprotected-host'"
-                  ng-if="hostListCtrl.hostService.isSantaHost(host)">
-              {{ host.clientMode | prettifyMode }}
-            </span>
-          </span>
-          <span ng-show="hostListCtrl.isExemptionStatusVisible(host)"
-                class="md-subhead uv-host-card-detail">
-            Exemption Status:
+            Protection:
             <span class="uv-host-card-value"
-                  ng-class="hostListCtrl.isExemptionInBadState(host) ? 'bad-exemption-state' : ''">
-              {{ host.exemption | prettifyExemption }}
+                  ng-class="hostListCtrl.getProtectionClass(host)">
+              {{ hostListCtrl.getProtectionText(host) }}
             </span>
           </span>
           <span ng-if="hostListCtrl.hostService.isSantaHost(host)"

@@ -229,10 +229,15 @@ class RequestExemptionHandlerTest(ExemptionsTest):
         'reason': constants.EXEMPTION_REASON.DEVELOPER_MACOS}
 
     with self.LoggedInUser(user=user):
-      self.testapp.post(
+      response = self.testapp.post(
           self.ROUTE % host.key.id(), params=params, status=httplib.OK)
 
+    output = response.json
     exm = exemption_models.Exemption.Get(host.key.id())
+
+    self.assertIn('application/json', response.headers['Content-type'])
+    self.assertIsInstance(output, dict)
+    self.assertEqual(constants.EXEMPTION_STATE.REQUESTED, output['state'])
     self.assertEqual(constants.EXEMPTION_STATE.REQUESTED, exm.state)
     self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.EXEMPTION)
     self.mock_process.assert_called_once()
@@ -247,10 +252,15 @@ class RequestExemptionHandlerTest(ExemptionsTest):
         'reason': constants.EXEMPTION_REASON.DEVELOPER_MACOS}
 
     with self.LoggedInUser(admin=True):
-      self.testapp.post(
+      response = self.testapp.post(
           self.ROUTE % host.key.id(), params=params, status=httplib.OK)
 
+    output = response.json
     exm = exemption_models.Exemption.Get(host.key.id())
+
+    self.assertIn('application/json', response.headers['Content-type'])
+    self.assertIsInstance(output, dict)
+    self.assertEqual(constants.EXEMPTION_STATE.REQUESTED, output['state'])
     self.assertEqual(constants.EXEMPTION_STATE.REQUESTED, exm.state)
     self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.EXEMPTION)
     self.mock_process.assert_called_once()

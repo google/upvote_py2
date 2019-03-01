@@ -14,14 +14,21 @@
 
 goog.provide('upvote.hostlistpage.HostListController');
 
+goog.require('goog.i18n.DateTimeFormat');
+goog.require('goog.i18n.DateTimeParse');
 goog.require('upvote.errornotifier.ErrorService');
 goog.require('upvote.exemptions.ExemptionService');
-goog.require('upvote.hosts.ExemptionState');
 goog.require('upvote.hosts.HostService');
+goog.require('upvote.hosts.ProtectionLevel');
 goog.require('upvote.shared.Page');
+goog.require('upvote.shared.constants.ExemptionState');
 goog.require('upvote.shared.models.AnyHost');
 
 goog.scope(() => {
+
+const DateTimeFormat = goog.i18n.DateTimeFormat;
+const DateTimeParse = goog.i18n.DateTimeParse;
+const ProtectionLevel = upvote.hosts.ProtectionLevel;
 
 /** Controller for host page. */
 upvote.hostlistpage.HostListController = class {
@@ -31,9 +38,11 @@ upvote.hostlistpage.HostListController = class {
    * @param {!upvote.errornotifier.ErrorService} errorService
    * @param {!angular.$location} $location
    * @param {!upvote.shared.Page} page Details about the active page
+   * @param {!angular.$filter} $filter
    * @ngInject
    */
-  constructor(exemptionService, hostService, errorService, $location, page) {
+  constructor(
+      exemptionService, hostService, errorService, $location, page, $filter) {
     /** @const @private {!upvote.exemptions.ExemptionService} */
     this.exemptionService_ = exemptionService;
     /** @export {!upvote.hosts.HostService} */
@@ -42,6 +51,8 @@ upvote.hostlistpage.HostListController = class {
     this.errorService_ = errorService;
     /** @private {!angular.$location} $location */
     this.location_ = $location;
+    /** @private {!angular.$filter} $filter */
+    this.filter_ = $filter;
 
     /** @export {?Array<?upvote.shared.models.AnyHost>} */
     this.hosts = null;
@@ -91,31 +102,6 @@ upvote.hostlistpage.HostListController = class {
   }
 
   /**
-   * Return whether to display exemption status for a host.
-   * @param {!upvote.shared.models.AnyHost} host
-   * @return {boolean}
-   * @export
-   */
-  isExemptionStatusVisible(host) {
-    return (
-        host.exemption != null &&
-        host.exemption.state != upvote.hosts.ExemptionState.CANCELLED);
-  }
-
-  /**
-   * Return whether the exemption is in a bad state.
-   * @param {!upvote.shared.models.AnyHost} host
-   * @return {boolean}
-   * @export
-   */
-  isExemptionInBadState(host) {
-    return (
-        host.exemption != null &&
-        (host.exemption.state == upvote.hosts.ExemptionState.DENIED ||
-         host.exemption.state == upvote.hosts.ExemptionState.REVOKED));
-  }
-
-  /**
    * Return whether the exemption is in a state where it can be renewed.
    * @param {!upvote.shared.models.AnyHost} host
    * @return {boolean}
@@ -124,7 +110,47 @@ upvote.hostlistpage.HostListController = class {
   isExemptionRenewable(host) {
     return (
         host.exemption != null &&
-        host.exemption.state == upvote.hosts.ExemptionState.APPROVED);
+        host.exemption.state ==
+            upvote.shared.constants.ExemptionState.APPROVED);
+  }
+
+  /**
+   * Returns a user-friendly representation of the host's protection state.
+   * @param {!upvote.shared.models.AnyHost} host
+   * @return {string}
+   * @export
+   */
+  getProtectionText(host) {
+    switch (this.hostService.getProtectionLevel(host)) {
+      case ProtectionLevel.FULL:
+        return 'Full Protection';
+      case ProtectionLevel.DEVMODE:
+        return 'Developer Mode';
+      case ProtectionLevel.MINIMAL:
+        let dateStr = this.filter_('date')(
+            host.exemption.deactivationDt, 'EEE, MMM dd, yyyy');
+        return 'Minimal Protection Until ' + dateStr;
+      default:
+        return 'Unknown';
+    }
+  }
+
+  /**
+   * Returns the CSS class of the host's current protection state.
+   * @param {!upvote.shared.models.AnyHost} host
+   * @return {string}
+   * @export
+   */
+  getProtectionClass(host) {
+    switch (this.hostService.getProtectionLevel(host)) {
+      case ProtectionLevel.FULL:
+        return 'full-protection';
+      case ProtectionLevel.DEVMODE:
+        return 'developer-mode';
+      case ProtectionLevel.MINIMAL:
+      default:
+        return 'minimal-protection';  // Fail to the scariest appearance.
+    }
   }
 
   /**

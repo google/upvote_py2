@@ -13,6 +13,7 @@
 // limitations under the License.
 
 goog.provide('upvote.shared.constants.BlockableState');
+goog.provide('upvote.shared.constants.ExemptionState');
 goog.provide('upvote.shared.constants.UiBlockableState');
 goog.provide('upvote.shared.constants.UserRole');
 
@@ -63,4 +64,20 @@ upvote.shared.constants.UserRole = {
   'SUPERUSER': 'SUPERUSER',
   'SECURITY': 'SECURITY',
   'ADMINISTRATOR': 'ADMINISTRATOR',
+};
+
+
+/**
+ * @enum {string}
+ * @export
+ */
+upvote.shared.constants.ExemptionState = {
+  'REQUESTED': 'REQUESTED',
+  'PENDING': 'PENDING',
+  'APPROVED': 'APPROVED',
+  'DENIED': 'DENIED',
+  'ESCALATED': 'ESCALATED',
+  'CANCELLED': 'CANCELLED',
+  'REVOKED': 'REVOKED',
+  'EXPIRED': 'EXPIRED',
 };

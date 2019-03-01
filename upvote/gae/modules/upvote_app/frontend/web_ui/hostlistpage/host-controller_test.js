@@ -17,16 +17,18 @@ goog.setTestOnly();
 goog.require('upvote.errornotifier.module');
 goog.require('upvote.exemptions.module');
 goog.require('upvote.hostlistpage.HostListController');
+goog.require('upvote.hosts.ProtectionLevel');
 goog.require('upvote.hosts.module');
 goog.require('upvote.shared.Page');
 
 goog.scope(() => {
 const HostListController = upvote.hostlistpage.HostListController;
+const ProtectionLevel = upvote.hosts.ProtectionLevel;
 
 
 describe('Host List Controller', () => {
   let exemptionService, hostService, errorService, location, q, rootScope, page;
-  let ctrl;
+  let filter, ctrl;
 
   beforeEach(/** @suppress {missingProperties} */ () => {
     angular.mock.module(upvote.errornotifier.module.name);
@@ -35,7 +37,7 @@ describe('Host List Controller', () => {
 
     angular.mock.inject(
         (_exemptionService_, _hostService_, _errorService_, $location, $q,
-         $rootScope) => {
+         $rootScope, $filter) => {
           // Store injected components.
           exemptionService = _exemptionService_;
           hostService = _hostService_;
@@ -44,10 +46,13 @@ describe('Host List Controller', () => {
           q = $q;
           rootScope = $rootScope;
           page = new upvote.shared.Page();
+          filter = $filter;
 
           // Create spies.
           hostService.getAssociatedHosts =
               jasmine.createSpy('getAssociatedHosts');
+          hostService.getProtectionLevel =
+              jasmine.createSpy('getProtectionLevel');
           exemptionService.cancelExemption =
               jasmine.createSpy('cancelExemption');
           errorService.createDialogFromError =
@@ -72,7 +77,7 @@ describe('Host List Controller', () => {
   });
 
   let buildController = () => new HostListController(
-      exemptionService, hostService, errorService, location, page);
+      exemptionService, hostService, errorService, location, page, filter);
 
   /**
    * @param {?Object=} opt_properties
@@ -146,6 +151,110 @@ describe('Host List Controller', () => {
       let fakeHost = getHost({'ruleSyncDt': new Date().toISOString()});
 
       expect(ctrl.hostService.isInLockdown(fakeHost)).toBe(false);
+    });
+  });
+
+  describe('should display the correct protection text', () => {
+    it('when on full protection', () => {
+      const fakeHost = {};
+      hostService.getProtectionLevel['and']['returnValue'](
+          ProtectionLevel.FULL);
+
+      ctrl = buildController();
+      rootScope.$apply();
+
+      expect(ctrl.getProtectionText(fakeHost)).toEqual('Full Protection');
+      expect(hostService.getProtectionLevel['calls'].count()).toEqual(1);
+    });
+
+    it('when on developer mode', () => {
+      const fakeHost = {};
+      hostService.getProtectionLevel['and']['returnValue'](
+          ProtectionLevel.DEVMODE);
+
+      ctrl = buildController();
+      rootScope.$apply();
+
+      expect(ctrl.getProtectionText(fakeHost)).toEqual('Developer Mode');
+      expect(hostService.getProtectionLevel['calls'].count()).toEqual(1);
+    });
+
+    it('when on minimal protection', () => {
+      const fakeHost = {
+        'exemption': {
+          'deactivationDt': '2020-01-02T12:00Z',
+        },
+      };
+      hostService.getProtectionLevel['and']['returnValue'](
+          ProtectionLevel.MINIMAL);
+
+      ctrl = buildController();
+      rootScope.$apply();
+
+      expect(ctrl.getProtectionText(fakeHost))
+          .toEqual('Minimal Protection Until Thu, Jan 02, 2020');
+      expect(hostService.getProtectionLevel['calls'].count()).toEqual(1);
+    });
+
+    it('when no host is provided', () => {
+      hostService.getProtectionLevel['and']['returnValue'](
+          ProtectionLevel.UNKNOWN);
+
+      ctrl = buildController();
+      rootScope.$apply();
+
+      expect(ctrl.getProtectionText(null)).toEqual('Unknown');
+      expect(hostService.getProtectionLevel['calls'].count()).toEqual(1);
+    });
+  });
+
+  describe('should use the correct protection class', () => {
+    it('when on full protection', () => {
+      const fakeHost = {};
+      hostService.getProtectionLevel['and']['returnValue'](
+          ProtectionLevel['FULL']);
+
+      ctrl = buildController();
+      rootScope.$apply();
+
+      expect(ctrl.getProtectionClass(fakeHost)).toEqual('full-protection');
+      expect(hostService.getProtectionLevel['calls'].count()).toEqual(1);
+    });
+
+    it('when on developer mode', () => {
+      const fakeHost = {};
+      hostService.getProtectionLevel['and']['returnValue'](
+          ProtectionLevel['DEVMODE']);
+
+      ctrl = buildController();
+      rootScope.$apply();
+
+      expect(ctrl.getProtectionClass(fakeHost)).toEqual('developer-mode');
+      expect(hostService.getProtectionLevel['calls'].count()).toEqual(1);
+    });
+
+    it('when on minimal protection', () => {
+      const fakeHost = {};
+      hostService.getProtectionLevel['and']['returnValue'](
+          ProtectionLevel['MINIMAL']);
+
+      ctrl = buildController();
+      rootScope.$apply();
+
+      expect(ctrl.getProtectionClass(fakeHost)).toEqual('minimal-protection');
+      expect(hostService.getProtectionLevel['calls'].count()).toEqual(1);
+    });
+
+    it('when protection level is unknown', () => {
+      const fakeHost = {};
+      hostService.getProtectionLevel['and']['returnValue'](
+          ProtectionLevel['UNKNOWN']);
+
+      ctrl = buildController();
+      rootScope.$apply();
+
+      expect(ctrl.getProtectionClass(fakeHost)).toEqual('minimal-protection');
+      expect(hostService.getProtectionLevel['calls'].count()).toEqual(1);
     });
   });
 

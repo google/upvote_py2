@@ -45,6 +45,7 @@ py_appengine_library(
         ":user_utils",
         "//common:memcache_decorator",
         "//upvote/gae:settings",
+        "//upvote/gae/utils:env_utils",
     ],
 )
 
@@ -167,6 +168,7 @@ upvote_appengine_test(
         ":mail_utils",
         ":user_utils",
         "//external:mock",
+        "//upvote/gae:settings",
         "//upvote/gae/lib/testing:basetest",
     ],
 )

@@ -14,6 +14,7 @@
 
 """Unit tests for mail_utils.py."""
 
+from upvote.gae import settings
 from upvote.gae.lib.testing import basetest
 from upvote.gae.utils import mail_utils
 from upvote.gae.utils import user_utils
@@ -74,7 +75,8 @@ class SendTest(basetest.UpvoteTestCase):
     mail_utils.Send('subject', 'body', to='to')
     self.mock_send.assert_not_called()
 
-  def testSuccess(self):
+  def testEmailSent_Prod(self):
+    self.PatchEnv(settings.ProdEnv)
     mail_utils.Send('subject', 'body', to='to')
     self.mock_send.assert_called_once()
 
