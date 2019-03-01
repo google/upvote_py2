@@ -13,7 +13,6 @@
 // limitations under the License.
 
 goog.provide('upvote.hosts.ClientMode');
-goog.provide('upvote.hosts.ExemptionState');
 goog.provide('upvote.hosts.HostService');
 goog.provide('upvote.hosts.Platform');
 goog.provide('upvote.hosts.PolicyLevel');
@@ -21,6 +20,7 @@ goog.provide('upvote.hosts.ProtectionLevel');
 goog.provide('upvote.hosts.SearchParams');
 
 goog.require('upvote.app.constants');
+goog.require('upvote.shared.constants.ExemptionState');
 
 goog.scope(() => {
 
@@ -53,22 +53,6 @@ upvote.hosts.PolicyLevel = {
   'BLOCK_AND_ASK': 'BLOCK_AND_ASK',
   'MONITOR': 'MONITOR',
   'DISABLED': 'DISABLED',
-};
-
-
-/**
- * @enum {string}
- * @export
- */
-upvote.hosts.ExemptionState = {
-  'REQUESTED': 'REQUESTED',
-  'PENDING': 'PENDING',
-  'APPROVED': 'APPROVED',
-  'DENIED': 'DENIED',
-  'ESCALATED': 'ESCALATED',
-  'CANCELLED': 'CANCELLED',
-  'REVOKED': 'REVOKED',
-  'EXPIRED': 'EXPIRED',
 };
 
 
@@ -237,7 +221,8 @@ upvote.hosts.HostService = class {
    */
   hasApprovedExemption(host) {
     if (host && host.exemption && host.exemption.state) {
-      return host.exemption.state == upvote.hosts.ExemptionState.APPROVED;
+      return host.exemption.state ==
+          upvote.shared.constants.ExemptionState.APPROVED;
     }
     return false;
   }

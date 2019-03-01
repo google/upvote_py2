@@ -18,10 +18,10 @@ goog.require('goog.i18n.DateTimeFormat');
 goog.require('goog.i18n.DateTimeParse');
 goog.require('upvote.errornotifier.ErrorService');
 goog.require('upvote.exemptions.ExemptionService');
-goog.require('upvote.hosts.ExemptionState');
 goog.require('upvote.hosts.HostService');
 goog.require('upvote.hosts.ProtectionLevel');
 goog.require('upvote.shared.Page');
+goog.require('upvote.shared.constants.ExemptionState');
 goog.require('upvote.shared.models.AnyHost');
 
 goog.scope(() => {
@@ -110,7 +110,8 @@ upvote.hostlistpage.HostListController = class {
   isExemptionRenewable(host) {
     return (
         host.exemption != null &&
-        host.exemption.state == upvote.hosts.ExemptionState.APPROVED);
+        host.exemption.state ==
+            upvote.shared.constants.ExemptionState.APPROVED);
   }
 
   /**
