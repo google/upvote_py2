@@ -1,8 +1,15 @@
 <b>The lockdown exemption for [[device_hostname]] has been involuntarily revoked.</b>
-
+<br/>
+{% if details %}
 Details:
-[[details]]
-
+<ul>
+{% for detail in details %}
+  <li>{{ detail }}</li>
+{% endfor %}
+</ul>
+<br/>
+{% endif %}
+Further Instructions:
 <ul>
   <li>You may re-request an exemption at any time <a href="https://[[upvote_hostname]]/hosts">here</a>.</li>
 </ul>

@@ -228,7 +228,7 @@ class TransitiveHandler(BooleanPropertyHandler):
     exm = exm_key.get()
     if enable and exm and exm.state == constants.EXEMPTION_STATE.APPROVED:
       exemption_api.Revoke(
-          exm_key, ['Revoked because transitive whitelisting was enabled'])
+          exm_key, ['Revoked because Developer Mode was enabled'])
 
 
 # The Webapp2 routes defined for these handlers.
