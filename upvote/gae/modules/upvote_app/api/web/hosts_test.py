@@ -492,82 +492,17 @@ class TransitiveHandlerTest(basetest.UpvoteTestCase):
     super(TransitiveHandlerTest, self).setUp(wsgi_app=app)
     self.PatchValidateXSRFToken()
 
-  def testNotSantaClient(self):
+  @mock.patch.object(hosts.exemption_api, 'ChangeTransitiveWhitelisting')
+  def testPut(self, mock_change):
 
     user = test_utils.CreateUser()
-    host = test_utils.CreateBit9Host(users=[user.nickname])
-
-    with self.LoggedInUser(user=user):
-      url = self.ROUTE % (host.key.id(), 'true')
-      self.testapp.put(url, status=httplib.FORBIDDEN)
-
-  @mock.patch.object(hosts.host_models.mail_utils, 'Send')
-  def testEnable_NoExemption(self, mock_send):
-
-    user = test_utils.CreateUser()
-    host = test_utils.CreateSantaHost(
-        primary_user=user.nickname, transitive_whitelisting_enabled=False)
-
-    with self.LoggedInUser(user=user):
-      url = self.ROUTE % (host.key.id(), 'true')
-      self.testapp.put(url, status=httplib.OK)
-
-    self.assertTrue(host.key.get().transitive_whitelisting_enabled)
-    mock_send.assert_called_once()
-    self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.HOST)
-
-  @mock.patch.object(hosts.exemption_api, 'Revoke')
-  @mock.patch.object(hosts.host_models.mail_utils, 'Send')
-  def testEnable_InactiveExemption(self, mock_send, mock_revoke):
-
-    user = test_utils.CreateUser()
-    host = test_utils.CreateSantaHost(
-        primary_user=user.nickname, transitive_whitelisting_enabled=False)
-    test_utils.CreateExemption(
-        host.key.id(), initial_state=constants.EXEMPTION_STATE.CANCELLED)
-
-    with self.LoggedInUser(user=user):
-      url = self.ROUTE % (host.key.id(), 'true')
-      self.testapp.put(url, status=httplib.OK)
-
-    self.assertTrue(host.key.get().transitive_whitelisting_enabled)
-    mock_send.assert_called_once()
-    self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.HOST)
-    mock_revoke.assert_not_called()
-
-  @mock.patch.object(hosts.exemption_api, 'Revoke')
-  @mock.patch.object(hosts.host_models.mail_utils, 'Send')
-  def testEnable_ActiveExemption(self, mock_send, mock_revoke):
-
-    user = test_utils.CreateUser()
-    host = test_utils.CreateSantaHost(
-        primary_user=user.nickname, transitive_whitelisting_enabled=False)
-    test_utils.CreateExemption(
-        host.key.id(), initial_state=constants.EXEMPTION_STATE.APPROVED)
-
-    with self.LoggedInUser(user=user):
-      url = self.ROUTE % (host.key.id(), 'true')
-      self.testapp.put(url, status=httplib.OK)
-
-    self.assertTrue(host.key.get().transitive_whitelisting_enabled)
-    mock_send.assert_called_once()
-    self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.HOST)
-    mock_revoke.assert_called_once()
-
-  @mock.patch.object(hosts.host_models.mail_utils, 'Send')
-  def testDisable(self, mock_send):
-
-    user = test_utils.CreateUser()
-    host = test_utils.CreateSantaHost(
-        primary_user=user.nickname, transitive_whitelisting_enabled=True)
+    host = test_utils.CreateSantaHost(primary_user=user.nickname)
 
     with self.LoggedInUser(user=user):
       url = self.ROUTE % (host.key.id(), 'false')
       self.testapp.put(url, status=httplib.OK)
 
-    self.assertFalse(host.key.get().transitive_whitelisting_enabled)
-    mock_send.assert_called_once()
-    self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.HOST)
+    mock_change.assert_called_once()
 
 
 if __name__ == '__main__':

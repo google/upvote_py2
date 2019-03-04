@@ -23,6 +23,8 @@ py_appengine_library(
         "//upvote/gae/datastore/models:host",
         "//upvote/gae/lib/bit9:api",
         "//upvote/gae/lib/bit9:utils",
+        "//upvote/gae/utils:env_utils",
+        "//upvote/gae/utils:mail_utils",
         "//upvote/gae/utils:template_utils",
         "//upvote/shared:constants",
     ],

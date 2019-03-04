@@ -88,7 +88,7 @@ class ChangeEnforcementInSantaTest(basetest.UpvoteTestCase):
     self.assertEqual(_SANTA_MODE.LOCKDOWN, host_key.get().client_mode)
     self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.HOST)
 
-  @mock.patch.object(api.host_models.SantaHost, 'ChangeTransitiveWhitelisting')
+  @mock.patch.object(api, 'ChangeTransitiveWhitelisting')
   def testMonitor_TransitiveDisabled(self, mock_change_tw):
     host_key = test_utils.CreateSantaHost(
         client_mode=_SANTA_MODE.LOCKDOWN,
@@ -100,7 +100,7 @@ class ChangeEnforcementInSantaTest(basetest.UpvoteTestCase):
     mock_change_tw.assert_not_called()
     self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.HOST)
 
-  @mock.patch.object(api.host_models.SantaHost, 'ChangeTransitiveWhitelisting')
+  @mock.patch.object(api, 'ChangeTransitiveWhitelisting')
   def testMonitor_TransitiveEnabled(self, mock_change_tw):
     host_key = test_utils.CreateSantaHost(
         client_mode=_SANTA_MODE.LOCKDOWN,
@@ -615,6 +615,88 @@ class CancelTest(bit9test.Bit9TestCase):
         constants.BIGQUERY_TABLE.HOST, constants.BIGQUERY_TABLE.EXEMPTION])
     self.DrainTaskQueue(constants.TASK_QUEUE.EXEMPTIONS)
     self.mock_send.assert_called_once()
+
+
+class ChangeTransitiveWhitelistingTest(basetest.UpvoteTestCase):
+
+  def setUp(self):
+    super(ChangeTransitiveWhitelistingTest, self).setUp()
+
+  def testNotSantaClient(self):
+    host = test_utils.CreateBit9Host()
+    with self.assertRaises(api.UnsupportedClientError):
+      api.ChangeTransitiveWhitelisting(host.key.id(), True)
+
+  @mock.patch.object(api.mail_utils, 'Send')
+  def testNoChange(self, mock_send):
+
+    host = test_utils.CreateSantaHost(transitive_whitelisting_enabled=True)
+
+    api.ChangeTransitiveWhitelisting(host.key.id(), True)
+
+    self.assertTrue(host.key.get().transitive_whitelisting_enabled)
+    mock_send.assert_not_called()
+    self.assertNoBigQueryInsertions()
+
+  @mock.patch.object(api.mail_utils, 'Send')
+  def testEnable_NoExemption(self, mock_send):
+
+    user = test_utils.CreateUser()
+    host = test_utils.CreateSantaHost(
+        primary_user=user.nickname, transitive_whitelisting_enabled=False)
+
+    api.ChangeTransitiveWhitelisting(host.key.id(), True)
+
+    self.assertTrue(host.key.get().transitive_whitelisting_enabled)
+    mock_send.assert_called_once()
+    self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.HOST)
+
+  @mock.patch.object(api, 'Revoke')
+  @mock.patch.object(api.mail_utils, 'Send')
+  def testEnable_InactiveExemption(self, mock_send, mock_revoke):
+
+    user = test_utils.CreateUser()
+    host = test_utils.CreateSantaHost(
+        primary_user=user.nickname, transitive_whitelisting_enabled=False)
+    test_utils.CreateExemption(
+        host.key.id(), initial_state=constants.EXEMPTION_STATE.CANCELLED)
+
+    api.ChangeTransitiveWhitelisting(host.key.id(), True)
+
+    self.assertTrue(host.key.get().transitive_whitelisting_enabled)
+    mock_send.assert_called_once()
+    self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.HOST)
+    mock_revoke.assert_not_called()
+
+  @mock.patch.object(api, 'Revoke')
+  @mock.patch.object(api.mail_utils, 'Send')
+  def testEnable_ActiveExemption(self, mock_send, mock_revoke):
+
+    user = test_utils.CreateUser()
+    host = test_utils.CreateSantaHost(
+        primary_user=user.nickname, transitive_whitelisting_enabled=False)
+    test_utils.CreateExemption(
+        host.key.id(), initial_state=constants.EXEMPTION_STATE.APPROVED)
+
+    api.ChangeTransitiveWhitelisting(host.key.id(), True)
+
+    self.assertTrue(host.key.get().transitive_whitelisting_enabled)
+    mock_send.assert_called_once()
+    self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.HOST)
+    mock_revoke.assert_called_once()
+
+  @mock.patch.object(api.mail_utils, 'Send')
+  def testDisable(self, mock_send):
+
+    user = test_utils.CreateUser()
+    host = test_utils.CreateSantaHost(
+        primary_user=user.nickname, transitive_whitelisting_enabled=True)
+
+    api.ChangeTransitiveWhitelisting(host.key.id(), False)
+
+    self.assertFalse(host.key.get().transitive_whitelisting_enabled)
+    mock_send.assert_called_once()
+    self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.HOST)
 
 
 if __name__ == '__main__':
