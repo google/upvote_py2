@@ -214,6 +214,15 @@ class TransitiveHandler(BooleanPropertyHandler):
     enable = new_value.lower() == 'true'
     exemption_api.ChangeTransitiveWhitelisting(self._normalized_host_id, enable)
 
+    # Include Exemption data with the Host.
+    host = self._GetHost()
+    exm = exemption_models.Exemption.Get(self._normalized_host_id)
+    host_dict = host.to_dict()
+    if exm:
+      host_dict['exemption'] = exm.to_dict()
+
+    self.respond_json(host_dict)
+
 
 # The Webapp2 routes defined for these handlers.
 ROUTES = routes.PathPrefixRoute('/hosts', [

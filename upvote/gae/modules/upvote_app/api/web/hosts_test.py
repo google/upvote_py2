@@ -493,15 +493,40 @@ class TransitiveHandlerTest(basetest.UpvoteTestCase):
     self.PatchValidateXSRFToken()
 
   @mock.patch.object(hosts.exemption_api, 'ChangeTransitiveWhitelisting')
-  def testPut(self, mock_change):
+  def testPut_WithExemption(self, mock_change):
+
+    user = test_utils.CreateUser()
+    host = test_utils.CreateSantaHost(primary_user=user.nickname)
+    test_utils.CreateExemption(host.key.id())
+
+    with self.LoggedInUser(user=user):
+      url = self.ROUTE % (host.key.id(), 'false')
+      response = self.testapp.put(url, status=httplib.OK)
+
+    output = response.json
+
+    self.assertIn('application/json', response.headers['Content-type'])
+    self.assertIsInstance(output, dict)
+    self.assertIn('transitiveWhitelistingEnabled', output)
+    self.assertIn('exemption', output)
+    mock_change.assert_called_once()
+
+  @mock.patch.object(hosts.exemption_api, 'ChangeTransitiveWhitelisting')
+  def testPut_WithoutExemption(self, mock_change):
 
     user = test_utils.CreateUser()
     host = test_utils.CreateSantaHost(primary_user=user.nickname)
 
     with self.LoggedInUser(user=user):
       url = self.ROUTE % (host.key.id(), 'false')
-      self.testapp.put(url, status=httplib.OK)
+      response = self.testapp.put(url, status=httplib.OK)
 
+    output = response.json
+
+    self.assertIn('application/json', response.headers['Content-type'])
+    self.assertIsInstance(output, dict)
+    self.assertIn('transitiveWhitelistingEnabled', output)
+    self.assertNotIn('exemption', output)
     mock_change.assert_called_once()
 
 
