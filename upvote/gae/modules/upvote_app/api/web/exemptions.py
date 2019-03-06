@@ -180,6 +180,8 @@ class EscalateExemptionHandler(ExemptionHandler):
           httplib.INTERNAL_SERVER_ERROR,
           explanation='Error while escalating exemption')
 
+    self.respond_json(self.exm.key.get())
+
 
 class ApproveExemptionHandler(ExemptionHandler):
   """Handler for allowing an admin to approve an escalated exemption."""
@@ -212,6 +214,8 @@ class ApproveExemptionHandler(ExemptionHandler):
           httplib.INTERNAL_SERVER_ERROR,
           explanation='Error while approving exemption')
 
+    self.respond_json(self.exm.key.get())
+
 
 class DenyExemptionHandler(ExemptionHandler):
   """Handler for allowing an admin to deny an escalated exemption."""
@@ -242,6 +246,8 @@ class DenyExemptionHandler(ExemptionHandler):
           httplib.INTERNAL_SERVER_ERROR,
           explanation='Error while denying exemption')
 
+    self.respond_json(self.exm.key.get())
+
 
 class RevokeExemptionHandler(ExemptionHandler):
   """Handler for allowing an admin to revoke an approved exemption."""
@@ -267,6 +273,8 @@ class RevokeExemptionHandler(ExemptionHandler):
       self.abort(
           httplib.INTERNAL_SERVER_ERROR,
           explanation='Error while revoking exemption')
+
+    self.respond_json(self.exm.key.get())
 
 
 class CancelExemptionHandler(ExemptionHandler):
@@ -295,6 +303,8 @@ class CancelExemptionHandler(ExemptionHandler):
       self.abort(
           httplib.INTERNAL_SERVER_ERROR,
           explanation='Failed to cancel exemption')
+
+    self.respond_json(self.exm.key.get())
 
 
 # The Webapp2 routes defined for these handlers.
