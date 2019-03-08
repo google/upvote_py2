@@ -237,7 +237,9 @@ class RequestExemptionHandlerTest(ExemptionsTest):
 
     self.assertIn('application/json', response.headers['Content-type'])
     self.assertIsInstance(output, dict)
-    self.assertEqual(constants.EXEMPTION_STATE.REQUESTED, output['state'])
+    self.assertEqual(
+        constants.EXEMPTION_STATE.REQUESTED, output['exemption']['state'])
+    self.assertIn('transitiveWhitelistingEnabled', output)
     self.assertEqual(constants.EXEMPTION_STATE.REQUESTED, exm.state)
     self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.EXEMPTION)
     self.mock_process.assert_called_once()
@@ -260,7 +262,9 @@ class RequestExemptionHandlerTest(ExemptionsTest):
 
     self.assertIn('application/json', response.headers['Content-type'])
     self.assertIsInstance(output, dict)
-    self.assertEqual(constants.EXEMPTION_STATE.REQUESTED, output['state'])
+    self.assertEqual(
+        constants.EXEMPTION_STATE.REQUESTED, output['exemption']['state'])
+    self.assertIn('transitiveWhitelistingEnabled', output)
     self.assertEqual(constants.EXEMPTION_STATE.REQUESTED, exm.state)
     self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.EXEMPTION)
     self.mock_process.assert_called_once()
@@ -349,7 +353,9 @@ class ApproveExemptionHandlerTest(ExemptionsTest):
 
     self.assertIn('application/json', response.headers['Content-type'])
     self.assertIsInstance(output, dict)
-    self.assertEqual(constants.EXEMPTION_STATE.APPROVED, output['state'])
+    self.assertEqual(
+        constants.EXEMPTION_STATE.APPROVED, output['exemption']['state'])
+    self.assertIn('transitiveWhitelistingEnabled', output)
     self.assertEqual(
         constants.EXEMPTION_STATE.APPROVED, self.exm_key.get().state)
     mock_disable.assert_called_once()
@@ -515,7 +521,9 @@ class RevokeExemptionHandlerTest(ExemptionsTest):
 
     self.assertIn('application/json', response.headers['Content-type'])
     self.assertIsInstance(output, dict)
-    self.assertEqual(constants.EXEMPTION_STATE.REVOKED, output['state'])
+    self.assertEqual(
+        constants.EXEMPTION_STATE.REVOKED, output['exemption']['state'])
+    self.assertIn('transitiveWhitelistingEnabled', output)
     self.assertEqual(
         constants.EXEMPTION_STATE.REVOKED, self.exm_key.get().state)
     mock_enable.assert_called_once()
@@ -592,7 +600,9 @@ class CancelExemptionHandlerTest(ExemptionsTest):
 
     self.assertIn('application/json', response.headers['Content-type'])
     self.assertIsInstance(output, dict)
-    self.assertEqual(constants.EXEMPTION_STATE.CANCELLED, output['state'])
+    self.assertEqual(
+        constants.EXEMPTION_STATE.CANCELLED, output['exemption']['state'])
+    self.assertIn('transitiveWhitelistingEnabled', output)
     self.assertEqual(
         constants.EXEMPTION_STATE.CANCELLED, self.exm_key.get().state)
     mock_enable.assert_called_once()
