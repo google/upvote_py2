@@ -600,11 +600,11 @@ def ChangeTransitiveWhitelisting(host_id, enable):
   logging.info('Transitive whitelisting %s for %s', modification, host.hostname)
 
   # If enabling transitive whitelisting and the SantaHost has an APPROVED
-  # Exemption, revoke it.
+  # Exemption, cancel it.
   exm_key = exemption_models.Exemption.CreateKey(host_id)
   exm = exm_key.get()
   if enable and exm and exm.state == constants.EXEMPTION_STATE.APPROVED:
-    Revoke(exm_key, ['Revoked because Developer Mode was enabled'])
+    Cancel(exm_key)
 
   # Notify the user of the mode change.
   body = template_utils.RenderEmailTemplate(

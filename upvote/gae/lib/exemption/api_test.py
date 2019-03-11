@@ -651,9 +651,9 @@ class ChangeTransitiveWhitelistingTest(basetest.UpvoteTestCase):
     mock_send.assert_called_once()
     self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.HOST)
 
-  @mock.patch.object(api, 'Revoke')
+  @mock.patch.object(api, 'Cancel')
   @mock.patch.object(api.mail_utils, 'Send')
-  def testEnable_InactiveExemption(self, mock_send, mock_revoke):
+  def testEnable_InactiveExemption(self, mock_send, mock_cancel):
 
     user = test_utils.CreateUser()
     host = test_utils.CreateSantaHost(
@@ -666,11 +666,11 @@ class ChangeTransitiveWhitelistingTest(basetest.UpvoteTestCase):
     self.assertTrue(host.key.get().transitive_whitelisting_enabled)
     mock_send.assert_called_once()
     self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.HOST)
-    mock_revoke.assert_not_called()
+    mock_cancel.assert_not_called()
 
-  @mock.patch.object(api, 'Revoke')
+  @mock.patch.object(api, 'Cancel')
   @mock.patch.object(api.mail_utils, 'Send')
-  def testEnable_ActiveExemption(self, mock_send, mock_revoke):
+  def testEnable_ActiveExemption(self, mock_send, mock_cancel):
 
     user = test_utils.CreateUser()
     host = test_utils.CreateSantaHost(
@@ -683,7 +683,7 @@ class ChangeTransitiveWhitelistingTest(basetest.UpvoteTestCase):
     self.assertTrue(host.key.get().transitive_whitelisting_enabled)
     mock_send.assert_called_once()
     self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.HOST)
-    mock_revoke.assert_called_once()
+    mock_cancel.assert_called_once()
 
   @mock.patch.object(api.mail_utils, 'Send')
   def testDisable(self, mock_send):
