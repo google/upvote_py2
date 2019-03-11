@@ -237,7 +237,9 @@ class RequestExemptionHandlerTest(ExemptionsTest):
 
     self.assertIn('application/json', response.headers['Content-type'])
     self.assertIsInstance(output, dict)
-    self.assertEqual(constants.EXEMPTION_STATE.REQUESTED, output['state'])
+    self.assertEqual(
+        constants.EXEMPTION_STATE.REQUESTED, output['exemption']['state'])
+    self.assertIn('transitiveWhitelistingEnabled', output)
     self.assertEqual(constants.EXEMPTION_STATE.REQUESTED, exm.state)
     self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.EXEMPTION)
     self.mock_process.assert_called_once()
@@ -260,7 +262,9 @@ class RequestExemptionHandlerTest(ExemptionsTest):
 
     self.assertIn('application/json', response.headers['Content-type'])
     self.assertIsInstance(output, dict)
-    self.assertEqual(constants.EXEMPTION_STATE.REQUESTED, output['state'])
+    self.assertEqual(
+        constants.EXEMPTION_STATE.REQUESTED, output['exemption']['state'])
+    self.assertIn('transitiveWhitelistingEnabled', output)
     self.assertEqual(constants.EXEMPTION_STATE.REQUESTED, exm.state)
     self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.EXEMPTION)
     self.mock_process.assert_called_once()
@@ -282,9 +286,14 @@ class EscalateExemptionHandlerTest(ExemptionsTest):
   def testPost_Success(self):
 
     with self.LoggedInUser(user=self.user):
-      self.testapp.post(self.ROUTE % self.host_id, status=httplib.OK)
+      response = self.testapp.post(self.ROUTE % self.host_id, status=httplib.OK)
 
+    output = response.json
     exm = exemption_models.Exemption.Get(self.host_id)
+
+    self.assertIn('application/json', response.headers['Content-type'])
+    self.assertIsInstance(output, dict)
+    self.assertEqual(constants.EXEMPTION_STATE.ESCALATED, output['state'])
     self.assertEqual(constants.EXEMPTION_STATE.ESCALATED, exm.state)
     self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.EXEMPTION)
 
@@ -337,8 +346,16 @@ class ApproveExemptionHandlerTest(ExemptionsTest):
 
     with self.LoggedInUser(admin=True):
       params = {'justification': 'I want to'}
-      self.testapp.post(self.ROUTE % self.host_id, params, status=httplib.OK)
+      response = self.testapp.post(
+          self.ROUTE % self.host_id, params, status=httplib.OK)
 
+    output = response.json
+
+    self.assertIn('application/json', response.headers['Content-type'])
+    self.assertIsInstance(output, dict)
+    self.assertEqual(
+        constants.EXEMPTION_STATE.APPROVED, output['exemption']['state'])
+    self.assertIn('transitiveWhitelistingEnabled', output)
     self.assertEqual(
         constants.EXEMPTION_STATE.APPROVED, self.exm_key.get().state)
     mock_disable.assert_called_once()
@@ -414,8 +431,14 @@ class DenyExemptionHandlerTest(ExemptionsTest):
 
     with self.LoggedInUser(admin=True):
       params = {'justification': 'I want to'}
-      self.testapp.post(self.ROUTE % self.host_id, params, status=httplib.OK)
+      response = self.testapp.post(
+          self.ROUTE % self.host_id, params, status=httplib.OK)
 
+    output = response.json
+
+    self.assertIn('application/json', response.headers['Content-type'])
+    self.assertIsInstance(output, dict)
+    self.assertEqual(constants.EXEMPTION_STATE.DENIED, output['state'])
     self.assertEqual(constants.EXEMPTION_STATE.DENIED, self.exm_key.get().state)
     self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.EXEMPTION)
 
@@ -491,9 +514,16 @@ class RevokeExemptionHandlerTest(ExemptionsTest):
 
     with self.LoggedInUser(admin=True):
       params = {'justification': 'I want to'}
-      self.testapp.post(
+      response = self.testapp.post(
           self.ROUTE % self.host_id, params, status=httplib.OK)
 
+    output = response.json
+
+    self.assertIn('application/json', response.headers['Content-type'])
+    self.assertIsInstance(output, dict)
+    self.assertEqual(
+        constants.EXEMPTION_STATE.REVOKED, output['exemption']['state'])
+    self.assertIn('transitiveWhitelistingEnabled', output)
     self.assertEqual(
         constants.EXEMPTION_STATE.REVOKED, self.exm_key.get().state)
     mock_enable.assert_called_once()
@@ -558,6 +588,25 @@ class CancelExemptionHandlerTest(ExemptionsTest):
     self.host_id = host_key.id()
     self.exm_key = test_utils.CreateExemption(
         host_key.id(), initial_state=_STATE.APPROVED)
+
+  @mock.patch.object(exemptions.exemption_api, '_EnableLockdown')
+  def testPost_Success(self, mock_enable):
+
+    with self.LoggedInUser(user=self.valid_user):
+      response = self.testapp.post(
+          self.ROUTE % self.host_id, status=httplib.OK)
+
+    output = response.json
+
+    self.assertIn('application/json', response.headers['Content-type'])
+    self.assertIsInstance(output, dict)
+    self.assertEqual(
+        constants.EXEMPTION_STATE.CANCELLED, output['exemption']['state'])
+    self.assertIn('transitiveWhitelistingEnabled', output)
+    self.assertEqual(
+        constants.EXEMPTION_STATE.CANCELLED, self.exm_key.get().state)
+    mock_enable.assert_called_once()
+    self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.EXEMPTION)
 
   def testPost_InvalidUser_NonAdmin(self):
 

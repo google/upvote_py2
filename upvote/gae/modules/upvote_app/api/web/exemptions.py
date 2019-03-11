@@ -70,6 +70,15 @@ class ExemptionHandler(handler_utils.UserFacingHandler):
 
     super(ExemptionHandler, self).dispatch()
 
+  def _RespondWithExemptionAndTransitiveState(self, exm_key):
+    """Responds with an Exemption and transitive status (if applicable)."""
+    response_dict = {'exemption': exm_key.get()}
+    host = self.host.key.get()
+    if host.GetPlatformName() == constants.PLATFORM.MACOS:
+      response_dict['transitiveWhitelistingEnabled'] = (
+          host.transitive_whitelisting_enabled)
+    self.respond_json(response_dict)
+
 
 class GetExemptionHandler(ExemptionHandler):
   """Handler for retrieving Exemptions."""
@@ -154,7 +163,7 @@ class RequestExemptionHandler(ExemptionHandler):
     except exemption_models.InvalidStateChangeError:
       logging.warning('Error encountered while processing Exemption')
 
-    self.respond_json(exm_key.get())
+    self._RespondWithExemptionAndTransitiveState(exm_key)
 
 
 class EscalateExemptionHandler(ExemptionHandler):
@@ -179,6 +188,8 @@ class EscalateExemptionHandler(ExemptionHandler):
       self.abort(
           httplib.INTERNAL_SERVER_ERROR,
           explanation='Error while escalating exemption')
+
+    self.respond_json(self.exm.key.get())
 
 
 class ApproveExemptionHandler(ExemptionHandler):
@@ -212,6 +223,8 @@ class ApproveExemptionHandler(ExemptionHandler):
           httplib.INTERNAL_SERVER_ERROR,
           explanation='Error while approving exemption')
 
+    self._RespondWithExemptionAndTransitiveState(self.exm.key)
+
 
 class DenyExemptionHandler(ExemptionHandler):
   """Handler for allowing an admin to deny an escalated exemption."""
@@ -242,6 +255,8 @@ class DenyExemptionHandler(ExemptionHandler):
           httplib.INTERNAL_SERVER_ERROR,
           explanation='Error while denying exemption')
 
+    self.respond_json(self.exm.key.get())
+
 
 class RevokeExemptionHandler(ExemptionHandler):
   """Handler for allowing an admin to revoke an approved exemption."""
@@ -267,6 +282,8 @@ class RevokeExemptionHandler(ExemptionHandler):
       self.abort(
           httplib.INTERNAL_SERVER_ERROR,
           explanation='Error while revoking exemption')
+
+    self._RespondWithExemptionAndTransitiveState(self.exm.key)
 
 
 class CancelExemptionHandler(ExemptionHandler):
@@ -295,6 +312,8 @@ class CancelExemptionHandler(ExemptionHandler):
       self.abort(
           httplib.INTERNAL_SERVER_ERROR,
           explanation='Failed to cancel exemption')
+
+    self._RespondWithExemptionAndTransitiveState(self.exm.key)
 
 
 # The Webapp2 routes defined for these handlers.

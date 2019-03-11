@@ -211,24 +211,17 @@ class TransitiveHandler(BooleanPropertyHandler):
 
   @xsrf_utils.RequireToken
   def put(self, host_id, new_value):
-
-    # Only Santa clients are supported.
-    host = self._GetHost()
-    if host.GetClientName() != constants.CLIENT.SANTA:
-      self.abort(
-          httplib.FORBIDDEN,
-          explanation='Only Santa clients support transitive whitelisting')
-
     enable = new_value.lower() == 'true'
-    host_models.SantaHost.ChangeTransitiveWhitelisting(host_id, enable)
+    exemption_api.ChangeTransitiveWhitelisting(self._normalized_host_id, enable)
 
-    # If enabling transitive whitelisting and the SantaHost has an APPROVED
-    # Exemption, revoke it.
-    exm_key = exemption_models.Exemption.CreateKey(host_id)
-    exm = exm_key.get()
-    if enable and exm and exm.state == constants.EXEMPTION_STATE.APPROVED:
-      exemption_api.Revoke(
-          exm_key, ['Revoked because transitive whitelisting was enabled'])
+    # Include Exemption data with the Host.
+    host = self._GetHost()
+    exm = exemption_models.Exemption.Get(self._normalized_host_id)
+    host_dict = host.to_dict()
+    if exm:
+      host_dict['exemption'] = exm.to_dict()
+
+    self.respond_json(host_dict)
 
 
 # The Webapp2 routes defined for these handlers.

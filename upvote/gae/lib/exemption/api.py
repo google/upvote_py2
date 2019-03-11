@@ -29,6 +29,9 @@ from upvote.gae.lib.bit9 import utils as bit9_utils
 from upvote.gae.lib.exemption import checks
 from upvote.gae.lib.exemption import notify
 from upvote.gae.lib.exemption import monitoring
+from upvote.gae.utils import env_utils
+from upvote.gae.utils import mail_utils
+from upvote.gae.utils import template_utils
 from upvote.shared import constants
 
 
@@ -58,6 +61,10 @@ class InvalidClientModeError(Error):
 
 class UnsupportedPlatformError(Error):
   """Raised if an Exemption with an unsupported platform is encountered."""
+
+
+class UnsupportedClientError(Error):
+  """Raised when attempting to take an action for an unsupported client."""
 
 
 class InvalidStateChangeError(Error):
@@ -171,7 +178,7 @@ def _ChangeEnforcementInSanta(host_id, new_client_mode):
   # it.
   if (new_client_mode == constants.CLIENT_MODE.MONITOR and
       host.transitive_whitelisting_enabled):
-    host_models.SantaHost.ChangeTransitiveWhitelisting(host_id, False)
+    ChangeTransitiveWhitelisting(host_id, False)
 
   host = host_models.Host.get_by_id(host_id)
   tables.HOST.InsertRow(
@@ -560,3 +567,60 @@ def Cancel(exm_key):
   _EnableLockdown(exm_key)
   exemption_models.Exemption.ChangeState(exm_key, _STATE.CANCELLED)
   notify.DeferUpdateEmail(exm_key, _STATE.CANCELLED, transactional=True)
+
+
+@ndb.transactional
+def ChangeTransitiveWhitelisting(host_id, enable):
+  """Changes the transitive whitelisting state for a SantaHost.
+
+  Args:
+    host_id: The ID of the SantaHost.
+    enable: Whether to enable or disable transitive whitelisting.
+
+  Raises:
+    UnsupportedClientError: if called against anything other than a SantaHost.
+  """
+  # Only Santa clients are supported.
+  host = host_models.Host.get_by_id(host_models.Host.NormalizeId(host_id))
+  if host.GetClientName() != constants.CLIENT.SANTA:
+    raise UnsupportedClientError(
+        'Only Santa clients support transitive whitelisting')
+
+  # If this is a no-op, just bail now.
+  if host.transitive_whitelisting_enabled == enable:
+    logging.warning(
+        'Transitive whitelisting is already %s for %s',
+        'enabled' if enable else 'disabled', host.hostname)
+    return
+
+  # Make the change.
+  host.transitive_whitelisting_enabled = enable
+  host.put()
+  modification = 'enabled' if enable else 'disabled'
+  logging.info('Transitive whitelisting %s for %s', modification, host.hostname)
+
+  # If enabling transitive whitelisting and the SantaHost has an APPROVED
+  # Exemption, revoke it.
+  exm_key = exemption_models.Exemption.CreateKey(host_id)
+  exm = exm_key.get()
+  if enable and exm and exm.state == constants.EXEMPTION_STATE.APPROVED:
+    Revoke(exm_key, ['Revoked because Developer Mode was enabled'])
+
+  # Notify the user of the mode change.
+  body = template_utils.RenderEmailTemplate(
+      'transitive_modified.html', modification=modification,
+      device_hostname=host.hostname, upvote_hostname=env_utils.ENV.HOSTNAME)
+  subject = 'Developer mode changed: %s' % host.hostname
+  mail_utils.Send(subject, body, to=[host.primary_user], html=True)
+
+  # Note the state change in BigQuery.
+  comment = 'Transitive whitelisting %s' % modification
+  tables.HOST.InsertRow(
+      device_id=host_id,
+      timestamp=datetime.datetime.utcnow(),
+      action=constants.HOST_ACTION.COMMENT,
+      hostname=host.hostname,
+      platform=constants.PLATFORM.MACOS,
+      users=[host.primary_user],
+      mode=host.client_mode,
+      comment=comment)
