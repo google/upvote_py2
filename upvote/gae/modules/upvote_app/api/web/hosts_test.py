@@ -187,6 +187,21 @@ class HostHandlerTest(HostsTest):
     self.assertIsInstance(output, dict)
     self.assertIn('exemption', output)
 
+  def testGet_PrimaryUser_NoPriorExemption(self):
+
+    user = test_utils.CreateUser()
+    host = test_utils.CreateSantaHost(primary_user=user.nickname)
+    self.assertTrue(model_utils.IsHostAssociatedWithUser(host, user))
+
+    with self.LoggedInUser(user=user):
+      response = self.testapp.get(self.ROUTE % host.key.id())
+
+    output = response.json
+
+    self.assertIn('application/json', response.headers['Content-type'])
+    self.assertIsInstance(output, dict)
+    self.assertNotIn('exemption', output)
+
   def testGet_UnknownUser(self):
 
     user = test_utils.CreateUser()

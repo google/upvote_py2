@@ -70,10 +70,11 @@ class HostHandler(handler_utils.UserFacingHandler):
     elif not model_utils.IsHostAssociatedWithUser(host, self.user):
       self.RequireCapability(constants.PERMISSIONS.VIEW_OTHER_HOSTS)
 
-    # Include Exemption data with the Host.
+    # Include Exemption data with the Host (if one exists).
     exm = exemption_models.Exemption.Get(host.key.id())
     host_dict = host.to_dict()
-    host_dict['exemption'] = exm.to_dict()
+    if exm:
+      host_dict['exemption'] = exm.to_dict()
 
     self.respond_json(host_dict)
 
