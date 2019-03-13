@@ -17,6 +17,7 @@ py_library(
         ":emergency",
         ":events",
         ":exemptions",
+        ":features",
         ":hosts",
         ":index",
         ":lookups",
@@ -102,6 +103,16 @@ py_library(
         "//upvote/gae/taskqueue:utils",
         "//upvote/gae/utils:handler_utils",
         "//upvote/shared:constants",
+    ],
+)
+
+py_library(
+    name = "features",
+    srcs = ["features.py"],
+    deps = [
+        "//upvote/gae/utils:group_utils",
+        "//upvote/gae/utils:handler_utils",
+        "//upvote/gae/utils:user_utils",
     ],
 )
 
@@ -305,6 +316,20 @@ upvote_appengine_test(
         "//upvote/gae/datastore/models:exemption",
         "//upvote/gae/datastore/models:santa",
         "//upvote/gae/lib/testing:basetest",
+        "//upvote/shared:constants",
+    ],
+)
+
+upvote_appengine_test(
+    name = "features_test",
+    size = "small",
+    srcs = ["features_test.py"],
+    deps = [
+        ":features",
+        "//external:mock",
+        "//upvote/gae/datastore:test_utils",
+        "//upvote/gae/lib/testing:basetest",
+        "//upvote/gae/utils:group_utils",
         "//upvote/shared:constants",
     ],
 )
