@@ -167,10 +167,11 @@ class Exemption(mixin.Base, polymodel.PolyModel):
 
     # Verify that the desired state can be reached from the current state.
     if exm.CanChangeToState(new_state):
+      old_state = exm.state
       exm.state = new_state
       exm.history.append(Record(state=new_state, details=details))
       exm.put()
-      return exm
+      return exm, old_state
 
     raise InvalidStateChangeError('%s to %s' % (exm.state, new_state))
 
@@ -199,10 +200,10 @@ class Exemption(mixin.Base, polymodel.PolyModel):
     if details and any(not detail for detail in details):
       raise InvalidDetailsError
 
-    exm = cls._InnerChangeState(exm_key, new_state, details=details)
+    exm, old_state = cls._InnerChangeState(exm_key, new_state, details=details)
     logging.info(
         'Exemption for host %s changed state from %s to %s', host_id,
-        exm.state, new_state)
+        old_state, new_state)
 
     monitoring.state_changes.Increment(new_state)
 
