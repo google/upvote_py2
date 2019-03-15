@@ -35,6 +35,7 @@ from upvote.gae.datastore.models import bit9
 from upvote.gae.datastore.models import event as event_models
 from upvote.gae.datastore.models import host as host_models
 from upvote.gae.datastore.models import note as note_models
+from upvote.gae.datastore.models import policy as policy_models
 from upvote.gae.datastore.models import rule as rule_models
 from upvote.gae.datastore.models import user as user_models
 from upvote.gae.datastore.models import utils as model_utils
@@ -731,7 +732,7 @@ def _PersistBit9Host(computer, occurred_dt):
   host_id = str(computer.id)
   policy = computer.policy_id
   policy_key = (
-      ndb.Key(host_models.Bit9Policy, str(policy))
+      ndb.Key(policy_models.Bit9Policy, str(policy))
       if policy is not None else None)
   hostname = bit9_utils.ExpandHostname(
       bit9_utils.StripDownLevelDomain(computer.name))
@@ -999,7 +1000,7 @@ class UpdateBit9Policies(handler_utils.CronJobHandler):
   """Ensures locally cached policies are up-to-date."""
 
   def get(self):
-    policies_future = host_models.Bit9Policy.query().fetch_async()
+    policies_future = policy_models.Bit9Policy.query().fetch_async()
 
     active_policies = (
         api.Policy.query().filter(api.Policy.total_computers > 0)
@@ -1019,7 +1020,7 @@ class UpdateBit9Policies(handler_utils.CronJobHandler):
       local_policy = local_policies.get(str(policy.id))
 
       if local_policy is None:
-        new_policy = host_models.Bit9Policy(
+        new_policy = policy_models.Bit9Policy(
             id=str(policy.id), name=policy.name, enforcement_level=level)
         policies_to_update.append(new_policy)
       else:

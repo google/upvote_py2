@@ -18,6 +18,7 @@ from google.appengine.ext import ndb
 
 from upvote.gae.datastore import test_utils
 from upvote.gae.datastore.models import host as host_models
+from upvote.gae.datastore.models import policy as policy_models
 from upvote.gae.lib.testing import basetest
 from upvote.shared import constants
 
@@ -37,9 +38,9 @@ class Bit9HostTest(basetest.UpvoteTestCase):
   def testChangePolicyKey(self):
 
     monitor_policy_key = ndb.Key(
-        host_models.Bit9Policy, constants.BIT9_ENFORCEMENT_LEVEL.MONITOR)
+        policy_models.Bit9Policy, constants.BIT9_ENFORCEMENT_LEVEL.MONITOR)
     lockdown_policy_key = ndb.Key(
-        host_models.Bit9Policy, constants.BIT9_ENFORCEMENT_LEVEL.LOCKDOWN)
+        policy_models.Bit9Policy, constants.BIT9_ENFORCEMENT_LEVEL.LOCKDOWN)
     host_key = test_utils.CreateBit9Host(policy_key=monitor_policy_key).key
 
     self.assertEqual(monitor_policy_key, host_key.get().policy_key)

@@ -122,6 +122,7 @@ upvote_appengine_test(
         "//upvote/gae/datastore/models:event",
         "//upvote/gae/datastore/models:host",
         "//upvote/gae/datastore/models:note",
+        "//upvote/gae/datastore/models:policy",
         "//upvote/gae/datastore/models:rule",
         "//upvote/gae/lib/bit9:api",
         "//upvote/gae/lib/bit9:constants",

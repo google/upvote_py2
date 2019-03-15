@@ -41,26 +41,6 @@ class Host(mixin.Base, polymodel.PolyModel):
     return host_id.upper()
 
 
-class Bit9Policy(mixin.Bit9, ndb.Model):
-  """A Host policy in Bit9.
-
-  Corresponds to Bit9's "policy" object.
-
-  key = The **string** id of the Bit9 policy object
-
-  Attributes:
-    name: str, The name of the policy.
-    enforcement_level: BIT9_ENFORCEMENT_LEVEL, The 'target enforcement level'
-        (i.e. strictness) associated with the policy. More restrictive policies
-        have 'higher' enforcement levels.
-    updated_dt: datetime, The time the policy was modified last.
-  """
-  name = ndb.StringProperty()
-  enforcement_level = ndb.StringProperty(
-      choices=constants.BIT9_ENFORCEMENT_LEVEL.SET_ALL)
-  updated_dt = ndb.DateTimeProperty(auto_now=True)
-
-
 class Bit9Host(mixin.Bit9, Host):
   """A Host in Bit9.
 

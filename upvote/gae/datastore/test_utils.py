@@ -32,6 +32,7 @@ from upvote.gae.datastore.models import event as event_models
 from upvote.gae.datastore.models import exemption as exemption_models
 from upvote.gae.datastore.models import host as host_models
 from upvote.gae.datastore.models import package as package_models
+from upvote.gae.datastore.models import policy as policy_models
 from upvote.gae.datastore.models import rule as rule_models
 from upvote.gae.datastore.models import santa
 from upvote.gae.datastore.models import user as user_models
@@ -623,12 +624,12 @@ def CreateBit9Policy(**kwargs):
   """
   id_gen_func = lambda: RandomDigits(16)
   defaults = {
-      'id': _GenerateUnusedEntityId(host_models.Bit9Policy, id_gen_func),
+      'id': _GenerateUnusedEntityId(policy_models.Bit9Policy, id_gen_func),
       'name': RandomLetters(16),
       'enforcement_level': constants.BIT9_ENFORCEMENT_LEVEL.LOCKDOWN}
   defaults.update(kwargs.copy())
 
-  new_policy = host_models.Bit9Policy(**defaults)
+  new_policy = policy_models.Bit9Policy(**defaults)
   new_policy.put()
 
   return new_policy

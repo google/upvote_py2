@@ -24,6 +24,7 @@ from google.appengine.ext import ndb
 from upvote.gae.bigquery import tables
 from upvote.gae.datastore.models import exemption as exemption_models
 from upvote.gae.datastore.models import host as host_models
+from upvote.gae.datastore.models import policy as policy_models
 from upvote.gae.lib.bit9 import api as bit9_api
 from upvote.gae.lib.bit9 import utils as bit9_utils
 from upvote.gae.lib.exemption import checks
@@ -134,7 +135,7 @@ def _ChangeEnforcementInBit9(host_id, new_enforcement_level):
   computer.put(bit9_utils.CONTEXT)
 
   # Change the policy Key on the entity itself.
-  new_policy_key = ndb.Key(host_models.Bit9Policy, new_policy_id)
+  new_policy_key = ndb.Key(policy_models.Bit9Policy, new_policy_id)
   host_models.Bit9Host.ChangePolicyKey(host_id, new_policy_key)
 
   # Insert a row into BigQuery reflecting the change.
