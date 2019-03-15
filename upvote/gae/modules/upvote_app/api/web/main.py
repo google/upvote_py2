@@ -22,6 +22,7 @@ from upvote.gae.modules.upvote_app.api.web import alerts
 from upvote.gae.modules.upvote_app.api.web import blockables
 from upvote.gae.modules.upvote_app.api.web import emergency
 from upvote.gae.modules.upvote_app.api.web import events
+from upvote.gae.modules.upvote_app.api.web import features
 from upvote.gae.modules.upvote_app.api.web import hosts
 from upvote.gae.modules.upvote_app.api.web import index
 from upvote.gae.modules.upvote_app.api.web import lookups
@@ -45,6 +46,7 @@ _ALL_ROUTES = [
             blockables.ROUTES,
             emergency.ROUTES,
             events.ROUTES,
+            features.ROUTES,
             hosts.ROUTES,
             lookups.ROUTES,
             rules.ROUTES,

@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Santa API Module."""
+"""Request handlers for Santa clients to sync against."""
 
 import datetime
 import httplib
@@ -51,6 +51,7 @@ from upvote.shared import constants
 _SANTA_ACTION = 'santa_action'
 
 
+# Keys that can appear in the preflight JSON payload.
 _PREFLIGHT = constants.LowercaseNamespace([
     'BATCH_SIZE', 'BLACKLIST_REGEX', 'CLEAN_SYNC', 'CLIENT_MODE',
     'HOSTNAME', 'OS_BUILD', 'OS_VERSION', 'PRIMARY_USER', 'REQUEST_CLEAN_SYNC',
@@ -58,6 +59,7 @@ _PREFLIGHT = constants.LowercaseNamespace([
     'TRANSITIVE_WHITELISTING_ENABLED',])
 
 
+# Keys that can appear in the event upload JSON payload.
 _EVENT_UPLOAD = constants.LowercaseNamespace([
     'CN', 'CURRENT_SESSIONS', 'DECISION', 'EVENT_UPLOAD_BUNDLE_BINARIES',
     'EVENTS', 'EXECUTING_USER', 'EXECUTION_TIME', 'FILE_BUNDLE_ID',
@@ -70,11 +72,13 @@ _EVENT_UPLOAD = constants.LowercaseNamespace([
     'FILE_BUNDLE_BINARY_COUNT',])
 
 
+# Keys that can appear in the rule download JSON payload.
 _RULE_DOWNLOAD = constants.LowercaseNamespace([
     'CREATION_TIME', 'CURSOR', 'CUSTOM_MSG', 'POLICY', 'RULE_TYPE', 'RULES',
     'SHA256', 'FILE_BUNDLE_HASH', 'FILE_BUNDLE_BINARY_COUNT',])
 
 
+# Keys that can appear in the postflight JSON payload.
 _POSTFLIGHT = constants.LowercaseNamespace(['BACKOFF'])
 
 
@@ -154,7 +158,7 @@ class SantaRequestHandler(handler_utils.UpvoteRequestHandler):
     self.host_key = ndb.Key('Host', uuid)
     self.host = self.host_key.get()
     if not self.host and self.REQUIRE_HOST_OBJECT:
-      logging.info('Rejecting client: has not completed preflight')
+      logging.warning('Host %s has not completed preflight', uuid)
       self.abort(
           httplib.FORBIDDEN, explanation='Client has not completed preflight')
 
@@ -228,8 +232,8 @@ class PreflightHandler(SantaRequestHandler):
     # Create an User for the reported user on any preflight,
     # if one doesn't already exist.
     primary_user = self.parsed_json.get(_PREFLIGHT.PRIMARY_USER)
-    user = user_models.User.GetOrInsert(
-        user_utils.UsernameToEmail(primary_user))
+    email_addr = user_utils.UsernameToEmail(primary_user)
+    user = user_models.User.GetOrInsert(email_addr=email_addr)
 
     # Ensures the returned username is consistent with the User entity.
     primary_user = user.nickname
@@ -245,7 +249,7 @@ class PreflightHandler(SantaRequestHandler):
           constants.CLIENT.SANTA]
       futures.append(_CopyLocalRules(user.key, uuid))
 
-    # Update host entity on every sync.
+    # Update the SantaHost on every sync.
     self.host.serial_num = self.parsed_json.get(_PREFLIGHT.SERIAL_NUM)
     self.host.hostname = self.parsed_json.get(_PREFLIGHT.HOSTNAME)
     self.host.primary_user = primary_user
@@ -260,7 +264,7 @@ class PreflightHandler(SantaRequestHandler):
 
       message = 'Client mode mismatch (Expected: %s, Actual: %s)' % (
           self.host.client_mode, reported_mode)
-      logging.info(message)
+      logging.warning(message)
 
       # If the client_mode doesn't correspond to a known value, report it as
       # UNKNOWN.
@@ -281,7 +285,7 @@ class PreflightHandler(SantaRequestHandler):
       logging.info('Client requested clean sync')
       self.host.rule_sync_dt = None
 
-    # Save host entity.
+    # Save the SantaHost entity.
     futures.append(self.host.put_async())
 
     # If the big red button is pressed, override the self.host.client_mode
@@ -293,7 +297,7 @@ class PreflightHandler(SantaRequestHandler):
     elif big_red_button.go_go_go:
       actual_client_mode = constants.CLIENT_MODE.LOCKDOWN
 
-    # Prepare response.
+    # Prepare the response.
     response = {
         _PREFLIGHT.BATCH_SIZE: (
             settings.SANTA_EVENT_BATCH_SIZE),
@@ -967,14 +971,16 @@ class PostflightHandler(SantaRequestHandler):
 
   @handler_utils.RecordRequest
   def post(self, uuid):
-    self.host.last_postflight_dt = datetime.datetime.utcnow()
+
+    now = datetime.datetime.utcnow()
+    self.host.last_postflight_dt = now
     self.host.rule_sync_dt = self.host.last_preflight_dt
     self.host.put()
 
     host_id = self.host.key.id()
     tables.HOST.InsertRow(
         device_id=host_id,
-        timestamp=self.host.last_postflight_dt,
+        timestamp=now,
         action=constants.HOST_ACTION.FULL_SYNC,
         hostname=self.host.hostname,
         platform=constants.PLATFORM.MACOS,
