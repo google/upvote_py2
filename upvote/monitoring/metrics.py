@@ -81,12 +81,6 @@ BIT9_API = UpvoteNamespace('bit9_api/', [
     ('file_instances_missing', 'File Instances Missing')])
 
 
-BIT9_REST_API = UpvoteNamespace('bit9_rest_api/', [
-    ('qps', 'QPS'),
-    ('requests', 'Requests'),
-    ('latency', 'Latency')])
-
-
 UPVOTE_APP = UpvoteNamespace('upvote_app/', [
     ('blockable_requests', 'Blockable Requested'),
     ('event_requests', 'Event Requested'),

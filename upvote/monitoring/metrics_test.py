@@ -37,9 +37,6 @@ class MetricNamespaceTest(absltest.TestCase):
   def testBit9Api(self):
     self.assertLen(metrics.BIT9_API.ALL, 11)
 
-  def testBit9RestApi(self):
-    self.assertLen(metrics.BIT9_REST_API.ALL, 3)
-
   def testUpvoteApp(self):
     self.assertLen(metrics.UPVOTE_APP.ALL, 9)
 
