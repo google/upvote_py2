@@ -190,6 +190,8 @@ class BlockableTest(basetest.UpvoteTestCase):
   def testIsInstance(self):
     blockable = test_utils.CreateBlockable()
     self.assertTrue(blockable.IsInstance('Blockable'))
+    self.assertTrue(blockable.IsInstance('blockable'))
+    self.assertTrue(blockable.IsInstance('BLOCKABLE'))
     self.assertFalse(blockable.IsInstance('SomethingElse'))
 
 

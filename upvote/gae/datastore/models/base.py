@@ -225,7 +225,8 @@ class Blockable(mixin.Base, polymodel.PolyModel):
     Returns:
       Whether this Blockable has the given class name in its ancestry.
     """
-    return class_name in self._class_key()
+    class_names = set(c.lower() for c in self._class_key())
+    return class_name.lower() in class_names
 
 
 class Binary(Blockable):
