@@ -16,6 +16,7 @@
 
 from google.appengine.ext import ndb
 
+from upvote.gae.datastore import test_utils
 from upvote.gae.datastore.models import package as package_models
 from upvote.gae.lib.testing import basetest
 
@@ -44,6 +45,13 @@ class SantaBundleTest(basetest.UpvoteTestCase):
     pair = ('foo', 'bar')
     self.assertEqual(
         pair, package_models.SantaBundle.TranslatePropertyQuery(*pair))
+
+  def testIsInstance(self):
+    bundle = test_utils.CreateSantaBundle()
+    self.assertTrue(bundle.IsInstance('Blockable'))
+    self.assertTrue(bundle.IsInstance('Package'))
+    self.assertTrue(bundle.IsInstance('SantaBundle'))
+    self.assertFalse(bundle.IsInstance('SomethingElse'))
 
 
 if __name__ == '__main__':

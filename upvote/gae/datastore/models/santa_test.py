@@ -157,6 +157,13 @@ class SantaBlockableTest(SantaModelTest):
     self.assertFalse(actual_binary.flagged)
     self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.BINARY)
 
+  def testIsInstance(self):
+    blockable = test_utils.CreateSantaBlockable()
+    self.assertTrue(blockable.IsInstance('Blockable'))
+    self.assertTrue(blockable.IsInstance('Binary'))
+    self.assertTrue(blockable.IsInstance('SantaBlockable'))
+    self.assertFalse(blockable.IsInstance('SomethingElse'))
+
 
 class SantaCertificateTest(basetest.UpvoteTestCase):
 
@@ -198,6 +205,14 @@ class SantaCertificateTest(basetest.UpvoteTestCase):
     self.assertEqual(actual_cert.state, constants.STATE.UNTRUSTED)
     self.assertFalse(actual_cert.flagged)
     self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.CERTIFICATE)
+
+  def testIsInstance(self):
+    cert = test_utils.CreateSantaCertificate()
+    self.assertTrue(cert.IsInstance('Blockable'))
+    self.assertTrue(cert.IsInstance('Certificate'))
+    self.assertTrue(cert.IsInstance('SantaCertificate'))
+    self.assertFalse(cert.IsInstance('SomethingElse'))
+
 
 
 class SantaBundleTest(SantaModelTest):

@@ -187,6 +187,11 @@ class BlockableTest(basetest.UpvoteTestCase):
     self.assertIsNotNone(base.Blockable.get_by_id(sha256.lower()))
     self.assertIsNotNone(base.Blockable.get_by_id(sha256.upper()))
 
+  def testIsInstance(self):
+    blockable = test_utils.CreateBlockable()
+    self.assertTrue(blockable.IsInstance('Blockable'))
+    self.assertFalse(blockable.IsInstance('SomethingElse'))
+
 
 class BinaryTest(basetest.UpvoteTestCase):
 
@@ -231,6 +236,12 @@ class BinaryTest(basetest.UpvoteTestCase):
 
   def testToDict(self):
     self.assertIn('cert_id', self.blockable.to_dict())
+
+  def testIsInstance(self):
+    binary = test_utils.CreateBlockableEntity(base.Binary)
+    self.assertTrue(binary.IsInstance('Blockable'))
+    self.assertTrue(binary.IsInstance('Binary'))
+    self.assertFalse(binary.IsInstance('SomethingElse'))
 
 
 if __name__ == '__main__':

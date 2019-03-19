@@ -211,6 +211,22 @@ class Blockable(mixin.Base, polymodel.PolyModel):
       blockable_id = blockable_id.lower()
     return super(Blockable, cls).get_by_id(blockable_id, **kwargs)
 
+  def IsInstance(self, class_name):
+    """Alternative to the built-in isinstance() function.
+
+    Determines class heredity without requiring the caller to import the
+    specific Model subclass being tested for, which has been a repeated source
+    of circular build dependencies due to the tight coupling of some of Upvote's
+    Datastore Models.
+
+    Args:
+      class_name: str, The name of the class we're looking for.
+
+    Returns:
+      Whether this Blockable has the given class name in its ancestry.
+    """
+    return class_name in self._class_key()
+
 
 class Binary(Blockable):
   """A binary to be blocked.
