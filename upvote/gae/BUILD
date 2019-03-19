@@ -18,8 +18,8 @@ upvote_appengine_binary(
     configs = glob(["*.yaml"]) + [":appengine_config.py"],
     deps = [
         "//upvote/gae/datastore:all",
-        "//upvote/gae/modules/santa_api:santa_api_library",
         "//upvote/gae/modules/upvote_app:upvote_app_library",
+        "//upvote/gae/modules/upvote_app/api/santa:santa_api_library",
         "//upvote/gae/shared:all",
     ],
 )

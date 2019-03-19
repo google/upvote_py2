@@ -38,8 +38,8 @@ from upvote.gae.datastore.models import santa as santa_models
 from upvote.gae.datastore.models import user as user_models
 from upvote.gae.datastore.models import utils as model_utils
 from upvote.gae.lib.analysis import metrics
-from upvote.gae.modules.santa_api import auth
-from upvote.gae.modules.santa_api import monitoring
+from upvote.gae.modules.upvote_app.api.santa import auth
+from upvote.gae.modules.upvote_app.api.santa import monitoring
 from upvote.gae.shared.common import big_red
 from upvote.gae.utils import env_utils
 from upvote.gae.utils import handler_utils

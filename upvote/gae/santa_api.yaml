@@ -32,7 +32,7 @@ automatic_scaling:
 handlers:
 # NOTE: Login purposefully not required for API handlers
 - url: /api/santa/.*
-  script: upvote.gae.modules.santa_api.main.app
+  script: upvote.gae.modules.upvote_app.api.santa.main.app
   secure: always
 
 - url: /_ah/warmup

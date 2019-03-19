@@ -12,17 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Unit tests for monitoring.py."""
+"""Unit tests for main.py."""
 
-from common.testing import basetest
-from upvote.gae.modules.santa_api import monitoring  # pylint: disable=unused-import
+from upvote.gae.lib.testing import basetest
 
 
-class PlaceholderTest(basetest.AppEngineTestCase):
-  """Protects against errors encountered upon import. Replace when prudent."""
+class MainTest(basetest.UpvoteTestCase):
 
-  def testTrue(self):
-    self.assertTrue(True)
+  def testImport(self):
+    # pylint: disable=g-import-not-at-top, unused-variable
+    from upvote.gae.modules.upvote_app.api.santa import main
+    # pylint: enable=g-import-not-at-top, unused-variable
 
 
 if __name__ == '__main__':

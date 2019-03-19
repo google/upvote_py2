@@ -16,7 +16,7 @@
 
 import webapp2
 
-from upvote.gae.modules.santa_api import sync
+from upvote.gae.modules.upvote_app.api.santa import sync
 from upvote.gae.utils import handler_utils
 
 
