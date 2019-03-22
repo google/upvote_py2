@@ -16,7 +16,7 @@
 
 import mock
 
-from google.appengine.ext import db
+from google.appengine.api import datastore_errors
 from google.appengine.ext import ndb
 
 from upvote.gae import settings
@@ -289,7 +289,7 @@ class SantaBundleTest(SantaModelTest):
 
       # In a transaction, the 26 searched blockables should exceed the allowed
       # limit of 25.
-      with self.assertRaises(db.BadRequestError):
+      with self.assertRaises(datastore_errors.BadRequestError):
         ndb.transaction(
             lambda: bundle.IsVotingAllowed(enable_flagged_checks=True), xg=True)
 
