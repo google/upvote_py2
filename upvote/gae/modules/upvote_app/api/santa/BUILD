@@ -1,9 +1,4 @@
-load(
-    "//upvote:builddefs.bzl",
-    "py_appengine_library",
-    "upvote_appengine_binary",
-    "upvote_appengine_test",
-)
+load("//upvote:builddefs.bzl", "py_appengine_library", "upvote_appengine_test", "upvote_appengine_binary")
 
 package(default_visibility = ["//upvote"])
 
@@ -13,7 +8,33 @@ package(default_visibility = ["//upvote"])
 py_appengine_library(
     name = "all",
     deps = [
+        "//upvote/gae/modules/upvote_app/api/santa:sync",
+    ],
+)
+
+py_appengine_library(
+    name = "santa_api_library",
+    srcs = [
+        "main.py",
+    ],
+    data = [
+        "//upvote/gae:santa_api.yaml",
+    ],
+    deps = [
+        ":auth",
+        ":monitoring",
         ":sync",
+        "//upvote/gae/utils:handler_utils",
+        "//upvote/shared:constants",
+    ],
+)
+
+py_appengine_library(
+    name = "monitoring",
+    srcs = ["monitoring.py"],
+    deps = [
+        "//upvote/gae/utils:monitoring_utils",
+        "//upvote/monitoring:metrics",
     ],
 )
 
@@ -46,50 +67,32 @@ py_appengine_library(
 )
 
 py_appengine_library(
-    name = "monitoring",
-    srcs = ["monitoring.py"],
-    deps = [
-        "//upvote/gae/utils:monitoring_utils",
-        "//upvote/monitoring:metrics",
-    ],
-)
-
-py_appengine_library(
-    name = "santa_api_library",
-    srcs = [
-        "main.py",
-    ],
-    data = [
-        "//upvote/gae:santa_api.yaml",
-    ],
-    deps = [
-        ":auth",
-        ":monitoring",
-        ":sync",
-        "//upvote/gae/utils:handler_utils",
-        "//upvote/shared:constants",
-    ],
-)
-
-py_appengine_library(
     name = "auth",
     srcs = ["auth.py"],
 )
 
-upvote_appengine_binary(
-    name = "santa_api_binary",
-    srcs = ["main.py"],
-    configs = [
-        "//upvote/gae:appengine_config.py",
-        "//upvote/gae:santa_api.yaml",
-    ],
+# AppEngine Unit Tests
+# ==============================================================================
+
+upvote_appengine_test(
+    name = "main_test",
+    size = "small",
+    srcs = ["main_test.py"],
     deps = [
         ":santa_api_library",
+        "//upvote/gae/lib/testing:basetest",
     ],
 )
 
-# AppEngine Unit Tests
-# ==============================================================================
+upvote_appengine_test(
+    name = "monitoring_test",
+    size = "small",
+    srcs = ["monitoring_test.py"],
+    deps = [
+        ":monitoring",
+        "//common/testing:basetest",
+    ],
+)
 
 upvote_appengine_test(
     name = "sync_test",
@@ -112,22 +115,17 @@ upvote_appengine_test(
     ],
 )
 
-upvote_appengine_test(
-    name = "monitoring_test",
-    size = "small",
-    srcs = ["monitoring_test.py"],
-    deps = [
-        ":monitoring",
-        "//common/testing:basetest",
-    ],
-)
+# Binaries
+# ==============================================================================
 
-upvote_appengine_test(
-    name = "main_test",
-    size = "small",
-    srcs = ["main_test.py"],
+upvote_appengine_binary(
+    name = "santa_api_binary",
+    srcs = ["main.py"],
+    configs = [
+        "//upvote/gae:appengine_config.py",
+        "//upvote/gae:santa_api.yaml",
+    ],
     deps = [
         ":santa_api_library",
-        "//upvote/gae/lib/testing:basetest",
     ],
 )

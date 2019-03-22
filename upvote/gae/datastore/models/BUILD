@@ -22,6 +22,7 @@ py_appengine_library(
         ":mixin",
         ":note",
         ":package",
+        ":policy",
         ":rule",
         ":santa",
         ":singleton",
@@ -132,6 +133,15 @@ py_appengine_library(
         ":user",
         "//upvote/gae/bigquery:tables",
         "//upvote/gae/datastore:utils",
+        "//upvote/shared:constants",
+    ],
+)
+
+py_appengine_library(
+    name = "policy",
+    srcs = ["policy.py"],
+    deps = [
+        ":mixin",
         "//upvote/shared:constants",
     ],
 )
@@ -294,6 +304,7 @@ upvote_appengine_test(
     srcs = ["host_test.py"],
     deps = [
         ":host",
+        ":policy",
         "//upvote/gae/lib/testing:basetest",
     ],
 )
@@ -328,7 +339,9 @@ upvote_appengine_test(
     deps = [
         ":package",
         "//upvote/gae/datastore:test_utils",
+        "//upvote/gae/datastore/models:santa",
         "//upvote/gae/lib/testing:basetest",
+        "//upvote/shared:constants",
         "@absl_git//absl/testing:absltest",
     ],
 )

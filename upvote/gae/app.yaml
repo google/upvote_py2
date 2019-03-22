@@ -43,6 +43,10 @@ handlers:
   secure: always
   login: admin
 
+- url: /api/santa/.*
+  script: upvote.gae.modules.upvote_app.api.santa.main.app
+  secure: always
+
 - url: /api/web/.*
   script: upvote.gae.modules.upvote_app.api.web.main.app
   secure: always

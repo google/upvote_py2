@@ -27,7 +27,7 @@ const ProtectionLevel = upvote.hosts.ProtectionLevel;
 
 
 describe('Host List Controller', () => {
-  let exemptionService, hostService, errorService, location, q, rootScope, page;
+  let hostService, errorService, location, q, rootScope, page;
   let filter, ctrl;
 
   beforeEach(/** @suppress {missingProperties} */ () => {
@@ -36,10 +36,8 @@ describe('Host List Controller', () => {
     angular.mock.module(upvote.hosts.module.name);
 
     angular.mock.inject(
-        (_exemptionService_, _hostService_, _errorService_, $location, $q,
-         $rootScope, $filter) => {
+        (_hostService_, _errorService_, $location, $q, $rootScope, $filter) => {
           // Store injected components.
-          exemptionService = _exemptionService_;
           hostService = _hostService_;
           errorService = _errorService_;
           location = $location;
@@ -53,8 +51,6 @@ describe('Host List Controller', () => {
               jasmine.createSpy('getAssociatedHosts');
           hostService.getProtectionLevel =
               jasmine.createSpy('getProtectionLevel');
-          exemptionService.cancelExemption =
-              jasmine.createSpy('cancelExemption');
           errorService.createDialogFromError =
               jasmine.createSpy('createDialogFromError');
           errorService.createToastFromError =
@@ -76,8 +72,8 @@ describe('Host List Controller', () => {
     setHosts([]);
   });
 
-  let buildController = () => new HostListController(
-      exemptionService, hostService, errorService, location, page, filter);
+  let buildController = () =>
+      new HostListController(hostService, errorService, location, page, filter);
 
   /**
    * @param {?Object=} opt_properties
@@ -123,34 +119,6 @@ describe('Host List Controller', () => {
 
       expect(hostService.getAssociatedHosts['calls'].count()).toEqual(1);
       expect(ctrl.hosts).toEqual(hosts);
-    });
-  });
-
-  describe('should return whether a Host is stale', () => {
-    beforeEach(() => {
-      ctrl = buildController();
-      rootScope.$apply();
-    });
-
-    it('when it is stale', () => {
-      let fourtyFiveDaysAgo =
-          new Date().getTime() - 1.5 * HostListController.STALE_THRESHOLD;
-      let fourtyFiveDaysAgoString = new Date(fourtyFiveDaysAgo).toISOString();
-      let fakeHost = getHost({'ruleSyncDt': fourtyFiveDaysAgoString});
-
-      expect(ctrl.isStale(fakeHost)).toBe(true);
-    });
-
-    it('when it has never synced', () => {
-      let fakeHost = getHost({'ruleSyncDt': null});
-
-      expect(ctrl.isStale(fakeHost)).toBe(true);
-    });
-
-    it('when it is fresh', () => {
-      let fakeHost = getHost({'ruleSyncDt': new Date().toISOString()});
-
-      expect(ctrl.hostService.isInLockdown(fakeHost)).toBe(false);
     });
   });
 
@@ -258,13 +226,13 @@ describe('Host List Controller', () => {
     });
   });
 
-  describe('should navigate to the request page', () => {
+  describe('should navigate to the modify protection page', () => {
     it('when provided with a valid ', () => {
       ctrl = buildController();
-      ctrl.goToRequestPage('abc');
+      ctrl.goToModifyProtectionPage('abc');
       rootScope.$apply();
 
-      expect(location.path()).toEqual('/hosts/abc/request-exception');
+      expect(location.path()).toEqual('/hosts/abc/modify-protection');
     });
   });
 
@@ -275,60 +243,6 @@ describe('Host List Controller', () => {
       rootScope.$apply();
 
       expect(location.path()).toEqual('/hosts/abc/blockables');
-    });
-  });
-
-  describe('for lockdown requests,', () => {
-    beforeEach(() => {
-      setHosts([getSantaHost({'clientMode': 'foo'})]);
-
-      ctrl = buildController();
-      rootScope.$apply();
-    });
-
-    it('when the request succeeds, the hosts should be refreshed', () => {
-      // Update the client mode.
-      let host = getSantaHost({'id': 'foo', 'clientMode': 'bar'});
-      setHosts([host]);
-      exemptionService.cancelExemption['and']['returnValue'](q.resolve(host));
-
-      ctrl.cancelExemption('foo');
-      rootScope.$apply();
-
-      expect(exemptionService.cancelExemption).toHaveBeenCalledWith('foo');
-      expect(hostService.getAssociatedHosts['calls'].count()).toEqual(2);
-      // Verify that the client mode has changed.
-      expect(ctrl.hosts[0]['clientMode']).toEqual('bar');
-    });
-
-    it('when the request fails, an error dialog should be shown', () => {
-      exemptionService.cancelExemption['and']['returnValue'](q.reject({}));
-
-      ctrl.cancelExemption('foo');
-      rootScope.$apply();
-
-      expect(exemptionService.cancelExemption).toHaveBeenCalledWith('foo');
-      expect(errorService.createDialogFromError).toHaveBeenCalled();
-    });
-  });
-
-  describe('should allow exemption renewal', () => {
-    beforeEach(() => {
-      ctrl = buildController();
-      rootScope.$apply();
-    });
-
-    it('when an exemption is approved', () => {
-      let host = getSantaHost({
-        'id': 'foo',
-        'clientMode': 'bar',
-        'exemption': {'state': 'APPROVED'}
-      });
-      setHosts([host]);
-
-      rootScope.$apply();
-
-      expect(ctrl.isExemptionRenewable(host)).toBe(true);
     });
   });
 });

@@ -1,0 +1,195 @@
+<div flex layout="column" id="test-wrapper" layout-padding layout-align="start center" style="padding: 0px;">
+
+  <div flex ng-hide="modifyProtectionCtrl.host != null">
+    <md-progress-circular id="page-load-spinner" md-mode="indeterminate" md-diameter="96"></md-progress-circular>
+  </div>
+
+  <div flex layout="column" id="protection-card-list">
+
+    <!--                      -->
+    <!-- Full Protection card -->
+    <!--                      -->
+
+    <md-card class="protection-card"
+             id="full-protection-card">
+      <md-card-header>
+        <md-card-avatar>
+          <md-icon class="md-avatar-icon" md-svg-icon="/static/images/security.svg"></md-icon>
+        </md-card-avatar>
+        <md-card-header-text>
+          <span class="md-title">Full Protection</span>
+        </md-card-header-text>
+      </md-card-header>
+
+      <md-card-content>
+        <p>
+          <b>Full Protection</b> grants the highest possible level of malware protection.
+        </p>
+        <ul>
+          <li>Known malware will always be blocked from running.</li>
+          <li>All other applications will be blocked until they receive enough votes.</li>
+        </ul>
+      </md-card-content>
+
+      <md-card-actions layout="row" layout-align="end center" class="card-actions">
+        <md-button class="md-raised"
+                   ng-disabled="modifyProtectionCtrl.isFullProtectionButtonDisabled()"
+                   ng-click="modifyProtectionCtrl.enableFullProtection()">
+          <span ng-hide="modifyProtectionCtrl.isFullProtectionEnabled()">
+            <md-icon>security</md-icon>
+            Switch To Full Protection
+          </span>
+          <span ng-show="modifyProtectionCtrl.isFullProtectionEnabled()">
+            <md-icon>security</md-icon>
+            Full Protection Enabled
+          </span>
+        </md-button>
+      </md-card-actions>
+
+      <md-progress-linear md-mode="indeterminate"
+                          ng-style="{'visibility': modifyProtectionCtrl.fullProtectionRequested ? 'visible' : 'hidden'}">
+      </md-progress-linear>
+    </md-card>
+
+    <!--                     -->
+    <!-- Developer Mode card -->
+    <!--                     -->
+
+    <md-card class="protection-card"
+             id="dev-mode-card"
+             ng-show="modifyProtectionCtrl.isDeveloperModeAvailable()">
+      <md-card-header>
+        <md-card-avatar>
+          <md-icon class="md-avatar-icon" md-svg-icon="/static/images/build.svg"></md-icon>
+        </md-card-avatar>
+        <md-card-header-text>
+          <span class="md-title">Developer Mode (BETA)</span>
+        </md-card-header-text>
+      </md-card-header>
+
+      <md-card-content>
+        <p>
+          <b>Developer Mode</b> allows you to run binaries that you have compiled, while still
+          providing a robust defense against malware.
+        </p>
+        <ul>
+          <li>Known malware will always be blocked from running.</li>
+          <li>Binaries compiled by specific compilers will be allowed to run.</li>
+          <li>All other applications will be blocked until they receive enough votes.</li>
+          <li><b>Only available on macOS.</b></li>
+        </ul>
+      </md-card-content>
+
+      <md-card-actions layout="row" layout-align="end center" class="card-actions">
+
+        <md-button class="md-raised"
+                   ng-disabled="modifyProtectionCtrl.isDeveloperModeButtonDisabled()"
+                   ng-click="modifyProtectionCtrl.enableDeveloperMode()">
+          <span ng-hide="modifyProtectionCtrl.isDeveloperModeEnabled()">
+            <md-icon>build</md-icon>
+            Switch To Developer Mode
+          </span>
+          <span ng-show="modifyProtectionCtrl.isDeveloperModeEnabled()">
+            <md-icon>build</md-icon>
+            Developer Mode Enabled
+          </span>
+        </md-button>
+      </md-card-actions>
+
+      <md-progress-linear md-mode="indeterminate"
+                          ng-style="{'visibility': modifyProtectionCtrl.developerModeRequested ? 'visible' : 'hidden'}">
+      </md-progress-linear>
+    </md-card>
+
+    <!--                         -->
+    <!-- Minimal Protection card -->
+    <!--                         -->
+
+    <md-card class="protection-card"
+             id="minimal-protection-card">
+      <md-card-header>
+        <md-card-avatar>
+          <md-icon class="md-avatar-icon" md-svg-icon="/static/images/report.svg"></md-icon>
+        </md-card-avatar>
+        <md-card-header-text>
+          <span class="md-title">Minimal Protection</span>
+        </md-card-header-text>
+      </md-card-header>
+
+      <md-card-content>
+        <p>
+          <b>Minimal Protection</b> will put your machine at the greatest risk for malware
+          infection.
+        </p>
+        <ul>
+          <li>Known malware will always be blocked from running.</li>
+          <li>All other applications (including unknown malware) will be allowed to run.</li>
+        </ul>
+
+        <form name="minimalProtectionForm">
+
+          <md-input-container class="input-container">
+            <label>Duration</label>
+            <md-select name="durationSelect"
+                       ng-model="modifyProtectionCtrl.duration"
+                       required
+                       md-no-asterisk="false"
+                       ng-disabled="modifyProtectionCtrl.isMinimalProtectionInputDisabled()">
+              <md-option ng-repeat="(value, desc) in modifyProtectionCtrl.durations"
+                         ng-value="value">
+                {{desc}}
+              </md-option>
+            </md-select>
+          </md-input-container>
+
+          <md-input-container class="input-container">
+            <label>Reason</label>
+            <md-select name="reasonSelect"
+                       ng-model="modifyProtectionCtrl.reason"
+                       ng-disabled="modifyProtectionCtrl.isMinimalProtectionInputDisabled()"
+                       required>
+              <md-option ng-repeat="(value, desc) in modifyProtectionCtrl.reasons"
+                         ng-value="value">
+                {{desc}}
+              </md-option>
+            </md-select>
+          </md-input-container>
+
+          <md-input-container class="input-container"
+                              ng-show="modifyProtectionCtrl.reason == 'OTHER'">
+            <label>Explanation</label>
+            <input name="otherText"
+                   ng-model="modifyProtectionCtrl.otherText"
+                   ng-trim="true"
+                   ng-required="modifyProtectionCtrl.reason == 'OTHER'"
+                   ng-disabled="modifyProtectionCtrl.isMinimalProtectionInputDisabled()" />
+          </md-input-container>
+
+        </form>
+
+      </md-card-content>
+
+      <md-card-actions layout="row"
+                       layout-align="end center"
+                       class="card-actions">
+        <md-button class="md-raised"
+                   ng-disabled="modifyProtectionCtrl.isMinimalProtectionButtonDisabled()"
+                   ng-click="modifyProtectionCtrl.enableMinimalProtection()">
+          <span ng-hide="modifyProtectionCtrl.isMinimalProtectionEnabled()">
+            <md-icon>report</md-icon>
+            Switch To Minimal Protection
+          </span>
+          <span ng-show="modifyProtectionCtrl.isMinimalProtectionEnabled()">
+            <md-icon>report</md-icon>
+            Minimal Protection Enabled
+          </span>
+        </md-button>
+      </md-card-actions>
+
+      <md-progress-linear md-mode="indeterminate"
+                          ng-style="{'visibility': modifyProtectionCtrl.minimalProtectionRequested ? 'visible' : 'hidden'}">
+      </md-progress-linear>
+    </md-card>
+
+  </div>
+</div>

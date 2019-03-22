@@ -34,8 +34,8 @@ from upvote.gae.datastore.models import rule as rule_models
 from upvote.gae.datastore.models import santa as santa_models
 from upvote.gae.datastore.models import user as user_models
 from upvote.gae.lib.testing import basetest
-from upvote.gae.modules.santa_api import auth
-from upvote.gae.modules.santa_api import sync
+from upvote.gae.modules.upvote_app.api.santa import auth
+from upvote.gae.modules.upvote_app.api.santa import sync
 from upvote.gae.utils import user_utils
 from upvote.gae.utils import xsrf_utils
 from upvote.shared import constants

@@ -16,9 +16,6 @@
 
 import mock
 
-from google.appengine.ext import db
-from google.appengine.ext import ndb
-
 from upvote.gae import settings
 from upvote.gae.datastore import test_utils
 from upvote.gae.datastore.models import santa
@@ -157,6 +154,13 @@ class SantaBlockableTest(SantaModelTest):
     self.assertFalse(actual_binary.flagged)
     self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.BINARY)
 
+  def testIsInstance(self):
+    blockable = test_utils.CreateSantaBlockable()
+    self.assertTrue(blockable.IsInstance('Blockable'))
+    self.assertTrue(blockable.IsInstance('Binary'))
+    self.assertTrue(blockable.IsInstance('SantaBlockable'))
+    self.assertFalse(blockable.IsInstance('SomethingElse'))
+
 
 class SantaCertificateTest(basetest.UpvoteTestCase):
 
@@ -199,128 +203,13 @@ class SantaCertificateTest(basetest.UpvoteTestCase):
     self.assertFalse(actual_cert.flagged)
     self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.CERTIFICATE)
 
+  def testIsInstance(self):
+    cert = test_utils.CreateSantaCertificate()
+    self.assertTrue(cert.IsInstance('Blockable'))
+    self.assertTrue(cert.IsInstance('Certificate'))
+    self.assertTrue(cert.IsInstance('SantaCertificate'))
+    self.assertFalse(cert.IsInstance('SomethingElse'))
 
-class SantaBundleTest(SantaModelTest):
-
-  def testIgnoreCalculateScoreBeforeUpload(self):
-    bundle = test_utils.CreateSantaBundle(uploaded_dt=None)
-    test_utils.CreateVote(bundle)
-
-    # Trigger the SantaBundle.score ComputedProperty calculation.
-    bundle.put()
-
-    # The score should have not reflected the real score until the bundle is
-    # uploaded.
-    self.assertEqual(0, bundle.key.get().score)
-
-  def testIsVotingAllowed_BundleUpload(self):
-    bundle = test_utils.CreateSantaBundle(uploaded_dt=None)
-    self.assertFalse(bundle.has_been_uploaded)
-
-    allowed, reason = bundle.IsVotingAllowed()
-
-    self.assertFalse(allowed)
-    self.assertEqual(
-        constants.VOTING_PROHIBITED_REASONS.UPLOADING_BUNDLE, reason)
-
-  def testIsVotingAllowed_HasFlaggedBinary(self):
-    # First, create two unflagged binaries.
-    blockables = test_utils.CreateSantaBlockables(2)
-    bundle = test_utils.CreateSantaBundle(bundle_binaries=blockables)
-
-    with self.LoggedInUser():
-      allowed, reason = bundle.IsVotingAllowed()
-      self.assertTrue(allowed)
-
-      # Now flag one of the binaries.
-      blockables[0].flagged = True
-      blockables[0].put()
-
-      allowed, reason = bundle.IsVotingAllowed()
-      self.assertFalse(allowed)
-      self.assertEqual(
-          constants.VOTING_PROHIBITED_REASONS.FLAGGED_BINARY, reason)
-
-  def testIsVotingAllowed_HasFlaggedCert(self):
-    blockable = test_utils.CreateSantaBlockable(
-        cert_key=self.santa_certificate.key)
-    bundle = test_utils.CreateSantaBundle(bundle_binaries=[blockable])
-
-    with self.LoggedInUser():
-      allowed, reason = bundle.IsVotingAllowed()
-      self.assertTrue(allowed)
-
-      self.santa_certificate.flagged = True
-      self.santa_certificate.put()
-
-      allowed, reason = bundle.IsVotingAllowed()
-      self.assertFalse(allowed)
-      self.assertEqual(constants.VOTING_PROHIBITED_REASONS.FLAGGED_CERT, reason)
-
-  def testIsVotingAllowed_DisableHasFlaggedChecks(self):
-    blockables = test_utils.CreateSantaBlockables(26)
-    bundle = test_utils.CreateSantaBundle(bundle_binaries=blockables)
-
-    # Flag one of the binaries.
-    blockables[0].flagged = True
-    blockables[0].put()
-
-    with self.LoggedInUser():
-      # Ensure that the normal call succeeds in finding the flagged binary.
-      allowed, reason = bundle.IsVotingAllowed()
-      self.assertFalse(allowed)
-      self.assertEqual(
-          constants.VOTING_PROHIBITED_REASONS.FLAGGED_BINARY, reason)
-
-      # In a transaction, the 26 searched blockables should exceed the allowed
-      # limit of 25.
-      with self.assertRaises(db.BadRequestError):
-        ndb.transaction(
-            lambda: bundle.IsVotingAllowed(enable_flagged_checks=True), xg=True)
-
-      # With the checks disabled, IsVotingAllowed shouldn't raise an exception.
-      def Test():
-        allowed, reason = bundle.IsVotingAllowed(enable_flagged_checks=False)
-        self.assertTrue(allowed)
-        self.assertIsNone(reason)
-
-      ndb.transaction(Test, xg=True)
-
-  def testIsVotingAllowed_CallTheSuper(self):
-    bundle = test_utils.CreateSantaBundle()
-    with self.LoggedInUser():
-      with mock.patch.object(
-          santa.base.Blockable, 'IsVotingAllowed') as mock_method:
-        bundle.IsVotingAllowed()
-        self.assertTrue(mock_method.called)
-
-  def testToDict(self):
-    bundle = test_utils.CreateSantaBundle()
-    with self.LoggedInUser():
-      dict_ = bundle.to_dict()
-    self.assertTrue(dict_['has_been_uploaded'])
-    self.assertIsNone(dict_['cert_id'])
-
-  def testToDict_CertId(self):
-    blockable = test_utils.CreateSantaBlockable(
-        cert_key=self.santa_certificate.key)
-    bundle = test_utils.CreateSantaBundle(
-        main_cert_key=self.santa_certificate.key,
-        bundle_binaries=[blockable])
-    with self.LoggedInUser():
-      dict_ = bundle.to_dict()
-    self.assertTrue(dict_['has_been_uploaded'])
-    self.assertEqual(self.santa_certificate.key.id(), dict_['cert_id'])
-
-  def testPersistsStateChange(self):
-    bundle = test_utils.CreateSantaBundle(uploaded_dt=None)
-    bundle.ChangeState(constants.STATE.SUSPECT)
-    self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.BUNDLE)
-
-  def testResetsState(self):
-    bundle = test_utils.CreateSantaBundle(uploaded_dt=None)
-    bundle.ResetState()
-    self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.BUNDLE)
 
 
 if __name__ == '__main__':

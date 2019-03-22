@@ -3,73 +3,70 @@
 }
 
 #host-card-list {
-  padding: 0px;
-  width: 85%;
+  margin: auto;
+  padding: 16px 0px;
+  width: 70%;
 }
 
 .host-card {
-  margin: 16px 8px 0px 8px;
+  margin: 16px;
 }
 
-span.md-subhead.uv-host-card-detail {
+.host-card .md-title {
+  cursor: text;
+  font-size: 20px;
+  font-weight: 500;
+  letter-spacing: .005em;
+  margin: 8px 0px;
+}
+
+.host-card .card-actions {
+  margin: 0px 16px 16px 16px;
+}
+
+.host-card md-card-header {
+  background: #4285F4;  /* blue-500 */
+  color: white;
+}
+
+.host-card md-card-content .detail-name {
   font-weight: bold;
 }
 
-.uv-host-card-value {
-  font-weight: 400;
+.host-card md-card-content li {
+  margin-bottom: 4px;
 }
 
-span.protected-host, button.unprotected-host {
-  /* Promote with green color. */
-  color: #0F9D58;
-}
-
-span.unprotected-host, button.protected-host {
-  /* Deter with red color. */
-  color: #FF5252;
-}
-
-span.bad-exemption-state {
-  color: #FF5252;
+.host-card md-card-content span.full-protection {
+  color: #34A853;  /* green-500 */
   font-weight: bold;
 }
 
-span.full-protection {
-  color: #34A853;
+.host-card md-card-content span.developer-mode {
+  color: #FBBC04;  /* yellow-500 */
   font-weight: bold;
 }
 
-span.developer-mode {
-  color: #FBBC04;
+.host-card md-card-content span.minimal-protection {
+  color: #EA4335;  /* red-500 */
   font-weight: bold;
 }
 
-span.minimal-protection {
-  color: #EA4335;
-  font-weight: bold;
+.host-card md-card-actions .md-button md-icon {
+  margin-bottom: 2px;
 }
 
-button.visibility-button {
-  float: right;
-  min-width: 40px;
-  opacity: 0;
-  transition: .5s;
+.host-card md-card-actions .md-button.full-protection {
+  background: #34A853;  /* green-500 */
+  color: white;
 }
 
-md-card:hover button.visibility-button {
-  opacity: 1;
+.host-card md-card-actions .md-button.developer-mode {
+  background: #FBBC04;  /* yellow-500 */
+  color: white;
 }
 
-.md-card-image.uv-platform-logo {
-  width: 112px;
-  height: 112px;
-}
-
-md-card-title-media.uv-platform-logo {
-  padding-right: 16px;
-}
-
-.host-search {
-    margin-left: 50px;
-    margin-top: 30px;
+.host-card md-card-actions .md-button.minimal-protection {
+  background: #EA4335;  /* red-500 */
+  color: white;
 }

@@ -101,6 +101,13 @@ class Bit9BinaryTest(basetest.UpvoteTestCase):
     self.assertFalse(reset_binary.flagged)
     self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.BINARY)
 
+  def testIsInstance(self):
+    binary = test_utils.CreateBit9Binary()
+    self.assertTrue(binary.IsInstance('Blockable'))
+    self.assertTrue(binary.IsInstance('Binary'))
+    self.assertTrue(binary.IsInstance('Bit9Binary'))
+    self.assertFalse(binary.IsInstance('SomethingElse'))
+
 
 class Bit9CertificateTest(basetest.UpvoteTestCase):
 
@@ -142,6 +149,13 @@ class Bit9CertificateTest(basetest.UpvoteTestCase):
     self.assertEqual(reset_cert.state, constants.STATE.UNTRUSTED)
     self.assertFalse(reset_cert.flagged)
     self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.CERTIFICATE)
+
+  def testIsInstance(self):
+    cert = test_utils.CreateBit9Certificate()
+    self.assertTrue(cert.IsInstance('Blockable'))
+    self.assertTrue(cert.IsInstance('Certificate'))
+    self.assertTrue(cert.IsInstance('Bit9Certificate'))
+    self.assertFalse(cert.IsInstance('SomethingElse'))
 
 
 if __name__ == '__main__':

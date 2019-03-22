@@ -27,11 +27,13 @@ goog.require('upvote.errornotifier.module');
 goog.require('upvote.events.module');
 goog.require('upvote.exemptionrequestpage.ExemptionRequestController');
 goog.require('upvote.exemptions.module');
+goog.require('upvote.features.module');
 goog.require('upvote.hostblockablespage.HostBlockableListController');
 goog.require('upvote.hostlistpage.HostListController');
 goog.require('upvote.hosts.module');
 goog.require('upvote.listing.module');
 goog.require('upvote.listpage.BlockableListController');
+goog.require('upvote.modifyprotectionpage.ModifyProtectionController');
 goog.require('upvote.morefooter.module');
 goog.require('upvote.packagecontents.module');
 goog.require('upvote.packageresults.module');
@@ -55,6 +57,7 @@ upvote.app.module = angular.module('upvote.app', [
   upvote.errornotifier.module.name,
   upvote.events.module.name,
   upvote.exemptions.module.name,
+  upvote.features.module.name,
   upvote.hosts.module.name,
   upvote.listing.module.name,
   upvote.morefooter.module.name,
@@ -149,6 +152,9 @@ upvote.app.start = function(username) {
   module.controller('MainController', upvote.app.MainController);
   module.controller(
       'HostListController', upvote.hostlistpage.HostListController);
+  module.controller(
+      'ModifyProtectionController',
+      upvote.modifyprotectionpage.ModifyProtectionController);
   module.controller(
       'ExemptionRequestController',
       upvote.exemptionrequestpage.ExemptionRequestController);

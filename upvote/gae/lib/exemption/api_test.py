@@ -21,6 +21,7 @@ from google.appengine.ext import ndb
 from upvote.gae.datastore import test_utils
 from upvote.gae.datastore.models import exemption as exemption_models
 from upvote.gae.datastore.models import host as host_models
+from upvote.gae.datastore.models import policy as policy_models
 from upvote.gae.lib.bit9 import api as bit9_api
 from upvote.gae.lib.exemption import api
 from upvote.gae.lib.exemption import checks

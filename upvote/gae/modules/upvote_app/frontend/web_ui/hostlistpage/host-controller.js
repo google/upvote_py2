@@ -17,11 +17,9 @@ goog.provide('upvote.hostlistpage.HostListController');
 goog.require('goog.i18n.DateTimeFormat');
 goog.require('goog.i18n.DateTimeParse');
 goog.require('upvote.errornotifier.ErrorService');
-goog.require('upvote.exemptions.ExemptionService');
 goog.require('upvote.hosts.HostService');
 goog.require('upvote.hosts.ProtectionLevel');
 goog.require('upvote.shared.Page');
-goog.require('upvote.shared.constants.ExemptionState');
 goog.require('upvote.shared.models.AnyHost');
 
 goog.scope(() => {
@@ -33,7 +31,6 @@ const ProtectionLevel = upvote.hosts.ProtectionLevel;
 /** Controller for host page. */
 upvote.hostlistpage.HostListController = class {
   /**
-   * @param {!upvote.exemptions.ExemptionService} exemptionService
    * @param {!upvote.hosts.HostService} hostService
    * @param {!upvote.errornotifier.ErrorService} errorService
    * @param {!angular.$location} $location
@@ -41,10 +38,7 @@ upvote.hostlistpage.HostListController = class {
    * @param {!angular.$filter} $filter
    * @ngInject
    */
-  constructor(
-      exemptionService, hostService, errorService, $location, page, $filter) {
-    /** @const @private {!upvote.exemptions.ExemptionService} */
-    this.exemptionService_ = exemptionService;
+  constructor(hostService, errorService, $location, page, $filter) {
     /** @export {!upvote.hosts.HostService} */
     this.hostService = hostService;
     /** @private {!upvote.errornotifier.ErrorService} errorService */
@@ -77,41 +71,13 @@ upvote.hostlistpage.HostListController = class {
   }
 
   /**
-   * Return whether a host's mode is locked.
+   * Indicates whether protection can be modified for this host.
    * @param {!upvote.shared.models.AnyHost} host
    * @return {boolean}
    * @export
    */
-  isModeLocked(host) {
-    return !!host['clientModeLock'];
-  }
-
-  /**
-   * Return whether a host hasn't synced recently.
-   * @param {!upvote.shared.models.AnyHost} host
-   * @return {boolean}
-   * @export
-   */
-  isStale(host) {
-    let lastSync = new Date(host['ruleSyncDt']);
-    if (!lastSync) {
-      return true;
-    }
-    let secondsSinceSync = new Date().getTime() - lastSync.getTime();
-    return secondsSinceSync >= HostListController.STALE_THRESHOLD;
-  }
-
-  /**
-   * Return whether the exemption is in a state where it can be renewed.
-   * @param {!upvote.shared.models.AnyHost} host
-   * @return {boolean}
-   * @export
-   */
-  isExemptionRenewable(host) {
-    return (
-        host.exemption != null &&
-        host.exemption.state ==
-            upvote.shared.constants.ExemptionState.APPROVED);
+  canModifyProtection(host) {
+    return this.hostService.isSantaHost(host);
   }
 
   /**
@@ -154,13 +120,12 @@ upvote.hostlistpage.HostListController = class {
   }
 
   /**
-   * Navigates to a host's "request exception" page.
+   * Navigates to a host's "modify protection" page.
    * @param {string} hostId
    * @export
    */
-  goToRequestPage(hostId) {
-    let requestPath = '/hosts/' + hostId + '/request-exception';
-    this.location_.path(requestPath);
+  goToModifyProtectionPage(hostId) {
+    this.location_.path('/hosts/' + hostId + '/modify-protection');
   }
 
   /**
@@ -171,19 +136,6 @@ upvote.hostlistpage.HostListController = class {
   goToBlockablesPage(hostId) {
     let requestPath = '/hosts/' + hostId + '/blockables';
     this.location_.path(requestPath);
-  }
-
-  /**
-   * Requests to cancel the host's Exemption.
-   * @param {string} hostId
-   * @export
-   */
-  cancelExemption(hostId) {
-    this.exemptionService_.cancelExemption(hostId)
-        .then((response) => this.init_())
-        .catch((response) => {
-          this.errorService_.createDialogFromError(response);
-        });
   }
 
   /**

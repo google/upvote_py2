@@ -16,6 +16,8 @@
 
 import mock
 
+from google.appengine.ext import ndb
+
 from upvote.gae import settings
 from upvote.gae.datastore import test_utils
 from upvote.gae.datastore.models import user as user_models
@@ -41,7 +43,8 @@ class UserTest(basetest.UpvoteTestCase):
 
   def testGetOrInsertAsync_ExistingUser(self):
 
-    user_models.User.get_or_insert(_TEST_EMAIL)
+    user = user_models.User(id=_TEST_EMAIL)
+    user.put()
     self.assertEntityCount(user_models.User, 1)
 
     future = user_models.User.GetOrInsertAsync(email_addr=_TEST_EMAIL)
@@ -69,7 +72,8 @@ class UserTest(basetest.UpvoteTestCase):
 
   def testGetOrInsert_ExistingUser_EmailAddr(self):
 
-    user_models.User.get_or_insert(_TEST_EMAIL)
+    user = user_models.User(id=_TEST_EMAIL)
+    user.put()
     self.assertEntityCount(user_models.User, 1)
 
     user = user_models.User.GetOrInsert(email_addr=_TEST_EMAIL)
@@ -80,7 +84,8 @@ class UserTest(basetest.UpvoteTestCase):
 
   def testGetOrInsert_ExistingUser_AppEngineUser(self):
 
-    user_models.User.get_or_insert(_TEST_EMAIL)
+    user = user_models.User(id=_TEST_EMAIL)
+    user.put()
     self.assertEntityCount(user_models.User, 1)
 
     appengine_user = test_utils.CreateAppEngineUser(email=_TEST_EMAIL)
@@ -93,7 +98,8 @@ class UserTest(basetest.UpvoteTestCase):
 
   def testGetOrInsert_ExistingUser_NoOverwrite(self):
 
-    user = user_models.User.get_or_insert(_TEST_EMAIL)
+    user = user_models.User(id=_TEST_EMAIL)
+    user.put()
     self.assertEntityCount(user_models.User, 1)
     old_recorded_dt = user.recorded_dt
 
