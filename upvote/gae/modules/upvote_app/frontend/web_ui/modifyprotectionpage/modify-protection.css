@@ -1,0 +1,116 @@
+
+#protection-card-list {
+  margin: auto;
+  padding: 16px 0px;
+  width: 70%;
+}
+
+.protection-card {
+  margin: 16px;
+}
+
+.protection-card .md-title {
+  cursor: text;
+  font-size: 20px;
+  font-weight: 500;
+  letter-spacing: .005em;
+  margin: 8px 0px;
+}
+
+.protection-card .card-actions {
+  margin: 0px 16px 11px 16px;
+}
+
+.protection-card .card-actions md-icon {
+  margin-bottom: 2px;
+}
+
+#full-protection-card md-card-header {
+  background: #34A853;  /* green-500 */
+  color: white;
+}
+
+#full-protection-card .md-button:enabled {
+  background: #34A853;  /* green-500 */
+  color: white;
+}
+
+#full-protection-card .md-button:enabled md-icon {
+  color: white !important;
+}
+
+#full-protection-card .md-bar1 {
+  background: #34A853;  /* green-500 */
+}
+
+#full-protection-card .md-bar2 {
+  background: #34A853;  /* green-500 */
+}
+
+#full-protection-card .md-mode-indeterminate {
+  background: #A8DAB5;  /* green-200 */
+}
+
+#dev-mode-card md-card-header {
+  background: #FBBC04;  /* yellow-500 */
+  color: white;
+}
+
+#dev-mode-card .md-button:enabled {
+  background: #FBBC04;  /* yellow-500 */
+  color: white !important;
+}
+
+#dev-mode-card .md-button:enabled md-icon {
+  color: white !important;
+}
+
+#dev-mode-card .md-bar1 {
+  background: #FBBC04;  /* yellow-500 */
+}
+
+#dev-mode-card .md-bar2 {
+  background: #FBBC04;  /* yellow-500 */
+}
+
+#dev-mode-card .md-mode-indeterminate {
+  background: #FDE293;  /* yellow-200 */
+}
+
+#minimal-protection-card md-card-header {
+  background: #EA4335;  /* red-500 */
+  color: white;
+}
+
+#minimal-protection-card .md-button:enabled {
+  background: #EA4335;  /* red-500 */
+  color: white !important;
+}
+
+#minimal-protection-card .md-button:enabled md-icon {
+  color: white !important;
+}
+
+#minimal-protection-card .md-bar1 {
+  background: #EA4335;  /* red-500 */
+}
+
+#minimal-protection-card .md-bar2 {
+  background: #EA4335;  /* red-500 */
+}
+
+#minimal-protection-card .md-mode-indeterminate {
+  background: #F6AEA9;  /* red-200 */
+}
+
+#minimal-protection-card form {
+  margin: 28px 0px 0px 0px;
+}
+
+#minimal-protection-card .input-container {
+  margin: 0px 20px 0px 0px;
+}
+
+#minimal-protection-card .md-errors-spacer {
+  display: none;
+}

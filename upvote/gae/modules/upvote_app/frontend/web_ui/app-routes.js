@@ -52,11 +52,11 @@ upvote.app.routeProvider = ($routeProvider, $locationProvider) => {
         controller: 'HostListController',
         controllerAs: 'hostListCtrl',
       })
-      .when('/hosts/:id/request-exception', {
+      .when('/hosts/:id/modify-protection', {
         templateUrl: upvote.app.constants.STATIC_URL_PREFIX +
-            'exemptionrequestpage/exemption-request.html',
-        controller: 'ExemptionRequestController',
-        controllerAs: 'exemptionRequestCtrl',
+            'modifyprotectionpage/modify-protection.html',
+        controller: 'ModifyProtectionController',
+        controllerAs: 'modifyProtectionCtrl',
       })
       .when('/hosts/:hostId/blockables', {
         templateUrl: upvote.app.constants.STATIC_URL_PREFIX +

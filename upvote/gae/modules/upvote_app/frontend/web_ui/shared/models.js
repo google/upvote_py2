@@ -301,7 +301,8 @@ upvote.shared.models.Exemption;
  *   directoryWhitelistRegex: string,
  *   directoryBlacklistRegex: string,
  *   ruleSyncDt: string,
- *   hidden: boolean
+ *   hidden: boolean,
+ *   transitiveWhitelistingEnabled: boolean
  * }}
  */
 upvote.shared.models.SantaHost;
