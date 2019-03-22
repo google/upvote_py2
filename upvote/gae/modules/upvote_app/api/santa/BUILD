@@ -74,18 +74,6 @@ py_appengine_library(
 # AppEngine Unit Tests
 # ==============================================================================
 
-upvote_appengine_binary(
-    name = "santa_api_binary",
-    srcs = ["main.py"],
-    configs = [
-        "//upvote/gae:appengine_config.py",
-        "//upvote/gae:santa_api.yaml",
-    ],
-    deps = [
-        ":santa_api_library",
-    ],
-)
-
 upvote_appengine_test(
     name = "main_test",
     size = "small",
@@ -124,5 +112,20 @@ upvote_appengine_test(
         "//upvote/gae/utils:handler_utils",
         "//upvote/gae/utils:xsrf_utils",
         "//upvote/shared:constants",
+    ],
+)
+
+# Binaries
+# ==============================================================================
+
+upvote_appengine_binary(
+    name = "santa_api_binary",
+    srcs = ["main.py"],
+    configs = [
+        "//upvote/gae:appengine_config.py",
+        "//upvote/gae:santa_api.yaml",
+    ],
+    deps = [
+        ":santa_api_library",
     ],
 )
