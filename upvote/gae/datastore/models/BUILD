@@ -339,7 +339,9 @@ upvote_appengine_test(
     deps = [
         ":package",
         "//upvote/gae/datastore:test_utils",
+        "//upvote/gae/datastore/models:santa",
         "//upvote/gae/lib/testing:basetest",
+        "//upvote/shared:constants",
         "@absl_git//absl/testing:absltest",
     ],
 )
