@@ -30,6 +30,8 @@ from upvote.gae.utils import user_utils
 # A mapping of feature names to lists of group names, whose members are allowed
 # to utilize said feature.
 _SUPPORTED_FEATURES = {
+    # Transitive whitelisting support for Santa clients.
+    'transitive_whitelisting': [],
 }
 
 
