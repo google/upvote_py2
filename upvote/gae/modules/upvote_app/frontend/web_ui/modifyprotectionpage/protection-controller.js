@@ -121,7 +121,7 @@ upvote.modifyprotectionpage.ModifyProtectionController = class {
           // and jumps down halfway through the 'Modify Protection' page. This
           // will be scrapped once 'Developer Mode' is made available for all
           // users.
-          this.featureService_.available('tw')
+          this.featureService_.available('transitive_whitelisting')
               .then((response) => {
                 this.twFeatureAvailable = response['status'] == 200;
               })
