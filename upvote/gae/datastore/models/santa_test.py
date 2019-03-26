@@ -14,8 +14,6 @@
 
 """Unit tests for santa.py."""
 
-import mock
-
 from upvote.gae import settings
 from upvote.gae.datastore import test_utils
 from upvote.gae.datastore.models import santa
@@ -64,50 +62,6 @@ class SantaBlockableTest(SantaModelTest):
       self.assertEqual(
           constants.PLATFORM.MACOS,
           the_dict.get('operating_system_family', None))
-
-  def testToDict_ContainsIsVotingAllowed(self):
-    blockable = test_utils.CreateBlockable()
-    with self.LoggedInUser():
-      self.assertIn('is_voting_allowed', blockable.to_dict())
-
-  def testIsVotingAllowed_CertIsBlacklisted(self):
-    """IsVotingAllowed() called on blockable signed by a blacklisted cert."""
-    blockable_cert = test_utils.CreateSantaBlockable()
-    blockable = test_utils.CreateSantaBlockable(cert_key=blockable_cert.key)
-    test_utils.CreateSantaRule(
-        blockable_cert.key,
-        rule_type=constants.RULE_TYPE.CERTIFICATE,
-        policy=constants.RULE_POLICY.BLACKLIST)
-
-    with self.LoggedInUser():
-      allowed, reason = blockable.IsVotingAllowed()
-
-    self.assertFalse(allowed)
-    self.assertIsNotNone(reason)
-
-  def testIsVotingAllowed_Admin_CertIsBlacklisted(self):
-    """IsVotingAllowed() called on blockable signed by a blacklisted cert."""
-    blockable_cert = test_utils.CreateSantaBlockable()
-    blockable = test_utils.CreateSantaBlockable(cert_key=blockable_cert.key)
-    test_utils.CreateSantaRule(
-        blockable_cert.key,
-        rule_type=constants.RULE_TYPE.CERTIFICATE,
-        policy=constants.RULE_POLICY.BLACKLIST)
-
-    with self.LoggedInUser(admin=True):
-      _, reason = blockable.IsVotingAllowed()
-
-      # Ensure voting isn't disabled because of the blacklisted cert.
-      self.assertNotEqual(
-          constants.VOTING_PROHIBITED_REASONS.BLACKLISTED_CERT, reason)
-
-  def testIsVotingAllowed_CallTheSuper(self):
-    santa_blockable = test_utils.CreateSantaBlockable()
-    with self.LoggedInUser():
-      with mock.patch.object(
-          santa.base.Blockable, 'IsVotingAllowed') as mock_method:
-        santa_blockable.IsVotingAllowed()
-        self.assertTrue(mock_method.called)
 
   def testChangeState_Success(self):
 

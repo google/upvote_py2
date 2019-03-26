@@ -61,11 +61,6 @@ class Bit9BinaryTest(basetest.UpvoteTestCase):
           constants.PLATFORM.WINDOWS,
           the_dict.get('operating_system_family', None))
 
-  def testToDict_ContainsIsVotingAllowed(self):
-    with self.LoggedInUser():
-      blockable = test_utils.CreateBlockable()
-      self.assertIn('is_voting_allowed', blockable.to_dict())
-
   def testChangeState(self):
 
     # Verify the Bit9Binary is in the default state of UNTRUSTED.

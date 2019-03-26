@@ -178,7 +178,14 @@ class BlockableHandler(handler_utils.UserFacingHandler):
     blockable = base_models.Blockable.get_by_id(blockable_id)
     if not blockable:
       self.abort(httplib.NOT_FOUND, explanation='Blockable not found')
-    self.respond_json(blockable)
+
+    # Augment the response dict with related voting data.
+    blockable_dict = blockable.to_dict()
+    allowed, reason = voting_api.IsVotingAllowed(blockable.key)
+    blockable_dict['is_voting_allowed'] = allowed
+    blockable_dict['voting_prohibited_reason'] = reason
+
+    self.respond_json(blockable_dict)
 
   @xsrf_utils.RequireToken
   @handler_utils.RequireCapability(constants.PERMISSIONS.VIEW_OTHER_BLOCKABLES)

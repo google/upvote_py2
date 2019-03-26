@@ -284,6 +284,8 @@ class BlockableHandlerTest(BlockablesTest):
     self.assertEqual(output['fileName'], self.generic_blockable.file_name)
     self.assertIsNone(output.get('operating_system_family'))
     self.assertIn('Blockable', output['class_'])
+    self.assertIn('isVotingAllowed', output)
+    self.assertIn('votingProhibitedReason', output)
 
   def testGet_User_SantaBlockable(self):
     """Normal user querying for a blockable by hash."""
@@ -298,6 +300,8 @@ class BlockableHandlerTest(BlockablesTest):
     self.assertEqual(output['operatingSystemFamily'], constants.PLATFORM.MACOS)
     self.assertIn('Blockable', output['class_'])
     self.assertIn('SantaBlockable', output['class_'])
+    self.assertIn('isVotingAllowed', output)
+    self.assertIn('votingProhibitedReason', output)
 
   def testGet_User_Bit9Binary(self):
     """Normal user querying for a blockable by hash."""
@@ -314,6 +318,8 @@ class BlockableHandlerTest(BlockablesTest):
                      constants.PLATFORM.WINDOWS)
     self.assertIn('Blockable', output['class_'])
     self.assertIn('Bit9Binary', output['class_'])
+    self.assertIn('isVotingAllowed', output)
+    self.assertIn('votingProhibitedReason', output)
 
   def testGet_User_SantaCertificate(self):
     """Normal user querying for a cert by hash."""
@@ -327,6 +333,8 @@ class BlockableHandlerTest(BlockablesTest):
     self.assertEqual(output['commonName'], self.santa_certificate.common_name)
     self.assertIn('Blockable', output['class_'])
     self.assertIn('SantaCertificate', output['class_'])
+    self.assertIn('isVotingAllowed', output)
+    self.assertIn('votingProhibitedReason', output)
 
   def testGet_User_UnknownId_Santa(self):
     with self.LoggedInUser():

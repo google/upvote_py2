@@ -26,6 +26,7 @@ from upvote.gae.datastore.models import base
 from upvote.gae.datastore.models import host as host_models
 from upvote.gae.datastore.models import package as package_models
 from upvote.gae.datastore.models import rule as rule_models
+from upvote.gae.datastore.models import santa as santa_models
 from upvote.gae.datastore.models import user as user_models
 from upvote.gae.datastore.models import vote as vote_models
 from upvote.gae.lib.analysis import metrics
@@ -146,6 +147,114 @@ def _GetRulesForBlockable(blockable):
   return query.fetch()
 
 
+def _GetVotingProhibitedReason(blockable_key, current_user=None):
+  """Checks if voting is prohibted for the given Blockable.
+
+  Args:
+    blockable_key: The NDB Key of the Blockable to check.
+    current_user: The optional User whose voting privileges should be
+        evaluated against this Blockable. If not provided, the current AppEngine
+        user will be used instead.
+
+  Returns:
+    One of constants.VOTING_PROHIBITED_REASONS, or None if voting is allowed.
+
+  Raises:
+    BlockableNotFoundError: if the given Blockable cannot be found.
+  """
+  blockable = blockable_key.get()
+  if blockable is None:
+    raise BlockableNotFoundError('ID: %s' % blockable_key.id())
+
+  # If the user can't vote, just stop right here.
+  current_user = current_user or user_models.User.GetOrInsert()
+  if not current_user.HasPermissionTo(constants.PERMISSIONS.VOTE):
+    return constants.VOTING_PROHIBITED_REASONS.INSUFFICIENT_PERMISSION
+
+  # Checks that are specific to SantaBundles.
+  if isinstance(blockable, package_models.SantaBundle):
+
+    # Even admins can't vote on a Bundle that hasn't been uploaded.
+    if not blockable.has_been_uploaded:
+      return constants.VOTING_PROHIBITED_REASONS.UPLOADING_BUNDLE
+
+    # Only perform flagged binary and cert checks if this is called outside of
+    # an NDB transaction. This is due to the fact that HasFlaggedBinary() and
+    # HasFlaggedCert() can touch more than 25 entities.
+    if not ndb.in_transaction():
+      if blockable.HasFlaggedBinary():
+        return constants.VOTING_PROHIBITED_REASONS.FLAGGED_BINARY
+      elif blockable.HasFlaggedCert():
+        return constants.VOTING_PROHIBITED_REASONS.FLAGGED_CERT
+
+  # Checks that are specific to SantaBlockables.
+  elif isinstance(blockable, santa_models.SantaBlockable):
+
+    # Voting is not allowed if the binary is signed by a blacklisted cert if the
+    # user is not an admin.
+    if not current_user.is_admin and blockable.cert_id:
+      cert = santa_models.SantaCertificate.get_by_id(blockable.cert_id)
+      # pylint: disable=g-explicit-bool-comparison, singleton-comparison
+      cert_rules = rule_models.Rule.query(
+          rule_models.Rule.in_effect == True,
+          rule_models.Rule.policy == constants.RULE_POLICY.BLACKLIST,
+          ancestor=cert.key)
+      # pylint: enable=g-explicit-bool-comparison, singleton-comparison
+      if cert_rules.count() > 0:
+        return constants.VOTING_PROHIBITED_REASONS.BLACKLISTED_CERT
+
+  # If the Blockable is in a prohibited state, no one can vote on it.
+  if blockable.state in constants.STATE.SET_VOTING_PROHIBITED:
+    return constants.VOTING_PROHIBITED_REASONS.PROHIBITED_STATE
+
+  # Only admins are allowed to vote when Blockables are in certain states.
+  if blockable.state in constants.STATE.SET_VOTING_ALLOWED_ADMIN_ONLY:
+    if current_user.is_admin:
+      return None
+    else:
+      return constants.VOTING_PROHIBITED_REASONS.ADMIN_ONLY
+
+  # Only admins can vote on certs.
+  if (isinstance(blockable, base.Certificate)
+      and not current_user.is_admin):
+    return constants.VOTING_PROHIBITED_REASONS.ADMIN_ONLY
+
+  # The Blockable has to be in a state where voting is allowed.
+  if blockable.state not in constants.STATE.SET_VOTING_ALLOWED:
+    return constants.VOTING_PROHIBITED_REASONS.PROHIBITED_STATE
+
+  # If all of the above checks pass, there's no reason to prohibit voting.
+  return None
+
+
+def IsVotingAllowed(blockable_key, current_user=None):
+  """Checks if voting is allowed for the given Blockable.
+
+  Args:
+    blockable_key: The NDB Key of the Blockable to check.
+    current_user: The optional User whose voting privileges should be
+        evaluated against this Blockable. If not provided, the current AppEngine
+        user will be used instead.
+
+  Returns:
+    A (bool, str) tuple, containing a bool indicating if voting is allowed, and
+    one of constants.VOTING_PROHIBITED_REASONS, which will be None if voting is
+    allowed.
+
+  Raises:
+    BlockableNotFoundError: if the given Blockable cannot be found.
+  """
+  reason = _GetVotingProhibitedReason(blockable_key, current_user=current_user)
+  allowed = reason is None
+
+  logging.info(
+      'Voting for %s is %sallowed%s',
+      blockable_key.id(),
+      '' if allowed else 'not ',
+      '' if allowed else ' (%s)' % reason)
+  return (allowed, reason)
+
+
 def Vote(user, sha256, upvote, weight):
   """Casts a vote for the specified Blockable.
 
@@ -232,25 +341,6 @@ class BallotBox(object):
     self.old_vote = None
     self.new_vote = None
 
-  def _CheckVotingAllowed(self):
-    """Check whether the voting on the blockable is permitted.
-
-    **NOTE** This method is a noop outside of a transaction (i.e. outside of
-    _TransactionalVoting).
-
-    Raises:
-      OperationNotAllowedError: The user may not vote on the blockable due to
-          one of the VOTING_PROHIBITED_REASONS.
-    """
-    if not ndb.in_transaction():
-      return
-
-    allowed, reason = self.blockable.IsVotingAllowed(current_user=self.user)
-    if not allowed:
-      message = 'Voting on this Blockable is not allowed (%s)' % reason
-      logging.warning(message)
-      raise OperationNotAllowedError(message)
-
   def Vote(self, was_yes_vote, user, vote_weight=None):
     """Resolve votes for or against the target blockable.
 
@@ -288,15 +378,18 @@ class BallotBox(object):
         '(blockable=%s, was_yes_vote=%s, user=%s, weight=%s',
         self.blockable_id, was_yes_vote, self.user.email, vote_weight)
 
-    # NOTE: This check only has an effect for SantaBundles. The logic
-    # is explained further in SantaBallotBox._CheckVotingAllowed docstring but
-    # suffice it to say that this checks whether the bundle has flagged binaries
-    # or certs (this check can't be run from the transaction).
-    self._CheckVotingAllowed()
-
     self.blockable = _GetBlockable(self.blockable_id)
     initial_score = self.blockable.score
     initial_state = self.blockable.state
+
+    # Check is voting is allowed once before calling _TransactionalVoting() in
+    # order to work around the cross-group transaction limitation encountered
+    # by larger macOS bundles.
+    allowed, reason = IsVotingAllowed(
+        self.blockable.key, current_user=self.user)
+    if not allowed:
+      message = 'Voting is not allowed (%s)' % reason
+      raise OperationNotAllowedError(message)
 
     # Perform the vote.
     self._TransactionalVoting(self.blockable_id, was_yes_vote, vote_weight)
@@ -355,7 +448,14 @@ class BallotBox(object):
     # To accommodate transaction retries, re-get the Blockable entity at the
     # start of each transaction. This ensures up-to-date state+score values.
     self.blockable = _GetBlockable(blockable_id)
-    self._CheckVotingAllowed()
+
+    # Verify that voting is allowed within a transaction, minus the macOS bundle
+    # checks which can exceed the cross-group transaction limit.
+    allowed, reason = IsVotingAllowed(
+        self.blockable.key, current_user=self.user)
+    if not allowed:
+      message = 'Voting is not allowed (%s)' % reason
+      raise OperationNotAllowedError(message)
 
     if (isinstance(self.blockable, package_models.SantaBundle)
         and not was_yes_vote):
@@ -816,33 +916,6 @@ class BallotBox(object):
 class SantaBallotBox(BallotBox):
   """Class that modifies the voting state of a SantaBlockable."""
 
-
-  def _CheckVotingAllowed(self):
-    """Check whether the voting on the blockable is permitted.
-
-    **NOTE** This method is a noop outside of a transaction (i.e. outside of
-    _TransactionalVoting) EXCEPT for SantaBundles. This behavior is intended to
-    accommodate the SantaBundle._HasFlagged* checks which can touch more than 25
-    entities.
-
-    For SantaBundles, IsVotingAllowed is run once in its entirety prior to
-    voting and again in each attempt of _TransactionalVoting method without the
-    _HasFlagged* checks.
-
-    Raises:
-      OperationNotAllowedError: The user may not vote on the blockable due to
-          one of the VOTING_PROHIBITED_REASONS.
-    """
-    if isinstance(self.blockable, package_models.SantaBundle):
-      allowed, reason = self.blockable.IsVotingAllowed(
-          current_user=self.user,
-          enable_flagged_checks=not ndb.in_transaction())
-      if not allowed:
-        message = 'Voting on this Blockable is not allowed (%s)' % reason
-        logging.warning(message)
-        raise OperationNotAllowedError(message)
-    else:
-      super(SantaBallotBox, self)._CheckVotingAllowed()
 
   def _GenerateRule(self, **kwargs):
     """Generate the rule for the blockable being voted on.
