@@ -30,10 +30,12 @@ from upvote.shared import constants
 
 
 # Done for the sake of brevity.
+UNTRUSTED_USER = constants.USER_ROLE.UNTRUSTED_USER
 USER = constants.USER_ROLE.USER
 TRUSTED_USER = constants.USER_ROLE.TRUSTED_USER
 SUPERUSER = constants.USER_ROLE.SUPERUSER
 ADMINISTRATOR = constants.USER_ROLE.ADMINISTRATOR
+
 MONITOR = constants.CLIENT_MODE.MONITOR
 LOCKDOWN = constants.CLIENT_MODE.LOCKDOWN
 
@@ -324,6 +326,44 @@ class SyncRolesTest(basetest.UpvoteTestCase):
     expected_insertions = [constants.BIGQUERY_TABLE.USER] * 2 * len(
         settings.FAILSAFE_ADMINISTRATORS)
     self.assertBigQueryInsertions(expected_insertions)
+
+  @mock.patch.object(role_syncing.group_utils, 'GroupManager')
+  def testGet_UntrustedUsers_RolesRevoked(self, mock_ctor):
+
+    self.PatchSetting(
+        'GROUP_ROLE_ASSIGNMENTS',
+        {TRUSTED_USER: ['group1'], UNTRUSTED_USER: ['group2']})
+    user1 = test_utils.CreateUser(roles=[USER, TRUSTED_USER])
+    group1 = [user1.email]
+    group2 = [user1.email]
+
+    mock_group_client = mock.Mock()
+    mock_ctor.return_value = mock_group_client
+    mock_group_client.AllMembers.side_effect = [group2, group1, group2]
+
+    self.VerifyUser(user1.email, [USER, TRUSTED_USER])
+
+    response = self.testapp.get(
+        self.ROUTE, headers={'X-AppEngine-Cron': 'true'})
+    self.assertEqual(httplib.OK, response.status_int)
+
+    self.VerifyUser(user1.email, [UNTRUSTED_USER])
+
+    self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.USER)
+
+  @mock.patch.object(role_syncing.group_utils, 'GroupManager')
+  def testGet_UntrustedUsers_GroupDoesNotExist(self, mock_ctor):
+
+    self.PatchSetting(
+        'GROUP_ROLE_ASSIGNMENTS', {UNTRUSTED_USER: ['missing_group']})
+
+    mock_group_client = mock.Mock()
+    mock_ctor.return_value = mock_group_client
+    mock_group_client.DoesGroupExist.side_effect = [False, True, True]
+
+    self.testapp.get(
+        self.ROUTE, headers={'X-AppEngine-Cron': 'true'},
+        status=httplib.INTERNAL_SERVER_ERROR)
 
 
 class FakeClientModeChangeHandler(role_syncing.ClientModeChangeHandler):
