@@ -47,6 +47,40 @@ class SantaBundleTest(basetest.UpvoteTestCase):
     self.assertEqual(
         pair, package_models.SantaBundle.TranslatePropertyQuery(*pair))
 
+  def testHasFlaggedBinary_Yes(self):
+
+    bundle_binaries = test_utils.CreateSantaBlockables(10, flagged=False)
+    bundle_binaries[-1].flagged = True
+    bundle_binaries[-1].put()
+    bundle = test_utils.CreateSantaBundle(bundle_binaries=bundle_binaries)
+
+    self.assertTrue(bundle.HasFlaggedBinary())
+
+  def testHasFlaggedBinary_No(self):
+
+    bundle_binaries = test_utils.CreateSantaBlockables(10, flagged=False)
+    bundle = test_utils.CreateSantaBundle(bundle_binaries=bundle_binaries)
+
+    self.assertFalse(bundle.HasFlaggedBinary())
+
+  def testHasFlaggedCert_Yes(self):
+
+    cert = test_utils.CreateSantaCertificate(flagged=True)
+    bundle_binaries = test_utils.CreateSantaBlockables(10)
+    bundle_binaries[-1].cert_key = cert.key
+    bundle_binaries[-1].put()
+    bundle = test_utils.CreateSantaBundle(bundle_binaries=bundle_binaries)
+
+    self.assertTrue(bundle.HasFlaggedCert())
+
+  def testHasFlaggedCert_No(self):
+
+    cert = test_utils.CreateSantaCertificate(flagged=False)
+    bundle_binaries = test_utils.CreateSantaBlockables(10, cert_key=cert.key)
+    bundle = test_utils.CreateSantaBundle(bundle_binaries=bundle_binaries)
+
+    self.assertFalse(bundle.HasFlaggedCert())
+
   def testIsInstance(self):
     bundle = test_utils.CreateSantaBundle()
     self.assertTrue(bundle.IsInstance('Blockable'))
