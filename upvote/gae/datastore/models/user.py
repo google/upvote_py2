@@ -247,12 +247,6 @@ class User(mixin.Base, ndb.Model):
     new_roles = set(user.roles).union(add or set()).difference(remove or set())
     cls.SetRoles(email_addr, new_roles)
 
-  def _pre_put_hook(self):
-    # Ensure that the email address was properly converted to lowercase.
-    assert self.key.id().lower() == self.key.id()
-
-    self.roles = sorted(list(set(self.roles)))
-
   def _GetAllPermissions(self):
     permissions = set()
     for role in self.roles:
