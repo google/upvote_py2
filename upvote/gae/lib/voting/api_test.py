@@ -32,7 +32,10 @@ from upvote.gae.lib.voting import api
 from upvote.shared import constants
 
 
-TABLE = constants.BIGQUERY_TABLE  # Done for the sake of brevity.
+# Done for the sake of brevity.
+TABLE = constants.BIGQUERY_TABLE
+USER_ROLE = constants.USER_ROLE
+VOTING_PROHIBITED_REASONS = constants.VOTING_PROHIBITED_REASONS
 
 
 def CreateEvent(blockable, host, user):
@@ -83,6 +86,159 @@ class GetRulesForBlockableTest(basetest.UpvoteTestCase):
         blockable.key, not_in_effect_rule_count, in_effect=False)
 
     self.assertLen(api._GetRulesForBlockable(blockable), in_effect_rule_count)
+
+
+class IsVotingAllowedTest(basetest.UpvoteTestCase):
+
+  def testBlockable_NotFound(self):
+    invalid_key = ndb.Key(base.Blockable, '12345')
+    with self.assertRaises(api.BlockableNotFoundError):
+      api.IsVotingAllowed(invalid_key)
+
+  def testBlockable_CannotVote(self):
+
+    user = test_utils.CreateUser(roles=[USER_ROLE.UNTRUSTED_USER])
+    blockable = test_utils.CreateBlockable()
+
+    with self.LoggedInUser(user=user):
+      allowed, reason = api.IsVotingAllowed(blockable.key)
+    self.assertFalse(allowed)
+    self.assertEqual(VOTING_PROHIBITED_REASONS.INSUFFICIENT_PERMISSION, reason)
+
+  def testSantaBundle_NotUploaded(self):
+    bundle = test_utils.CreateSantaBundle(uploaded_dt=None)
+    self.assertFalse(bundle.has_been_uploaded)
+
+    with self.LoggedInUser():
+      allowed, reason = api.IsVotingAllowed(bundle.key)
+
+    self.assertFalse(allowed)
+    self.assertEqual(
+        constants.VOTING_PROHIBITED_REASONS.UPLOADING_BUNDLE, reason)
+
+  @mock.patch.object(api.ndb, 'in_transaction', return_value=False)
+  def testSantaBundle_FlaggedBinary_NotInTransaction(self, mock_in_txn):
+    # First, create two unflagged binaries.
+    blockables = test_utils.CreateSantaBlockables(2)
+    bundle = test_utils.CreateSantaBundle(bundle_binaries=blockables)
+
+    with self.LoggedInUser():
+      allowed, reason = api.IsVotingAllowed(bundle.key)
+      self.assertTrue(allowed)
+
+      # Now flag one of the binaries.
+      blockables[0].flagged = True
+      blockables[0].put()
+
+      allowed, reason = api.IsVotingAllowed(bundle.key)
+      self.assertFalse(allowed)
+      self.assertEqual(
+          constants.VOTING_PROHIBITED_REASONS.FLAGGED_BINARY, reason)
+
+  def testSantaBundle_FlaggedBinary_InTransaction(self):
+    blockables = test_utils.CreateSantaBlockables(26)
+    bundle = test_utils.CreateSantaBundle(bundle_binaries=blockables)
+
+    # Flag one of the binaries.
+    blockables[0].flagged = True
+    blockables[0].put()
+
+    # Patch out the flagged checks.
+    mock_flagged_binary = self.Patch(bundle, 'HasFlaggedBinary')
+    mock_flagged_cert = self.Patch(bundle, 'HasFlaggedCert')
+
+    with self.LoggedInUser():
+      fn = lambda: api.IsVotingAllowed(bundle.key)
+      allowed, reason = ndb.transaction(fn, xg=True)
+
+    self.assertTrue(allowed)
+    self.assertIsNone(reason)
+    mock_flagged_binary.assert_not_called()
+    mock_flagged_cert.assert_not_called()
+
+  def testSantaBundle_FlaggedCert(self):
+    santa_certificate = test_utils.CreateSantaCertificate()
+    blockable = test_utils.CreateSantaBlockable(
+        cert_key=santa_certificate.key)
+    bundle = test_utils.CreateSantaBundle(bundle_binaries=[blockable])
+
+    with self.LoggedInUser():
+      allowed, reason = api.IsVotingAllowed(bundle.key)
+      self.assertTrue(allowed)
+
+      santa_certificate.flagged = True
+      santa_certificate.put()
+
+      allowed, reason = api.IsVotingAllowed(bundle.key)
+      self.assertFalse(allowed)
+      self.assertEqual(constants.VOTING_PROHIBITED_REASONS.FLAGGED_CERT, reason)
+
+  def testSantaBlockable_BlacklistedCert(self):
+    santa_certificate = test_utils.CreateSantaCertificate()
+    blockable = test_utils.CreateSantaBlockable(cert_key=santa_certificate.key)
+    test_utils.CreateSantaRule(
+        santa_certificate.key, rule_type=constants.RULE_TYPE.CERTIFICATE,
+        policy=constants.RULE_POLICY.BLACKLIST)
+
+    with self.LoggedInUser():
+      allowed, reason = api.IsVotingAllowed(blockable.key)
+
+    self.assertFalse(allowed)
+    self.assertIsNotNone(reason)
+
+  def testBlockable_ProhibitedState(self):
+    for state in constants.STATE.SET_VOTING_PROHIBITED:
+
+      blockable = test_utils.CreateBlockable(state=state)
+      with self.LoggedInUser():
+        allowed, reason = api.IsVotingAllowed(blockable.key)
+
+      self.assertFalse(allowed)
+      self.assertIsNotNone(reason)
+
+  def testBlockable_AdminOnly_UserIsAdmin(self):
+    for state in constants.STATE.SET_VOTING_ALLOWED_ADMIN_ONLY:
+
+      blockable = test_utils.CreateBlockable(state=state)
+      with self.LoggedInUser(admin=True) as admin:
+        allowed, reason = api.IsVotingAllowed(blockable.key, current_user=admin)
+
+      self.assertTrue(allowed)
+      self.assertIsNone(reason)
+
+  def testBlockable_AdminOnly_UserIsNotAdmin(self):
+    for state in constants.STATE.SET_VOTING_ALLOWED_ADMIN_ONLY:
+
+      blockable = test_utils.CreateBlockable(state=state)
+      with self.LoggedInUser() as user:
+        allowed, reason = api.IsVotingAllowed(blockable.key, current_user=user)
+
+      self.assertFalse(allowed)
+      self.assertIsNotNone(reason)
+
+  def testBlockable_IsCertificate_UserIsAdmin(self):
+    cert = test_utils.CreateSantaCertificate()
+    with self.LoggedInUser(admin=True) as admin:
+      allowed, reason = api.IsVotingAllowed(cert.key, current_user=admin)
+
+    self.assertTrue(allowed)
+    self.assertIsNone(reason)
+
+  def testBlockable_IsCertificate_UserIsNotAdmin(self):
+    cert = test_utils.CreateSantaCertificate()
+    with self.LoggedInUser() as user:
+      allowed, reason = api.IsVotingAllowed(cert.key, current_user=user)
+
+    self.assertFalse(allowed)
+    self.assertIsNotNone(reason)
+
+  def testBlockable_VotingIsAllowed(self):
+    for state in constants.STATE.SET_VOTING_ALLOWED:
+      blockable = test_utils.CreateBlockable(state=state)
+      with self.LoggedInUser():
+        allowed, reason = api.IsVotingAllowed(blockable.key)
+      self.assertTrue(allowed)
+      self.assertIsNone(reason)
 
 
 class VoteTest(basetest.UpvoteTestCase):

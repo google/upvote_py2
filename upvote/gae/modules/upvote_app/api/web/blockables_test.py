@@ -284,6 +284,8 @@ class BlockableHandlerTest(BlockablesTest):
     self.assertEqual(output['fileName'], self.generic_blockable.file_name)
     self.assertIsNone(output.get('operating_system_family'))
     self.assertIn('Blockable', output['class_'])
+    self.assertIn('isVotingAllowed', output)
+    self.assertIn('votingProhibitedReason', output)
 
   def testGet_User_SantaBlockable(self):
     """Normal user querying for a blockable by hash."""
@@ -298,6 +300,8 @@ class BlockableHandlerTest(BlockablesTest):
     self.assertEqual(output['operatingSystemFamily'], constants.PLATFORM.MACOS)
     self.assertIn('Blockable', output['class_'])
     self.assertIn('SantaBlockable', output['class_'])
+    self.assertIn('isVotingAllowed', output)
+    self.assertIn('votingProhibitedReason', output)
 
   def testGet_User_Bit9Binary(self):
     """Normal user querying for a blockable by hash."""
@@ -314,6 +318,8 @@ class BlockableHandlerTest(BlockablesTest):
                      constants.PLATFORM.WINDOWS)
     self.assertIn('Blockable', output['class_'])
     self.assertIn('Bit9Binary', output['class_'])
+    self.assertIn('isVotingAllowed', output)
+    self.assertIn('votingProhibitedReason', output)
 
   def testGet_User_SantaCertificate(self):
     """Normal user querying for a cert by hash."""
@@ -327,6 +333,8 @@ class BlockableHandlerTest(BlockablesTest):
     self.assertEqual(output['commonName'], self.santa_certificate.common_name)
     self.assertIn('Blockable', output['class_'])
     self.assertIn('SantaCertificate', output['class_'])
+    self.assertIn('isVotingAllowed', output)
+    self.assertIn('votingProhibitedReason', output)
 
   def testGet_User_UnknownId_Santa(self):
     with self.LoggedInUser():
@@ -546,119 +554,6 @@ class BlockableHandlerTest(BlockablesTest):
           self.ROUTE % test_utils.RandomSHA256(),
           params={'reset': 'reset'},
           status=httplib.INTERNAL_SERVER_ERROR)
-
-
-class AuthorizedHostCountHandlerTest(BlockablesTest):
-
-  ROUTE = '/blockables/%s/authorized-host-count'
-
-  def testGet_GloballyWhitelisted(self):
-    self.santa_blockable.state = constants.STATE.GLOBALLY_WHITELISTED
-    self.santa_blockable.put()
-
-    with self.LoggedInUser(admin=True):
-      response = self.testapp.get(self.ROUTE % self.santa_blockable.key.id())
-      output = response.json
-
-      self.assertEqual(-1, output)
-
-  def testGet_None(self):
-    with self.LoggedInUser(admin=True):
-      response = self.testapp.get(self.ROUTE % self.santa_blockable.key.id())
-      output = response.json
-
-      self.assertEqual(0, output)
-
-  def testGet_Normal(self):
-    expected = 3
-    for i in xrange(expected):
-      test_utils.CreateSantaRule(
-          self.santa_blockable.key,
-          policy=constants.RULE_POLICY.WHITELIST,
-          host_id='host%s' % i)
-    test_utils.CreateSantaRule(
-        self.santa_blockable.key, policy=constants.RULE_POLICY.BLACKLIST)
-    test_utils.CreateSantaRule(
-        self.santa_blockable.key,
-        policy=constants.RULE_POLICY.WHITELIST,
-        in_effect=False)
-
-    with self.LoggedInUser(admin=True):
-      response = self.testapp.get(self.ROUTE % self.santa_blockable.key.id())
-      output = response.json
-
-      self.assertEqual(expected, output)
-
-  def testGet_BlockableNotFoundError(self):
-    with self.LoggedInUser(admin=True):
-      self.testapp.get(
-          self.ROUTE % 'NoteARealBlockable', status=httplib.NOT_FOUND)
-
-  def testGet_BadBlockableType(self):
-    with self.LoggedInUser(admin=True):
-      self.testapp.get(
-          self.ROUTE % self.bit9_blockable.key.id(), status=httplib.BAD_REQUEST)
-
-  def testGet_NoPermission(self):
-    with self.LoggedInUser():
-      self.testapp.get(
-          self.ROUTE % self.santa_blockable.key.id(), status=httplib.FORBIDDEN)
-
-  def testGet_CaseInsensitiveID(self):
-
-    sha256 = test_utils.RandomSHA256()
-    test_utils.CreateSantaBlockable(
-        id=sha256, id_type=constants.ID_TYPE.SHA256, file_name='some_binary')
-
-    with self.LoggedInUser(admin=True):
-      self.testapp.get(self.ROUTE % sha256.lower(), status=httplib.OK)
-      self.testapp.get(self.ROUTE % sha256.upper(), status=httplib.OK)
-
-
-class UniqueEventCountHandlerTest(BlockablesTest):
-
-  ROUTE = '/blockables/%s/unique-event-count'
-
-  def testGet_Binary_Normal(self):
-    test_utils.CreateSantaEvent(self.santa_blockable)
-
-    with self.LoggedInUser():
-      response = self.testapp.get(self.ROUTE % self.santa_blockable.key.id())
-    output = response.json
-
-    self.assertEqual(1, output)
-
-  def testGet_Cert_Normal(self):
-    test_utils.CreateSantaEvent(
-        self.santa_blockable, cert_sha256=self.santa_certificate.key.id())
-
-    with self.LoggedInUser():
-      response = self.testapp.get(self.ROUTE % self.santa_certificate.key.id())
-    output = response.json
-
-    self.assertEqual(1, output)
-
-  def testGet_BlockableNotFoundError(self):
-    self.santa_blockable.key.delete()
-    with self.LoggedInUser():
-      self.testapp.get(
-          self.ROUTE % self.santa_blockable.key.id(), status=httplib.NOT_FOUND)
-
-  def testGet_BadBlockableType(self):
-    with self.LoggedInUser():
-      self.testapp.get(
-          self.ROUTE % self.generic_blockable.key.id(),
-          status=httplib.BAD_REQUEST)
-
-  def testGet_CaseInsensitiveID(self):
-
-    sha256 = test_utils.RandomSHA256()
-    test_utils.CreateSantaBlockable(
-        id=sha256, id_type=constants.ID_TYPE.SHA256, file_name='some_binary')
-
-    with self.LoggedInUser():
-      self.testapp.get(self.ROUTE % sha256.lower(), status=httplib.OK)
-      self.testapp.get(self.ROUTE % sha256.upper(), status=httplib.OK)
 
 
 class PackageContentsHandlerTest(BlockablesTest):

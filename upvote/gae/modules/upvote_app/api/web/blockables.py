@@ -178,7 +178,14 @@ class BlockableHandler(handler_utils.UserFacingHandler):
     blockable = base_models.Blockable.get_by_id(blockable_id)
     if not blockable:
       self.abort(httplib.NOT_FOUND, explanation='Blockable not found')
-    self.respond_json(blockable)
+
+    # Augment the response dict with related voting data.
+    blockable_dict = blockable.to_dict()
+    allowed, reason = voting_api.IsVotingAllowed(blockable.key)
+    blockable_dict['is_voting_allowed'] = allowed
+    blockable_dict['voting_prohibited_reason'] = reason
+
+    self.respond_json(blockable_dict)
 
   @xsrf_utils.RequireToken
   @handler_utils.RequireCapability(constants.PERMISSIONS.VIEW_OTHER_BLOCKABLES)
@@ -268,67 +275,6 @@ class BlockableHandler(handler_utils.UserFacingHandler):
     else:
       blockable = base_models.Blockable.get_by_id(blockable_id)
       self.respond_json(blockable)
-
-
-class AuthorizedHostCountHandler(handler_utils.UserFacingHandler):
-  """Handler for providing the number of hosts able to run a blockable."""
-
-  @handler_utils.RequireCapability(constants.PERMISSIONS.VIEW_OTHER_BLOCKABLES)
-  def get(self, blockable_id):
-    blockable_id = blockable_id.lower()
-    blockable = base_models.Blockable.get_by_id(blockable_id)
-    if not blockable:
-      self.abort(httplib.NOT_FOUND, explanation='Blockable not found.')
-    elif not isinstance(blockable, santa_models.SantaBlockable):
-      self.abort(
-          httplib.BAD_REQUEST,
-          explanation=(
-              'Unsupported Blockable type: %s' % type(blockable).__name__))
-
-    if blockable.state == constants.STATE.GLOBALLY_WHITELISTED:
-      self.respond_json(-1)
-    else:
-      # NOTE: This should really be a projection on SantaRule.host_id
-      # but this is not currently supported due to an issue in ndb:
-      # https://github.com/GoogleCloudPlatform/datastore-ndb-python/issues/261
-
-      rule_query = rule_models.SantaRule.query(
-          rule_models.SantaRule.policy == constants.RULE_POLICY.WHITELIST,
-          rule_models.SantaRule.in_effect == True,  # pylint: disable=g-explicit-bool-comparison, singleton-comparison
-          rule_models.SantaRule.rule_type == blockable.rule_type,
-          ancestor=blockable.key)
-
-      # Fetch used here should be fine as the number of rules returned shouldn't
-      # greatly exceed the global whitelist vote threshold (currently 50).
-      rules = rule_query.fetch()
-      authorized_hosts = {rule.host_id for rule in rules}
-
-      self.respond_json(len(authorized_hosts))
-
-
-class UniqueEventCountHandler(handler_utils.UserFacingHandler):
-  """Handler for providing the number of times a blockable has been blocked."""
-
-  def get(self, blockable_id):
-    blockable_id = blockable_id.lower()
-    blockable = base_models.Blockable.get_by_id(blockable_id)
-    if not blockable:
-      self.abort(httplib.NOT_FOUND, explanation='Blockable not found.')
-    elif isinstance(blockable, santa_models.SantaBlockable):
-      query = event_models.SantaEvent.query(
-          event_models.SantaEvent.blockable_key == blockable.key)
-    elif isinstance(blockable, santa_models.SantaCertificate):
-      query = event_models.SantaEvent.query(
-          event_models.SantaEvent.cert_sha256 == blockable.key.id())
-    else:
-      self.abort(
-          httplib.BAD_REQUEST,
-          explanation=(
-              'Unsupported Blockable type: %s' % type(blockable).__name__))
-
-    num_events = query.count()
-
-    self.respond_json(num_events)
 
 
 class PackageContentsHandler(handler_utils.UserFacingHandler):
@@ -499,12 +445,6 @@ class SetInstallerStateHandler(handler_utils.UserFacingHandler):
 
 # The Webapp2 routes defined for these handlers.
 ROUTES = routes.PathPrefixRoute('/blockables', [
-    webapp2.Route(
-        '/<blockable_id>/authorized-host-count',
-        handler=AuthorizedHostCountHandler),
-    webapp2.Route(
-        '/<blockable_id>/unique-event-count',
-        handler=UniqueEventCountHandler),
     webapp2.Route(
         '/<package_id>/contents',
         handler=PackageContentsHandler),

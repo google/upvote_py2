@@ -144,9 +144,14 @@ class VoteCastHandler(handler_utils.UserFacingHandler):
       self.user.last_vote_dt = datetime.datetime.utcnow()
       self.user.put()
 
-      self.respond_json({
-          'blockable': base_models.Blockable.get_by_id(blockable_id),
-          'vote': vote})
+      # Augment the response dict with related voting data.
+      blockable = base_models.Blockable.get_by_id(blockable_id)
+      blockable_dict = blockable.to_dict()
+      allowed, reason = voting_api.IsVotingAllowed(blockable.key)
+      blockable_dict['is_voting_allowed'] = allowed
+      blockable_dict['voting_prohibited_reason'] = reason
+
+      self.respond_json({'blockable': blockable_dict, 'vote': vote})
 
   def get(self, blockable_id):
     """Gets user's vote for the given blockable."""

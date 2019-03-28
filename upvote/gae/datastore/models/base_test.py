@@ -25,7 +25,6 @@ from upvote.gae.datastore.models import base
 from upvote.gae.datastore.models import vote as vote_models
 from upvote.gae.lib.testing import basetest
 from upvote.gae.utils import user_utils
-from upvote.shared import constants
 
 
 _TEST_EMAIL = user_utils.UsernameToEmail('testemail')
@@ -85,53 +84,6 @@ class BlockableTest(basetest.UpvoteTestCase):
     test_utils.CreateEvents(self.blockable_1, 5)
     self.assertLen(self.blockable_1.GetEvents(), 5)
 
-  def testIsVotingAllowed_Allowed(self):
-    for state in constants.STATE.SET_VOTING_ALLOWED:
-      blockable = test_utils.CreateBlockable(state=state)
-      allowed, reason = blockable.IsVotingAllowed()
-      self.assertTrue(allowed)
-      self.assertIsNone(reason)
-
-  def testIsVotingAllowed_Prohibited(self):
-    for state in constants.STATE.SET_VOTING_PROHIBITED:
-      blockable = test_utils.CreateBlockable(state=state)
-      allowed, reason = blockable.IsVotingAllowed()
-      self.assertFalse(allowed)
-      self.assertIsNotNone(reason)
-
-  def testIsVotingAllowed_AdminOnly(self):
-    user = test_utils.CreateUser()
-    admin = test_utils.CreateUser(admin=True)
-
-    for state in constants.STATE.SET_VOTING_ALLOWED_ADMIN_ONLY:
-      blockable = test_utils.CreateBlockable(state=state)
-
-      # Test for a regular user.
-      allowed, reason = blockable.IsVotingAllowed(current_user=user)
-      self.assertFalse(allowed)
-      self.assertIsNotNone(reason)
-
-      # Test for an admin.
-      allowed, reason = blockable.IsVotingAllowed(current_user=admin)
-      self.assertTrue(allowed)
-      self.assertIsNone(reason)
-
-  def testIsVotingAllowed_Cert(self):
-    user = test_utils.CreateUser()
-    admin = test_utils.CreateUser(admin=True)
-
-    cert = test_utils.CreateSantaCertificate()
-
-    # Test for a regular user.
-    allowed, reason = cert.IsVotingAllowed(current_user=user)
-    self.assertFalse(allowed)
-    self.assertIsNotNone(reason)
-
-    # Test for an admin.
-    allowed, reason = cert.IsVotingAllowed(current_user=admin)
-    self.assertTrue(allowed)
-    self.assertIsNone(reason)
-
   def testToDict_Score(self):
     blockable = test_utils.CreateBlockable()
     test_utils.CreateVote(blockable)
@@ -145,41 +97,6 @@ class BlockableTest(basetest.UpvoteTestCase):
       self.assertFalse(calc_mock.called)
       self.assertIn('score', blockable_dict)
       self.assertEqual(1, blockable_dict['score'])
-
-  def testToDict_VotingAllowed(self):
-    for state in constants.STATE.SET_VOTING_ALLOWED:
-      blockable = test_utils.CreateBlockable(state=state)
-      blockable_dict = blockable.to_dict()
-      self.assertIn('is_voting_allowed', blockable_dict)
-      self.assertTrue(blockable_dict['is_voting_allowed'])
-      self.assertIn('voting_prohibited_reason', blockable_dict)
-
-  def testToDict_VotingAllowedAdminOnly_User(self):
-    for state in constants.STATE.SET_VOTING_ALLOWED_ADMIN_ONLY:
-      blockable = test_utils.CreateBlockable(state=state)
-      blockable_dict = blockable.to_dict()
-      self.assertIn('is_voting_allowed', blockable_dict)
-      self.assertFalse(blockable_dict['is_voting_allowed'])
-      self.assertIn('voting_prohibited_reason', blockable_dict)
-
-  def testToDict_VotingAllowedAdminOnly_Admin(self):
-    admin_user = test_utils.CreateUser(admin=True)
-    self.Logout()
-    self.Login(admin_user.email)
-    for state in constants.STATE.SET_VOTING_ALLOWED_ADMIN_ONLY:
-      blockable = test_utils.CreateBlockable(state=state)
-      blockable_dict = blockable.to_dict()
-      self.assertIn('is_voting_allowed', blockable_dict)
-      self.assertTrue(blockable_dict['is_voting_allowed'])
-      self.assertIn('voting_prohibited_reason', blockable_dict)
-
-  def testToDict_VotingProhibited(self):
-    for state in constants.STATE.SET_VOTING_PROHIBITED:
-      blockable = test_utils.CreateBlockable(state=state)
-      blockable_dict = blockable.to_dict()
-      self.assertIn('is_voting_allowed', blockable_dict)
-      self.assertFalse(blockable_dict['is_voting_allowed'])
-      self.assertIn('voting_prohibited_reason', blockable_dict)
 
   def testGetById(self):
     blockable = test_utils.CreateBlockable()

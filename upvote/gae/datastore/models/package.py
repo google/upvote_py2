@@ -22,7 +22,6 @@ from upvote.gae.bigquery import tables
 from upvote.gae.datastore import utils as datastore_utils
 from upvote.gae.datastore.models import base as base_models
 from upvote.gae.datastore.models import mixin
-from upvote.gae.datastore.models import user as user_models
 from upvote.shared import constants
 
 
@@ -158,7 +157,7 @@ class SantaBundle(mixin.Santa, Package):
         bundle_binary.blockable_key for bundle_binary in page)
     raise ndb.Return(any(blockable.flagged for blockable in blockables))
 
-  def _HasFlaggedBinary(self):
+  def HasFlaggedBinary(self):
     """Returns whether any of the bundle's blockable contents are flagged."""
     query = SantaBundleBinary.query(ancestor=self.key)
     futures = [
@@ -175,7 +174,7 @@ class SantaBundle(mixin.Santa, Package):
         if bundle_binary.cert_key)
     raise ndb.Return(any(cert.flagged for cert in certs))
 
-  def _HasFlaggedCert(self):
+  def HasFlaggedCert(self):
     """Returns whether any of the bundle's signing certs are flagged."""
     query = SantaBundleBinary.query(
         projection=[SantaBundleBinary.cert_key], distinct=True,
@@ -184,24 +183,6 @@ class SantaBundle(mixin.Santa, Package):
         self._PageHasFlaggedCert(page)
         for page in datastore_utils.Paginate(query, page_size=1000)]
     return any(future.get_result() for future in futures)
-
-  def IsVotingAllowed(self, current_user=None, enable_flagged_checks=True):
-    """Method to check if voting is allowed."""
-    # Even admins can't vote on a Bundle that hasn't been uploaded.
-    if not self.has_been_uploaded:
-      return (False, constants.VOTING_PROHIBITED_REASONS.UPLOADING_BUNDLE)
-
-    current_user = current_user or user_models.User.GetOrInsert()
-
-    # Allow the flagged checks to be suppressed in situations where, for
-    # instance, this call must be made from within a transaction.
-    if enable_flagged_checks:
-      if self._HasFlaggedBinary():
-        return (False, constants.VOTING_PROHIBITED_REASONS.FLAGGED_BINARY)
-      elif self._HasFlaggedCert():
-        return (False, constants.VOTING_PROHIBITED_REASONS.FLAGGED_CERT)
-
-    return super(SantaBundle, self).IsVotingAllowed(current_user=current_user)
 
   def to_dict(self, include=None, exclude=None):  # pylint: disable=g-bad-name
     result = super(SantaBundle, self).to_dict(include=include, exclude=exclude)

@@ -44,7 +44,6 @@ py_appengine_library(
         ":event",
         ":mixin",
         ":note",
-        ":user",
         ":vote",
         "//upvote/gae/bigquery:tables",
         "//upvote/gae/datastore:utils",
@@ -251,7 +250,6 @@ upvote_appengine_test(
         "//upvote/gae/datastore:utils",
         "//upvote/gae/datastore/models:utils",
         "//upvote/gae/lib/testing:basetest",
-        "//upvote/shared:constants",
         "@absl_git//absl/testing:absltest",
     ],
 )

@@ -14,14 +14,10 @@
 
 """Unit tests for package.py."""
 
-import mock
-
-from google.appengine.api import datastore_errors
 from google.appengine.ext import ndb
 
 from upvote.gae.datastore import test_utils
 from upvote.gae.datastore.models import package as package_models
-from upvote.gae.datastore.models import santa as santa_models
 from upvote.gae.lib.testing import basetest
 from upvote.shared import constants
 
@@ -51,6 +47,40 @@ class SantaBundleTest(basetest.UpvoteTestCase):
     self.assertEqual(
         pair, package_models.SantaBundle.TranslatePropertyQuery(*pair))
 
+  def testHasFlaggedBinary_Yes(self):
+
+    bundle_binaries = test_utils.CreateSantaBlockables(10, flagged=False)
+    bundle_binaries[-1].flagged = True
+    bundle_binaries[-1].put()
+    bundle = test_utils.CreateSantaBundle(bundle_binaries=bundle_binaries)
+
+    self.assertTrue(bundle.HasFlaggedBinary())
+
+  def testHasFlaggedBinary_No(self):
+
+    bundle_binaries = test_utils.CreateSantaBlockables(10, flagged=False)
+    bundle = test_utils.CreateSantaBundle(bundle_binaries=bundle_binaries)
+
+    self.assertFalse(bundle.HasFlaggedBinary())
+
+  def testHasFlaggedCert_Yes(self):
+
+    cert = test_utils.CreateSantaCertificate(flagged=True)
+    bundle_binaries = test_utils.CreateSantaBlockables(10)
+    bundle_binaries[-1].cert_key = cert.key
+    bundle_binaries[-1].put()
+    bundle = test_utils.CreateSantaBundle(bundle_binaries=bundle_binaries)
+
+    self.assertTrue(bundle.HasFlaggedCert())
+
+  def testHasFlaggedCert_No(self):
+
+    cert = test_utils.CreateSantaCertificate(flagged=False)
+    bundle_binaries = test_utils.CreateSantaBlockables(10, cert_key=cert.key)
+    bundle = test_utils.CreateSantaBundle(bundle_binaries=bundle_binaries)
+
+    self.assertFalse(bundle.HasFlaggedCert())
+
   def testIsInstance(self):
     bundle = test_utils.CreateSantaBundle()
     self.assertTrue(bundle.IsInstance('Blockable'))
@@ -68,88 +98,6 @@ class SantaBundleTest(basetest.UpvoteTestCase):
     # The score should have not reflected the real score until the bundle is
     # uploaded.
     self.assertEqual(0, bundle.key.get().score)
-
-  def testIsVotingAllowed_BundleUpload(self):
-    bundle = test_utils.CreateSantaBundle(uploaded_dt=None)
-    self.assertFalse(bundle.has_been_uploaded)
-
-    allowed, reason = bundle.IsVotingAllowed()
-
-    self.assertFalse(allowed)
-    self.assertEqual(
-        constants.VOTING_PROHIBITED_REASONS.UPLOADING_BUNDLE, reason)
-
-  def testIsVotingAllowed_HasFlaggedBinary(self):
-    # First, create two unflagged binaries.
-    blockables = test_utils.CreateSantaBlockables(2)
-    bundle = test_utils.CreateSantaBundle(bundle_binaries=blockables)
-
-    with self.LoggedInUser():
-      allowed, reason = bundle.IsVotingAllowed()
-      self.assertTrue(allowed)
-
-      # Now flag one of the binaries.
-      blockables[0].flagged = True
-      blockables[0].put()
-
-      allowed, reason = bundle.IsVotingAllowed()
-      self.assertFalse(allowed)
-      self.assertEqual(
-          constants.VOTING_PROHIBITED_REASONS.FLAGGED_BINARY, reason)
-
-  def testIsVotingAllowed_HasFlaggedCert(self):
-    santa_certificate = test_utils.CreateSantaCertificate()
-    blockable = test_utils.CreateSantaBlockable(
-        cert_key=santa_certificate.key)
-    bundle = test_utils.CreateSantaBundle(bundle_binaries=[blockable])
-
-    with self.LoggedInUser():
-      allowed, reason = bundle.IsVotingAllowed()
-      self.assertTrue(allowed)
-
-      santa_certificate.flagged = True
-      santa_certificate.put()
-
-      allowed, reason = bundle.IsVotingAllowed()
-      self.assertFalse(allowed)
-      self.assertEqual(constants.VOTING_PROHIBITED_REASONS.FLAGGED_CERT, reason)
-
-  def testIsVotingAllowed_DisableHasFlaggedChecks(self):
-    blockables = test_utils.CreateSantaBlockables(26)
-    bundle = test_utils.CreateSantaBundle(bundle_binaries=blockables)
-
-    # Flag one of the binaries.
-    blockables[0].flagged = True
-    blockables[0].put()
-
-    with self.LoggedInUser():
-      # Ensure that the normal call succeeds in finding the flagged binary.
-      allowed, reason = bundle.IsVotingAllowed()
-      self.assertFalse(allowed)
-      self.assertEqual(
-          constants.VOTING_PROHIBITED_REASONS.FLAGGED_BINARY, reason)
-
-      # In a transaction, the 26 searched blockables should exceed the allowed
-      # limit of 25.
-      with self.assertRaises(datastore_errors.BadRequestError):
-        ndb.transaction(
-            lambda: bundle.IsVotingAllowed(enable_flagged_checks=True), xg=True)
-
-      # With the checks disabled, IsVotingAllowed shouldn't raise an exception.
-      def Test():
-        allowed, reason = bundle.IsVotingAllowed(enable_flagged_checks=False)
-        self.assertTrue(allowed)
-        self.assertIsNone(reason)
-
-      ndb.transaction(Test, xg=True)
-
-  def testIsVotingAllowed_CallTheSuper(self):
-    bundle = test_utils.CreateSantaBundle()
-    with self.LoggedInUser():
-      with mock.patch.object(
-          santa_models.base.Blockable, 'IsVotingAllowed') as mock_method:
-        bundle.IsVotingAllowed()
-        self.assertTrue(mock_method.called)
 
   def testToDict(self):
     bundle = test_utils.CreateSantaBundle()

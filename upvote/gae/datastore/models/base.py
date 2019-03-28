@@ -14,7 +14,6 @@
 
 """Model definitions for Upvote."""
 import datetime
-import logging
 
 from google.appengine.ext import ndb
 from google.appengine.ext.ndb import polymodel
@@ -24,7 +23,6 @@ from upvote.gae.datastore import utils as datastore_utils
 from upvote.gae.datastore.models import event as event_models
 from upvote.gae.datastore.models import mixin
 from upvote.gae.datastore.models import note as note_models
-from upvote.gae.datastore.models import user as user_models
 from upvote.gae.datastore.models import vote as vote_models
 from upvote.shared import constants
 
@@ -140,42 +138,6 @@ class Blockable(mixin.Base, polymodel.PolyModel):
     return event_models.Event.query(
         event_models.Event.blockable_key == self.key).fetch()
 
-  def IsVotingAllowed(self, current_user=None):
-    """Method to check if voting is allowed.
-
-    Args:
-      current_user: The optional User whose voting privileges should be
-          evaluated against this Blockable. If not provided, the current
-          AppEngine user will be used instead.
-
-    Returns:
-      A (boolean, string) tuple. The boolean indicates whether voting is
-      allowed. The string provides an explanation if the boolean is False, and
-      will be None otherwise.
-    """
-    # Even admins can't vote on banned or globally whitelisted blockables.
-    if self.state in constants.VOTING_PROHIBITED_REASONS.PROHIBITED_STATES:
-      return (False, self.state)
-
-    current_user = current_user or user_models.User.GetOrInsert()
-
-    if self.state in constants.STATE.SET_VOTING_ALLOWED_ADMIN_ONLY:
-      if current_user.is_admin:
-        return (True, None)
-      else:
-        return (False, constants.VOTING_PROHIBITED_REASONS.ADMIN_ONLY)
-
-    if isinstance(self, Certificate) and not current_user.is_admin:
-      return (False, constants.VOTING_PROHIBITED_REASONS.ADMIN_ONLY)
-
-    # At this point the state must be in SET_VOTING_ALLOWED, so just check the
-    # permissions of the current user.
-    if current_user.HasPermissionTo(constants.PERMISSIONS.FLAG):
-      return (True, None)
-    else:
-      return (
-          False, constants.VOTING_PROHIBITED_REASONS.INSUFFICIENT_PERMISSION)
-
   def ResetState(self):
     """Resets blockable to UNTRUSTED with no votes."""
     self.state = constants.STATE.UNTRUSTED
@@ -198,11 +160,6 @@ class Blockable(mixin.Base, polymodel.PolyModel):
     result['score'] = datastore_utils.GetLocalComputedPropertyValue(
         self, 'score')
 
-    allowed, reason = self.IsVotingAllowed()
-    result['is_voting_allowed'] = allowed
-    result['voting_prohibited_reason'] = reason
-    if not allowed:
-      logging.info('Voting on this Blockable is not allowed (%s)', reason)
     return result
 
   @classmethod

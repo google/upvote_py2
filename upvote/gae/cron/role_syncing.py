@@ -47,78 +47,122 @@ _SYNCING_ERRORS = monitoring_utils.Counter(metrics.ROLES.SYNCING_ERRORS)
 class SyncRoles(handler_utils.CronJobHandler):
   """Handler for syncing roles."""
 
+  def _GetAllUntrustedUsers(self, group_client, untrusted_group_names):
+
+    untrusted_users = set()
+
+    for untrusted_group_name in untrusted_group_names:
+
+      # Make sure the untrusted group actually exists first.
+      if not group_client.DoesGroupExist(untrusted_group_name):
+        logging.error('Untrusted group %s does not exist', untrusted_group_name)
+        self.abort(httplib.INTERNAL_SERVER_ERROR)
+
+      untrusted_users |= set(group_client.AllMembers(untrusted_group_name))
+
+    return frozenset(untrusted_users)
+
+  def _SyncRoleToGroups(self, group_client, role, group_names, untrusted_users):
+
+    logging.info('Syncing role %s to %s', role, group_names)
+
+    # Make sure all of the groups actually exist first.
+    skip_current_role = False
+    for group in group_names:
+
+      # If we're trying to sync a group that doesn't exist, make some noise.
+      if not group_client.DoesGroupExist(group):
+        logging.error(
+            'Skipping sync of role %s, group %s does not exist', role,
+            group)
+        _SYNCING_ERRORS.Increment()
+        self.response.set_status(httplib.NOT_FOUND)
+        skip_current_role = True
+        break
+
+    # If we hit a nonexistent group, move on to the next role.
+    if skip_current_role:
+      return
+
+    # Gather all User entities which currently have this role.
+    ndb_roster = user_models.User.query(
+        user_models.User.roles == role)
+
+    # Gather all users in the set of groups associated with the current role.
+    expected_roster = set()
+    for group in group_names:
+      expected_roster |= set(group_client.AllMembers(group))
+
+    # For all roles which actually bestow a privilege, omit any users which
+    # are also currently untrusted. It's highly likely that a user could be
+    # untrusted and yet still mapped to an elevated role due to group
+    # membership, so ensure they don't regain that elevated role here.
+    if role is not constants.USER_ROLE.UNTRUSTED_USER:
+      expected_roster -= untrusted_users
+
+    # If this is an admin role, ensure that the failsafe admins are included.
+    if role in constants.USER_ROLE.SET_ADMIN_ROLES:
+      expected_roster.update(settings.FAILSAFE_ADMINISTRATORS)
+
+    logging.info(
+        'There are %d user(s) in total who should have the %s role',
+        len(expected_roster), role)
+
+    additions = 0
+    removals = 0
+
+    # For each user that already has the current role, make sure that
+    # they're supposed to, and remove the role from them if they aren't.
+    for ndb_user in ndb_roster:
+      if ndb_user.email not in expected_roster:
+        try:
+          user_models.User.UpdateRoles(ndb_user.email, remove=[role])
+          removals += 1
+        except user_models.NoRolesError:
+          logging.error(
+              'Error encountered while removing role(s) from %s',
+              ndb_user.email)
+          _SYNCING_ERRORS.Increment()
+      else:
+        expected_roster.remove(ndb_user.email)
+
+    # At this point, the remaining users retrieved from the group client
+    # should all be users which don't have the current role, but should.
+    for user in expected_roster:
+      user_models.User.UpdateRoles(user, add=[role])
+      additions += 1
+
+    logging.info(
+        'Sync of the %s role resulted in %d addition(s) and %d removal(s)',
+        role, additions, removals)
+
   def get(self):  # pylint: disable=g-bad-name
 
     logging.info('Starting role sync...')
-    group_role_assignments = settings.GROUP_ROLE_ASSIGNMENTS
     group_client = group_utils.GroupManager()
+
+    # Grab the mapping of roles to the groups which should have that role. Set
+    # the UNTRUSTED_USER role aside though, as it has to be handled differently.
+    group_role_assignments = settings.GROUP_ROLE_ASSIGNMENTS
+    untrusted_group_names = group_role_assignments.get(
+        constants.USER_ROLE.UNTRUSTED_USER, [])
+    group_role_assignments.pop(constants.USER_ROLE.UNTRUSTED_USER, None)
+
+    # Gather up all members of all groups that map to UNTRUSTED_USER.
+    untrusted_users = self._GetAllUntrustedUsers(
+        group_client, untrusted_group_names)
+
+    # Each untrusted user should be stripped of any roles other than
+    # UNTRUSTED_USER.
+    for untrusted_user in untrusted_users:
+      logging.info('Removing all privileged roles from %s', untrusted_user)
+      user_models.User.SetRoles(
+          untrusted_user, [constants.USER_ROLE.UNTRUSTED_USER])
 
     # Iterate over the syncing dict, where each entry consists of a role key
     # which maps to a list of groups that should have that role.
     for role, group_names in sorted(group_role_assignments.iteritems()):
-
-      logging.info('Syncing role %s to %s', role, group_names)
-      ndb_roster = user_models.User.query(
-          user_models.User.roles == role)
-
-      # Make sure all of the groups actually exist first.
-      skip_current_role = False
-      for group in group_names:
-
-        # If we're trying to sync a group that doesn't exist, make some noise.
-        if not group_client.DoesGroupExist(group):
-          logging.error(
-              'Skipping sync of role %s, group %s does not exist', role,
-              group)
-          _SYNCING_ERRORS.Increment()
-          self.response.set_status(httplib.NOT_FOUND)
-          skip_current_role = True
-          break
-
-      # If we hit a nonexistent group, move on to the next role.
-      if skip_current_role:
-        continue
-
-      # Gather all users in the set of groups associated with the current role.
-      expected_roster = set()
-      for group in group_names:
-        expected_roster |= set(group_client.AllMembers(group))
-
-      # If this is an admin role, ensure that the failsafe admins are included.
-      if role in constants.USER_ROLE.SET_ADMIN_ROLES:
-        expected_roster.update(settings.FAILSAFE_ADMINISTRATORS)
-
-      logging.info(
-          'There are %d user(s) in total who should have the %s role',
-          len(expected_roster), role)
-
-      additions = 0
-      removals = 0
-
-      # For each user that already has the current role, make sure that
-      # they're supposed to, and remove the role from them if they aren't.
-      for ndb_user in ndb_roster:
-        if ndb_user.email not in expected_roster:
-          try:
-            user_models.User.UpdateRoles(ndb_user.email, remove=[role])
-            removals += 1
-          except user_models.NoRolesError:
-            logging.error(
-                'Error encountered while removing role(s) from %s',
-                ndb_user.email)
-            _SYNCING_ERRORS.Increment()
-        else:
-          expected_roster.remove(ndb_user.email)
-
-      # At this point, the remaining users retrieved from the group client
-      # should all be users which don't have the current role, but should.
-      for user in expected_roster:
-        user_models.User.UpdateRoles(user, add=[role])
-        additions += 1
-
-      logging.info(
-          'Sync of the %s role resulted in %d addition(s) and %d removal(s)',
-          role, additions, removals)
+      self._SyncRoleToGroups(group_client, role, group_names, untrusted_users)
 
 
 class ClientModeChangeHandler(handler_utils.CronJobHandler):

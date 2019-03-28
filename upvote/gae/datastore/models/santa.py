@@ -18,9 +18,6 @@ from google.appengine.ext import ndb
 
 from upvote.gae.datastore.models import base
 from upvote.gae.datastore.models import mixin
-from upvote.gae.datastore.models import rule as rule_models
-from upvote.gae.datastore.models import user as user_models
-from upvote.shared import constants
 
 
 class SantaBlockable(mixin.Santa, base.Binary):
@@ -41,26 +38,6 @@ class SantaBlockable(mixin.Santa, base.Binary):
   @property
   def cert_id(self):
     return (self.cert_key and self.cert_key.id()) or self.cert_sha256
-
-  def IsVotingAllowed(self, current_user=None):
-    """Method to check if voting is allowed."""
-    current_user = current_user or user_models.User.GetOrInsert()
-
-    # Voting is not allowed if the binary is signed by a blacklisted cert if the
-    # user is not an admin.
-    if not current_user.is_admin and self.cert_id:
-      cert = SantaCertificate.get_by_id(self.cert_id)
-      # pylint: disable=g-explicit-bool-comparison, singleton-comparison
-      cert_rules = rule_models.Rule.query(
-          rule_models.Rule.in_effect == True,
-          rule_models.Rule.policy == constants.RULE_POLICY.BLACKLIST,
-          ancestor=cert.key)
-      # pylint: enable=g-explicit-bool-comparison, singleton-comparison
-      if cert_rules.count() > 0:
-        return (False, constants.VOTING_PROHIBITED_REASONS.BLACKLISTED_CERT)
-
-    return super(self.__class__, self).IsVotingAllowed(
-        current_user=current_user)
 
 
 class SantaCertificate(mixin.Santa, base.Certificate):

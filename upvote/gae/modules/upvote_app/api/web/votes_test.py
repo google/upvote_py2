@@ -187,6 +187,8 @@ class VoteCastHandlerTest(VotesTest):
 
     self.assertEqual(self.santa_blockable.key.id(), output['blockable']['id'])
     self.assertEqual(True, output['vote']['wasYesVote'])
+    self.assertIn('isVotingAllowed', output['blockable'])
+    self.assertIn('votingProhibitedReason', output['blockable'])
 
   def testPost_Admin_Cert(self):
     params = {'wasYesVote': 'true'}
@@ -202,6 +204,8 @@ class VoteCastHandlerTest(VotesTest):
 
     self.assertEqual(self.santa_certificate.key.id(), output['blockable']['id'])
     self.assertEqual(True, output['vote']['wasYesVote'])
+    self.assertIn('isVotingAllowed', output['blockable'])
+    self.assertIn('votingProhibitedReason', output['blockable'])
 
   def testPost_Admin_AsRole_User(self):
     params = {'wasYesVote': 'true', 'asRole': constants.USER_ROLE.USER}
@@ -212,6 +216,8 @@ class VoteCastHandlerTest(VotesTest):
     output = response.json
 
     self.assertEqual(1, output['vote']['weight'])
+    self.assertIn('isVotingAllowed', output['blockable'])
+    self.assertIn('votingProhibitedReason', output['blockable'])
 
   def testPost_Admin_AsRole_NoRole(self):
     params = {'wasYesVote': 'true', 'asRole': ''}
@@ -222,6 +228,8 @@ class VoteCastHandlerTest(VotesTest):
       output = response.json
 
       self.assertEqual(admin.vote_weight, output['vote']['weight'])
+    self.assertIn('isVotingAllowed', output['blockable'])
+    self.assertIn('votingProhibitedReason', output['blockable'])
 
   def testPost_Admin_AsRole_BadRole(self):
     params = {'wasYesVote': 'true', 'asRole': 'NotARole'}
@@ -254,6 +262,8 @@ class VoteCastHandlerTest(VotesTest):
 
     self.assertEqual(self.santa_blockable.key.id(), output['blockable']['id'])
     self.assertEqual(True, output['vote']['wasYesVote'])
+    self.assertIn('isVotingAllowed', output['blockable'])
+    self.assertIn('votingProhibitedReason', output['blockable'])
 
   def testPost_User_Duplicate(self):
     params = {'wasYesVote': 'true'}
@@ -351,6 +361,8 @@ class VoteCastHandlerTest(VotesTest):
 
     self.assertEqual(sha256, output['blockable']['id'])
     self.assertEqual(True, output['vote']['wasYesVote'])
+    self.assertIn('isVotingAllowed', output['blockable'])
+    self.assertIn('votingProhibitedReason', output['blockable'])
 
   @mock.patch.object(
       user_models.User, 'highest_role', new_callable=mock.PropertyMock)
