@@ -1,0 +1,20 @@
+
+:root {
+
+  --mat-blue-500: #4285F4;
+
+  --mat-gray-600: #80868B;
+
+  --mat-green-200: #A8DAB5;
+  --mat-green-500: #34A853;
+  --mat-green-600: #1E8E3E;
+
+  --mat-orange-600: #E8710A;
+
+  --mat-red-200: #F6AEA9;
+  --mat-red-500: #EA4335;
+
+  --mat-yellow-200: #FDE293;
+  --mat-yellow-500: #FBBC04;
+  --mat-yellow-600: #F9AB00;
+}

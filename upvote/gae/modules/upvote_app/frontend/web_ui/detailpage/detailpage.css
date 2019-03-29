@@ -70,25 +70,25 @@ md-list.uv-info-list md-list-item .md-avatar {
 }
 
 #request-button {
-  background-color: #0F9D58;
+  background-color: var(--mat-green-500);
   margin-bottom: 20px !important;
 }
 
 #request-button:disabled {
-  background-color: #87CEAC;
+  background-color: var(--mat-green-200);;
   margin-bottom: 20px !important;
 }
 
 #flag-button {
-  background-color: #DB4437;
+  background-color: var(--mat-red-500);
 }
 
 #flag-button:disabled {
-  background-color: #EDA29B;
+  background-color: var(--mat-red-200);
 }
 
 #fake-butterbar {
-  background: #F4C7C3;
+  background: var(--mat-red-200);
   max-width: 640px;
 }
 
