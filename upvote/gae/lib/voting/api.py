@@ -112,7 +112,7 @@ def _CheckBlockableFlagStatus(blockable):
     for vote in all_votes:
       if vote.was_yes_vote:
         user = user_models.User.GetById(vote.user_email)
-        if user.HasPermissionTo(constants.PERMISSIONS.UNFLAG):
+        if user.HasPermission(constants.PERMISSIONS.UNFLAG):
           break
       else:
         logging.info(
@@ -168,7 +168,7 @@ def _GetVotingProhibitedReason(blockable_key, current_user=None):
 
   # If the user can't vote, just stop right here.
   current_user = current_user or user_models.User.GetOrInsert()
-  if not current_user.HasPermissionTo(constants.PERMISSIONS.VOTE):
+  if not current_user.HasPermission(constants.PERMISSIONS.VOTE):
     return constants.VOTING_PROHIBITED_REASONS.INSUFFICIENT_PERMISSION
 
   # Checks that are specific to SantaBundles.
@@ -528,7 +528,7 @@ class BallotBox(object):
     if self.new_vote.was_yes_vote:
       # Unflag the blockable on a privileged upvote.
       if self.blockable.flagged:
-        if self.user.HasPermissionTo(constants.PERMISSIONS.UNFLAG):
+        if self.user.HasPermission(constants.PERMISSIONS.UNFLAG):
           self.blockable.flagged = False
         else:
           # Double-checks that there's an extant downvote.
@@ -536,13 +536,13 @@ class BallotBox(object):
       # If the blockable is marked SUSPECT, only permit state change if the user
       # is authorized to do so.
       if (self.blockable.state != constants.STATE.SUSPECT or
-          self.user.HasPermissionTo(constants.PERMISSIONS.MARK_MALWARE)):
+          self.user.HasPermission(constants.PERMISSIONS.MARK_MALWARE)):
         self._CheckAndSetBlockableState(new_score)
     else:
       self.blockable.flagged = True
       self._CheckAndSetBlockableState(new_score)
       # A downvote from an authorized user marks a blockable as SUSPECT.
-      if (self.user.HasPermissionTo(constants.PERMISSIONS.MARK_MALWARE) and
+      if (self.user.HasPermission(constants.PERMISSIONS.MARK_MALWARE) and
           self.blockable.state not in constants.STATE.SET_BANNED):
         self.blockable.ChangeState(constants.STATE.SUSPECT)
 
@@ -834,7 +834,7 @@ class BallotBox(object):
           self.blockable.GetVotes(), key=lambda vote: vote.recorded_dt))
       for vote in sorted_votes:
         user = user_models.User.GetById(vote.user_email)
-        if user.HasPermissionTo(constants.PERMISSIONS.MARK_MALWARE):
+        if user.HasPermission(constants.PERMISSIONS.MARK_MALWARE):
           if vote.was_yes_vote:
             logging.info(
                 'Blockable %s was suspect, but should not be because there was '

@@ -302,13 +302,24 @@ class User(mixin.Base, ndb.Model):
       return True
     return False
 
-  def HasPermissionTo(self, task):
-    """Verifies the User has permission to complete a task.
+  def HasPermission(self, permission):
+    """Verifies the user has a given permission.
 
     Args:
-      task: str, task being gated by permissions. One of constants.PERMISSIONS.*
+      permission: str, One of constants.PERMISSIONS.*
 
     Returns:
-      Boolean. True if user has the requested permission.
+      Whether the user has the given permission.
     """
-    return self.is_admin or task in self.permissions
+    return permission in self.permissions
+
+  def LacksPermission(self, permission):
+    """Checks if the user lacks a given permission.
+
+    Args:
+      permission: str, One of constants.PERMISSIONS.*
+
+    Returns:
+      Whether the user lacks the given permission.
+    """
+    return permission not in self.permissions

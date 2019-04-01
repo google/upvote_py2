@@ -65,7 +65,7 @@ def RequireCapability(capability):
       """Check user permissions and return error or original function."""
       self = args[0]
       if isinstance(self, UserFacingHandler):
-        if self.user.is_admin or self.user.HasPermissionTo(capability):
+        if self.user.is_admin or self.user.HasPermission(capability):
           return original_function(*args, **kwargs)
         else:
           explanation = 'User %s doesn\'t have permission to %s' % (
@@ -245,7 +245,7 @@ class UserFacingHandler(UpvoteRequestHandler):
 
   def RequireCapability(self, capability):
     """Check whether user has a given capability."""
-    if not self.user.is_admin and not self.user.HasPermissionTo(capability):
+    if not self.user.is_admin and not self.user.HasPermission(capability):
       self.abort(
           httplib.FORBIDDEN,
           explanation='User doesn\'t have permission to %s' % capability)

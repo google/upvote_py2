@@ -338,6 +338,16 @@ class UserTest(basetest.UpvoteTestCase):
     user = test_utils.CreateUser()
     self.assertSetEqual(constants.PERMISSIONS.SET_USER, user.permissions)
 
+  def testHasPermission(self):
+    user = test_utils.CreateUser()
+    self.assertTrue(user.HasPermission(constants.PERMISSIONS.VOTE))
+    self.assertFalse(user.HasPermission(constants.PERMISSIONS.EDIT_ALERTS))
+
+  def testLacksPermission(self):
+    user = test_utils.CreateUser()
+    self.assertFalse(user.LacksPermission(constants.PERMISSIONS.VOTE))
+    self.assertTrue(user.LacksPermission(constants.PERMISSIONS.EDIT_ALERTS))
+
 
 if __name__ == '__main__':
   basetest.main()
