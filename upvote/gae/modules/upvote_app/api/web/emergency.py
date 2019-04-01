@@ -27,14 +27,14 @@ from upvote.shared import constants
 class Emergency(handler_utils.AdminOnlyHandler):
   """Handlers related to emergency controls."""
 
-  @handler_utils.RequireCapability(constants.PERMISSIONS.CHANGE_SETTINGS)
+  @handler_utils.RequirePermission(constants.PERMISSIONS.CHANGE_SETTINGS)
   def get(self):  # pylint: disable=g-bad-name
     """Get handler for emergency controls."""
     logging.info('Emergency handler get method called.')
     big_red_button = big_red.BigRedButton()
     self.respond_json(big_red_button.get_button_status())
 
-  @handler_utils.RequireCapability(constants.PERMISSIONS.CHANGE_SETTINGS)
+  @handler_utils.RequirePermission(constants.PERMISSIONS.CHANGE_SETTINGS)
   @xsrf_utils.RequireToken
   def post(self):
     """Post handler for emergency controls."""

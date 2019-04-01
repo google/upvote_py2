@@ -35,7 +35,7 @@ class UserQueryHandler(handler_utils.UserFacingQueryHandler):
   def RequestCounter(self):
     return monitoring.user_requests
 
-  @handler_utils.RequireCapability(constants.PERMISSIONS.VIEW_OTHER_USERS)
+  @handler_utils.RequirePermission(constants.PERMISSIONS.VIEW_OTHER_USERS)
   @handler_utils.RecordRequest
   def get(self):
     self._Query()
@@ -61,7 +61,7 @@ class UserHandler(handler_utils.UserFacingHandler):
     else:
       self.abort(httplib.NOT_FOUND, explanation='User not found')
 
-  @handler_utils.RequireCapability(constants.PERMISSIONS.VIEW_OTHER_USERS)
+  @handler_utils.RequirePermission(constants.PERMISSIONS.VIEW_OTHER_USERS)
   def _get_another_user(self, user_id):
     return user_models.User.GetById(user_id)
 

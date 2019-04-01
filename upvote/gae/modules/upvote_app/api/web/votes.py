@@ -51,7 +51,7 @@ class VoteQueryHandler(handler_utils.UserFacingQueryHandler):
   def RequestCounter(self):
     return monitoring.vote_requests
 
-  @handler_utils.RequireCapability(constants.PERMISSIONS.VIEW_VOTES)
+  @handler_utils.RequirePermission(constants.PERMISSIONS.VIEW_VOTES)
   @handler_utils.RecordRequest
   def get(self):
     self._Query(callback=_PopulateCandidateId)
@@ -70,7 +70,7 @@ class VoteQueryHandler(handler_utils.UserFacingQueryHandler):
 class VoteHandler(handler_utils.UserFacingHandler):
   """Handler for viewing individual votes."""
 
-  @handler_utils.RequireCapability(constants.PERMISSIONS.VIEW_VOTES)
+  @handler_utils.RequirePermission(constants.PERMISSIONS.VIEW_VOTES)
   def get(self, vote_key):
     logging.info('Vote handler get method called with key: %s', vote_key)
     key = datastore_utils.GetKeyFromUrlsafe(vote_key)

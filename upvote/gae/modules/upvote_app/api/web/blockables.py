@@ -143,7 +143,7 @@ class BlockableQueryHandler(handler_utils.UserFacingQueryHandler):
       query = self._UnfilteredBlockablesQuery()
     return query
 
-  @handler_utils.RequireCapability(constants.PERMISSIONS.VIEW_OTHER_BLOCKABLES)
+  @handler_utils.RequirePermission(constants.PERMISSIONS.VIEW_OTHER_BLOCKABLES)
   def _FlaggedBlockablesQuery(self):
     # pylint: disable=g-explicit-bool-comparison, singleton-comparison
     return self.MODEL_CLASS.query(
@@ -151,7 +151,7 @@ class BlockableQueryHandler(handler_utils.UserFacingQueryHandler):
         ).order(-self.MODEL_CLASS.updated_dt)
     # pylint: enable=g-explicit-bool-comparison, singleton-comparison
 
-  @handler_utils.RequireCapability(constants.PERMISSIONS.VIEW_OTHER_BLOCKABLES)
+  @handler_utils.RequirePermission(constants.PERMISSIONS.VIEW_OTHER_BLOCKABLES)
   def _SuspectBlockablesQuery(self):
     return self.MODEL_CLASS.query(
         self.MODEL_CLASS.state == constants.STATE.SUSPECT
@@ -162,7 +162,7 @@ class BlockableQueryHandler(handler_utils.UserFacingQueryHandler):
         self.MODEL_CLASS.key.IN(blockable_keys)
         ).order(self.MODEL_CLASS.key)
 
-  @handler_utils.RequireCapability(constants.PERMISSIONS.VIEW_OTHER_BLOCKABLES)
+  @handler_utils.RequirePermission(constants.PERMISSIONS.VIEW_OTHER_BLOCKABLES)
   def _UnfilteredBlockablesQuery(self):
     return self.MODEL_CLASS.query()
 
@@ -188,7 +188,7 @@ class BlockableHandler(handler_utils.UserFacingHandler):
     self.respond_json(blockable_dict)
 
   @xsrf_utils.RequireToken
-  @handler_utils.RequireCapability(constants.PERMISSIONS.VIEW_OTHER_BLOCKABLES)
+  @handler_utils.RequirePermission(constants.PERMISSIONS.VIEW_OTHER_BLOCKABLES)
   def post(self, blockable_id):  # pylint: disable=g-bad-name
     """Post handler for blockables."""
     blockable_id = blockable_id.lower()
@@ -211,7 +211,7 @@ class BlockableHandler(handler_utils.UserFacingHandler):
       self._insert_blockable(blockable_id, datetime.datetime.utcnow())
 
   @ndb.transactional(xg=True)  # xg because respond_json() touches User.
-  @handler_utils.RequireCapability(constants.PERMISSIONS.INSERT_BLOCKABLES)
+  @handler_utils.RequirePermission(constants.PERMISSIONS.INSERT_BLOCKABLES)
   def _insert_blockable(self, blockable_id, timestamp):
 
     blockable_type = self.request.get('type')
@@ -259,7 +259,7 @@ class BlockableHandler(handler_utils.UserFacingHandler):
       blockable.put()
       self.respond_json(blockable)
 
-  @handler_utils.RequireCapability(constants.PERMISSIONS.RESET_BLOCKABLE_STATE)
+  @handler_utils.RequirePermission(constants.PERMISSIONS.RESET_BLOCKABLE_STATE)
   def _reset_blockable(self, blockable_id):
     logging.info('Blockable reset: %s', blockable_id)
     try:

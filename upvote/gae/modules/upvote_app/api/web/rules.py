@@ -38,7 +38,7 @@ class RuleQueryHandler(handler_utils.UserFacingQueryHandler):
   def RequestCounter(self):
     return monitoring.rule_requests
 
-  @handler_utils.RequireCapability(constants.PERMISSIONS.VIEW_RULES)
+  @handler_utils.RequirePermission(constants.PERMISSIONS.VIEW_RULES)
   @handler_utils.RecordRequest
   def get(self):
     self._Query()
@@ -61,7 +61,7 @@ class SantaRuleQueryHandler(RuleQueryHandler):
 class RuleHandler(handler_utils.UserFacingHandler):
   """Handler for interacting with individual rules."""
 
-  @handler_utils.RequireCapability(constants.PERMISSIONS.VIEW_RULES)
+  @handler_utils.RequirePermission(constants.PERMISSIONS.VIEW_RULES)
   def get(self, rule_key):
     logging.info('Rule handler get method called with key: %s', rule_key)
     key = datastore_utils.GetKeyFromUrlsafe(rule_key)

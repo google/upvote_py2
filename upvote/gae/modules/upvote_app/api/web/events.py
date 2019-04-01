@@ -142,7 +142,7 @@ class EventQueryHandler(handler_utils.UserFacingQueryHandler):
     # Determine scope of query and enforce ACL if queried as admin.
     if self.request.get('asAdmin').lower() == 'true':
       logging.info('Getting all events as Admin.')
-      self.RequireCapability(constants.PERMISSIONS.VIEW_OTHER_EVENTS)
+      self.RequirePermission(constants.PERMISSIONS.VIEW_OTHER_EVENTS)
       ancestor = None
     else:
       logging.info('Getting events for user: %s', self.user.nickname)
@@ -183,7 +183,7 @@ class EventHandler(handler_utils.UserFacingHandler):
         with_context = (self.request.get('withContext').lower() == 'true')
         response_data = _GetEventContext([event])[0] if with_context else event
         if event.executing_user != self.user.nickname:
-          self.RequireCapability(constants.PERMISSIONS.VIEW_OTHER_EVENTS)
+          self.RequirePermission(constants.PERMISSIONS.VIEW_OTHER_EVENTS)
         self.respond_json(response_data)
       else:
         self.abort(httplib.NOT_FOUND, explanation='Event not found')
@@ -199,7 +199,7 @@ class RecentEventHandler(handler_utils.UserFacingHandler):
 
     username = self.request.get('asUser')
     if username:
-      self.RequireCapability(constants.PERMISSIONS.VIEW_OTHER_EVENTS)
+      self.RequirePermission(constants.PERMISSIONS.VIEW_OTHER_EVENTS)
       user = user_models.User.GetById(
           user_utils.UsernameToEmail(username))
     else:

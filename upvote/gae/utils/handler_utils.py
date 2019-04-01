@@ -57,24 +57,24 @@ def _HtmlEscape(s):
   return cgi.escape(s, quote=True).replace("'", '&#39;')
 
 
-def RequireCapability(capability):
+def RequirePermission(permission):
   """Decorator function to enforce access requirements for handlers."""
-  def _CheckCapability(original_function):
+  def _CheckPermission(original_function):
     """Check function."""
     def _Check(*args, **kwargs):
       """Check user permissions and return error or original function."""
       self = args[0]
       if isinstance(self, UserFacingHandler):
-        if self.user.is_admin or self.user.HasPermission(capability):
+        if self.user.is_admin or self.user.HasPermission(permission):
           return original_function(*args, **kwargs)
         else:
           explanation = 'User %s doesn\'t have permission to %s' % (
-              self.user.nickname, capability)
+              self.user.nickname, permission)
           self.abort(httplib.FORBIDDEN, explanation=explanation)
       else:
         raise ValueError
     return _Check
-  return _CheckCapability
+  return _CheckPermission
 
 
 def RecordRequest(original_function):
@@ -243,12 +243,12 @@ class UserFacingHandler(UpvoteRequestHandler):
           'Cannot make %s into integer', self.request.get('perPage'))
     return fetch_limit
 
-  def RequireCapability(self, capability):
-    """Check whether user has a given capability."""
-    if not self.user.is_admin and not self.user.HasPermission(capability):
+  def RequirePermission(self, permission):
+    """Check whether user has a given permission."""
+    if not self.user.is_admin and not self.user.HasPermission(permission):
       self.abort(
           httplib.FORBIDDEN,
-          explanation='User doesn\'t have permission to %s' % capability)
+          explanation='User doesn\'t have permission to %s' % permission)
 
   def respond_with_page(self, content, cursor, has_more):
     """Sets the handler response to the page contents provided.
