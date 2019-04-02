@@ -140,7 +140,7 @@ class SantaBundle(mixin.Santa, Package):
   def TranslatePropertyQuery(cls, field, value):
     if field == 'cert_id':
       if value:
-        cert_key = ndb.Key(base_models.Certificate, value).urlsafe()
+        cert_key = ndb.Key('Certificate', value).urlsafe()
       else:
         cert_key = None
       return 'main_cert_key', cert_key

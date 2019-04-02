@@ -12,6 +12,7 @@ py_appengine_library(
         "//upvote/gae:settings",
         "//upvote/gae/bigquery:tables",
         "//upvote/gae/datastore/models:base",
+        "//upvote/gae/datastore/models:cert",
         "//upvote/gae/datastore/models:host",
         "//upvote/gae/datastore/models:package",
         "//upvote/gae/datastore/models:rule",

@@ -24,10 +24,10 @@ from google.appengine.ext import ndb
 
 from upvote.gae.datastore import utils as datastore_utils
 from upvote.gae.datastore.models import base as base_models
+from upvote.gae.datastore.models import cert as cert_models
 from upvote.gae.datastore.models import event as event_models
 from upvote.gae.datastore.models import host as host_models
 from upvote.gae.datastore.models import package as package_models
-from upvote.gae.datastore.models import santa as santa_models
 from upvote.gae.datastore.models import user as user_models
 from upvote.gae.datastore.models import vote as vote_models
 from upvote.gae.modules.upvote_app.api.web import monitoring
@@ -82,7 +82,7 @@ def _GetEventContext(events):
       cert_future = event.cert_key.get_async()
     elif isinstance(event, event_models.SantaEvent) and event.cert_sha256:
       cert_future = ndb.Key(
-          santa_models.SantaCertificate, event.cert_sha256).get_async()
+          cert_models.SantaCertificate, event.cert_sha256).get_async()
     else:
       cert_future = datastore_utils.GetNoOpFuture()
     cert_futures.append(cert_future)

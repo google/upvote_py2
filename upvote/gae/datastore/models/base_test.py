@@ -22,6 +22,7 @@ from google.appengine.ext import ndb
 from upvote.gae.datastore import test_utils
 from upvote.gae.datastore import utils as datastore_utils
 from upvote.gae.datastore.models import base
+from upvote.gae.datastore.models import cert as cert_models
 from upvote.gae.datastore.models import vote as vote_models
 from upvote.gae.lib.testing import basetest
 from upvote.gae.utils import user_utils
@@ -123,7 +124,7 @@ class BinaryTest(basetest.UpvoteTestCase):
     self.Login(self.user.email)
 
   def testCertId(self):
-    cert = test_utils.CreateBlockableEntity(base.Certificate)
+    cert = test_utils.CreateBlockableEntity(cert_models.Certificate)
     self.blockable.cert_key = cert.key
     self.blockable.put()
 

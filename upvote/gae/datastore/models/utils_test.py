@@ -23,6 +23,7 @@ from google.appengine.ext import ndb
 from upvote.gae import settings
 from upvote.gae.datastore import test_utils
 from upvote.gae.datastore import utils as datastore_utils
+from upvote.gae.datastore.models import cert as cert_models
 from upvote.gae.datastore.models import event as event_models
 from upvote.gae.datastore.models import host as host_models
 from upvote.gae.datastore.models import rule as rule_models
@@ -388,7 +389,7 @@ class EnsureCriticalRulesTest(basetest.UpvoteTestCase):
 
   def testSuccess(self):
 
-    self.assertEntityCount(santa_models.SantaCertificate, 0)
+    self.assertEntityCount(cert_models.SantaCertificate, 0)
     self.assertEntityCount(santa_models.SantaBlockable, 0)
     self.assertEntityCount(rule_models.SantaRule, 0)
 
@@ -402,7 +403,7 @@ class EnsureCriticalRulesTest(basetest.UpvoteTestCase):
         if rule.rule_type == constants.RULE_TYPE.BINARY])
     expected_rule_count = len(settings.CRITICAL_RULES)
 
-    self.assertEntityCount(santa_models.SantaCertificate, expected_cert_count)
+    self.assertEntityCount(cert_models.SantaCertificate, expected_cert_count)
     self.assertEntityCount(santa_models.SantaBlockable, expected_binary_count)
     self.assertEntityCount(rule_models.SantaRule, expected_rule_count)
 

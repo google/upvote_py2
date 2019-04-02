@@ -206,7 +206,7 @@ class Binary(Blockable):
   def TranslatePropertyQuery(cls, field, value):
     if field == 'cert_id':
       if value:
-        cert_key = ndb.Key(Certificate, value).urlsafe()
+        cert_key = ndb.Key('Certificate', value).urlsafe()
       else:
         cert_key = None
       return 'cert_key', cert_key
@@ -232,23 +232,3 @@ class Binary(Blockable):
     defaults.update(kwargs.copy())
 
     tables.BINARY.InsertRow(**defaults)
-
-
-class Certificate(Blockable):
-  """A codesigning certificate that has been encountered by Upvote."""
-
-  @property
-  def rule_type(self):
-    return constants.RULE_TYPE.CERTIFICATE
-
-  def InsertBigQueryRow(self, action, **kwargs):
-
-    defaults = {
-        'fingerprint': self.key.id(),
-        'timestamp': datetime.datetime.utcnow(),
-        'action': action,
-        'state': self.state,
-        'score': self.score}
-    defaults.update(kwargs.copy())
-
-    tables.CERTIFICATE.InsertRow(**defaults)

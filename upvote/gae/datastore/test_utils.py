@@ -28,6 +28,7 @@ from upvote.gae import settings
 from upvote.gae.datastore import utils as datastore_utils
 from upvote.gae.datastore.models import base
 from upvote.gae.datastore.models import bit9
+from upvote.gae.datastore.models import cert as cert_models
 from upvote.gae.datastore.models import event as event_models
 from upvote.gae.datastore.models import exemption as exemption_models
 from upvote.gae.datastore.models import host as host_models
@@ -258,7 +259,7 @@ def CreateBit9Certificate(**kwargs):
       'valid_to_dt': Now()}
   defaults.update(kwargs.copy())
 
-  bit9_cert = CreateBlockableEntity(bit9.Bit9Certificate, **defaults)
+  bit9_cert = CreateBlockableEntity(cert_models.Bit9Certificate, **defaults)
   bit9_cert.put()
   return bit9_cert
 
@@ -274,7 +275,7 @@ def CreateSantaBlockable(**kwargs):
 
 
 def CreateSantaCertificate(**kwargs):
-  santa_cert = CreateBlockableEntity(santa.SantaCertificate, **kwargs)
+  santa_cert = CreateBlockableEntity(cert_models.SantaCertificate, **kwargs)
   santa_cert.put()
   return santa_cert
 

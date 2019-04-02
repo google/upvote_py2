@@ -21,6 +21,7 @@ import webapp2
 from webapp2_extras import routes
 
 from upvote.gae.datastore.models import base as base_models
+from upvote.gae.datastore.models import cert as cert_models
 from upvote.gae.datastore.models import package as package_models
 from upvote.gae.datastore.models import santa as santa_models
 from upvote.gae.lib.analysis import api as analysis_api

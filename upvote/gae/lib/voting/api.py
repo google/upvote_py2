@@ -23,6 +23,7 @@ from upvote.gae import settings
 from upvote.gae.bigquery import tables
 from upvote.gae.datastore import utils as datastore_utils
 from upvote.gae.datastore.models import base
+from upvote.gae.datastore.models import cert as cert_models
 from upvote.gae.datastore.models import host as host_models
 from upvote.gae.datastore.models import package as package_models
 from upvote.gae.datastore.models import rule as rule_models
@@ -193,7 +194,7 @@ def _GetVotingProhibitedReason(blockable_key, current_user=None):
     # Voting is not allowed if the binary is signed by a blacklisted cert if the
     # user is not an admin.
     if not current_user.is_admin and blockable.cert_id:
-      cert = santa_models.SantaCertificate.get_by_id(blockable.cert_id)
+      cert = cert_models.SantaCertificate.get_by_id(blockable.cert_id)
       # pylint: disable=g-explicit-bool-comparison, singleton-comparison
       cert_rules = rule_models.Rule.query(
           rule_models.Rule.in_effect == True,
@@ -215,7 +216,7 @@ def _GetVotingProhibitedReason(blockable_key, current_user=None):
       return constants.VOTING_PROHIBITED_REASONS.ADMIN_ONLY
 
   # Only admins can vote on certs.
-  if (isinstance(blockable, base.Certificate)
+  if (isinstance(blockable, cert_models.Certificate)
       and not current_user.is_admin):
     return constants.VOTING_PROHIBITED_REASONS.ADMIN_ONLY
 

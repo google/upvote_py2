@@ -16,6 +16,7 @@ py_appengine_library(
         ":base",
         ":bit9",
         ":cache",
+        ":cert",
         ":event",
         ":host",
         ":metrics",
@@ -65,6 +66,17 @@ py_appengine_library(
 py_appengine_library(
     name = "cache",
     srcs = ["cache.py"],
+)
+
+py_appengine_library(
+    name = "cert",
+    srcs = ["cert.py"],
+    deps = [
+        ":base",
+        ":mixin",
+        "//upvote/gae/bigquery:tables",
+        "//upvote/shared:constants",
+    ],
 )
 
 py_appengine_library(
@@ -198,6 +210,7 @@ py_appengine_library(
     name = "utils",
     srcs = ["utils.py"],
     deps = [
+        ":cert",
         ":event",
         ":exemption",
         ":host",
@@ -241,6 +254,7 @@ upvote_appengine_test(
     srcs = ["base_test.py"],
     deps = [
         ":base",
+        ":cert",
         ":vote",
         "//common/testing:basetest",
         "//external:mock",
@@ -263,6 +277,21 @@ upvote_appengine_test(
         "//common/testing:basetest",
         "//upvote/gae/datastore:test_utils",
         "//upvote/gae/datastore:utils",
+        "//upvote/gae/lib/testing:basetest",
+        "//upvote/shared:constants",
+        "@absl_git//absl/testing:absltest",
+    ],
+)
+
+upvote_appengine_test(
+    name = "cert_test",
+    size = "small",
+    srcs = ["cert_test.py"],
+    deps = [
+        ":cert",
+        "//external:mock",
+        "//upvote/gae:settings",
+        "//upvote/gae/datastore:test_utils",
         "//upvote/gae/lib/testing:basetest",
         "//upvote/shared:constants",
         "@absl_git//absl/testing:absltest",
@@ -362,6 +391,7 @@ upvote_appengine_test(
     size = "small",
     srcs = ["santa_test.py"],
     deps = [
+        ":cert",
         ":santa",
         "//common/testing:basetest",
         "//external:mock",
@@ -408,6 +438,7 @@ upvote_appengine_test(
     size = "small",
     srcs = ["utils_test.py"],
     deps = [
+        ":cert",
         ":event",
         ":host",
         ":rule",

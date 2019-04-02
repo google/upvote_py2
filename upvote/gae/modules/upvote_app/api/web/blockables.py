@@ -25,6 +25,7 @@ from google.appengine.ext import ndb
 from upvote.gae.bigquery import tables
 from upvote.gae.datastore.models import base as base_models
 from upvote.gae.datastore.models import bit9 as bit9_models
+from upvote.gae.datastore.models import cert as cert_models
 from upvote.gae.datastore.models import event as event_models
 from upvote.gae.datastore.models import note as note_models
 from upvote.gae.datastore.models import package as package_models
@@ -55,19 +56,19 @@ _MODEL_MAP = {
     _Platform.ALL: {
         _BlockableType.ALL: base_models.Blockable,
         _BlockableType.BINARY: base_models.Binary,
-        _BlockableType.CERTIFICATE: base_models.Certificate,
+        _BlockableType.CERTIFICATE: cert_models.Certificate,
         _BlockableType.PACKAGE: package_models.Package,
     },
     _Platform.SANTA: {
         _BlockableType.ALL: None,
         _BlockableType.BINARY: santa_models.SantaBlockable,
-        _BlockableType.CERTIFICATE: santa_models.SantaCertificate,
+        _BlockableType.CERTIFICATE: cert_models.SantaCertificate,
         _BlockableType.PACKAGE: package_models.SantaBundle,
     },
     _Platform.BIT9: {
         _BlockableType.ALL: None,
         _BlockableType.BINARY: bit9_models.Bit9Binary,
-        _BlockableType.CERTIFICATE: bit9_models.Bit9Certificate,
+        _BlockableType.CERTIFICATE: cert_models.Bit9Certificate,
         _BlockableType.PACKAGE: None,
     }
 }
@@ -220,7 +221,7 @@ class BlockableHandler(handler_utils.UserFacingHandler):
         constants.BLOCKABLE_TYPE.SANTA_BINARY:
             santa_models.SantaBlockable,
         constants.BLOCKABLE_TYPE.SANTA_CERTIFICATE:
-            santa_models.SantaCertificate}
+            cert_models.SantaCertificate}
     model_class = model_class_map.get(blockable_type, None)
 
     if not model_class:

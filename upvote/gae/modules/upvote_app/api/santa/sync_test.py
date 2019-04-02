@@ -27,6 +27,7 @@ from google.appengine.ext import ndb
 from upvote.gae import settings
 from upvote.gae.datastore import test_utils
 from upvote.gae.datastore import utils as datastore_utils
+from upvote.gae.datastore.models import cert as cert_models
 from upvote.gae.datastore.models import event as event_models
 from upvote.gae.datastore.models import host as host_models
 from upvote.gae.datastore.models import package as package_models
@@ -718,8 +719,8 @@ class EventUploadHandlerTest(SantaApiTestCase):
     self.assertEqual('fname', event.file_name)
     self.assertEqual('user', event.executing_user)
 
-    self.assertEntityCount(santa_models.SantaCertificate, 3)
-    cert = santa_models.SantaCertificate.get_by_id('cert-sha256')
+    self.assertEntityCount(cert_models.SantaCertificate, 3)
+    cert = cert_models.SantaCertificate.get_by_id('cert-sha256')
     self.assertIsNotNone(cert)
     self.assertEqual('Acme Evil App 1.0', cert.common_name)
     self.assertEqual('Acme Corp.', cert.organization)
@@ -738,7 +739,7 @@ class EventUploadHandlerTest(SantaApiTestCase):
     request_json = {EVENT_UPLOAD.EVENTS: [event]}
     response = self.testapp.post_json('/my-uuid', request_json)
 
-    cert = santa_models.SantaCertificate.get_by_id('cert-sha256')
+    cert = cert_models.SantaCertificate.get_by_id('cert-sha256')
     self.assertIsNotNone(cert)
     created = cert.recorded_dt
     self.assertEqual('Acme Corp.', cert.organization)
@@ -747,7 +748,7 @@ class EventUploadHandlerTest(SantaApiTestCase):
     # Upload the same Event again and ensure the Cert wasn't re-created.
     response = self.testapp.post_json('/my-uuid', request_json)
 
-    cert = santa_models.SantaCertificate.get_by_id('cert-sha256')
+    cert = cert_models.SantaCertificate.get_by_id('cert-sha256')
     self.assertIsNotNone(cert)
     self.assertEqual(created, cert.recorded_dt)
     self.assertEqual(httplib.OK, response.status_int)
@@ -828,7 +829,7 @@ class EventUploadHandlerTest(SantaApiTestCase):
     request_json = {EVENT_UPLOAD.EVENTS: [event]}
     self.testapp.post_json('/my-uuid', request_json)
 
-    self.assertEntityCount(santa_models.SantaCertificate, 3)
+    self.assertEntityCount(cert_models.SantaCertificate, 3)
     self.assertEntityCount(package_models.SantaBundleBinary, 1)
 
     self.assertFalse(bundle.key.get().has_unsigned_contents)

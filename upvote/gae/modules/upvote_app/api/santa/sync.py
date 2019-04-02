@@ -30,6 +30,7 @@ from google.appengine.ext import ndb
 from upvote.gae import settings
 from upvote.gae.bigquery import tables
 from upvote.gae.datastore import utils as datastore_utils
+from upvote.gae.datastore.models import cert as cert_models
 from upvote.gae.datastore.models import event as event_models
 from upvote.gae.datastore.models import host as host_models
 from upvote.gae.datastore.models import package as package_models
@@ -398,7 +399,7 @@ class EventUploadHandler(SantaRequestHandler):
     publisher, cert_sha256 = (
         cls._GetPublisherAndCertFingerprintFromJsonEvent(json_event))
     cert_key = cert_sha256 and ndb.Key(
-        santa_models.SantaCertificate, cert_sha256)
+        cert_models.SantaCertificate, cert_sha256)
     return santa_models.SantaBlockable(
         id=json_event.get(_EVENT_UPLOAD.FILE_SHA256),
         blockable_hash=json_event.get(_EVENT_UPLOAD.FILE_SHA256),
@@ -423,7 +424,7 @@ class EventUploadHandler(SantaRequestHandler):
     signing_chain = event.get(_EVENT_UPLOAD.SIGNING_CHAIN, [])
     certs = []
     for cert in signing_chain:
-      cert_entity = santa_models.SantaCertificate(
+      cert_entity = cert_models.SantaCertificate(
           id=cert.get(_EVENT_UPLOAD.SHA256),
           id_type=constants.ID_TYPE.SHA256,
           common_name=cert.get(_EVENT_UPLOAD.CN),
@@ -489,7 +490,7 @@ class EventUploadHandler(SantaRequestHandler):
         cls._GetPublisherAndCertFingerprintFromJsonEvent(event))
     dbevent.publisher = publisher
     if cert_sha256:
-      dbevent.cert_key = ndb.Key(santa_models.SantaCertificate, cert_sha256)
+      dbevent.cert_key = ndb.Key(cert_models.SantaCertificate, cert_sha256)
 
     occurred_dt = datetime.datetime.utcfromtimestamp(
         event.get(_EVENT_UPLOAD.EXECUTION_TIME, 0))

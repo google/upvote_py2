@@ -39,33 +39,3 @@ class SantaBlockable(mixin.Santa, base.Binary):
   def cert_id(self):
     return (self.cert_key and self.cert_key.id()) or self.cert_sha256
 
-
-class SantaCertificate(mixin.Santa, base.Certificate):
-  """A certificate used to codesign at least one SantaBlockable.
-
-  key = SHA-256 hash of certificate
-
-  Attributes:
-    common_name: str, cert Common Name.
-    organization: str, Organization.
-    organizational_unit: str, Organizational Unit.
-    valid_from_dt: date, datetime that cert is valid from.
-    valid_until_dt: date, datetime that cert is valid until.
-  """
-  common_name = ndb.StringProperty()
-  organization = ndb.StringProperty()
-  organizational_unit = ndb.StringProperty()
-  valid_from_dt = ndb.DateTimeProperty()
-  valid_until_dt = ndb.DateTimeProperty()
-
-  def InsertBigQueryRow(self, action, **kwargs):
-
-    defaults = {
-        'not_before': self.valid_from_dt,
-        'not_after': self.valid_until_dt,
-        'common_name': self.common_name,
-        'organization': self.organization,
-        'organizational_unit': self.organizational_unit}
-    defaults.update(kwargs.copy())
-
-    super(SantaCertificate, self).InsertBigQueryRow(action, **defaults)

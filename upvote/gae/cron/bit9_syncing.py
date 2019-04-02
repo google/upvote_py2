@@ -32,6 +32,7 @@ from upvote.gae.bigquery import tables
 from upvote.gae.datastore import utils as datastore_utils
 from upvote.gae.datastore.models import base
 from upvote.gae.datastore.models import bit9
+from upvote.gae.datastore.models import cert as cert_models
 from upvote.gae.datastore.models import event as event_models
 from upvote.gae.datastore.models import host as host_models
 from upvote.gae.datastore.models import note as note_models
@@ -432,9 +433,9 @@ def _PersistBit9Certificates(signing_chain):
   to_create = []
   for cert in signing_chain:
     thumbprint = cert.thumbprint
-    existing_cert = bit9.Bit9Certificate.get_by_id(thumbprint)
+    existing_cert = cert_models.Bit9Certificate.get_by_id(thumbprint)
     if existing_cert is None:
-      cert = bit9.Bit9Certificate(
+      cert = cert_models.Bit9Certificate(
           id=thumbprint,
           id_type=cert.thumbprint_algorithm,
           valid_from_dt=cert.valid_from,
@@ -452,8 +453,8 @@ def _PersistBit9Certificates(signing_chain):
 
 
 def _GetCertKey(signing_chain):
-  fingerprint = signing_chain[0].thumbprint if signing_chain else None
-  return ndb.Key(bit9.Bit9Certificate, fingerprint) if fingerprint else None
+  fprint = signing_chain[0].thumbprint if signing_chain else None
+  return ndb.Key(cert_models.Bit9Certificate, fprint) if fprint else None
 
 
 @ndb.tasklet

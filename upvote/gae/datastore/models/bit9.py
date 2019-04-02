@@ -99,29 +99,3 @@ class Bit9Binary(mixin.Bit9, base.Binary):
     else:
       return installer_rule.policy == _POLICY.FORCE_INSTALLER
 
-
-class Bit9Certificate(mixin.Bit9, base.Certificate):
-  """A certificate used to codesign at least one Bit9Binary.
-
-  key = SHA-256 hash of certificate
-
-  Attributes:
-    valid_from_dt: date, datetime that cert is valid from.
-    valid_until_dt: date, datetime that cert is valid until.
-    parent_certificate_thumbprint: str, Thumbprint of parent certificate.
-  """
-  valid_from_dt = ndb.DateTimeProperty()
-  valid_to_dt = ndb.DateTimeProperty()
-  parent_certificate_thumbprint = ndb.StringProperty()
-
-  def InsertBigQueryRow(self, action, **kwargs):
-
-    defaults = {
-        'not_before': self.valid_from_dt,
-        'not_after': self.valid_to_dt,
-        'common_name': 'Unknown',
-        'organization': 'Unknown',
-        'organizational_unit': 'Unknown'}
-    defaults.update(kwargs.copy())
-
-    super(Bit9Certificate, self).InsertBigQueryRow(action, **defaults)

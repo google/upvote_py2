@@ -24,6 +24,7 @@ py_appengine_library(
         "//upvote/gae:settings",
         "//upvote/gae/datastore/models:base",
         "//upvote/gae/datastore/models:bit9",
+        "//upvote/gae/datastore/models:cert",
         "//upvote/gae/datastore/models:event",
         "//upvote/gae/datastore/models:exemption",
         "//upvote/gae/datastore/models:host",

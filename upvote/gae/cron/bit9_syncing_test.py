@@ -34,6 +34,7 @@ from upvote.gae.datastore import test_utils
 from upvote.gae.datastore import utils as datastore_utils
 from upvote.gae.datastore.models import base as base_models
 from upvote.gae.datastore.models import bit9 as bit9_models
+from upvote.gae.datastore.models import cert as cert_models
 from upvote.gae.datastore.models import event as event_models
 from upvote.gae.datastore.models import host as host_models
 from upvote.gae.datastore.models import note as note_models
@@ -716,9 +717,9 @@ class ProcessTest(SyncTestCase):
 class PersistBit9CertificatesTest(basetest.UpvoteTestCase):
 
   def testNoSigningChain(self):
-    self.assertEntityCount(bit9_models.Bit9Certificate, 0)
+    self.assertEntityCount(cert_models.Bit9Certificate, 0)
     bit9_syncing._PersistBit9Certificates([]).wait()
-    self.assertEntityCount(bit9_models.Bit9Certificate, 0)
+    self.assertEntityCount(cert_models.Bit9Certificate, 0)
 
   def testDupeCerts(self):
 
@@ -729,9 +730,9 @@ class PersistBit9CertificatesTest(basetest.UpvoteTestCase):
         bit9_test_utils.CreateCertificate(thumbprint=t) for t in thumbprints]
     bit9_test_utils.LinkSigningChain(*signing_chain)
 
-    self.assertEntityCount(bit9_models.Bit9Certificate, 3)
+    self.assertEntityCount(cert_models.Bit9Certificate, 3)
     bit9_syncing._PersistBit9Certificates(signing_chain).wait()
-    self.assertEntityCount(bit9_models.Bit9Certificate, 3)
+    self.assertEntityCount(cert_models.Bit9Certificate, 3)
 
   def testNewCerts(self):
 
@@ -742,9 +743,9 @@ class PersistBit9CertificatesTest(basetest.UpvoteTestCase):
         for _ in xrange(4)]
     bit9_test_utils.LinkSigningChain(*signing_chain)
 
-    self.assertEntityCount(bit9_models.Bit9Certificate, 3)
+    self.assertEntityCount(cert_models.Bit9Certificate, 3)
     bit9_syncing._PersistBit9Certificates(signing_chain).wait()
-    self.assertEntityCount(bit9_models.Bit9Certificate, 7)
+    self.assertEntityCount(cert_models.Bit9Certificate, 7)
 
     self.assertBigQueryInsertions(
         [constants.BIGQUERY_TABLE.CERTIFICATE] * len(signing_chain))
@@ -759,7 +760,7 @@ class GetCertKeyTest(basetest.UpvoteTestCase):
     bit9_test_utils.LinkSigningChain(*signing_chain)
 
     expected_key = ndb.Key(
-        bit9_models.Bit9Certificate, signing_chain[0].thumbprint)
+        cert_models.Bit9Certificate, signing_chain[0].thumbprint)
     self.assertEqual(expected_key, bit9_syncing._GetCertKey(signing_chain))
 
   def testWithoutSigningChain(self):

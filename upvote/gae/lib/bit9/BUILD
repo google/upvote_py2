@@ -99,7 +99,7 @@ py_appengine_library(
         ":constants",
         ":monitoring",
         ":utils",
-        "//upvote/gae/datastore/models:bit9",
+        "//upvote/gae/datastore/models:cert",
         "//upvote/gae/datastore/models:rule",
         "//upvote/shared:constants",
     ],
