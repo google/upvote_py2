@@ -542,23 +542,6 @@ def CreateBit9Hosts(count, **kwargs):
   return [CreateBit9Host(**kwargs) for _ in xrange(count)]
 
 
-def CreateBlacklist(**kwargs):
-  """Creates a Blacklist.
-
-  Args:
-    **kwargs: Dictionary of properties to customize.
-
-  Returns:
-    Newly created Blacklist.
-  """
-  defaults = {
-      'regex': '[Rr][Ee][Gg][Ee][Xx]'}
-  defaults.update(kwargs.copy())
-  blacklist = binary_models.Blacklist(**defaults)
-  blacklist.put()
-  return blacklist
-
-
 def CreateRuleEntity(rule_cls, blockable_key, **kwargs):
   """Creates a Rule.
 
