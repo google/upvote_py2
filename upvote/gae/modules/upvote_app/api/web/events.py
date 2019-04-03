@@ -23,7 +23,7 @@ from webapp2_extras import routes
 from google.appengine.ext import ndb
 
 from upvote.gae.datastore import utils as datastore_utils
-from upvote.gae.datastore.models import base as base_models
+from upvote.gae.datastore.models import binary as binary_models
 from upvote.gae.datastore.models import cert as cert_models
 from upvote.gae.datastore.models import event as event_models
 from upvote.gae.datastore.models import host as host_models
@@ -193,7 +193,7 @@ class RecentEventHandler(handler_utils.UserFacingHandler):
   """Handler for getting the most recent Event for a blockable, for a user."""
 
   def get(self, blockable_id):  # pylint: disable=g-bad-name
-    blockable = base_models.Blockable.get_by_id(blockable_id)
+    blockable = binary_models.Blockable.get_by_id(blockable_id)
     if not blockable:
       self.abort(httplib.NOT_FOUND, explanation='Blockable not found')
 

@@ -16,6 +16,7 @@
 
 from upvote.gae import settings
 from upvote.gae.datastore import test_utils
+from upvote.gae.datastore.models import binary as binary_models
 from upvote.gae.datastore.models import cert as cert_models
 from upvote.gae.lib.testing import basetest
 from upvote.shared import constants

@@ -32,8 +32,7 @@ from upvote.gae import settings
 from upvote.gae.cron import bit9_syncing
 from upvote.gae.datastore import test_utils
 from upvote.gae.datastore import utils as datastore_utils
-from upvote.gae.datastore.models import base as base_models
-from upvote.gae.datastore.models import bit9 as bit9_models
+from upvote.gae.datastore.models import binary as binary_models
 from upvote.gae.datastore.models import cert as cert_models
 from upvote.gae.datastore.models import event as event_models
 from upvote.gae.datastore.models import host as host_models
@@ -778,13 +777,13 @@ class PersistBit9BinaryTest(basetest.UpvoteTestCase):
         event_kwargs={'subtype': bit9_constants.SUBTYPE.BANNED})
     file_catalog = event.get_expand(api.Event.file_catalog_id)
 
-    self.assertEntityCount(bit9_models.Bit9Binary, 0)
+    self.assertEntityCount(binary_models.Bit9Binary, 0)
 
     changed = bit9_syncing._PersistBit9Binary(
         event, file_catalog, [cert], datetime.datetime.utcnow()).get_result()
 
     self.assertTrue(changed)
-    self.assertEntityCount(bit9_models.Bit9Binary, 1)
+    self.assertEntityCount(binary_models.Bit9Binary, 1)
 
     # Should be 2: 1 for new Binary, 1 For the BANNED State.
     self.assertBigQueryInsertions([constants.BIGQUERY_TABLE.BINARY] * 2)
@@ -798,17 +797,17 @@ class PersistBit9BinaryTest(basetest.UpvoteTestCase):
         file_catalog_kwargs=file_catalog_kwargs)
     file_catalog = event.get_expand(api.Event.file_catalog_id)
 
-    self.assertEntityCount(bit9_models.Bit9Binary, 0)
+    self.assertEntityCount(binary_models.Bit9Binary, 0)
     self.assertEntityCount(rule_models.Bit9Rule, 0)
 
     changed = bit9_syncing._PersistBit9Binary(
         event, file_catalog, [cert], datetime.datetime.utcnow()).get_result()
 
     self.assertTrue(changed)
-    self.assertEntityCount(bit9_models.Bit9Binary, 1)
+    self.assertEntityCount(binary_models.Bit9Binary, 1)
     self.assertEntityCount(rule_models.Bit9Rule, 1)
 
-    binary = bit9_models.Bit9Binary.query().get()
+    binary = binary_models.Bit9Binary.query().get()
     self.assertTrue(binary.is_installer)
     self.assertFalse(binary.detected_installer)
 
@@ -833,7 +832,7 @@ class PersistBit9BinaryTest(basetest.UpvoteTestCase):
         event, file_catalog, [cert], datetime.datetime.utcnow()).get_result()
 
     self.assertTrue(changed)
-    bit9_binary = bit9_models.Bit9Binary.get_by_id(sha256)
+    bit9_binary = binary_models.Bit9Binary.get_by_id(sha256)
     self.assertEqual('67890', bit9_binary.file_catalog_id)
 
     # Should be Empty: No new Binary or BANNED State.
@@ -851,7 +850,7 @@ class PersistBit9BinaryTest(basetest.UpvoteTestCase):
         event, file_catalog, [cert], datetime.datetime.utcnow()).get_result()
 
     self.assertTrue(changed)
-    bit9_binary = bit9_models.Bit9Binary.get_by_id(sha256)
+    bit9_binary = binary_models.Bit9Binary.get_by_id(sha256)
     self.assertEqual('12345', bit9_binary.file_catalog_id)
 
     # Should be Empty: No new Binary or BANNED State.
@@ -871,7 +870,7 @@ class PersistBit9BinaryTest(basetest.UpvoteTestCase):
         event, file_catalog, [cert], datetime.datetime.utcnow()).get_result()
 
     self.assertTrue(changed)
-    bit9_binary = bit9_models.Bit9Binary.get_by_id(sha256)
+    bit9_binary = binary_models.Bit9Binary.get_by_id(sha256)
     self.assertEqual(constants.STATE.BANNED, bit9_binary.state)
 
     # Should be 1 for the BANNED State.

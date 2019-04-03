@@ -20,8 +20,8 @@ import json
 from google.appengine.ext import ndb
 
 from common.testing import basetest
+from upvote.gae.datastore.models import binary as binary_models
 from upvote.gae.datastore.models import event as event_models
-from upvote.gae.datastore.models import santa
 from upvote.gae.utils import json_utils
 from upvote.shared import constants
 
@@ -45,7 +45,7 @@ class BaseEncoderTest(basetest.AppEngineTestCase):
     self.test_key = self.test_model.put()
 
     self.blockable_key = ndb.Key(
-        santa.SantaBlockable, 'aaaabbbbccccddddeeeeffffgggg')
+        binary_models.SantaBlockable, 'aaaabbbbccccddddeeeeffffgggg')
     self.santa_event = event_models.SantaEvent(
         id='2324342',
         blockable_key=self.blockable_key,

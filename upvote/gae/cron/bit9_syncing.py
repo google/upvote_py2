@@ -30,8 +30,7 @@ from common import datastore_locks
 
 from upvote.gae.bigquery import tables
 from upvote.gae.datastore import utils as datastore_utils
-from upvote.gae.datastore.models import base
-from upvote.gae.datastore.models import bit9
+from upvote.gae.datastore.models import binary as binary_models
 from upvote.gae.datastore.models import cert as cert_models
 from upvote.gae.datastore.models import event as event_models
 from upvote.gae.datastore.models import host as host_models
@@ -531,7 +530,8 @@ def _PersistBit9Binary(event, file_catalog, signing_chain, now):
   changed = False
 
   # Grab the corresponding Bit9Binary.
-  bit9_binary = yield bit9.Bit9Binary.get_by_id_async(file_catalog.sha256)
+  bit9_binary = yield binary_models.Bit9Binary.get_by_id_async(
+      file_catalog.sha256)
 
   detected_installer = bool(
       file_catalog.file_flags &
@@ -543,7 +543,7 @@ def _PersistBit9Binary(event, file_catalog, signing_chain, now):
   if bit9_binary is None:
     logging.info('Creating new Bit9Binary')
 
-    bit9_binary = bit9.Bit9Binary(
+    bit9_binary = binary_models.Bit9Binary(
         id=file_catalog.sha256,
         id_type=bit9_constants.SHA256_TYPE.MAP_TO_ID_TYPE[
             file_catalog.sha256_hash_type],
@@ -645,7 +645,7 @@ def _PersistBanNote(file_catalog):
   if ban_strings:
     full_message = '\n'.join(ban_strings)
 
-    blockable_key = ndb.Key(bit9.Bit9Binary, file_catalog.sha256)
+    blockable_key = ndb.Key(binary_models.Bit9Binary, file_catalog.sha256)
     note_key = note_models.Note.GenerateKey(full_message, blockable_key)
 
     if note_key.get() is None:
@@ -908,7 +908,7 @@ def _PersistBit9Events(event, file_catalog, computer, signing_chain):
   logging.info('Creating new Bit9Event')
 
   host_id = str(computer.id)
-  blockable_key = ndb.Key(bit9.Bit9Binary, file_catalog.sha256)
+  blockable_key = ndb.Key(binary_models.Bit9Binary, file_catalog.sha256)
   host_users = list(bit9_utils.ExtractHostUsers(computer.users))
   occurred_dt = event.timestamp
 

@@ -21,10 +21,9 @@ from google.appengine.ext import ndb
 from upvote.gae import settings
 from upvote.gae.datastore import test_utils
 from upvote.gae.datastore import utils as datastore_utils
-from upvote.gae.datastore.models import base
+from upvote.gae.datastore.models import binary as binary_models
 from upvote.gae.datastore.models import host as host_models
 from upvote.gae.datastore.models import rule as rule_models
-from upvote.gae.datastore.models import santa
 from upvote.gae.datastore.models import user as user_models
 from upvote.gae.datastore.models import vote as vote_models
 from upvote.gae.lib.testing import basetest
@@ -91,7 +90,7 @@ class GetRulesForBlockableTest(basetest.UpvoteTestCase):
 class IsVotingAllowedTest(basetest.UpvoteTestCase):
 
   def testBlockable_NotFound(self):
-    invalid_key = ndb.Key(base.Blockable, '12345')
+    invalid_key = ndb.Key(binary_models.Blockable, '12345')
     with self.assertRaises(api.BlockableNotFoundError):
       api.IsVotingAllowed(invalid_key)
 
@@ -762,7 +761,7 @@ class BallotBoxTest(basetest.UpvoteTestCase):
             policy=constants.RULE_POLICY.WHITELIST, user_key=user.key)
 
     # Verify all the entities.
-    self.assertIsNotNone(base.Blockable.get_by_id(sha))
+    self.assertIsNotNone(binary_models.Blockable.get_by_id(sha))
     self.assertEqual(len(users) - 1, len(blockable.GetVotes()))
     self.assertLen(users, host_models.Host.query().count())
     rules = api._GetRulesForBlockable(blockable)
@@ -777,7 +776,7 @@ class BallotBoxTest(basetest.UpvoteTestCase):
     ballot_box.Vote(True, users[-1])
 
     # Verify the Blockable, Votes, and Rules.
-    blockable = base.Blockable.get_by_id(sha)
+    blockable = binary_models.Blockable.get_by_id(sha)
     self.assertEqual(
         constants.STATE.APPROVED_FOR_LOCAL_WHITELISTING, blockable.state)
     self.assertLess(blockable.score, 50)
@@ -817,7 +816,7 @@ class BallotBoxTest(basetest.UpvoteTestCase):
 
     self.rule1.put()
 
-    blockable = santa.SantaBlockable(
+    blockable = binary_models.SantaBlockable(
         id=self.santa_blockable1.key.id(),
         id_type=constants.ID_TYPE.SHA256,
         file_name='ginger spider 2',
@@ -1036,9 +1035,9 @@ class BallotBoxTest(basetest.UpvoteTestCase):
 
       # Verify that the key is in the expected structure.
       expected_key = ndb.Key(
-          base.Blockable, self.santa_blockable1.key.id(),
-          user_models.User, user.email, vote_models.Vote,
-          vote_models._IN_EFFECT_KEY_NAME)
+          binary_models.Blockable, self.santa_blockable1.key.id(),
+          user_models.User, user.email,
+          vote_models.Vote, vote_models._IN_EFFECT_KEY_NAME)
       self.assertEqual(new_vote, expected_key.get())
 
     self.assertBigQueryInsertions([TABLE.VOTE, TABLE.BINARY])

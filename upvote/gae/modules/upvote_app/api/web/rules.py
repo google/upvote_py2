@@ -22,7 +22,7 @@ from webapp2_extras import routes
 from google.appengine.ext import ndb
 
 from upvote.gae.datastore import utils as datastore_utils
-from upvote.gae.datastore.models import base as base_models
+from upvote.gae.datastore.models import binary as binary_models
 from upvote.gae.datastore.models import rule as rule_models
 from upvote.gae.modules.upvote_app.api.web import monitoring
 from upvote.gae.utils import handler_utils
@@ -47,7 +47,7 @@ class RuleQueryHandler(handler_utils.UserFacingQueryHandler):
     target_id = search_dict.pop('targetId', None)
 
     ancestor_key = (
-        ndb.Key(base_models.Blockable, target_id) if target_id else None)
+        ndb.Key(binary_models.Blockable, target_id) if target_id else None)
     return super(RuleQueryHandler, self)._QueryModel(
         search_dict, ancestor=ancestor_key)
 

@@ -24,7 +24,7 @@ from google.appengine.ext import ndb
 
 from upvote.gae import settings
 from upvote.gae.datastore import utils as datastore_utils
-from upvote.gae.datastore.models import base as base_models
+from upvote.gae.datastore.models import binary as binary_models
 from upvote.gae.datastore.models import vote as vote_models
 from upvote.gae.lib.voting import api as voting_api
 from upvote.gae.modules.upvote_app.api.web import monitoring
@@ -59,7 +59,8 @@ class VoteQueryHandler(handler_utils.UserFacingQueryHandler):
   def _QueryModel(self, search_dict):
     candidate_id = search_dict.pop('candidateId', None)
     ancestor_key = (
-        ndb.Key(base_models.Blockable, candidate_id) if candidate_id else None)
+        ndb.Key(binary_models.Blockable, candidate_id)
+        if candidate_id else None)
 
     query = super(VoteQueryHandler, self)._QueryModel(
         search_dict, ancestor=ancestor_key)
@@ -145,7 +146,7 @@ class VoteCastHandler(handler_utils.UserFacingHandler):
       self.user.put()
 
       # Augment the response dict with related voting data.
-      blockable = base_models.Blockable.get_by_id(blockable_id)
+      blockable = binary_models.Blockable.get_by_id(blockable_id)
       blockable_dict = blockable.to_dict()
       allowed, reason = voting_api.IsVotingAllowed(blockable.key)
       blockable_dict['is_voting_allowed'] = allowed
@@ -158,7 +159,7 @@ class VoteCastHandler(handler_utils.UserFacingHandler):
     logging.info('Vote handler get method called for %s.', blockable_id)
 
     ancestor_key = datastore_utils.ConcatenateKeys(
-        ndb.Key(base_models.Blockable, blockable_id), self.user.key)
+        ndb.Key(binary_models.Blockable, blockable_id), self.user.key)
     # pylint: disable=g-explicit-bool-comparison, singleton-comparison
     vote = vote_models.Vote.query(
         vote_models.Vote.in_effect == True, ancestor=ancestor_key).get()

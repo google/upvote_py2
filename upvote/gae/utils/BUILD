@@ -154,8 +154,8 @@ upvote_appengine_test(
     deps = [
         ":json_utils",
         "//common/testing:basetest",
+        "//upvote/gae/datastore/models:binary",
         "//upvote/gae/datastore/models:event",
-        "//upvote/gae/datastore/models:santa",
         "//upvote/shared:constants",
     ],
 )

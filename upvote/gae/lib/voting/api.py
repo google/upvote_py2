@@ -22,12 +22,11 @@ from google.appengine.ext import ndb
 from upvote.gae import settings
 from upvote.gae.bigquery import tables
 from upvote.gae.datastore import utils as datastore_utils
-from upvote.gae.datastore.models import base
+from upvote.gae.datastore.models import binary as binary_models
 from upvote.gae.datastore.models import cert as cert_models
 from upvote.gae.datastore.models import host as host_models
 from upvote.gae.datastore.models import package as package_models
 from upvote.gae.datastore.models import rule as rule_models
-from upvote.gae.datastore.models import santa as santa_models
 from upvote.gae.datastore.models import user as user_models
 from upvote.gae.datastore.models import vote as vote_models
 from upvote.gae.lib.analysis import metrics
@@ -61,7 +60,7 @@ class OperationNotAllowedError(Error):
 
 
 def _GetBlockable(sha256):
-  blockable = base.Blockable.get_by_id(sha256)
+  blockable = binary_models.Blockable.get_by_id(sha256)
   if blockable is None:
     raise BlockableNotFoundError('SHA256: %s' % sha256)
   return blockable
@@ -189,7 +188,7 @@ def _GetVotingProhibitedReason(blockable_key, current_user=None):
         return constants.VOTING_PROHIBITED_REASONS.FLAGGED_CERT
 
   # Checks that are specific to SantaBlockables.
-  elif isinstance(blockable, santa_models.SantaBlockable):
+  elif isinstance(blockable, binary_models.SantaBlockable):
 
     # Voting is not allowed if the binary is signed by a blacklisted cert if the
     # user is not an admin.
@@ -568,7 +567,7 @@ class BallotBox(object):
     """Checks votes, state, and rules for the target blockable."""
     logging.info('Recount for blockable: %s', self.blockable_id)
 
-    self.blockable = base.Blockable.get_by_id(self.blockable_id)
+    self.blockable = binary_models.Blockable.get_by_id(self.blockable_id)
 
     # Then check to see if the blockable should be flagged and if it is.
     change_made = _CheckBlockableFlagStatus(self.blockable)
@@ -602,7 +601,7 @@ class BallotBox(object):
     """
     logging.info('Resetting blockable: %s', self.blockable_id)
 
-    self.blockable = base.Blockable.get_by_id(self.blockable_id)
+    self.blockable = binary_models.Blockable.get_by_id(self.blockable_id)
 
     votes = self.blockable.GetVotes()
 
@@ -962,7 +961,7 @@ class SantaBallotBox(BallotBox):
 
   @ndb.transactional
   def Reset(self):
-    self.blockable = base.Blockable.get_by_id(self.blockable_id)
+    self.blockable = binary_models.Blockable.get_by_id(self.blockable_id)
     if isinstance(self.blockable, package_models.SantaBundle):
       raise OperationNotAllowedError('Resetting not supported for Bundles')
 

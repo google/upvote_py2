@@ -21,7 +21,7 @@ py_appengine_library(
         ":api",
         ":monitoring",
         "//upvote/gae:settings",
-        "//upvote/gae/datastore/models:base",
+        "//upvote/gae/datastore/models:binary",
         "//upvote/gae/datastore/models:metrics",
         "//upvote/gae/datastore/models:package",
         "//upvote/gae/lib/analysis/virustotal:constants",

@@ -27,12 +27,12 @@ from google.appengine.ext import ndb
 from upvote.gae import settings
 from upvote.gae.datastore import test_utils
 from upvote.gae.datastore import utils as datastore_utils
+from upvote.gae.datastore.models import binary as binary_models
 from upvote.gae.datastore.models import cert as cert_models
 from upvote.gae.datastore.models import event as event_models
 from upvote.gae.datastore.models import host as host_models
 from upvote.gae.datastore.models import package as package_models
 from upvote.gae.datastore.models import rule as rule_models
-from upvote.gae.datastore.models import santa as santa_models
 from upvote.gae.datastore.models import user as user_models
 from upvote.gae.lib.testing import basetest
 from upvote.gae.modules.upvote_app.api.santa import auth
@@ -689,7 +689,7 @@ class EventUploadHandlerTest(SantaApiTestCase):
 
     parent = ndb.Key(user_models.User, user_utils.UsernameToEmail('user'),
                      host_models.SantaHost, 'my-uuid',
-                     santa_models.SantaBlockable, 'the-sha256')
+                     binary_models.SantaBlockable, 'the-sha256')
     event = event_models.SantaEvent.query(ancestor=parent).get()
     self.assertEqual('my-uuid', event.host_id)
     self.assertEqual('fname', event.file_name)
@@ -713,7 +713,7 @@ class EventUploadHandlerTest(SantaApiTestCase):
 
     parent = ndb.Key(user_models.User, user_utils.UsernameToEmail('user'),
                      host_models.SantaHost, 'my-uuid',
-                     santa_models.SantaBlockable, 'the-sha256')
+                     binary_models.SantaBlockable, 'the-sha256')
     event = event_models.SantaEvent.query(ancestor=parent).get()
     self.assertEqual('my-uuid', event.host_id)
     self.assertEqual('fname', event.file_name)
@@ -860,12 +860,13 @@ class EventUploadHandlerTest(SantaApiTestCase):
     # Validate the created event.
     parent = ndb.Key(user_models.User, user_utils.UsernameToEmail('user'),
                      host_models.SantaHost, 'my-uuid',
-                     santa_models.SantaBlockable, 'the-sha256')
+                     binary_models.SantaBlockable, 'the-sha256')
     event = event_models.SantaEvent.query(ancestor=parent).get()
     self.assertEqual('my-uuid', event.host_id)
     self.assertEqual('foo', event.bundle_key.id())
     self.assertEqual(
-        ndb.Key(santa_models.SantaBlockable, 'the-sha256'), event.blockable_key)
+        ndb.Key(binary_models.SantaBlockable, 'the-sha256'),
+        event.blockable_key)
     # Bundle SHOULD have been created.
     self.assertIsNotNone(event.bundle_key.get())
     # Binary SHOULD have been created.
@@ -969,7 +970,7 @@ class EventUploadHandlerTest(SantaApiTestCase):
 
     parent = ndb.Key(user_models.User, user_utils.UsernameToEmail('user'),
                      host_models.SantaHost, 'my-uuid',
-                     santa_models.SantaBlockable, 'the-sha256')
+                     binary_models.SantaBlockable, 'the-sha256')
     event = event_models.SantaEvent.query(ancestor=parent).get()
     expected_time = datetime.datetime.utcfromtimestamp(latest_timestamp)
     self.assertEqual(expected_time, event.last_blocked_dt)
@@ -1022,13 +1023,13 @@ class EventUploadHandlerTest(SantaApiTestCase):
 
     parent = ndb.Key(user_models.User, user_utils.UsernameToEmail('user'),
                      host_models.SantaHost, 'my-uuid',
-                     santa_models.SantaBlockable, 'the-sha256')
+                     binary_models.SantaBlockable, 'the-sha256')
     event = event_models.SantaEvent.query(ancestor=parent).get()
     self.assertEqual(2, event.count)
     email = user_utils.UsernameToEmail('other')
     parent = ndb.Key(user_models.User, email,
                      host_models.SantaHost, 'my-uuid',
-                     santa_models.SantaBlockable, 'the-sha256')
+                     binary_models.SantaBlockable, 'the-sha256')
     event = event_models.SantaEvent.query(ancestor=parent).get()
     self.assertEqual(2, event.count)
 
@@ -1046,7 +1047,7 @@ class EventUploadHandlerTest(SantaApiTestCase):
 
     parent = ndb.Key(user_models.User, user_utils.UsernameToEmail('user'),
                      host_models.SantaHost, 'my-uuid',
-                     santa_models.SantaBlockable, 'the-sha256')
+                     binary_models.SantaBlockable, 'the-sha256')
     event = event_models.SantaEvent.query(ancestor=parent).get()
     self.assertEqual('my-uuid', event.host_id)
     self.assertEqual('fname', event.file_name)
@@ -1065,7 +1066,7 @@ class EventUploadHandlerTest(SantaApiTestCase):
 
     event_key = ndb.Key(user_models.User, user.key.id(),
                         host_models.SantaHost, host.key.id(),
-                        santa_models.SantaBlockable, blockable.key.id(),
+                        binary_models.SantaBlockable, blockable.key.id(),
                         event_models.SantaEvent, '1')
 
     # This Event will already exist in the datastore but calling
@@ -1134,9 +1135,9 @@ class EventUploadHandlerTest(SantaApiTestCase):
     self.assertEqual(0, event_models.SantaEvent.query().count())
 
     # Should have created the blockables.
-    self.assertIsNotNone(santa_models.SantaBlockable.get_by_id('foo'))
+    self.assertIsNotNone(binary_models.SantaBlockable.get_by_id('foo'))
     for i in xrange(num_binaries - 1):
-      self.assertIsNotNone(santa_models.SantaBlockable.get_by_id('bar%s' % i))
+      self.assertIsNotNone(binary_models.SantaBlockable.get_by_id('bar%s' % i))
     self.assertEqual(
         num_binaries,
         package_models.SantaBundleBinary.query(ancestor=bundle.key).count())
@@ -1236,7 +1237,7 @@ class EventUploadHandlerTest(SantaApiTestCase):
     self.testapp.post_json('/my-uuid', request_json)
 
     self.assertEqual(1, event_models.SantaEvent.query().count())
-    self.assertIsNotNone(santa_models.SantaBlockable.get_by_id('blah'))
+    self.assertIsNotNone(binary_models.SantaBlockable.get_by_id('blah'))
 
     self.assertEqual(
         1, package_models.SantaBundleBinary.query(ancestor=bundle.key).count())

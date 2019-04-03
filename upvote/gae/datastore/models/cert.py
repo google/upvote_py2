@@ -19,12 +19,12 @@ import datetime
 from google.appengine.ext import ndb
 
 from upvote.gae.bigquery import tables
-from upvote.gae.datastore.models import base as base_models
+from upvote.gae.datastore.models import binary as binary_models
 from upvote.gae.datastore.models import mixin
 from upvote.shared import constants
 
 
-class Certificate(base_models.Blockable):
+class Certificate(binary_models.Blockable):
   """A codesigning certificate that has been encountered by Upvote."""
 
   @property
