@@ -881,6 +881,13 @@ def _CheckAndResolveAnomalousBlock(blockable_key, host_id):
     # commit it.
     unfulfilled_rules[-1].is_committed = False
 
+    # Revise the Rule creation time to now. This will ensure that this
+    # unfulfilled Rule will once again get picked up by the 'fast' and 'slow'
+    # retry crons below. This should help fulfill such Rules in a *slightly*
+    # more timely manner, in cases where an unfulfilled Rule ages out of the
+    # week-long retry period, but is later executed by the corresponding user.
+    unfulfilled_rules[-1].recorded_dt = datetime.datetime.utcnow()
+
     # Create and trigger a change set to commit the most recent rule.
     change = rule_models.RuleChangeSet(
         rule_keys=[unfulfilled_rules[-1].key],

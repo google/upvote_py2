@@ -1224,6 +1224,7 @@ class CheckAndResolveAnomalousBlockTest(basetest.UpvoteTestCase):
         is_committed=True,
         is_fulfilled=False,
         host_id='12345',
+        recorded_dt=now - datetime.timedelta(hours=3),
         updated_dt=now - datetime.timedelta(hours=3),
         policy=constants.RULE_POLICY.WHITELIST)
     rule2 = test_utils.CreateBit9Rule(
@@ -1231,6 +1232,7 @@ class CheckAndResolveAnomalousBlockTest(basetest.UpvoteTestCase):
         is_committed=True,
         is_fulfilled=False,
         host_id='12345',
+        recorded_dt=now - datetime.timedelta(hours=2),
         updated_dt=now - datetime.timedelta(hours=2),
         policy=constants.RULE_POLICY.WHITELIST)
     rule3 = test_utils.CreateBit9Rule(
@@ -1238,8 +1240,10 @@ class CheckAndResolveAnomalousBlockTest(basetest.UpvoteTestCase):
         is_committed=True,
         is_fulfilled=False,
         host_id='12345',
+        recorded_dt=now - datetime.timedelta(hours=1),
         updated_dt=now - datetime.timedelta(hours=1),
         policy=constants.RULE_POLICY.BLACKLIST)
+    orig_rule3_recorded_dt = rule3.recorded_dt
 
     # Verify a RuleChangeSet doesn't yet exist.
     self.assertEntityCount(rule_models.RuleChangeSet, 0)
@@ -1257,6 +1261,9 @@ class CheckAndResolveAnomalousBlockTest(basetest.UpvoteTestCase):
     self.assertTrue(rule1.key.get().is_committed)
     self.assertTrue(rule2.key.get().is_committed)
     self.assertFalse(rule3.key.get().is_committed)
+
+    # Verify that the creation_dt of the most recent Rule was reset.
+    self.assertGreater(rule3.key.get().recorded_dt, orig_rule3_recorded_dt)
 
     # Verify the creation of a RuleChangeSet.
     self.assertEntityCount(rule_models.RuleChangeSet, 1)
