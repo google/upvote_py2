@@ -394,16 +394,16 @@ LOCAL_ADMIN = Namespace(tuples=[
 BIGQUERY_DATASET = 'gae_streaming'
 
 BIGQUERY_TABLE = Namespace(tuples=[
-    ('VOTE', 'Vote'),
-    ('HOST', 'Host'),
-    ('EXEMPTION', 'Exemption'),
     ('BINARY', 'Binary'),
-    ('EXECUTION', 'Execution'),
-    ('CERTIFICATE', 'Certificate'),
     ('BUNDLE', 'Bundle'),
     ('BUNDLE_BINARY', 'BundleBinary'),
+    ('CERTIFICATE', 'Certificate'),
+    ('EXECUTION', 'Execution'),
+    ('EXEMPTION', 'Exemption'),
+    ('HOST', 'Host'),
+    ('RULE', 'Rule'),
     ('USER', 'User'),
-    ('RULE', 'Rule')])
+    ('VOTE', 'Vote')])
 
 HOST_ACTION = UppercaseNamespace(names=[
     'FIRST_SEEN', 'FULL_SYNC', 'MODE_CHANGE', 'USERS_CHANGE', 'COMMENT'])

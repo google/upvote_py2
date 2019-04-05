@@ -20,12 +20,14 @@ import logging
 from google.appengine.ext import deferred
 from google.appengine.ext import ndb
 
+from upvote.gae.bigquery import tables
 from upvote.gae.datastore.models import cert as cert_models
 from upvote.gae.datastore.models import rule as rule_models
 from upvote.gae.lib.bit9 import api
 from upvote.gae.lib.bit9 import constants as bit9_constants
 from upvote.gae.lib.bit9 import monitoring
 from upvote.gae.lib.bit9 import utils as bit9_utils
+from upvote.gae.utils import user_utils
 from upvote.shared import constants
 
 _COMMIT_RETRIES = 3

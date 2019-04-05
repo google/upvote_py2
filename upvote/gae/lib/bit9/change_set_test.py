@@ -36,8 +36,10 @@ class ChangeLocalStatesTest(basetest.UpvoteTestCase):
   def testLatencyRecorded_Whitelist_Fulfilled(self, mock_change_local_state):
 
     binary = test_utils.CreateBit9Binary(file_catalog_id='1234')
+    user = test_utils.CreateUser()
     local_rule = test_utils.CreateBit9Rule(
-        binary.key, host_id='12345', policy=constants.RULE_POLICY.WHITELIST)
+        binary.key, host_id='12345', user_key=user.key,
+        policy=constants.RULE_POLICY.WHITELIST)
 
     change_set._ChangeLocalStates(
         binary, [local_rule], bit9_constants.APPROVAL_STATE.APPROVED)
@@ -48,8 +50,10 @@ class ChangeLocalStatesTest(basetest.UpvoteTestCase):
   def testLatencyRecorded_Whitelist_NotFulfilled(self, mock_change_local_state):
 
     binary = test_utils.CreateBit9Binary(file_catalog_id='1234')
+    user = test_utils.CreateUser()
     local_rule = test_utils.CreateBit9Rule(
-        binary.key, host_id='12345', policy=constants.RULE_POLICY.WHITELIST)
+        binary.key, host_id='12345', user_key=user.key,
+        policy=constants.RULE_POLICY.WHITELIST)
 
     change_set._ChangeLocalStates(
         binary, [local_rule], bit9_constants.APPROVAL_STATE.APPROVED)
@@ -60,8 +64,9 @@ class ChangeLocalStatesTest(basetest.UpvoteTestCase):
   def testLatencyRecorded_NonWhitelist(self, mock_change_local_state):
 
     binary = test_utils.CreateBit9Binary(file_catalog_id='1234')
+    user = test_utils.CreateUser()
     local_rule = test_utils.CreateBit9Rule(
-        binary.key, host_id='12345',
+        binary.key, host_id='12345', user_key=user.key,
         policy=constants.RULE_POLICY.FORCE_INSTALLER)
 
     change_set._ChangeLocalStates(
