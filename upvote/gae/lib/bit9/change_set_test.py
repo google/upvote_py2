@@ -19,6 +19,8 @@ import datetime
 import mock
 
 from google.appengine.ext import deferred
+from google.appengine.ext import ndb
+
 from upvote.gae.datastore import test_utils
 from upvote.gae.datastore.models import rule as rule_models
 from upvote.gae.lib.bit9 import api
@@ -35,8 +37,19 @@ class ChangeLocalStatesTest(basetest.UpvoteTestCase):
   @mock.patch.object(change_set, '_ChangeLocalState', return_value=True)
   def testLatencyRecorded_Whitelist_Fulfilled(self, mock_change_local_state):
 
-    binary = test_utils.CreateBit9Binary(file_catalog_id='1234')
     user = test_utils.CreateUser()
+    binary = test_utils.CreateBit9Binary(file_catalog_id='1234')
+
+    pairs = [
+        ('User', user.email),
+        ('Host', '12345'),
+        ('Blockable', binary.key.id()),
+        ('Event', '1')]
+    event_key = ndb.Key(pairs=pairs)
+    first_blocked_dt = datetime.datetime.utcnow() - datetime.timedelta(hours=3)
+    test_utils.CreateBit9Event(
+        binary, key=event_key, first_blocked_dt=first_blocked_dt)
+
     local_rule = test_utils.CreateBit9Rule(
         binary.key, host_id='12345', user_key=user.key,
         policy=constants.RULE_POLICY.WHITELIST)
