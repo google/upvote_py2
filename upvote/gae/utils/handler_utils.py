@@ -524,15 +524,13 @@ def CreateErrorHandler(http_status):
   return ErrorHandler
 
 
-def CreateErrorHandlersForApplications(
-    wsgi_apps, error_codes=None):
+def ConfigureErrorHandlers(wsgi_app, error_codes=None):
   """Helper method for creating error handlers for the given HTTP statuses.
 
   Args:
-    wsgi_apps: A list of webapp2.WSGIApplication instances.
+    wsgi_app: A webapp2.WSGIApplication instance.
     error_codes: A list of HTTP status integers to create error handlers for.
   """
   error_codes = _COMMON_ERROR_CODES if error_codes is None else error_codes
-  for wsgi_app in wsgi_apps:
-    for error_code in error_codes:
-      wsgi_app.error_handlers[error_code] = CreateErrorHandler(error_code)
+  for error_code in error_codes:
+    wsgi_app.error_handlers[error_code] = CreateErrorHandler(error_code)
