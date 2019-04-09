@@ -20,12 +20,12 @@ from google.appengine.ext import ndb
 
 from upvote.gae.bigquery import tables
 from upvote.gae.datastore import utils as datastore_utils
-from upvote.gae.datastore.models import base as base_models
+from upvote.gae.datastore.models import binary as binary_models
 from upvote.gae.datastore.models import mixin
 from upvote.shared import constants
 
 
-class Package(base_models.Blockable):
+class Package(binary_models.Blockable):
 
   @property
   def rule_type(self):
@@ -115,7 +115,8 @@ class SantaBundle(mixin.Santa, Package):
   main_executable_key = ndb.KeyProperty()
   main_cert_key = ndb.KeyProperty()
 
-  # Overrides base.Blockable.score to suppress score calculation during upload.
+  # Overrides binary_models.Blockable.score to suppress score calculation during
+  # upload.
   score = ndb.ComputedProperty(_CalculateScore)
 
   def InsertBigQueryRow(self, action, **kwargs):
@@ -140,7 +141,7 @@ class SantaBundle(mixin.Santa, Package):
   def TranslatePropertyQuery(cls, field, value):
     if field == 'cert_id':
       if value:
-        cert_key = ndb.Key(base_models.Certificate, value).urlsafe()
+        cert_key = ndb.Key('Certificate', value).urlsafe()
       else:
         cert_key = None
       return 'main_cert_key', cert_key

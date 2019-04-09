@@ -32,8 +32,8 @@ from upvote.gae import settings
 from upvote.gae.cron import bit9_syncing
 from upvote.gae.datastore import test_utils
 from upvote.gae.datastore import utils as datastore_utils
-from upvote.gae.datastore.models import base as base_models
-from upvote.gae.datastore.models import bit9 as bit9_models
+from upvote.gae.datastore.models import binary as binary_models
+from upvote.gae.datastore.models import cert as cert_models
 from upvote.gae.datastore.models import event as event_models
 from upvote.gae.datastore.models import host as host_models
 from upvote.gae.datastore.models import note as note_models
@@ -716,9 +716,9 @@ class ProcessTest(SyncTestCase):
 class PersistBit9CertificatesTest(basetest.UpvoteTestCase):
 
   def testNoSigningChain(self):
-    self.assertEntityCount(bit9_models.Bit9Certificate, 0)
+    self.assertEntityCount(cert_models.Bit9Certificate, 0)
     bit9_syncing._PersistBit9Certificates([]).wait()
-    self.assertEntityCount(bit9_models.Bit9Certificate, 0)
+    self.assertEntityCount(cert_models.Bit9Certificate, 0)
 
   def testDupeCerts(self):
 
@@ -729,9 +729,9 @@ class PersistBit9CertificatesTest(basetest.UpvoteTestCase):
         bit9_test_utils.CreateCertificate(thumbprint=t) for t in thumbprints]
     bit9_test_utils.LinkSigningChain(*signing_chain)
 
-    self.assertEntityCount(bit9_models.Bit9Certificate, 3)
+    self.assertEntityCount(cert_models.Bit9Certificate, 3)
     bit9_syncing._PersistBit9Certificates(signing_chain).wait()
-    self.assertEntityCount(bit9_models.Bit9Certificate, 3)
+    self.assertEntityCount(cert_models.Bit9Certificate, 3)
 
   def testNewCerts(self):
 
@@ -742,9 +742,9 @@ class PersistBit9CertificatesTest(basetest.UpvoteTestCase):
         for _ in xrange(4)]
     bit9_test_utils.LinkSigningChain(*signing_chain)
 
-    self.assertEntityCount(bit9_models.Bit9Certificate, 3)
+    self.assertEntityCount(cert_models.Bit9Certificate, 3)
     bit9_syncing._PersistBit9Certificates(signing_chain).wait()
-    self.assertEntityCount(bit9_models.Bit9Certificate, 7)
+    self.assertEntityCount(cert_models.Bit9Certificate, 7)
 
     self.assertBigQueryInsertions(
         [constants.BIGQUERY_TABLE.CERTIFICATE] * len(signing_chain))
@@ -759,7 +759,7 @@ class GetCertKeyTest(basetest.UpvoteTestCase):
     bit9_test_utils.LinkSigningChain(*signing_chain)
 
     expected_key = ndb.Key(
-        bit9_models.Bit9Certificate, signing_chain[0].thumbprint)
+        cert_models.Bit9Certificate, signing_chain[0].thumbprint)
     self.assertEqual(expected_key, bit9_syncing._GetCertKey(signing_chain))
 
   def testWithoutSigningChain(self):
@@ -777,13 +777,13 @@ class PersistBit9BinaryTest(basetest.UpvoteTestCase):
         event_kwargs={'subtype': bit9_constants.SUBTYPE.BANNED})
     file_catalog = event.get_expand(api.Event.file_catalog_id)
 
-    self.assertEntityCount(bit9_models.Bit9Binary, 0)
+    self.assertEntityCount(binary_models.Bit9Binary, 0)
 
     changed = bit9_syncing._PersistBit9Binary(
         event, file_catalog, [cert], datetime.datetime.utcnow()).get_result()
 
     self.assertTrue(changed)
-    self.assertEntityCount(bit9_models.Bit9Binary, 1)
+    self.assertEntityCount(binary_models.Bit9Binary, 1)
 
     # Should be 2: 1 for new Binary, 1 For the BANNED State.
     self.assertBigQueryInsertions([constants.BIGQUERY_TABLE.BINARY] * 2)
@@ -797,17 +797,17 @@ class PersistBit9BinaryTest(basetest.UpvoteTestCase):
         file_catalog_kwargs=file_catalog_kwargs)
     file_catalog = event.get_expand(api.Event.file_catalog_id)
 
-    self.assertEntityCount(bit9_models.Bit9Binary, 0)
+    self.assertEntityCount(binary_models.Bit9Binary, 0)
     self.assertEntityCount(rule_models.Bit9Rule, 0)
 
     changed = bit9_syncing._PersistBit9Binary(
         event, file_catalog, [cert], datetime.datetime.utcnow()).get_result()
 
     self.assertTrue(changed)
-    self.assertEntityCount(bit9_models.Bit9Binary, 1)
+    self.assertEntityCount(binary_models.Bit9Binary, 1)
     self.assertEntityCount(rule_models.Bit9Rule, 1)
 
-    binary = bit9_models.Bit9Binary.query().get()
+    binary = binary_models.Bit9Binary.query().get()
     self.assertTrue(binary.is_installer)
     self.assertFalse(binary.detected_installer)
 
@@ -832,7 +832,7 @@ class PersistBit9BinaryTest(basetest.UpvoteTestCase):
         event, file_catalog, [cert], datetime.datetime.utcnow()).get_result()
 
     self.assertTrue(changed)
-    bit9_binary = bit9_models.Bit9Binary.get_by_id(sha256)
+    bit9_binary = binary_models.Bit9Binary.get_by_id(sha256)
     self.assertEqual('67890', bit9_binary.file_catalog_id)
 
     # Should be Empty: No new Binary or BANNED State.
@@ -850,7 +850,7 @@ class PersistBit9BinaryTest(basetest.UpvoteTestCase):
         event, file_catalog, [cert], datetime.datetime.utcnow()).get_result()
 
     self.assertTrue(changed)
-    bit9_binary = bit9_models.Bit9Binary.get_by_id(sha256)
+    bit9_binary = binary_models.Bit9Binary.get_by_id(sha256)
     self.assertEqual('12345', bit9_binary.file_catalog_id)
 
     # Should be Empty: No new Binary or BANNED State.
@@ -870,7 +870,7 @@ class PersistBit9BinaryTest(basetest.UpvoteTestCase):
         event, file_catalog, [cert], datetime.datetime.utcnow()).get_result()
 
     self.assertTrue(changed)
-    bit9_binary = bit9_models.Bit9Binary.get_by_id(sha256)
+    bit9_binary = binary_models.Bit9Binary.get_by_id(sha256)
     self.assertEqual(constants.STATE.BANNED, bit9_binary.state)
 
     # Should be 1 for the BANNED State.
@@ -1224,6 +1224,7 @@ class CheckAndResolveAnomalousBlockTest(basetest.UpvoteTestCase):
         is_committed=True,
         is_fulfilled=False,
         host_id='12345',
+        recorded_dt=now - datetime.timedelta(hours=3),
         updated_dt=now - datetime.timedelta(hours=3),
         policy=constants.RULE_POLICY.WHITELIST)
     rule2 = test_utils.CreateBit9Rule(
@@ -1231,6 +1232,7 @@ class CheckAndResolveAnomalousBlockTest(basetest.UpvoteTestCase):
         is_committed=True,
         is_fulfilled=False,
         host_id='12345',
+        recorded_dt=now - datetime.timedelta(hours=2),
         updated_dt=now - datetime.timedelta(hours=2),
         policy=constants.RULE_POLICY.WHITELIST)
     rule3 = test_utils.CreateBit9Rule(
@@ -1238,8 +1240,10 @@ class CheckAndResolveAnomalousBlockTest(basetest.UpvoteTestCase):
         is_committed=True,
         is_fulfilled=False,
         host_id='12345',
+        recorded_dt=now - datetime.timedelta(hours=1),
         updated_dt=now - datetime.timedelta(hours=1),
         policy=constants.RULE_POLICY.BLACKLIST)
+    orig_rule3_recorded_dt = rule3.recorded_dt
 
     # Verify a RuleChangeSet doesn't yet exist.
     self.assertEntityCount(rule_models.RuleChangeSet, 0)
@@ -1257,6 +1261,9 @@ class CheckAndResolveAnomalousBlockTest(basetest.UpvoteTestCase):
     self.assertTrue(rule1.key.get().is_committed)
     self.assertTrue(rule2.key.get().is_committed)
     self.assertFalse(rule3.key.get().is_committed)
+
+    # Verify that the creation_dt of the most recent Rule was reset.
+    self.assertGreater(rule3.key.get().recorded_dt, orig_rule3_recorded_dt)
 
     # Verify the creation of a RuleChangeSet.
     self.assertEntityCount(rule_models.RuleChangeSet, 1)

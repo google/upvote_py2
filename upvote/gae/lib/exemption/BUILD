@@ -82,7 +82,6 @@ upvote_appengine_test(
         "//upvote/gae/datastore/models:exemption",
         "//upvote/gae/datastore/models:host",
         "//upvote/gae/datastore/models:policy",
-        "//upvote/gae/datastore/models:santa",
         "//upvote/gae/lib/testing:basetest",
         "//upvote/gae/lib/testing:bit9test",
         "//upvote/shared:constants",

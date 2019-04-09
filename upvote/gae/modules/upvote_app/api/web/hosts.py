@@ -44,7 +44,7 @@ class HostQueryHandler(handler_utils.UserFacingQueryHandler):
   def RequestCounter(self):
     return monitoring.host_requests
 
-  @handler_utils.RequireCapability(constants.PERMISSIONS.VIEW_OTHER_HOSTS)
+  @handler_utils.RequirePermission(constants.PERMISSIONS.VIEW_OTHER_HOSTS)
   @handler_utils.RecordRequest
   def get(self):
     self._Query()
@@ -68,7 +68,7 @@ class HostHandler(handler_utils.UserFacingHandler):
     if host is None:
       self.abort(httplib.NOT_FOUND, explanation='Host not found')
     elif not model_utils.IsHostAssociatedWithUser(host, self.user):
-      self.RequireCapability(constants.PERMISSIONS.VIEW_OTHER_HOSTS)
+      self.RequirePermission(constants.PERMISSIONS.VIEW_OTHER_HOSTS)
 
     # Include Exemption data with the Host (if one exists).
     exm = exemption_models.Exemption.Get(host.key.id())
@@ -78,7 +78,7 @@ class HostHandler(handler_utils.UserFacingHandler):
 
     self.respond_json(host_dict)
 
-  @handler_utils.RequireCapability(constants.PERMISSIONS.EDIT_HOSTS)
+  @handler_utils.RequirePermission(constants.PERMISSIONS.EDIT_HOSTS)
   @xsrf_utils.RequireToken
   def post(self, host_id):
     host_id = host_models.Host.NormalizeId(host_id)
@@ -137,7 +137,7 @@ class AssociatedHostHandler(handler_utils.UserFacingHandler):
 
     return host_dicts
 
-  @handler_utils.RequireCapability(constants.PERMISSIONS.VIEW_OTHER_HOSTS)
+  @handler_utils.RequirePermission(constants.PERMISSIONS.VIEW_OTHER_HOSTS)
   def GetByUserId(self, user_id):
     logging.info('Getting associated Hosts for user_id=%s', user_id)
     user = user_models.User.GetById(user_id)

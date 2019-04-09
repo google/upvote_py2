@@ -3,7 +3,7 @@ load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository", "new_git_r
 
 git_repository(
     name = "io_bazel_rules_appengine",
-    commit = "549c7dd115fd172ec1a8d2220fe2d7d0d7610612",
+    commit = "fdbce051adecbb369b15260046f4f23684369efc",
     remote = "https://github.com/bazelbuild/rules_appengine.git",
 )
 

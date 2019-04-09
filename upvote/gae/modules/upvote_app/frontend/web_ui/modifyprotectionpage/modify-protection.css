@@ -26,12 +26,12 @@
 }
 
 #full-protection-card md-card-header {
-  background: #34A853;  /* green-500 */
+  background: var(--mat-green-500);
   color: white;
 }
 
 #full-protection-card .md-button:enabled {
-  background: #34A853;  /* green-500 */
+  background: var(--mat-green-500);
   color: white;
 }
 
@@ -40,24 +40,24 @@
 }
 
 #full-protection-card .md-bar1 {
-  background: #34A853;  /* green-500 */
+  background: var(--mat-green-500);
 }
 
 #full-protection-card .md-bar2 {
-  background: #34A853;  /* green-500 */
+  background: var(--mat-green-500);
 }
 
 #full-protection-card .md-mode-indeterminate {
-  background: #A8DAB5;  /* green-200 */
+  background: var(--mat-green-200);
 }
 
 #dev-mode-card md-card-header {
-  background: #FBBC04;  /* yellow-500 */
+  background: var(--mat-yellow-500);
   color: white;
 }
 
 #dev-mode-card .md-button:enabled {
-  background: #FBBC04;  /* yellow-500 */
+  background: var(--mat-yellow-500);
   color: white !important;
 }
 
@@ -66,24 +66,24 @@
 }
 
 #dev-mode-card .md-bar1 {
-  background: #FBBC04;  /* yellow-500 */
+  background: var(--mat-yellow-500);
 }
 
 #dev-mode-card .md-bar2 {
-  background: #FBBC04;  /* yellow-500 */
+  background: var(--mat-yellow-500);
 }
 
 #dev-mode-card .md-mode-indeterminate {
-  background: #FDE293;  /* yellow-200 */
+  background: var(--mat-yellow-200);
 }
 
 #minimal-protection-card md-card-header {
-  background: #EA4335;  /* red-500 */
+  background: var(--mat-red-500);
   color: white;
 }
 
 #minimal-protection-card .md-button:enabled {
-  background: #EA4335;  /* red-500 */
+  background: var(--mat-red-500);
   color: white !important;
 }
 
@@ -92,15 +92,15 @@
 }
 
 #minimal-protection-card .md-bar1 {
-  background: #EA4335;  /* red-500 */
+  background: var(--mat-red-500);
 }
 
 #minimal-protection-card .md-bar2 {
-  background: #EA4335;  /* red-500 */
+  background: var(--mat-red-500);
 }
 
 #minimal-protection-card .md-mode-indeterminate {
-  background: #F6AEA9;  /* red-200 */
+  background: var(--mat-red-200);
 }
 
 #minimal-protection-card form {

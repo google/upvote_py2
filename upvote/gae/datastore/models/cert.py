@@ -12,35 +12,66 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Models specific to Santa."""
+"""Models for storing certificate data."""
+
+import datetime
 
 from google.appengine.ext import ndb
 
-from upvote.gae.datastore.models import base
+from upvote.gae.bigquery import tables
+from upvote.gae.datastore.models import binary as binary_models
 from upvote.gae.datastore.models import mixin
+from upvote.shared import constants
 
 
-class SantaBlockable(mixin.Santa, base.Binary):
-  """An binary that has been blocked by Santa.
-
-  key = hash of blockable
-
-  Attributes:
-    bundle_id: str, CFBundleIdentifier. The enclosing bundle's unique
-        identifier.
-    cert_sha256: str, SHA-256 of the codesigning cert, if any.
-  """
-  bundle_id = ndb.StringProperty()
-
-  # DEPRECATED
-  cert_sha256 = ndb.StringProperty()  # Use base.Binary.cert_key
+class Certificate(binary_models.Blockable):
+  """A codesigning certificate that has been encountered by Upvote."""
 
   @property
-  def cert_id(self):
-    return (self.cert_key and self.cert_key.id()) or self.cert_sha256
+  def rule_type(self):
+    return constants.RULE_TYPE.CERTIFICATE
+
+  def InsertBigQueryRow(self, action, **kwargs):
+
+    defaults = {
+        'fingerprint': self.key.id(),
+        'timestamp': datetime.datetime.utcnow(),
+        'action': action,
+        'state': self.state,
+        'score': self.score}
+    defaults.update(kwargs.copy())
+
+    tables.CERTIFICATE.InsertRow(**defaults)
 
 
-class SantaCertificate(mixin.Santa, base.Certificate):
+class Bit9Certificate(mixin.Bit9, Certificate):
+  """A certificate used to codesign at least one Bit9Binary.
+
+  key = SHA-256 hash of certificate
+
+  Attributes:
+    valid_from_dt: date, datetime that cert is valid from.
+    valid_until_dt: date, datetime that cert is valid until.
+    parent_certificate_thumbprint: str, Thumbprint of parent certificate.
+  """
+  valid_from_dt = ndb.DateTimeProperty()
+  valid_to_dt = ndb.DateTimeProperty()
+  parent_certificate_thumbprint = ndb.StringProperty()
+
+  def InsertBigQueryRow(self, action, **kwargs):
+
+    defaults = {
+        'not_before': self.valid_from_dt,
+        'not_after': self.valid_to_dt,
+        'common_name': 'Unknown',
+        'organization': 'Unknown',
+        'organizational_unit': 'Unknown'}
+    defaults.update(kwargs.copy())
+
+    super(Bit9Certificate, self).InsertBigQueryRow(action, **defaults)
+
+
+class SantaCertificate(mixin.Santa, Certificate):
   """A certificate used to codesign at least one SantaBlockable.
 
   key = SHA-256 hash of certificate

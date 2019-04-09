@@ -26,15 +26,14 @@ from google.appengine.ext import ndb
 
 from upvote.gae import settings
 from upvote.gae.datastore import utils as datastore_utils
-from upvote.gae.datastore.models import base
-from upvote.gae.datastore.models import bit9
+from upvote.gae.datastore.models import binary as binary_models
+from upvote.gae.datastore.models import cert as cert_models
 from upvote.gae.datastore.models import event as event_models
 from upvote.gae.datastore.models import exemption as exemption_models
 from upvote.gae.datastore.models import host as host_models
 from upvote.gae.datastore.models import package as package_models
 from upvote.gae.datastore.models import policy as policy_models
 from upvote.gae.datastore.models import rule as rule_models
-from upvote.gae.datastore.models import santa
 from upvote.gae.datastore.models import user as user_models
 from upvote.gae.datastore.models import vote as vote_models
 from upvote.gae.utils import env_utils
@@ -210,7 +209,7 @@ def CreateBlockable(**kwargs):
   Returns:
     The newly-created Blockable entity.
   """
-  blockable = CreateBlockableEntity(base.Blockable, **kwargs)
+  blockable = CreateBlockableEntity(binary_models.Blockable, **kwargs)
   blockable.put()
   return blockable
 
@@ -224,7 +223,7 @@ def CreateBinary(**kwargs):
   Returns:
     The newly-created Binary entity.
   """
-  blockable = CreateBlockableEntity(base.Binary, **kwargs)
+  blockable = CreateBlockableEntity(binary_models.Binary, **kwargs)
   blockable.put()
   return blockable
 
@@ -246,7 +245,7 @@ def CreateBit9Binary(**kwargs):
       'occurred_dt': Now()}
   defaults.update(kwargs.copy())
 
-  bit9_blockable = CreateBlockableEntity(bit9.Bit9Binary, **defaults)
+  bit9_blockable = CreateBlockableEntity(binary_models.Bit9Binary, **defaults)
   bit9_blockable.put()
   return bit9_blockable
 
@@ -258,7 +257,7 @@ def CreateBit9Certificate(**kwargs):
       'valid_to_dt': Now()}
   defaults.update(kwargs.copy())
 
-  bit9_cert = CreateBlockableEntity(bit9.Bit9Certificate, **defaults)
+  bit9_cert = CreateBlockableEntity(cert_models.Bit9Certificate, **defaults)
   bit9_cert.put()
   return bit9_cert
 
@@ -268,13 +267,14 @@ def CreateBit9Certificates(count, **kwargs):
 
 
 def CreateSantaBlockable(**kwargs):
-  santa_blockable = CreateBlockableEntity(santa.SantaBlockable, **kwargs)
+  santa_blockable = CreateBlockableEntity(
+      binary_models.SantaBlockable, **kwargs)
   santa_blockable.put()
   return santa_blockable
 
 
 def CreateSantaCertificate(**kwargs):
-  santa_cert = CreateBlockableEntity(santa.SantaCertificate, **kwargs)
+  santa_cert = CreateBlockableEntity(cert_models.SantaCertificate, **kwargs)
   santa_cert.put()
   return santa_cert
 
@@ -540,23 +540,6 @@ def CreateSantaHosts(count, **kwargs):
 def CreateBit9Hosts(count, **kwargs):
   """Creates a list of Bit9Hosts."""
   return [CreateBit9Host(**kwargs) for _ in xrange(count)]
-
-
-def CreateBlacklist(**kwargs):
-  """Creates a Blacklist.
-
-  Args:
-    **kwargs: Dictionary of properties to customize.
-
-  Returns:
-    Newly created Blacklist.
-  """
-  defaults = {
-      'regex': '[Rr][Ee][Gg][Ee][Xx]'}
-  defaults.update(kwargs.copy())
-  blacklist = base.Blacklist(**defaults)
-  blacklist.put()
-  return blacklist
 
 
 def CreateRuleEntity(rule_cls, blockable_key, **kwargs):

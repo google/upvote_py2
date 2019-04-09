@@ -79,7 +79,7 @@ class UpvoteTestCase(basetest.AppEngineTestCase):
       for route in _ExtractRoutes(wsgi_app):
         logging.info('Registering route %s', route.template)
 
-      handler_utils.CreateErrorHandlersForApplications([wsgi_app])
+      handler_utils.ConfigureErrorHandlers(wsgi_app)
       self.testapp = webtest.TestApp(wsgi_app)
     else:
       self.testapp = None

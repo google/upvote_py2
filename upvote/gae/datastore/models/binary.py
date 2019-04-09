@@ -23,8 +23,13 @@ from upvote.gae.datastore import utils as datastore_utils
 from upvote.gae.datastore.models import event as event_models
 from upvote.gae.datastore.models import mixin
 from upvote.gae.datastore.models import note as note_models
+from upvote.gae.datastore.models import rule as rule_models
 from upvote.gae.datastore.models import vote as vote_models
 from upvote.shared import constants
+
+
+# Done for the sake of brevity.
+_POLICY = constants.RULE_POLICY
 
 
 class Error(Exception):
@@ -206,7 +211,7 @@ class Binary(Blockable):
   def TranslatePropertyQuery(cls, field, value):
     if field == 'cert_id':
       if value:
-        cert_key = ndb.Key(Certificate, value).urlsafe()
+        cert_key = ndb.Key('Certificate', value).urlsafe()
       else:
         cert_key = None
       return 'cert_key', cert_key
@@ -234,21 +239,95 @@ class Binary(Blockable):
     tables.BINARY.InsertRow(**defaults)
 
 
-class Certificate(Blockable):
-  """A codesigning certificate that has been encountered by Upvote."""
+class Bit9Binary(mixin.Bit9, Binary):
+  """A file that has been blocked by Bit9.
 
-  @property
-  def rule_type(self):
-    return constants.RULE_TYPE.CERTIFICATE
+  key = hash of blockable
+
+  Attributes:
+    # Selected properties corresponding to "File Properties" section in Bit9
+    # Parity console "File Instance Details" view.
+    description: str, Description.
+    file_type: str, File Type.
+    first_seen_name: str, First seen name.
+    first_seen_date: datetime, First seen date.
+    first_seen_computer:str, First seen host.
+    first_seen_path: str, First seen path.
+    detected_installer: bool, Whether Bit9's heuristic marked the binary as an
+        installer.
+    is_installer: bool, The binary's prescribed installer state.
+    md5: str, MD5.
+    product_version: str, Product version.
+    sha1: str, SHA-1.
+    company: str, Company associated with the file.
+    file_size: int, File size, in bytes.
+    file_catalog_id: str, The ID of the Bit9 fileCatalog entry corresponding to
+        this blockable.
+  """
+  description = ndb.StringProperty()
+  file_type = ndb.StringProperty()
+  first_seen_name = ndb.StringProperty()
+  first_seen_date = ndb.DateTimeProperty()
+  first_seen_computer = ndb.StringProperty()
+  first_seen_path = ndb.StringProperty()
+  detected_installer = ndb.BooleanProperty(default=False)
+  is_installer = ndb.BooleanProperty(default=False)
+
+  md5 = ndb.StringProperty()
+  product_version = ndb.StringProperty()
+  sha1 = ndb.StringProperty()
+  company = ndb.StringProperty()
+  file_size = ndb.IntegerProperty()
+  file_catalog_id = ndb.StringProperty()
 
   def InsertBigQueryRow(self, action, **kwargs):
 
-    defaults = {
-        'fingerprint': self.key.id(),
-        'timestamp': datetime.datetime.utcnow(),
-        'action': action,
-        'state': self.state,
-        'score': self.score}
+    defaults = {'first_seen_file_name': self.first_seen_name}
     defaults.update(kwargs.copy())
 
-    tables.CERTIFICATE.InsertRow(**defaults)
+    super(Bit9Binary, self).InsertBigQueryRow(action, **defaults)
+
+  def CalculateInstallerState(self):
+    """Returns the blockable's installer state as prescribed by Upvote.
+
+    NOTE: Due to the ancestor query, this method will not reflect changes within
+    uncommitted transactions.
+
+    Returns:
+      The current installer state prescribed by Upvote.
+    """
+    # pylint: disable=g-explicit-bool-comparison, singleton-comparison
+    query = rule_models.Bit9Rule.query(
+        rule_models.Bit9Rule.in_effect == True,
+        ndb.OR(
+            rule_models.Bit9Rule.policy == _POLICY.FORCE_INSTALLER,
+            rule_models.Bit9Rule.policy == _POLICY.FORCE_NOT_INSTALLER),
+        ancestor=self.key
+    ).order(-rule_models.Bit9Rule.updated_dt)
+    # pylint: enable=g-explicit-bool-comparison, singleton-comparison
+
+    installer_rule = query.get()
+    if installer_rule is None:
+      return self.detected_installer
+    else:
+      return installer_rule.policy == _POLICY.FORCE_INSTALLER
+
+
+class SantaBlockable(mixin.Santa, Binary):
+  """An binary that has been blocked by Santa.
+
+  key = hash of blockable
+
+  Attributes:
+    bundle_id: str, CFBundleIdentifier. The enclosing bundle's unique
+        identifier.
+    cert_sha256: str, SHA-256 of the codesigning cert, if any.
+  """
+  bundle_id = ndb.StringProperty()
+
+  # DEPRECATED
+  cert_sha256 = ndb.StringProperty()  # Use binary_models.Binary.cert_key
+
+  @property
+  def cert_id(self):
+    return (self.cert_key and self.cert_key.id()) or self.cert_sha256

@@ -17,12 +17,13 @@
 from google.appengine.ext import ndb
 
 from upvote.gae import settings
+from upvote.gae.datastore.models import binary as binary_models
+from upvote.gae.datastore.models import cert as cert_models
 from upvote.gae.datastore.models import event as event_models
 from upvote.gae.datastore.models import exemption as exemption_models
 from upvote.gae.datastore.models import host as host_models
 from upvote.gae.datastore.models import package as package_models
 from upvote.gae.datastore.models import rule as rule_models
-from upvote.gae.datastore.models import santa as santa_models
 from upvote.gae.datastore.models import user as user_models
 from upvote.gae.utils import user_utils
 from upvote.shared import constants
@@ -213,8 +214,8 @@ def GetBundleBinaryIdsForRule(rule):
 
 _BLOCKABLE_CLASSES = {
     constants.PLATFORM.MACOS: {
-        constants.RULE_TYPE.BINARY: santa_models.SantaBlockable,
-        constants.RULE_TYPE.CERTIFICATE: santa_models.SantaCertificate,
+        constants.RULE_TYPE.BINARY: binary_models.SantaBlockable,
+        constants.RULE_TYPE.CERTIFICATE: cert_models.SantaCertificate,
     },
 }
 
@@ -234,9 +235,9 @@ def EnsureCriticalRule(critical_rule):
   if critical_rule.platform == constants.PLATFORM.MACOS:
     rule_cls = rule_models.SantaRule
     if critical_rule.rule_type == constants.RULE_TYPE.BINARY:
-      blockable_cls = santa_models.SantaBlockable
+      blockable_cls = binary_models.SantaBlockable
     elif critical_rule.rule_type == constants.RULE_TYPE.CERTIFICATE:
-      blockable_cls = santa_models.SantaCertificate
+      blockable_cls = cert_models.SantaCertificate
     else:
       raise UnsupportedRuleTypeError(critical_rule.rule_type)
   else:

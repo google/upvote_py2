@@ -247,12 +247,6 @@ class User(mixin.Base, ndb.Model):
     new_roles = set(user.roles).union(add or set()).difference(remove or set())
     cls.SetRoles(email_addr, new_roles)
 
-  def _pre_put_hook(self):
-    # Ensure that the email address was properly converted to lowercase.
-    assert self.key.id().lower() == self.key.id()
-
-    self.roles = sorted(list(set(self.roles)))
-
   def _GetAllPermissions(self):
     permissions = set()
     for role in self.roles:
@@ -308,13 +302,24 @@ class User(mixin.Base, ndb.Model):
       return True
     return False
 
-  def HasPermissionTo(self, task):
-    """Verifies the User has permission to complete a task.
+  def HasPermission(self, permission):
+    """Verifies the user has a given permission.
 
     Args:
-      task: str, task being gated by permissions. One of constants.PERMISSIONS.*
+      permission: str, One of constants.PERMISSIONS.*
 
     Returns:
-      Boolean. True if user has the requested permission.
+      Whether the user has the given permission.
     """
-    return self.is_admin or task in self.permissions
+    return permission in self.permissions
+
+  def LacksPermission(self, permission):
+    """Checks if the user lacks a given permission.
+
+    Args:
+      permission: str, One of constants.PERMISSIONS.*
+
+    Returns:
+      Whether the user lacks the given permission.
+    """
+    return permission not in self.permissions

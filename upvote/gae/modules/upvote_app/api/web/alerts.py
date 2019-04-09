@@ -138,7 +138,7 @@ class AlertHandler(handler_utils.UserFacingHandler):
         if date_str else None)
 
   @xsrf_utils.RequireToken
-  @handler_utils.RequireCapability(constants.PERMISSIONS.EDIT_ALERTS)
+  @handler_utils.RequirePermission(constants.PERMISSIONS.EDIT_ALERTS)
   def post(self, scope, platform):
 
     scope, platform = self._ValidateRouteParams(scope, platform)

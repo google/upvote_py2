@@ -41,23 +41,19 @@ button.uv-minibutton.md-icon-button.md-button {
 }
 
 .uv-success {
-  /* Material Green 600 (White text) */
-  color: #43A047;
+  color: var(--mat-green-600);
 }
 
 .uv-warning {
-  /* Material Orange 600 */
-  color: #FB8C00;
+  color: var(--mat-orange-600);
 }
 
 .uv-error {
-  /* Material Red 500 */
-  color: #F44336;
+  color: var(--mat-red-500);
 }
 
 .uv-neutral {
-  /* Material Gray 600 */
-  color: #757575;
+  color: var(--mat-gray-600);
 }
 
 md-content {
@@ -69,13 +65,11 @@ md-toolbar.uv-site-alert span a {
 }
 
 md-toolbar.uv-site-alert-info {
-  /* Material Yellow 600 */
-  background-color: #FDD835;
+  background-color: var(--mat-yellow-600);
   color: #000;
 }
 
 md-toolbar.uv-site-alert-error {
-  /* Material Red 500 */
-  background-color: #F44336;
+  background-color: var(--mat-red-500);
   color: #FFF;
 }

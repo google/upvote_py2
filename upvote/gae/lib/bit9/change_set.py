@@ -20,12 +20,14 @@ import logging
 from google.appengine.ext import deferred
 from google.appengine.ext import ndb
 
-from upvote.gae.datastore.models import bit9
+from upvote.gae.bigquery import tables
+from upvote.gae.datastore.models import cert as cert_models
 from upvote.gae.datastore.models import rule as rule_models
 from upvote.gae.lib.bit9 import api
 from upvote.gae.lib.bit9 import constants as bit9_constants
 from upvote.gae.lib.bit9 import monitoring
 from upvote.gae.lib.bit9 import utils as bit9_utils
+from upvote.gae.utils import user_utils
 from upvote.shared import constants
 
 _COMMIT_RETRIES = 3
@@ -67,7 +69,7 @@ def _ChangeLocalState(new_state, file_catalog_id, host_id):
 
 
 def _ChangeLocalStates(blockable, local_rules, new_state):
-  if isinstance(blockable, bit9.Bit9Certificate):
+  if isinstance(blockable, cert_models.Bit9Certificate):
     logging.warning('Cannot change local state for certificates in Bit9')
     return
 
@@ -96,7 +98,7 @@ def _ChangeGlobalState(blockable, new_state):
       'Globally marking %s as %s', blockable.key.id(),
       bit9_constants.APPROVAL_STATE.MAP_TO_STR[new_state])
 
-  if isinstance(blockable, bit9.Bit9Certificate):
+  if isinstance(blockable, cert_models.Bit9Certificate):
     certs = (
         api.Certificate.query()
         .filter(api.Certificate.thumbprint == blockable.key.id()).execute(

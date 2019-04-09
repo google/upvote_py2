@@ -25,10 +25,10 @@ notifications:
 before_install:
 
     # Install Bazel
-  - wget https://github.com/bazelbuild/bazel/releases/download/0.22.0/bazel_0.22.0-linux-x86_64.deb
-  - echo 0799bfff7959a9e4ee1a5028e5a80260e55f9526bbdd4268ea867f4e7f7c122d bazel_0.22.0-linux-x86_64.deb | sha256sum -c -
-  - sudo dpkg -i bazel_0.22.0-linux-x86_64.deb
-  - rm bazel_0.22.0-linux-x86_64.deb
+  - wget https://github.com/bazelbuild/bazel/releases/download/0.23.2/bazel_0.23.2-linux-x86_64.deb
+  - echo 0823fc99462f877c34753907a328d61fefc881c9859a3438fd26762d826a1dc7 bazel_0.23.2-linux-x86_64.deb | sha256sum -c -
+  - sudo dpkg -i bazel_0.23.2-linux-x86_64.deb
+  - rm bazel_0.23.2-linux-x86_64.deb
 
     # Install App Engine test dependency
   - pip install Pillow

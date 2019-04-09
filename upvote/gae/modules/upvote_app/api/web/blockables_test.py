@@ -23,11 +23,10 @@ from google.appengine.ext import ndb
 
 from upvote.gae.datastore import test_utils
 from upvote.gae.datastore import utils as datastore_utils
-from upvote.gae.datastore.models import base
+from upvote.gae.datastore.models import binary as binary_models
 from upvote.gae.datastore.models import note as note_models
 from upvote.gae.datastore.models import package as package_models
 from upvote.gae.datastore.models import rule as rule_models
-from upvote.gae.datastore.models import santa
 from upvote.gae.lib.testing import basetest
 from upvote.gae.lib.voting import api as voting_api
 from upvote.gae.modules.upvote_app.api.web import blockables
@@ -369,7 +368,7 @@ class BlockableHandlerTest(BlockablesTest):
         'fileName': 'MacIIci.app',
         'publisher': 'Arple'}
 
-    expected_key = ndb.Key(santa.SantaBlockable, sha256)
+    expected_key = ndb.Key(binary_models.SantaBlockable, sha256)
     self.assertIsNone(expected_key.get())
 
     with self.LoggedInUser(admin=True):
@@ -400,7 +399,7 @@ class BlockableHandlerTest(BlockablesTest):
     with self.LoggedInUser(admin=True):
       self.testapp.post(self.ROUTE % sha256, params)
 
-    blockable = base.Blockable.get_by_id(sha256)
+    blockable = binary_models.Blockable.get_by_id(sha256)
     self.assertEqual('bar', blockable.file_name)
 
     self.assertEntityCount(note_models.Note, 1)

@@ -21,4 +21,4 @@ from upvote.gae.utils import handler_utils
 
 
 app = webapp2.WSGIApplication(routes=sync.ROUTES)
-handler_utils.CreateErrorHandlersForApplications([app])
+handler_utils.ConfigureErrorHandlers(app)

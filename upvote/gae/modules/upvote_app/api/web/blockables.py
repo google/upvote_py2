@@ -23,13 +23,12 @@ from webapp2_extras import routes
 from google.appengine.ext import ndb
 
 from upvote.gae.bigquery import tables
-from upvote.gae.datastore.models import base as base_models
-from upvote.gae.datastore.models import bit9 as bit9_models
+from upvote.gae.datastore.models import binary as binary_models
+from upvote.gae.datastore.models import cert as cert_models
 from upvote.gae.datastore.models import event as event_models
 from upvote.gae.datastore.models import note as note_models
 from upvote.gae.datastore.models import package as package_models
 from upvote.gae.datastore.models import rule as rule_models
-from upvote.gae.datastore.models import santa as santa_models
 from upvote.gae.lib.bit9 import change_set
 from upvote.gae.lib.voting import api as voting_api
 from upvote.gae.modules.upvote_app.api.web import monitoring
@@ -53,21 +52,21 @@ class _BlockableType(object):
 
 _MODEL_MAP = {
     _Platform.ALL: {
-        _BlockableType.ALL: base_models.Blockable,
-        _BlockableType.BINARY: base_models.Binary,
-        _BlockableType.CERTIFICATE: base_models.Certificate,
+        _BlockableType.ALL: binary_models.Blockable,
+        _BlockableType.BINARY: binary_models.Binary,
+        _BlockableType.CERTIFICATE: cert_models.Certificate,
         _BlockableType.PACKAGE: package_models.Package,
     },
     _Platform.SANTA: {
         _BlockableType.ALL: None,
-        _BlockableType.BINARY: santa_models.SantaBlockable,
-        _BlockableType.CERTIFICATE: santa_models.SantaCertificate,
+        _BlockableType.BINARY: binary_models.SantaBlockable,
+        _BlockableType.CERTIFICATE: cert_models.SantaCertificate,
         _BlockableType.PACKAGE: package_models.SantaBundle,
     },
     _Platform.BIT9: {
         _BlockableType.ALL: None,
-        _BlockableType.BINARY: bit9_models.Bit9Binary,
-        _BlockableType.CERTIFICATE: bit9_models.Bit9Certificate,
+        _BlockableType.BINARY: binary_models.Bit9Binary,
+        _BlockableType.CERTIFICATE: cert_models.Bit9Certificate,
         _BlockableType.PACKAGE: None,
     }
 }
@@ -78,7 +77,7 @@ class BlockableQueryHandler(handler_utils.UserFacingQueryHandler):
 
   # NOTE: Value will be dynamically set but must have a default to
   # satisfy the requirement of the base class.
-  MODEL_CLASS = base_models.Blockable
+  MODEL_CLASS = binary_models.Blockable
   HAS_INTEGRAL_ID_TYPE = False
 
   @property
@@ -143,7 +142,7 @@ class BlockableQueryHandler(handler_utils.UserFacingQueryHandler):
       query = self._UnfilteredBlockablesQuery()
     return query
 
-  @handler_utils.RequireCapability(constants.PERMISSIONS.VIEW_OTHER_BLOCKABLES)
+  @handler_utils.RequirePermission(constants.PERMISSIONS.VIEW_OTHER_BLOCKABLES)
   def _FlaggedBlockablesQuery(self):
     # pylint: disable=g-explicit-bool-comparison, singleton-comparison
     return self.MODEL_CLASS.query(
@@ -151,7 +150,7 @@ class BlockableQueryHandler(handler_utils.UserFacingQueryHandler):
         ).order(-self.MODEL_CLASS.updated_dt)
     # pylint: enable=g-explicit-bool-comparison, singleton-comparison
 
-  @handler_utils.RequireCapability(constants.PERMISSIONS.VIEW_OTHER_BLOCKABLES)
+  @handler_utils.RequirePermission(constants.PERMISSIONS.VIEW_OTHER_BLOCKABLES)
   def _SuspectBlockablesQuery(self):
     return self.MODEL_CLASS.query(
         self.MODEL_CLASS.state == constants.STATE.SUSPECT
@@ -162,7 +161,7 @@ class BlockableQueryHandler(handler_utils.UserFacingQueryHandler):
         self.MODEL_CLASS.key.IN(blockable_keys)
         ).order(self.MODEL_CLASS.key)
 
-  @handler_utils.RequireCapability(constants.PERMISSIONS.VIEW_OTHER_BLOCKABLES)
+  @handler_utils.RequirePermission(constants.PERMISSIONS.VIEW_OTHER_BLOCKABLES)
   def _UnfilteredBlockablesQuery(self):
     return self.MODEL_CLASS.query()
 
@@ -175,7 +174,7 @@ class BlockableHandler(handler_utils.UserFacingHandler):
     blockable_id = blockable_id.lower()
     logging.info(
         'Blockable handler get method called with ID: %s', blockable_id)
-    blockable = base_models.Blockable.get_by_id(blockable_id)
+    blockable = binary_models.Blockable.get_by_id(blockable_id)
     if not blockable:
       self.abort(httplib.NOT_FOUND, explanation='Blockable not found')
 
@@ -188,7 +187,7 @@ class BlockableHandler(handler_utils.UserFacingHandler):
     self.respond_json(blockable_dict)
 
   @xsrf_utils.RequireToken
-  @handler_utils.RequireCapability(constants.PERMISSIONS.VIEW_OTHER_BLOCKABLES)
+  @handler_utils.RequirePermission(constants.PERMISSIONS.VIEW_OTHER_BLOCKABLES)
   def post(self, blockable_id):  # pylint: disable=g-bad-name
     """Post handler for blockables."""
     blockable_id = blockable_id.lower()
@@ -203,7 +202,7 @@ class BlockableHandler(handler_utils.UserFacingHandler):
       except Exception as e:  # pylint: disable=broad-except
         self.abort(httplib.INTERNAL_SERVER_ERROR, explanation=e.message)
       else:
-        blockable = base_models.Blockable.get_by_id(blockable_id)
+        blockable = binary_models.Blockable.get_by_id(blockable_id)
         self.respond_json(blockable)
     elif self.request.get('reset').lower() == 'reset':
       self._reset_blockable(blockable_id)
@@ -211,16 +210,16 @@ class BlockableHandler(handler_utils.UserFacingHandler):
       self._insert_blockable(blockable_id, datetime.datetime.utcnow())
 
   @ndb.transactional(xg=True)  # xg because respond_json() touches User.
-  @handler_utils.RequireCapability(constants.PERMISSIONS.INSERT_BLOCKABLES)
+  @handler_utils.RequirePermission(constants.PERMISSIONS.INSERT_BLOCKABLES)
   def _insert_blockable(self, blockable_id, timestamp):
 
     blockable_type = self.request.get('type')
 
     model_class_map = {
         constants.BLOCKABLE_TYPE.SANTA_BINARY:
-            santa_models.SantaBlockable,
+            binary_models.SantaBlockable,
         constants.BLOCKABLE_TYPE.SANTA_CERTIFICATE:
-            santa_models.SantaCertificate}
+            cert_models.SantaCertificate}
     model_class = model_class_map.get(blockable_type, None)
 
     if not model_class:
@@ -259,7 +258,7 @@ class BlockableHandler(handler_utils.UserFacingHandler):
       blockable.put()
       self.respond_json(blockable)
 
-  @handler_utils.RequireCapability(constants.PERMISSIONS.RESET_BLOCKABLE_STATE)
+  @handler_utils.RequirePermission(constants.PERMISSIONS.RESET_BLOCKABLE_STATE)
   def _reset_blockable(self, blockable_id):
     logging.info('Blockable reset: %s', blockable_id)
     try:
@@ -273,7 +272,7 @@ class BlockableHandler(handler_utils.UserFacingHandler):
     except Exception as e:  # pylint: disable=broad-except
       self.abort(httplib.INTERNAL_SERVER_ERROR, explanation=e.message)
     else:
-      blockable = base_models.Blockable.get_by_id(blockable_id)
+      blockable = binary_models.Blockable.get_by_id(blockable_id)
       self.respond_json(blockable)
 
 
@@ -281,7 +280,7 @@ class PackageContentsHandler(handler_utils.UserFacingHandler):
   """Handler for providing content metadata associated with a package."""
 
   def get(self, package_id):
-    blockable = base_models.Blockable.get_by_id(package_id)
+    blockable = binary_models.Blockable.get_by_id(package_id)
     if not blockable:
       self.abort(httplib.NOT_FOUND, explanation='Package not found.')
     elif not isinstance(blockable, package_models.Package):
@@ -309,7 +308,7 @@ class PendingStateChangeHandler(handler_utils.UserFacingHandler):
 
   def get(self, blockable_id):
     blockable_id = blockable_id.lower()
-    blockable = base_models.Blockable.get_by_id(blockable_id)
+    blockable = binary_models.Blockable.get_by_id(blockable_id)
     if not blockable:
       self.abort(httplib.NOT_FOUND, explanation='Blockable not found.')
 
@@ -341,7 +340,7 @@ class PendingInstallerStateChangeHandler(handler_utils.UserFacingHandler):
 
   def get(self, blockable_id):
     blockable_id = blockable_id.lower()
-    blockable = base_models.Blockable.get_by_id(blockable_id)
+    blockable = binary_models.Blockable.get_by_id(blockable_id)
     if not blockable:
       self.abort(httplib.NOT_FOUND, explanation='Blockable not found.')
 
@@ -368,7 +367,7 @@ class SetInstallerStateHandler(handler_utils.UserFacingHandler):
 
   @ndb.transactional
   def _SetInstallerPolicy(self, blockable_id, new_policy):
-    blockable = base_models.Blockable.get_by_id(blockable_id)
+    blockable = binary_models.Blockable.get_by_id(blockable_id)
 
     # pylint: disable=g-explicit-bool-comparison, singleton-comparison
     installer_rule_query = rule_models.Bit9Rule.query(
@@ -422,12 +421,12 @@ class SetInstallerStateHandler(handler_utils.UserFacingHandler):
 
   def post(self, blockable_id):
     blockable_id = blockable_id.lower()
-    blockable = base_models.Blockable.get_by_id(blockable_id)
+    blockable = binary_models.Blockable.get_by_id(blockable_id)
     if not blockable:
       self.abort(httplib.NOT_FOUND, explanation='Blockable not found.')
     elif blockable.GetPlatformName() != constants.PLATFORM.WINDOWS:
       self.abort(httplib.BAD_REQUEST, explanation='Must be a Bit9 blockable')
-    elif not isinstance(blockable, base_models.Binary):
+    elif not isinstance(blockable, binary_models.Binary):
       self.abort(httplib.BAD_REQUEST, explanation='Must be a Binary')
 
     force_installer = self.request.get('value', None)

@@ -23,11 +23,11 @@ from webapp2_extras import routes
 from google.appengine.ext import ndb
 
 from upvote.gae.datastore import utils as datastore_utils
-from upvote.gae.datastore.models import base as base_models
+from upvote.gae.datastore.models import binary as binary_models
+from upvote.gae.datastore.models import cert as cert_models
 from upvote.gae.datastore.models import event as event_models
 from upvote.gae.datastore.models import host as host_models
 from upvote.gae.datastore.models import package as package_models
-from upvote.gae.datastore.models import santa as santa_models
 from upvote.gae.datastore.models import user as user_models
 from upvote.gae.datastore.models import vote as vote_models
 from upvote.gae.modules.upvote_app.api.web import monitoring
@@ -82,7 +82,7 @@ def _GetEventContext(events):
       cert_future = event.cert_key.get_async()
     elif isinstance(event, event_models.SantaEvent) and event.cert_sha256:
       cert_future = ndb.Key(
-          santa_models.SantaCertificate, event.cert_sha256).get_async()
+          cert_models.SantaCertificate, event.cert_sha256).get_async()
     else:
       cert_future = datastore_utils.GetNoOpFuture()
     cert_futures.append(cert_future)
@@ -142,7 +142,7 @@ class EventQueryHandler(handler_utils.UserFacingQueryHandler):
     # Determine scope of query and enforce ACL if queried as admin.
     if self.request.get('asAdmin').lower() == 'true':
       logging.info('Getting all events as Admin.')
-      self.RequireCapability(constants.PERMISSIONS.VIEW_OTHER_EVENTS)
+      self.RequirePermission(constants.PERMISSIONS.VIEW_OTHER_EVENTS)
       ancestor = None
     else:
       logging.info('Getting events for user: %s', self.user.nickname)
@@ -183,7 +183,7 @@ class EventHandler(handler_utils.UserFacingHandler):
         with_context = (self.request.get('withContext').lower() == 'true')
         response_data = _GetEventContext([event])[0] if with_context else event
         if event.executing_user != self.user.nickname:
-          self.RequireCapability(constants.PERMISSIONS.VIEW_OTHER_EVENTS)
+          self.RequirePermission(constants.PERMISSIONS.VIEW_OTHER_EVENTS)
         self.respond_json(response_data)
       else:
         self.abort(httplib.NOT_FOUND, explanation='Event not found')
@@ -193,13 +193,13 @@ class RecentEventHandler(handler_utils.UserFacingHandler):
   """Handler for getting the most recent Event for a blockable, for a user."""
 
   def get(self, blockable_id):  # pylint: disable=g-bad-name
-    blockable = base_models.Blockable.get_by_id(blockable_id)
+    blockable = binary_models.Blockable.get_by_id(blockable_id)
     if not blockable:
       self.abort(httplib.NOT_FOUND, explanation='Blockable not found')
 
     username = self.request.get('asUser')
     if username:
-      self.RequireCapability(constants.PERMISSIONS.VIEW_OTHER_EVENTS)
+      self.RequirePermission(constants.PERMISSIONS.VIEW_OTHER_EVENTS)
       user = user_models.User.GetById(
           user_utils.UsernameToEmail(username))
     else:

@@ -22,11 +22,11 @@ from google.appengine.ext import ndb
 from upvote.gae import settings
 from upvote.gae.bigquery import tables
 from upvote.gae.datastore import utils as datastore_utils
-from upvote.gae.datastore.models import base
+from upvote.gae.datastore.models import binary as binary_models
+from upvote.gae.datastore.models import cert as cert_models
 from upvote.gae.datastore.models import host as host_models
 from upvote.gae.datastore.models import package as package_models
 from upvote.gae.datastore.models import rule as rule_models
-from upvote.gae.datastore.models import santa as santa_models
 from upvote.gae.datastore.models import user as user_models
 from upvote.gae.datastore.models import vote as vote_models
 from upvote.gae.lib.analysis import metrics
@@ -60,7 +60,7 @@ class OperationNotAllowedError(Error):
 
 
 def _GetBlockable(sha256):
-  blockable = base.Blockable.get_by_id(sha256)
+  blockable = binary_models.Blockable.get_by_id(sha256)
   if blockable is None:
     raise BlockableNotFoundError('SHA256: %s' % sha256)
   return blockable
@@ -112,7 +112,7 @@ def _CheckBlockableFlagStatus(blockable):
     for vote in all_votes:
       if vote.was_yes_vote:
         user = user_models.User.GetById(vote.user_email)
-        if user.HasPermissionTo(constants.PERMISSIONS.UNFLAG):
+        if user.HasPermission(constants.PERMISSIONS.UNFLAG):
           break
       else:
         logging.info(
@@ -168,7 +168,7 @@ def _GetVotingProhibitedReason(blockable_key, current_user=None):
 
   # If the user can't vote, just stop right here.
   current_user = current_user or user_models.User.GetOrInsert()
-  if not current_user.HasPermissionTo(constants.PERMISSIONS.VOTE):
+  if not current_user.HasPermission(constants.PERMISSIONS.VOTE):
     return constants.VOTING_PROHIBITED_REASONS.INSUFFICIENT_PERMISSION
 
   # Checks that are specific to SantaBundles.
@@ -188,12 +188,12 @@ def _GetVotingProhibitedReason(blockable_key, current_user=None):
         return constants.VOTING_PROHIBITED_REASONS.FLAGGED_CERT
 
   # Checks that are specific to SantaBlockables.
-  elif isinstance(blockable, santa_models.SantaBlockable):
+  elif isinstance(blockable, binary_models.SantaBlockable):
 
     # Voting is not allowed if the binary is signed by a blacklisted cert if the
     # user is not an admin.
     if not current_user.is_admin and blockable.cert_id:
-      cert = santa_models.SantaCertificate.get_by_id(blockable.cert_id)
+      cert = cert_models.SantaCertificate.get_by_id(blockable.cert_id)
       # pylint: disable=g-explicit-bool-comparison, singleton-comparison
       cert_rules = rule_models.Rule.query(
           rule_models.Rule.in_effect == True,
@@ -215,7 +215,7 @@ def _GetVotingProhibitedReason(blockable_key, current_user=None):
       return constants.VOTING_PROHIBITED_REASONS.ADMIN_ONLY
 
   # Only admins can vote on certs.
-  if (isinstance(blockable, base.Certificate)
+  if (isinstance(blockable, cert_models.Certificate)
       and not current_user.is_admin):
     return constants.VOTING_PROHIBITED_REASONS.ADMIN_ONLY
 
@@ -528,7 +528,7 @@ class BallotBox(object):
     if self.new_vote.was_yes_vote:
       # Unflag the blockable on a privileged upvote.
       if self.blockable.flagged:
-        if self.user.HasPermissionTo(constants.PERMISSIONS.UNFLAG):
+        if self.user.HasPermission(constants.PERMISSIONS.UNFLAG):
           self.blockable.flagged = False
         else:
           # Double-checks that there's an extant downvote.
@@ -536,13 +536,13 @@ class BallotBox(object):
       # If the blockable is marked SUSPECT, only permit state change if the user
       # is authorized to do so.
       if (self.blockable.state != constants.STATE.SUSPECT or
-          self.user.HasPermissionTo(constants.PERMISSIONS.MARK_MALWARE)):
+          self.user.HasPermission(constants.PERMISSIONS.MARK_MALWARE)):
         self._CheckAndSetBlockableState(new_score)
     else:
       self.blockable.flagged = True
       self._CheckAndSetBlockableState(new_score)
       # A downvote from an authorized user marks a blockable as SUSPECT.
-      if (self.user.HasPermissionTo(constants.PERMISSIONS.MARK_MALWARE) and
+      if (self.user.HasPermission(constants.PERMISSIONS.MARK_MALWARE) and
           self.blockable.state not in constants.STATE.SET_BANNED):
         self.blockable.ChangeState(constants.STATE.SUSPECT)
 
@@ -567,7 +567,7 @@ class BallotBox(object):
     """Checks votes, state, and rules for the target blockable."""
     logging.info('Recount for blockable: %s', self.blockable_id)
 
-    self.blockable = base.Blockable.get_by_id(self.blockable_id)
+    self.blockable = binary_models.Blockable.get_by_id(self.blockable_id)
 
     # Then check to see if the blockable should be flagged and if it is.
     change_made = _CheckBlockableFlagStatus(self.blockable)
@@ -601,7 +601,7 @@ class BallotBox(object):
     """
     logging.info('Resetting blockable: %s', self.blockable_id)
 
-    self.blockable = base.Blockable.get_by_id(self.blockable_id)
+    self.blockable = binary_models.Blockable.get_by_id(self.blockable_id)
 
     votes = self.blockable.GetVotes()
 
@@ -834,7 +834,7 @@ class BallotBox(object):
           self.blockable.GetVotes(), key=lambda vote: vote.recorded_dt))
       for vote in sorted_votes:
         user = user_models.User.GetById(vote.user_email)
-        if user.HasPermissionTo(constants.PERMISSIONS.MARK_MALWARE):
+        if user.HasPermission(constants.PERMISSIONS.MARK_MALWARE):
           if vote.was_yes_vote:
             logging.info(
                 'Blockable %s was suspect, but should not be because there was '
@@ -961,7 +961,7 @@ class SantaBallotBox(BallotBox):
 
   @ndb.transactional
   def Reset(self):
-    self.blockable = base.Blockable.get_by_id(self.blockable_id)
+    self.blockable = binary_models.Blockable.get_by_id(self.blockable_id)
     if isinstance(self.blockable, package_models.SantaBundle):
       raise OperationNotAllowedError('Resetting not supported for Bundles')
 

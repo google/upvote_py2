@@ -16,10 +16,9 @@
 
 from upvote.gae import settings
 from upvote.gae.datastore import test_utils
-from upvote.gae.datastore.models import bit9
+from upvote.gae.datastore.models import binary as binary_models
 from upvote.gae.datastore.models import event as event_models
 from upvote.gae.datastore.models import host as host_models
-from upvote.gae.datastore.models import santa
 from upvote.gae.datastore.models import user
 from upvote.gae.lib.testing import basetest
 
@@ -31,8 +30,8 @@ class CreateTestEntitiesTest(basetest.UpvoteTestCase):
     self.Patch(test_utils.env_utils, 'RunningLocally', return_value=False)
 
     model_classes = [
-        user.User, host_models.SantaHost, santa.SantaBlockable,
-        event_models.SantaEvent, host_models.Bit9Host, bit9.Bit9Binary,
+        user.User, host_models.SantaHost, binary_models.SantaBlockable,
+        event_models.SantaEvent, host_models.Bit9Host, binary_models.Bit9Binary,
         event_models.Bit9Event]
 
     for model_class in model_classes:
@@ -50,8 +49,8 @@ class CreateTestEntitiesTest(basetest.UpvoteTestCase):
     self.PatchEnv(settings.ProdEnv, ENABLE_BIGQUERY_STREAMING=False)
 
     model_classes = [
-        user.User, host_models.SantaHost, santa.SantaBlockable,
-        event_models.SantaEvent, host_models.Bit9Host, bit9.Bit9Binary,
+        user.User, host_models.SantaHost, binary_models.SantaBlockable,
+        event_models.SantaEvent, host_models.Bit9Host, binary_models.Bit9Binary,
         event_models.Bit9Event]
 
     for model_class in model_classes:

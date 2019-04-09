@@ -176,16 +176,6 @@ class UserTest(basetest.UpvoteTestCase):
     with self.assertRaises(user_models.UnknownUserError):
       user_models.User.GetOrInsert()
 
-  def testPrePutHook(self):
-    user = user_models.User.GetOrInsert(email_addr=_TEST_EMAIL)
-    user.roles = [USER] * 100
-    self.assertLen(user.roles, 100)
-    user.put()
-    self.assertLen(user.roles, 1)
-    self.assertEquals([USER], user.roles)
-
-    self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.USER)
-
   @mock.patch.object(user_models.mail_utils, 'Send')
   def testSetRoles_RemoveAll(self, mock_send):
     with self.LoggedInUser() as user:
@@ -347,6 +337,16 @@ class UserTest(basetest.UpvoteTestCase):
   def testPermissions_User(self):
     user = test_utils.CreateUser()
     self.assertSetEqual(constants.PERMISSIONS.SET_USER, user.permissions)
+
+  def testHasPermission(self):
+    user = test_utils.CreateUser()
+    self.assertTrue(user.HasPermission(constants.PERMISSIONS.VOTE))
+    self.assertFalse(user.HasPermission(constants.PERMISSIONS.EDIT_ALERTS))
+
+  def testLacksPermission(self):
+    user = test_utils.CreateUser()
+    self.assertFalse(user.LacksPermission(constants.PERMISSIONS.VOTE))
+    self.assertTrue(user.LacksPermission(constants.PERMISSIONS.EDIT_ALERTS))
 
 
 if __name__ == '__main__':

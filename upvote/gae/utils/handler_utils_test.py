@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Unit tests for handlers.py."""
+"""Unit tests for handler_utils.py."""
 
 import httplib
 
@@ -184,9 +184,9 @@ class CronJobHandlerTest(basetest.UpvoteTestCase):
 
 class FakeUserFacingHandler(handler_utils.UserFacingHandler):
 
-  @handler_utils.RequireCapability(constants.PERMISSIONS.CHANGE_SETTINGS)
+  @handler_utils.RequirePermission(constants.PERMISSIONS.CHANGE_SETTINGS)
   def get(self):
-    """Simple function to test RequireCapability decorator."""
+    """Simple function to test RequirePermission decorator."""
     self.response.write('Content.')
 
 
@@ -197,7 +197,7 @@ class UserFacingHandlerTest(basetest.UpvoteTestCase):
     super(UserFacingHandlerTest, self).setUp(wsgi_app=app)
     self.PatchValidateXSRFToken()
 
-  @handler_utils.RequireCapability(constants.PERMISSIONS.CHANGE_SETTINGS)
+  @handler_utils.RequirePermission(constants.PERMISSIONS.CHANGE_SETTINGS)
   def BadObject(self):
     """Test function to test non-handler call to decorator."""
     return 'This should not run.'

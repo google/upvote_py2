@@ -22,7 +22,7 @@ from webapp2_extras import routes
 from google.appengine.ext import ndb
 
 from upvote.gae.datastore import utils as datastore_utils
-from upvote.gae.datastore.models import base as base_models
+from upvote.gae.datastore.models import binary as binary_models
 from upvote.gae.datastore.models import rule as rule_models
 from upvote.gae.modules.upvote_app.api.web import monitoring
 from upvote.gae.utils import handler_utils
@@ -38,7 +38,7 @@ class RuleQueryHandler(handler_utils.UserFacingQueryHandler):
   def RequestCounter(self):
     return monitoring.rule_requests
 
-  @handler_utils.RequireCapability(constants.PERMISSIONS.VIEW_RULES)
+  @handler_utils.RequirePermission(constants.PERMISSIONS.VIEW_RULES)
   @handler_utils.RecordRequest
   def get(self):
     self._Query()
@@ -47,7 +47,7 @@ class RuleQueryHandler(handler_utils.UserFacingQueryHandler):
     target_id = search_dict.pop('targetId', None)
 
     ancestor_key = (
-        ndb.Key(base_models.Blockable, target_id) if target_id else None)
+        ndb.Key(binary_models.Blockable, target_id) if target_id else None)
     return super(RuleQueryHandler, self)._QueryModel(
         search_dict, ancestor=ancestor_key)
 
@@ -61,7 +61,7 @@ class SantaRuleQueryHandler(RuleQueryHandler):
 class RuleHandler(handler_utils.UserFacingHandler):
   """Handler for interacting with individual rules."""
 
-  @handler_utils.RequireCapability(constants.PERMISSIONS.VIEW_RULES)
+  @handler_utils.RequirePermission(constants.PERMISSIONS.VIEW_RULES)
   def get(self, rule_key):
     logging.info('Rule handler get method called with key: %s', rule_key)
     key = datastore_utils.GetKeyFromUrlsafe(rule_key)

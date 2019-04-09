@@ -47,7 +47,7 @@ class AdminIndexHandler(IndexHandler):
 
   TEMPLATE_NAME = 'admin-index.html'
 
-  @handler_utils.RequireCapability(constants.PERMISSIONS.VIEW_ADMIN_CONSOLE)
+  @handler_utils.RequirePermission(constants.PERMISSIONS.VIEW_ADMIN_CONSOLE)
   def get(self, *args, **kwargs):
     return self._Get()
 

@@ -20,9 +20,9 @@ import logging
 import webapp2
 from webapp2_extras import routes
 
-from upvote.gae.datastore.models import base as base_models
+from upvote.gae.datastore.models import binary as binary_models
+from upvote.gae.datastore.models import cert as cert_models
 from upvote.gae.datastore.models import package as package_models
-from upvote.gae.datastore.models import santa as santa_models
 from upvote.gae.lib.analysis import api as analysis_api
 from upvote.gae.lib.analysis.virustotal import constants as vt_constants
 from upvote.gae.modules.upvote_app.api.web import monitoring
@@ -38,7 +38,7 @@ class Lookup(handler_utils.UserFacingHandler):
 
   @handler_utils.RecordRequest
   def check_virus_total(self, blockable_id):
-    blockable = base_models.Blockable.get_by_id(blockable_id)
+    blockable = binary_models.Blockable.get_by_id(blockable_id)
     if not blockable:
       self.abort(httplib.NOT_FOUND, explanation='Blockable not found')
 

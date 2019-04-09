@@ -30,8 +30,8 @@ from common import datastore_locks
 
 from upvote.gae.bigquery import tables
 from upvote.gae.datastore import utils as datastore_utils
-from upvote.gae.datastore.models import base
-from upvote.gae.datastore.models import bit9
+from upvote.gae.datastore.models import binary as binary_models
+from upvote.gae.datastore.models import cert as cert_models
 from upvote.gae.datastore.models import event as event_models
 from upvote.gae.datastore.models import host as host_models
 from upvote.gae.datastore.models import note as note_models
@@ -432,9 +432,9 @@ def _PersistBit9Certificates(signing_chain):
   to_create = []
   for cert in signing_chain:
     thumbprint = cert.thumbprint
-    existing_cert = bit9.Bit9Certificate.get_by_id(thumbprint)
+    existing_cert = cert_models.Bit9Certificate.get_by_id(thumbprint)
     if existing_cert is None:
-      cert = bit9.Bit9Certificate(
+      cert = cert_models.Bit9Certificate(
           id=thumbprint,
           id_type=cert.thumbprint_algorithm,
           valid_from_dt=cert.valid_from,
@@ -452,8 +452,8 @@ def _PersistBit9Certificates(signing_chain):
 
 
 def _GetCertKey(signing_chain):
-  fingerprint = signing_chain[0].thumbprint if signing_chain else None
-  return ndb.Key(bit9.Bit9Certificate, fingerprint) if fingerprint else None
+  fprint = signing_chain[0].thumbprint if signing_chain else None
+  return ndb.Key(cert_models.Bit9Certificate, fprint) if fprint else None
 
 
 @ndb.tasklet
@@ -530,7 +530,8 @@ def _PersistBit9Binary(event, file_catalog, signing_chain, now):
   changed = False
 
   # Grab the corresponding Bit9Binary.
-  bit9_binary = yield bit9.Bit9Binary.get_by_id_async(file_catalog.sha256)
+  bit9_binary = yield binary_models.Bit9Binary.get_by_id_async(
+      file_catalog.sha256)
 
   detected_installer = bool(
       file_catalog.file_flags &
@@ -542,7 +543,7 @@ def _PersistBit9Binary(event, file_catalog, signing_chain, now):
   if bit9_binary is None:
     logging.info('Creating new Bit9Binary')
 
-    bit9_binary = bit9.Bit9Binary(
+    bit9_binary = binary_models.Bit9Binary(
         id=file_catalog.sha256,
         id_type=bit9_constants.SHA256_TYPE.MAP_TO_ID_TYPE[
             file_catalog.sha256_hash_type],
@@ -644,7 +645,7 @@ def _PersistBanNote(file_catalog):
   if ban_strings:
     full_message = '\n'.join(ban_strings)
 
-    blockable_key = ndb.Key(bit9.Bit9Binary, file_catalog.sha256)
+    blockable_key = ndb.Key(binary_models.Bit9Binary, file_catalog.sha256)
     note_key = note_models.Note.GenerateKey(full_message, blockable_key)
 
     if note_key.get() is None:
@@ -880,6 +881,13 @@ def _CheckAndResolveAnomalousBlock(blockable_key, host_id):
     # commit it.
     unfulfilled_rules[-1].is_committed = False
 
+    # Revise the Rule creation time to now. This will ensure that this
+    # unfulfilled Rule will once again get picked up by the 'fast' and 'slow'
+    # retry crons below. This should help fulfill such Rules in a *slightly*
+    # more timely manner, in cases where an unfulfilled Rule ages out of the
+    # week-long retry period, but is later executed by the corresponding user.
+    unfulfilled_rules[-1].recorded_dt = datetime.datetime.utcnow()
+
     # Create and trigger a change set to commit the most recent rule.
     change = rule_models.RuleChangeSet(
         rule_keys=[unfulfilled_rules[-1].key],
@@ -907,7 +915,7 @@ def _PersistBit9Events(event, file_catalog, computer, signing_chain):
   logging.info('Creating new Bit9Event')
 
   host_id = str(computer.id)
-  blockable_key = ndb.Key(bit9.Bit9Binary, file_catalog.sha256)
+  blockable_key = ndb.Key(binary_models.Bit9Binary, file_catalog.sha256)
   host_users = list(bit9_utils.ExtractHostUsers(computer.users))
   occurred_dt = event.timestamp
 

@@ -18,8 +18,7 @@ from google.appengine.ext import deferred
 from google.appengine.ext import ndb
 
 from upvote.gae import settings
-from upvote.gae.datastore.models import base as base_models
-from upvote.gae.datastore.models import bit9 as bit9_models
+from upvote.gae.datastore.models import binary as binary_models
 from upvote.gae.datastore.models import metrics as metrics_db
 from upvote.gae.datastore.models import package as package_models
 from upvote.gae.lib.analysis import api as analysis_api
@@ -54,11 +53,11 @@ def CollectLookup(blockable_id, reason):
   Raises:
     ValueError: There is no Blockable associated with the provided blockable_id.
   """
-  blockable = base_models.Blockable.get_by_id(blockable_id)
+  blockable = binary_models.Blockable.get_by_id(blockable_id)
   if blockable is None:
     raise ValueError('Unknown Blockable: %s' % blockable_id)
 
-  if isinstance(blockable, base_models.Binary):
+  if isinstance(blockable, binary_models.Binary):
     _CollectVirusTotalLookup(blockable_id, reason)
 
 
@@ -72,7 +71,7 @@ def _CollectVirusTotalLookup(blockable_id, reason):
 
   positives = results.get('positives', -1)
 
-  blockable = base_models.Blockable.get_by_id(blockable_id)
+  blockable = binary_models.Blockable.get_by_id(blockable_id)
 
   metric = metrics_db.VirusTotalAnalysisMetric(
       blockable_id=blockable_id,

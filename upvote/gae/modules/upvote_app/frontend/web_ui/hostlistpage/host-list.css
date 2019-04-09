@@ -1,3 +1,4 @@
+
 #status-annotation {
   margin-left: 5px;
 }
@@ -25,7 +26,7 @@
 }
 
 .host-card md-card-header {
-  background: #4285F4;  /* blue-500 */
+  background: var(--mat-blue-500);
   color: white;
 }
 
@@ -38,17 +39,17 @@
 }
 
 .host-card md-card-content span.full-protection {
-  color: #34A853;  /* green-500 */
+  color: var(--mat-green-500);
   font-weight: bold;
 }
 
 .host-card md-card-content span.developer-mode {
-  color: #FBBC04;  /* yellow-500 */
+  color: var(--mat-yellow-500);
   font-weight: bold;
 }
 
 .host-card md-card-content span.minimal-protection {
-  color: #EA4335;  /* red-500 */
+  color: var(--mat-red-500);
   font-weight: bold;
 }
 
@@ -57,16 +58,16 @@
 }
 
 .host-card md-card-actions .md-button.full-protection {
-  background: #34A853;  /* green-500 */
+  background: var(--mat-green-500);
   color: white;
 }
 
 .host-card md-card-actions .md-button.developer-mode {
-  background: #FBBC04;  /* yellow-500 */
+  background: var(--mat-yellow-500);
   color: white;
 }
 
 .host-card md-card-actions .md-button.minimal-protection {
-  background: #EA4335;  /* red-500 */
+  background: var(--mat-red-500);
   color: white;
 }

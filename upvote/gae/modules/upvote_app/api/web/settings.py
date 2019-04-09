@@ -54,7 +54,7 @@ class ApiKeys(handler_utils.AdminOnlyHandler):
   """Set/update the value of an API key."""
 
   @xsrf_utils.RequireToken
-  @handler_utils.RequireCapability(constants.PERMISSIONS.CHANGE_SETTINGS)
+  @handler_utils.RequirePermission(constants.PERMISSIONS.CHANGE_SETTINGS)
   def post(self, key_name):  # pylint: disable=g-bad-name
     """Post handler for a single API key."""
 

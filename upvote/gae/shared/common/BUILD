@@ -38,7 +38,6 @@ upvote_appengine_test(
     srcs = ["big_red_test.py"],
     deps = [
         ":big_red",
-        "//upvote/gae/datastore/models:santa",
         "//upvote/gae/lib/testing:basetest",
         "//upvote/shared:constants",
     ],

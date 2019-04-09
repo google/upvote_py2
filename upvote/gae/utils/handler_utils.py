@@ -57,24 +57,24 @@ def _HtmlEscape(s):
   return cgi.escape(s, quote=True).replace("'", '&#39;')
 
 
-def RequireCapability(capability):
+def RequirePermission(permission):
   """Decorator function to enforce access requirements for handlers."""
-  def _CheckCapability(original_function):
+  def _CheckPermission(original_function):
     """Check function."""
     def _Check(*args, **kwargs):
       """Check user permissions and return error or original function."""
       self = args[0]
       if isinstance(self, UserFacingHandler):
-        if self.user.is_admin or self.user.HasPermissionTo(capability):
+        if self.user.is_admin or self.user.HasPermission(permission):
           return original_function(*args, **kwargs)
         else:
           explanation = 'User %s doesn\'t have permission to %s' % (
-              self.user.nickname, capability)
+              self.user.nickname, permission)
           self.abort(httplib.FORBIDDEN, explanation=explanation)
       else:
         raise ValueError
     return _Check
-  return _CheckCapability
+  return _CheckPermission
 
 
 def RecordRequest(original_function):
@@ -243,12 +243,12 @@ class UserFacingHandler(UpvoteRequestHandler):
           'Cannot make %s into integer', self.request.get('perPage'))
     return fetch_limit
 
-  def RequireCapability(self, capability):
-    """Check whether user has a given capability."""
-    if not self.user.is_admin and not self.user.HasPermissionTo(capability):
+  def RequirePermission(self, permission):
+    """Check whether user has a given permission."""
+    if not self.user.is_admin and not self.user.HasPermission(permission):
       self.abort(
           httplib.FORBIDDEN,
-          explanation='User doesn\'t have permission to %s' % capability)
+          explanation='User doesn\'t have permission to %s' % permission)
 
   def respond_with_page(self, content, cursor, has_more):
     """Sets the handler response to the page contents provided.
@@ -524,15 +524,13 @@ def CreateErrorHandler(http_status):
   return ErrorHandler
 
 
-def CreateErrorHandlersForApplications(
-    wsgi_apps, error_codes=None):
+def ConfigureErrorHandlers(wsgi_app, error_codes=None):
   """Helper method for creating error handlers for the given HTTP statuses.
 
   Args:
-    wsgi_apps: A list of webapp2.WSGIApplication instances.
+    wsgi_app: A webapp2.WSGIApplication instance.
     error_codes: A list of HTTP status integers to create error handlers for.
   """
   error_codes = _COMMON_ERROR_CODES if error_codes is None else error_codes
-  for wsgi_app in wsgi_apps:
-    for error_code in error_codes:
-      wsgi_app.error_handlers[error_code] = CreateErrorHandler(error_code)
+  for error_code in error_codes:
+    wsgi_app.error_handlers[error_code] = CreateErrorHandler(error_code)

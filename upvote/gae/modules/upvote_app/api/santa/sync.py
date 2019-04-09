@@ -30,11 +30,12 @@ from google.appengine.ext import ndb
 from upvote.gae import settings
 from upvote.gae.bigquery import tables
 from upvote.gae.datastore import utils as datastore_utils
+from upvote.gae.datastore.models import binary as binary_models
+from upvote.gae.datastore.models import cert as cert_models
 from upvote.gae.datastore.models import event as event_models
 from upvote.gae.datastore.models import host as host_models
 from upvote.gae.datastore.models import package as package_models
 from upvote.gae.datastore.models import rule as rule_models
-from upvote.gae.datastore.models import santa as santa_models
 from upvote.gae.datastore.models import user as user_models
 from upvote.gae.datastore.models import utils as model_utils
 from upvote.gae.lib.analysis import metrics
@@ -398,8 +399,8 @@ class EventUploadHandler(SantaRequestHandler):
     publisher, cert_sha256 = (
         cls._GetPublisherAndCertFingerprintFromJsonEvent(json_event))
     cert_key = cert_sha256 and ndb.Key(
-        santa_models.SantaCertificate, cert_sha256)
-    return santa_models.SantaBlockable(
+        cert_models.SantaCertificate, cert_sha256)
+    return binary_models.SantaBlockable(
         id=json_event.get(_EVENT_UPLOAD.FILE_SHA256),
         blockable_hash=json_event.get(_EVENT_UPLOAD.FILE_SHA256),
         id_type=constants.ID_TYPE.SHA256,
@@ -423,7 +424,7 @@ class EventUploadHandler(SantaRequestHandler):
     signing_chain = event.get(_EVENT_UPLOAD.SIGNING_CHAIN, [])
     certs = []
     for cert in signing_chain:
-      cert_entity = santa_models.SantaCertificate(
+      cert_entity = cert_models.SantaCertificate(
           id=cert.get(_EVENT_UPLOAD.SHA256),
           id_type=constants.ID_TYPE.SHA256,
           common_name=cert.get(_EVENT_UPLOAD.CN),
@@ -483,13 +484,14 @@ class EventUploadHandler(SantaRequestHandler):
 
     blockable_id = event.get(_EVENT_UPLOAD.FILE_SHA256)
     if blockable_id:
-      dbevent.blockable_key = ndb.Key(santa_models.SantaBlockable, blockable_id)
+      dbevent.blockable_key = ndb.Key(
+          binary_models.SantaBlockable, blockable_id)
 
     publisher, cert_sha256 = (
         cls._GetPublisherAndCertFingerprintFromJsonEvent(event))
     dbevent.publisher = publisher
     if cert_sha256:
-      dbevent.cert_key = ndb.Key(santa_models.SantaCertificate, cert_sha256)
+      dbevent.cert_key = ndb.Key(cert_models.SantaCertificate, cert_sha256)
 
     occurred_dt = datetime.datetime.utcfromtimestamp(
         event.get(_EVENT_UPLOAD.EXECUTION_TIME, 0))
@@ -616,7 +618,7 @@ class EventUploadHandler(SantaRequestHandler):
     """
     # pylint: enable=g-doc-return-or-yield
     blockable_id = json_event.get(_EVENT_UPLOAD.FILE_SHA256)
-    blockable_key = ndb.Key(santa_models.SantaBlockable, blockable_id)
+    blockable_key = ndb.Key(binary_models.SantaBlockable, blockable_id)
     blockable = yield blockable_key.get_async()
     if not blockable:
       blockable = cls._GenerateBinaryFromJsonEvent(json_event)

@@ -107,7 +107,7 @@ class GetExemptionHandler(ExemptionHandler):
 class RequestExemptionHandler(ExemptionHandler):
   """Handler for requesting host exemptions."""
 
-  @handler_utils.RequireCapability(constants.PERMISSIONS.REQUEST_EXEMPTION)
+  @handler_utils.RequirePermission(constants.PERMISSIONS.REQUEST_EXEMPTION)
   @xsrf_utils.RequireToken
   def post(self, host_id):
 
@@ -195,7 +195,7 @@ class EscalateExemptionHandler(ExemptionHandler):
 class ApproveExemptionHandler(ExemptionHandler):
   """Handler for allowing an admin to approve an escalated exemption."""
 
-  @handler_utils.RequireCapability(constants.PERMISSIONS.MANAGE_EXEMPTIONS)
+  @handler_utils.RequirePermission(constants.PERMISSIONS.MANAGE_EXEMPTIONS)
   def post(self, host_id):
 
     if not self.exm:
@@ -229,7 +229,7 @@ class ApproveExemptionHandler(ExemptionHandler):
 class DenyExemptionHandler(ExemptionHandler):
   """Handler for allowing an admin to deny an escalated exemption."""
 
-  @handler_utils.RequireCapability(constants.PERMISSIONS.MANAGE_EXEMPTIONS)
+  @handler_utils.RequirePermission(constants.PERMISSIONS.MANAGE_EXEMPTIONS)
   def post(self, host_id):
 
     if not self.exm:
@@ -261,7 +261,7 @@ class DenyExemptionHandler(ExemptionHandler):
 class RevokeExemptionHandler(ExemptionHandler):
   """Handler for allowing an admin to revoke an approved exemption."""
 
-  @handler_utils.RequireCapability(constants.PERMISSIONS.MANAGE_EXEMPTIONS)
+  @handler_utils.RequirePermission(constants.PERMISSIONS.MANAGE_EXEMPTIONS)
   def post(self, host_id):
 
     if not self.exm:

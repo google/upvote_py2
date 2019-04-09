@@ -60,4 +60,4 @@ _ALL_ROUTES = [
 ]
 
 app = webapp2.WSGIApplication(routes=_ALL_ROUTES)
-handler_utils.CreateErrorHandlersForApplications([app])
+handler_utils.ConfigureErrorHandlers(app)
