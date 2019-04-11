@@ -32,18 +32,107 @@ from upvote.shared import constants
 from absl.testing import absltest
 
 
-class ChangeLocalStatesTest(basetest.UpvoteTestCase):
+class ChangeLocalStateTest(bit9test.Bit9TestCase):
 
-  @mock.patch.object(change_set, '_ChangeLocalState', return_value=True)
-  def testLatencyRecorded_Whitelist_Fulfilled_HasEvent(
-      self, mock_change_local_state):
+  def testNoFileInstances(self):
 
+    binary = test_utils.CreateBit9Binary(file_catalog_id='1111')
     user = test_utils.CreateUser()
-    binary = test_utils.CreateBit9Binary(file_catalog_id='1234')
+    local_rule = test_utils.CreateBit9Rule(
+        binary.key, host_id='2222', user_key=user.key,
+        policy=constants.RULE_POLICY.WHITELIST, is_fulfilled=False)
 
+    # Simulate getting no fileInstances from Bit9.
+    self.PatchApiRequests([])
+
+    change_set.ChangeLocalState(
+        binary, local_rule, bit9_constants.APPROVAL_STATE.APPROVED)
+
+    self.assertFalse(local_rule.key.get().is_fulfilled)
+    self.assertNoBigQueryInsertions()
+
+  def testNonWhitelist(self):
+
+    binary = test_utils.CreateBit9Binary(file_catalog_id='1111')
+    user = test_utils.CreateUser()
+    local_rule = test_utils.CreateBit9Rule(
+        binary.key, host_id='2222', user_key=user.key,
+        policy=constants.RULE_POLICY.FORCE_INSTALLER, is_fulfilled=False)
+
+    # Mock out the Bit9 API interactions.
+    file_instance = api.FileInstance(
+        id=3333,
+        file_catalog_id=1111,
+        computer_id=2222,
+        local_state=bit9_constants.APPROVAL_STATE.UNAPPROVED)
+    self.PatchApiRequests([file_instance], file_instance)
+
+    change_set.ChangeLocalState(
+        binary, local_rule, bit9_constants.APPROVAL_STATE.APPROVED)
+
+    # Verify the Bit9 API interactions.
+    self.mock_ctx.ExecuteRequest.assert_has_calls([
+        mock.call(
+            'GET', api_route='fileInstance',
+            query_args=[r'q=computerId:2222', 'q=fileCatalogId:1111']),
+        mock.call(
+            'POST', api_route='fileInstance',
+            data={'id': 3333,
+                  'localState': 2,
+                  'fileCatalogId': 1111,
+                  'computerId': 2222},
+            query_args=None)])
+
+    self.assertTrue(local_rule.key.get().is_fulfilled)
+    self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.RULE)
+
+  def testWhitelist_NoEvent(self):
+
+    binary = test_utils.CreateBit9Binary(file_catalog_id='1111')
+    user = test_utils.CreateUser()
+    local_rule = test_utils.CreateBit9Rule(
+        binary.key, host_id='2222', user_key=user.key,
+        policy=constants.RULE_POLICY.WHITELIST, is_fulfilled=False)
+
+    # Mock out the Bit9 API interactions.
+    file_instance = api.FileInstance(
+        id=3333,
+        file_catalog_id=1111,
+        computer_id=2222,
+        local_state=bit9_constants.APPROVAL_STATE.UNAPPROVED)
+    self.PatchApiRequests([file_instance], file_instance)
+
+    change_set.ChangeLocalState(
+        binary, local_rule, bit9_constants.APPROVAL_STATE.APPROVED)
+
+    # Verify the Bit9 API interactions.
+    self.mock_ctx.ExecuteRequest.assert_has_calls([
+        mock.call(
+            'GET', api_route='fileInstance',
+            query_args=[r'q=computerId:2222', 'q=fileCatalogId:1111']),
+        mock.call(
+            'POST', api_route='fileInstance',
+            data={'id': 3333,
+                  'localState': 2,
+                  'fileCatalogId': 1111,
+                  'computerId': 2222},
+            query_args=None)])
+
+    self.assertTrue(local_rule.key.get().is_fulfilled)
+    self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.RULE)
+
+  def testWhitelist_HasEvent(self):
+
+    binary = test_utils.CreateBit9Binary(file_catalog_id='1111')
+    user = test_utils.CreateUser()
+    local_rule = test_utils.CreateBit9Rule(
+        binary.key, host_id='2222', user_key=user.key,
+        policy=constants.RULE_POLICY.WHITELIST, is_fulfilled=False)
+
+    # Create a Bit9Event corresponding to the Bit9Rule.
     pairs = [
         ('User', user.email),
-        ('Host', '12345'),
+        ('Host', '2222'),
         ('Blockable', binary.key.id()),
         ('Event', '1')]
     event_key = ndb.Key(pairs=pairs)
@@ -51,58 +140,47 @@ class ChangeLocalStatesTest(basetest.UpvoteTestCase):
     test_utils.CreateBit9Event(
         binary, key=event_key, first_blocked_dt=first_blocked_dt)
 
-    local_rule = test_utils.CreateBit9Rule(
-        binary.key, host_id='12345', user_key=user.key,
-        policy=constants.RULE_POLICY.WHITELIST)
+    # Mock out the Bit9 API interactions.
+    file_instance = api.FileInstance(
+        id=3333,
+        file_catalog_id=1111,
+        computer_id=2222,
+        local_state=bit9_constants.APPROVAL_STATE.UNAPPROVED)
+    self.PatchApiRequests([file_instance], file_instance)
 
-    change_set._ChangeLocalStates(
-        binary, [local_rule], bit9_constants.APPROVAL_STATE.APPROVED)
+    change_set.ChangeLocalState(
+        binary, local_rule, bit9_constants.APPROVAL_STATE.APPROVED)
 
+    # Verify the Bit9 API interactions.
+    self.mock_ctx.ExecuteRequest.assert_has_calls([
+        mock.call(
+            'GET', api_route='fileInstance',
+            query_args=[r'q=computerId:2222', 'q=fileCatalogId:1111']),
+        mock.call(
+            'POST', api_route='fileInstance',
+            data={'id': 3333,
+                  'localState': 2,
+                  'fileCatalogId': 1111,
+                  'computerId': 2222},
+            query_args=None)])
+
+    self.assertTrue(local_rule.key.get().is_fulfilled)
     self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.RULE)
 
-  @mock.patch.object(change_set, '_ChangeLocalState', return_value=True)
-  def testLatencyRecorded_Whitelist_Fulfilled_NoEvent(
-      self, mock_change_local_state):
 
-    user = test_utils.CreateUser()
-    binary = test_utils.CreateBit9Binary(file_catalog_id='1234')
+class ChangeLocalStatesTest(basetest.UpvoteTestCase):
 
-    local_rule = test_utils.CreateBit9Rule(
-        binary.key, host_id='12345', user_key=user.key,
-        policy=constants.RULE_POLICY.WHITELIST)
+  @mock.patch.object(change_set, 'ChangeLocalState')
+  def testSuccess(self, mock_change_local_state):
 
-    change_set._ChangeLocalStates(
-        binary, [local_rule], bit9_constants.APPROVAL_STATE.APPROVED)
-
-    self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.RULE)
-
-  @mock.patch.object(change_set, '_ChangeLocalState', return_value=False)
-  def testLatencyRecorded_Whitelist_NotFulfilled(self, mock_change_local_state):
-
-    binary = test_utils.CreateBit9Binary(file_catalog_id='1234')
-    user = test_utils.CreateUser()
-    local_rule = test_utils.CreateBit9Rule(
-        binary.key, host_id='12345', user_key=user.key,
-        policy=constants.RULE_POLICY.WHITELIST)
+    binary = test_utils.CreateBit9Binary(file_catalog_id='1111')
+    rule_count = 11
+    local_rules = test_utils.CreateBit9Rules(binary.key, rule_count)
 
     change_set._ChangeLocalStates(
-        binary, [local_rule], bit9_constants.APPROVAL_STATE.APPROVED)
+        binary, local_rules, bit9_constants.APPROVAL_STATE.APPROVED)
 
-    self.assertNoBigQueryInsertions()
-
-  @mock.patch.object(change_set, '_ChangeLocalState', return_value=True)
-  def testLatencyRecorded_NonWhitelist(self, mock_change_local_state):
-
-    binary = test_utils.CreateBit9Binary(file_catalog_id='1234')
-    user = test_utils.CreateUser()
-    local_rule = test_utils.CreateBit9Rule(
-        binary.key, host_id='12345', user_key=user.key,
-        policy=constants.RULE_POLICY.FORCE_INSTALLER)
-
-    change_set._ChangeLocalStates(
-        binary, [local_rule], bit9_constants.APPROVAL_STATE.APPROVED)
-
-    self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.RULE)
+    self.assertEqual(rule_count, mock_change_local_state.call_count)
 
 
 class CommitBlockableChangeSetTest(bit9test.Bit9TestCase):

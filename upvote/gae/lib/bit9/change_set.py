@@ -36,61 +36,62 @@ _COMMIT_RETRIES = 3
 _ACTIVITY_WINDOW = datetime.timedelta(days=1)
 
 
-def _ChangeLocalState(new_state, file_catalog_id, host_id):
+def ChangeLocalState(blockable, local_rule, new_state):
   """Handles requests for changing local approval state."""
-  logging.info(
-      'Changing local state to %s for fileCatalog=%s, computer=%s', new_state,
-      file_catalog_id, host_id)
 
+  file_catalog_id = int(blockable.file_catalog_id)
+  host_id = int(local_rule.host_id)
+  new_state_str = bit9_constants.APPROVAL_STATE.MAP_TO_STR[new_state]
+
+  logging.info(
+      'Locally marking %s as %s on host %s', blockable.key.id(), new_state_str,
+      local_rule.host_id)
+
+  # Query Bit9 for all matching fileInstances on the given host.
   query = api.FileInstance.query()
   query = query.filter(api.FileInstance.computer_id == host_id)
   query = query.filter(api.FileInstance.file_catalog_id == file_catalog_id)
   file_instances = query.execute(bit9_utils.CONTEXT)
   logging.info('Retrieved %s matching fileInstance(s)', len(file_instances))
 
+  # If none are found, update the Rule and bail.
   if not file_instances:
     monitoring.file_instances_missing.Increment()
-    logging.info('Change could not be fulfilled')
-    return False
+    logging.info('Local rule could not be fulfilled')
+    local_rule.is_fulfilled = False
+    local_rule.put()
+    return
 
-  else:
-    for instance in file_instances:
-      logging.info('Attempting a state change on instance %s', instance.id)
+  # Make the desired state change on each fileInstance retrieved.
+  for instance in file_instances:
+    logging.info('Attempting state change on fileInstance %s', instance.id)
 
-      # NOTE: Even if the local_state is in the desired state, we
-      # should try to update it because the local_state value doesn't
-      # necessarily reflect the prescribed state. Changes are only visible on
-      # the fileInstance once the host has checked into Bit9.
-      instance.local_state = (
-          new_state or bit9_constants.APPROVAL_STATE.UNAPPROVED)
-      instance.put(bit9_utils.CONTEXT)
+    # NOTE: Even if the local_state is in the desired state, we
+    # should try to update it because the local_state value doesn't
+    # necessarily reflect the prescribed state. Changes are only visible on
+    # the fileInstance once the host has checked into Bit9.
+    instance.local_state = new_state
+    instance.put(bit9_utils.CONTEXT)
 
-    return True
+    # Update the Rule.is_fulfilled to reflect whether the local state change
+    # was successfully propagated to Bit9.
+    logging.info('Local rule was successfully fulfilled')
+    local_rule.is_fulfilled = True
+    local_rule.put()
+
+    # Insert a special BigQuery Rule row indicating when/if this rule ultimately
+    # gets fulfilled.
+    local_rule.InsertBigQueryRow(comment='Fulfilled in Bit9')
 
 
 def _ChangeLocalStates(blockable, local_rules, new_state):
+
   if isinstance(blockable, cert_models.Bit9Certificate):
     logging.warning('Cannot change local state for certificates in Bit9')
     return
 
   for local_rule in local_rules:
-    logging.info(
-        'Locally marking %s as %s on host %s', blockable.key.id(),
-        bit9_constants.APPROVAL_STATE.MAP_TO_STR[new_state], local_rule.host_id)
-
-    was_fulfilled = _ChangeLocalState(
-        new_state, int(blockable.file_catalog_id), int(local_rule.host_id))
-
-    # Insert a special BigQuery Rule row indicating when/if this rule ultimately
-    # gets fulfilled.
-    if was_fulfilled:
-      local_rule.InsertBigQueryRow(comment='Fulfilled in Bit9')
-
-    # Update the Rule.is_fulfilled to reflect whether the local state change
-    # was able to be committed to the database.
-    logging.info(
-        'Local rule %s fulfilled', 'was' if was_fulfilled else 'was not')
-    local_rule.is_fulfilled = was_fulfilled
+    ChangeLocalState(blockable, local_rule, new_state)
 
 
 def _ChangeGlobalState(blockable, new_state):
