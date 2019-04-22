@@ -19,7 +19,7 @@ dispatch:
   # NOTE #2: Rules are evaluated in-order and the first matching rule is used.
 
   - url: "*/api/santa/*"
-    service: santa-api
+    service: default
 
   - url: "*/api/web/*"
     service: default

@@ -2,8 +2,8 @@ package(default_visibility = ["//upvote"])
 
 load(
     "//upvote:builddefs.bzl",
-    "upvote_appengine_binary",
     "py_appengine_library",
+    "upvote_appengine_binary",
     "upvote_appengine_test",
 )
 
@@ -19,7 +19,6 @@ upvote_appengine_binary(
     deps = [
         "//upvote/gae/datastore:all",
         "//upvote/gae/modules/upvote_app:upvote_app_library",
-        "//upvote/gae/modules/upvote_app/api/santa:santa_api_library",
         "//upvote/gae/shared:all",
     ],
 )
