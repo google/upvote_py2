@@ -14,12 +14,11 @@
 
 """Unit tests for iter_utils.py."""
 
-from common.testing import basetest
-
 from upvote.gae.utils import iter_utils
+from absl.testing import absltest
 
 
-class IterUtilsTest(basetest.AppEngineTestCase):
+class IterUtilsTest(absltest.TestCase):
 
   def testGrouper(self):
     expected = [('A', 'B', 'C'), ('D', 'E', 'F'), ('G', '-', '-')]
@@ -28,4 +27,4 @@ class IterUtilsTest(basetest.AppEngineTestCase):
 
 
 if __name__ == '__main__':
-  basetest.main()
+  absltest.main()

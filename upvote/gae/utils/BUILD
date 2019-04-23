@@ -1,6 +1,17 @@
+load("//devtools/python/blaze:python3.bzl", "py2and3_test")
 load("//upvote:builddefs.bzl", "py_appengine_library", "upvote_appengine_test")
 
 package(default_visibility = ["//upvote"])
+
+# Libraries
+# ==============================================================================
+
+py_library(
+    name = "iter_utils",
+    srcs = ["iter_utils.py"],
+    srcs_version = "PY2AND3",
+    deps = ["//external:six"],
+)
 
 # AppEngine Libraries
 # ==============================================================================
@@ -26,11 +37,6 @@ py_appengine_library(
         "//upvote/gae/datastore:utils",
         "//upvote/gae/datastore/models:user",
     ],
-)
-
-py_appengine_library(
-    name = "iter_utils",
-    srcs = ["iter_utils.py"],
 )
 
 py_appengine_library(
@@ -107,6 +113,20 @@ py_appengine_library(
     srcs = ["group_utils.py"],
 )
 
+# Unit Tests
+# ==============================================================================
+
+py2and3_test(
+    name = "iter_utils_test",
+    size = "small",
+    srcs = ["iter_utils_test.py"],
+    deps = [
+        ":iter_utils",
+        "//upvote/shared:constants",
+        "@absl_git//absl/testing:absltest",
+    ],
+)
+
 # AppEngine Unit Tests
 # ==============================================================================
 
@@ -133,17 +153,6 @@ upvote_appengine_test(
         "//external:webob",
         "//external:webtest",
         "//upvote/gae/lib/testing:basetest",
-    ],
-)
-
-upvote_appengine_test(
-    name = "iter_utils_test",
-    size = "small",
-    srcs = ["iter_utils_test.py"],
-    deps = [
-        ":iter_utils",
-        "//common/testing:basetest",
-        "//upvote/shared:constants",
     ],
 )
 
