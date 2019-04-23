@@ -48,6 +48,8 @@ py_appengine_library(
 py_appengine_library(
     name = "json_utils",
     srcs = ["json_utils.py"],
+    srcs_version = "PY2AND3",
+    deps = ["//external:six"],
 )
 
 py_appengine_library(

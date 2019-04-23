@@ -12,11 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Lint as: python2, python3
 """JSON utilities for Upvote."""
+
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 
 import datetime
 import json
 import re
+
+import six
 
 from google.appengine.ext import ndb
 
@@ -77,8 +84,8 @@ def CreateDatetimeObjectHook(datetime_format):
   def _DatetimeObjectHook(old_dict):
     """JSONDecoder object hook for formatting datetime objects."""
     new_dict = {}
-    for k, v in old_dict.iteritems():
-      if isinstance(v, (str, unicode)):
+    for k, v in six.iteritems(old_dict):
+      if isinstance(v, (str, six.text_type)):
         try:
           new_dict[k] = datetime.datetime.strptime(v, datetime_format)
         except ValueError:
