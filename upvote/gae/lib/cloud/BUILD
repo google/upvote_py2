@@ -3,6 +3,7 @@ package(default_visibility = ["//upvote"])
 py_library(
     name = "fake_monotonic",
     srcs = ["fake_monotonic.py"],
+    srcs_version = "PY2AND3",
 )
 
 py_library(
