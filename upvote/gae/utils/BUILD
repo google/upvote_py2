@@ -13,6 +13,12 @@ py_library(
     deps = ["//external:six"],
 )
 
+py_library(
+    name = "string_utils",
+    srcs = ["string_utils.py"],
+    srcs_version = "PY2AND3",
+)
+
 # AppEngine Libraries
 # ==============================================================================
 
@@ -70,11 +76,6 @@ py_appengine_library(
 )
 
 py_appengine_library(
-    name = "string_utils",
-    srcs = ["string_utils.py"],
-)
-
-py_appengine_library(
     name = "template_utils",
     srcs = ["template_utils.py"],
     data = [
@@ -123,6 +124,16 @@ py2and3_test(
     deps = [
         ":iter_utils",
         "//upvote/shared:constants",
+        "@absl_git//absl/testing:absltest",
+    ],
+)
+
+py2and3_test(
+    name = "string_utils_test",
+    size = "small",
+    srcs = ["string_utils_test.py"],
+    deps = [
+        ":string_utils",
         "@absl_git//absl/testing:absltest",
     ],
 )
@@ -190,16 +201,6 @@ upvote_appengine_test(
         ":memcache_utils",
         "//common/testing:basetest",
         "//external:mock",
-    ],
-)
-
-upvote_appengine_test(
-    name = "string_utils_test",
-    size = "small",
-    srcs = ["string_utils_test.py"],
-    deps = [
-        ":string_utils",
-        "@absl_git//absl/testing:absltest",
     ],
 )
 

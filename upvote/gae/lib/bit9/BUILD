@@ -43,6 +43,7 @@ py_library(
 py_library(
     name = "exceptions",
     srcs = ["exceptions.py"],
+    srcs_version = "PY2AND3",
 )
 
 py_library(
