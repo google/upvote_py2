@@ -12,16 +12,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Lint as: python2, python3
 """Module containing Datastore-related utilities."""
+
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 
 import contextlib
 import functools
 import itertools
 
+import six
+from six.moves import map
+
 from google.appengine.ext import deferred
 from google.appengine.ext import ndb
 from google.appengine.ext.ndb import polymodel
-
 from upvote.shared import constants
 
 
@@ -73,11 +80,11 @@ def CopyEntity(entity, new_key=None, new_parent=None, **updated_properties):
 
   # Filter out ComputedProperties and properties on the instance that no longer
   # appear on the Model. Neither of these can be passed to the constructor.
-  entity_values = {
-      prop_name: value
-      for prop_name, value in entity_values.iteritems()
-      if prop_name in model._properties and  # pylint: disable=protected-access
-      not isinstance(entity_properties[prop_name], ndb.ComputedProperty)}
+  new_entity_values = {}
+  for prop_name, value in six.iteritems(entity_values):
+    if (prop_name in model._properties and  # pylint: disable=protected-access
+        not isinstance(entity_properties[prop_name], ndb.ComputedProperty)):
+      new_entity_values[prop_name] = value
 
   # Check updated_properties for invalid properties
   for property_name in updated_properties:
@@ -98,8 +105,8 @@ def CopyEntity(entity, new_key=None, new_parent=None, **updated_properties):
           'Property "%s" of type %s cannot be set: read-only' % (
               property_name, type(prop).__name__))
 
-  entity_values.update(updated_properties)
-  return model(key=new_key, parent=new_parent, **entity_values)
+  new_entity_values.update(updated_properties)
+  return model(key=new_key, parent=new_parent, **new_entity_values)
 
 
 def DeleteProperty(entity, property_name):
@@ -370,7 +377,7 @@ def _QueuedPaginatedBatchApply(
   # Wait for the next page to be retrieved.
   if more:
     results, cursor, more = page_future.get_result()
-    queue_results = map(pre_queue_callback, results)
+    queue_results = list(map(pre_queue_callback, results))
     # Defer task for next page.
     deferred.defer(
         _QueuedPaginatedBatchApply, query, callback, extra_args, extra_kwargs,
