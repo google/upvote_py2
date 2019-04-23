@@ -51,7 +51,9 @@ py_appengine_library(
 py_appengine_library(
     name = "test_utils",
     srcs = ["test_utils.py"],
+    srcs_version = "PY2AND3",
     deps = [
         "//external:mock",
+        "//external:six",
     ],
 )

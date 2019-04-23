@@ -12,11 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Lint as: python2, python3
 """Test utils common to Upvote GAE."""
+
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 
 import datetime
 
 import mock
+from six.moves import range
 
 
 class PicklableMock(mock.MagicMock):
@@ -32,4 +38,4 @@ class PicklableMock(mock.MagicMock):
 
 def GetSequentialTimes(count=2):
   now = datetime.datetime.utcnow()
-  return [now + datetime.timedelta(seconds=i) for i in xrange(count)]
+  return [now + datetime.timedelta(seconds=i) for i in range(count)]
