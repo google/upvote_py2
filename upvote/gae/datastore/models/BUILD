@@ -55,6 +55,7 @@ py_appengine_library(
 py_appengine_library(
     name = "cache",
     srcs = ["cache.py"],
+    srcs_version = "PY2AND3",
 )
 
 py_appengine_library(

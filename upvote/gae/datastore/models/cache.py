@@ -18,12 +18,11 @@ from google.appengine.ext import ndb
 
 
 class KeyValueCache(ndb.Model):
-  """Data cached that doesn't require a seperate model.
+  """Data cached that doesn't require a separate model.
 
   Attributes:
-    recorded_dt = DateTime, time of insertion.
-    text_value = Text, value inserted.
+    recorded_dt: DateTime, time of insertion.
+    value: Text, value inserted.
   """
   recorded_dt = ndb.DateTimeProperty(auto_now_add=True)
   value = ndb.JsonProperty()
-
