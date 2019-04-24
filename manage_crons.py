@@ -11,6 +11,8 @@ import os
 import re
 import sys
 
+import six
+
 
 class Commenter(object):
   """Utility for commenting, un-commenting, and viewing a file by sections.
@@ -81,7 +83,7 @@ class Commenter(object):
     for section, _ in self._iter_with_section():
       dict_.setdefault(section, '')
     del dict_[None]
-    return dict_.keys()
+    return list(dict_.keys())
 
   def enable(self, args):
     assert args.section in self.get_section_names(), (
@@ -123,7 +125,7 @@ class Commenter(object):
         statuses[section] = 'PARTIAL'
     print('##  Section Statuses  ##')
     max_pad = max(len(name) for name in statuses.keys())
-    for section_name, status in statuses.iteritems():
+    for section_name, status in six.iteritems(statuses):
       print('  {}: {}{}'.format(
           section_name, ' ' * (max_pad - len(section_name)), status))
 
