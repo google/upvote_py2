@@ -5,24 +5,6 @@
 Upvote runs on Google App Engine (Python) with an AngularJS frontend. Upvote is
 built using Bazel.
 
-### App Structure
-
-On App Engine, Upvote is divided into three modules:
-
-1.  `upvote_app`: The main module which hosts the API, the UI (both user and
-    admin), and the voting/policy logic.
-    *   Hosts the Upvote API at `/api/web/...` (defined
-        [here](../upvote/gae/modules/upvote_app/api/main.py))
-    *   Hosts the user app at `/...` (defined
-        [here](../upvote/gae/modules/upvote_app/frontend/web_ui/app-routes.js))
-    *   Hosts the admin app at `/admin/...` (defined
-        [here](../upvote/gae/modules/upvote_app/frontend/admin_ui/app-routes.js))
-2.  `santa_api`: The sync server API for Santa.
-    *   Hosts the Santa API at `/api/santa/...` (defined
-        [here](../upvote/gae/modules/santa_api/main.py))
-
-![Upvote architecture diagram](images/architecture.png)
-
 ### Storage
 
 Upvote uses both [Cloud Datastore](https://cloud.google.com/datastore/) and
