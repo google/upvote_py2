@@ -31,6 +31,7 @@ py_appengine_library(
 py_appengine_library(
     name = "alert",
     srcs = ["alert.py"],
+    srcs_version = "PY2AND3",
     deps = [
         "//upvote/shared:constants",
     ],
