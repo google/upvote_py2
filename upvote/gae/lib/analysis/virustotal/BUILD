@@ -6,16 +6,20 @@ load(
 
 package(default_visibility = ["//upvote"])
 
-# AppEngine Libraries
+# Libraries
 # ==============================================================================
 
-py_appengine_library(
+py_library(
     name = "constants",
     srcs = ["constants.py"],
+    srcs_version = "PY2AND3",
     deps = [
         "//upvote/shared:constants",
     ],
 )
+
+# AppEngine Libraries
+# ==============================================================================
 
 py_appengine_library(
     name = "virustotal_client",
