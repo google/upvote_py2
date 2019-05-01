@@ -1,4 +1,3 @@
-load("//devtools/python/blaze:python3.bzl", "py2and3_test")
 load("//upvote:builddefs.bzl", "py_appengine_library", "upvote_appengine_test")
 
 package(default_visibility = ["//upvote"])
@@ -119,7 +118,7 @@ py_appengine_library(
 # Unit Tests
 # ==============================================================================
 
-py2and3_test(
+py_test(
     name = "iter_utils_test",
     size = "small",
     srcs = ["iter_utils_test.py"],
@@ -130,7 +129,7 @@ py2and3_test(
     ],
 )
 
-py2and3_test(
+py_test(
     name = "string_utils_test",
     size = "small",
     srcs = ["string_utils_test.py"],

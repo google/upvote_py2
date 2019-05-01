@@ -1,5 +1,3 @@
-load("//devtools/python/blaze:python3.bzl", "py2and3_test")
-
 package(default_visibility = ["//upvote"])
 
 package_group(
@@ -22,7 +20,7 @@ py_library(
 # Unit Tests
 # ==============================================================================
 
-py2and3_test(
+py_test(
     name = "metrics_test",
     srcs = ["metrics_test.py"],
     deps = [
