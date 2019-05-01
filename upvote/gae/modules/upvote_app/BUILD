@@ -15,6 +15,7 @@ py_appengine_library(
     ],
     deps = [
         "//upvote/gae/cron:main",
+        "//upvote/gae/modules/upvote_app/api/santa:main",
         "//upvote/gae/modules/upvote_app/api/web:main",
     ],
 )

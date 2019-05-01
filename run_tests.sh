@@ -21,6 +21,7 @@ current_tests=$(
 if [[ -n "${current_tests}" ]]; then
   eval "bazel test \
     --curses=no \
+    --python_version=PY2 \
     --test_output=errors \
     --spawn_strategy=standalone \
     --test_strategy=standalone \

@@ -23,6 +23,7 @@ py_library(
 py_library(
     name = "constants",
     srcs = ["constants.py"],
+    srcs_version = "PY2AND3",
     deps = [
         "//upvote/shared:constants",
     ],
@@ -43,6 +44,7 @@ py_library(
 py_library(
     name = "exceptions",
     srcs = ["exceptions.py"],
+    srcs_version = "PY2AND3",
 )
 
 py_library(

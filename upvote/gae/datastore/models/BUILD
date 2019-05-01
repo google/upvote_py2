@@ -31,6 +31,7 @@ py_appengine_library(
 py_appengine_library(
     name = "alert",
     srcs = ["alert.py"],
+    srcs_version = "PY2AND3",
     deps = [
         "//upvote/shared:constants",
     ],
@@ -55,6 +56,7 @@ py_appengine_library(
 py_appengine_library(
     name = "cache",
     srcs = ["cache.py"],
+    srcs_version = "PY2AND3",
 )
 
 py_appengine_library(
@@ -111,6 +113,7 @@ py_appengine_library(
 py_appengine_library(
     name = "mixin",
     srcs = ["mixin.py"],
+    srcs_version = "PY2AND3",
     deps = [
         "//upvote/shared:constants",
     ],
@@ -119,6 +122,7 @@ py_appengine_library(
 py_appengine_library(
     name = "note",
     srcs = ["note.py"],
+    srcs_version = "PY2AND3",
     deps = [
         "//upvote/shared:constants",
     ],

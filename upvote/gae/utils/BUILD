@@ -2,6 +2,22 @@ load("//upvote:builddefs.bzl", "py_appengine_library", "upvote_appengine_test")
 
 package(default_visibility = ["//upvote"])
 
+# Libraries
+# ==============================================================================
+
+py_library(
+    name = "iter_utils",
+    srcs = ["iter_utils.py"],
+    srcs_version = "PY2AND3",
+    deps = ["//external:six"],
+)
+
+py_library(
+    name = "string_utils",
+    srcs = ["string_utils.py"],
+    srcs_version = "PY2AND3",
+)
+
 # AppEngine Libraries
 # ==============================================================================
 
@@ -29,13 +45,10 @@ py_appengine_library(
 )
 
 py_appengine_library(
-    name = "iter_utils",
-    srcs = ["iter_utils.py"],
-)
-
-py_appengine_library(
     name = "json_utils",
     srcs = ["json_utils.py"],
+    srcs_version = "PY2AND3",
+    deps = ["//external:six"],
 )
 
 py_appengine_library(
@@ -61,11 +74,6 @@ py_appengine_library(
     name = "monitoring_utils",
     srcs = ["monitoring_utils.py"],
     deps = ["//upvote/shared:constants"],
-)
-
-py_appengine_library(
-    name = "string_utils",
-    srcs = ["string_utils.py"],
 )
 
 py_appengine_library(
@@ -107,6 +115,30 @@ py_appengine_library(
     srcs = ["group_utils.py"],
 )
 
+# Unit Tests
+# ==============================================================================
+
+py_test(
+    name = "iter_utils_test",
+    size = "small",
+    srcs = ["iter_utils_test.py"],
+    deps = [
+        ":iter_utils",
+        "//upvote/shared:constants",
+        "@absl_git//absl/testing:absltest",
+    ],
+)
+
+py_test(
+    name = "string_utils_test",
+    size = "small",
+    srcs = ["string_utils_test.py"],
+    deps = [
+        ":string_utils",
+        "@absl_git//absl/testing:absltest",
+    ],
+)
+
 # AppEngine Unit Tests
 # ==============================================================================
 
@@ -133,17 +165,6 @@ upvote_appengine_test(
         "//external:webob",
         "//external:webtest",
         "//upvote/gae/lib/testing:basetest",
-    ],
-)
-
-upvote_appengine_test(
-    name = "iter_utils_test",
-    size = "small",
-    srcs = ["iter_utils_test.py"],
-    deps = [
-        ":iter_utils",
-        "//common/testing:basetest",
-        "//upvote/shared:constants",
     ],
 )
 
@@ -181,16 +202,6 @@ upvote_appengine_test(
         ":memcache_utils",
         "//common/testing:basetest",
         "//external:mock",
-    ],
-)
-
-upvote_appengine_test(
-    name = "string_utils_test",
-    size = "small",
-    srcs = ["string_utils_test.py"],
-    deps = [
-        ":string_utils",
-        "@absl_git//absl/testing:absltest",
     ],
 )
 

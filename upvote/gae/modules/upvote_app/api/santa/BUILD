@@ -1,4 +1,4 @@
-load("//upvote:builddefs.bzl", "py_appengine_library", "upvote_appengine_test", "upvote_appengine_binary")
+load("//upvote:builddefs.bzl", "py_appengine_library", "upvote_appengine_test")
 
 package(default_visibility = ["//upvote"])
 
@@ -13,12 +13,9 @@ py_appengine_library(
 )
 
 py_appengine_library(
-    name = "santa_api_library",
+    name = "main",
     srcs = [
         "main.py",
-    ],
-    data = [
-        "//upvote/gae:santa_api.yaml",
     ],
     deps = [
         ":auth",
@@ -80,7 +77,7 @@ upvote_appengine_test(
     size = "small",
     srcs = ["main_test.py"],
     deps = [
-        ":santa_api_library",
+        ":main",
         "//upvote/gae/lib/testing:basetest",
     ],
 )
@@ -113,20 +110,5 @@ upvote_appengine_test(
         "//upvote/gae/utils:handler_utils",
         "//upvote/gae/utils:xsrf_utils",
         "//upvote/shared:constants",
-    ],
-)
-
-# Binaries
-# ==============================================================================
-
-upvote_appengine_binary(
-    name = "santa_api_binary",
-    srcs = ["main.py"],
-    configs = [
-        "//upvote/gae:appengine_config.py",
-        "//upvote/gae:santa_api.yaml",
-    ],
-    deps = [
-        ":santa_api_library",
     ],
 )

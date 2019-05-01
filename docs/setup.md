@@ -59,8 +59,8 @@ then applies `UsernameToEmail`.
 Next, you need to give yourself admin rights to the application. To do so, you
 must modify the user grouping interface Upvote uses to assign elevated-privilege
 roles. Upvote provides a simple default implementation of user grouping (found
-in `GroupManager` in [groups.py](upvote/gae/utils/group_utils.py)) so all you
-need to do is add your email (and those of any other admins) to the
+in `GroupManager` in [group_utils.py](../upvote/gae/utils/group_utils.py)) so 
+all you need to do is add your email (and those of any other admins) to the
 '`admin-users`' group. This static solution should suffice for small
 organizations and for individual users.
 
@@ -72,8 +72,8 @@ After you've added yourself to this group, you must enable role syncing and
 redeploy the application:
 
 ```shell
-./manage_crons.py enable groups
-bazel run upvote/gae:monolith_binary.deploy -- ${PROJ_ID}
+$ ./manage_crons.py enable groups
+$ bazel run upvote/gae:monolith_binary.deploy -- ${PROJ_ID}
 ```
 
 Once the deploy completes, the `/api/web/cron/roles/sync` cron can be manually
@@ -107,8 +107,7 @@ introduction to BigQuery.
 To enable this feature:
 
 1.  Set `ENABLE_BIGQUERY_STREAMING` to `True` in settings
-2.  `bazel run upvote/gae:monolith_binary.deploy -- ${PROJ_ID} app.yaml
-    santa_api.yaml`
+2.  `bazel run upvote/gae:monolith_binary.deploy -- ${PROJ_ID} app.yaml`
 
 Done! You should start seeing entries at
 "`https://bigquery.cloud.google.com/dataset/<my-app>:gae_streaming`".
@@ -118,7 +117,7 @@ Done! You should start seeing entries at
 Upvote has many metrics tracked throughout the code however the current
 implementation is a no-op. If you would like to have access to these metrics,
 you will need to implement the indicated stubs in
-[monitoring.py](../upvote/gae/shared/common/monitoring.py)
+[monitoring_utils.py](../upvote/gae/utils/monitoring_utils.py)
 
 Likely the easiest way to make use of these stubs is through integration with
 [Cloud Monitoring](https://cloud.google.com/monitoring/). However, you may have

@@ -13,6 +13,7 @@ package_group(
 py_library(
     name = "metrics",
     srcs = ["metrics.py"],
+    srcs_version = "PY2AND3",
     deps = [],
 )
 

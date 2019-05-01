@@ -41,6 +41,8 @@ py_appengine_library(
 py_appengine_library(
     name = "utils",
     srcs = ["utils.py"],
+    srcs_version = "PY2AND3",
+    deps = ["//external:six"],
 )
 
 # AppEngine Unit Tests

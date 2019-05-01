@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Monitoring metrics for the santa_api AppEngine module."""
+"""Monitoring metrics for the Santa-facing request handlers."""
 
 from upvote.gae.utils import monitoring_utils
 from upvote.monitoring import metrics

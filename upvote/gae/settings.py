@@ -83,7 +83,7 @@ SANTA_BUNDLES_ENABLED = True
 # The failure mode of Santa client authentication.
 #
 # NOTE: By default, there is no authentication mechanism implemented for Santa
-# clients (See upvote/gae/modules/santa_api/auth.py). This setting will only
+# clients (See gae/modules/upvote_app/api/santa/auth.py). This setting will only
 # have an effect if some authentication procedure is written.
 SANTA_CLIENT_VALIDATION = constants.VALIDATION_MODE.FAIL_CLOSED
 
