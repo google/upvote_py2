@@ -18,6 +18,17 @@ py_library(
     srcs_version = "PY2AND3",
 )
 
+py_library(
+    name = "template_utils",
+    srcs = ["template_utils.py"],
+    data = [
+        "//third_party/py/jinja2",
+        "//upvote/gae/templates/email:templates",
+        "//upvote/gae/templates/web:templates",
+    ],
+    srcs_version = "PY2AND3",
+)
+
 # AppEngine Libraries
 # ==============================================================================
 
@@ -77,15 +88,6 @@ py_appengine_library(
 )
 
 py_appengine_library(
-    name = "template_utils",
-    srcs = ["template_utils.py"],
-    data = [
-        "//upvote/gae/templates/email:templates",
-        "//upvote/gae/templates/web:templates",
-    ],
-)
-
-py_appengine_library(
     name = "time_utils",
     srcs = ["time_utils.py"],
     deps = [
@@ -136,6 +138,18 @@ py_test(
     deps = [
         ":string_utils",
         "@absl_git//absl/testing:absltest",
+    ],
+)
+
+py_test(
+    name = "template_utils_test",
+    size = "small",
+    srcs = ["template_utils_test.py"],
+    data = ["//upvote/gae/templates/test:templates"],
+    deps = [
+        ":template_utils",
+        "//common/testing:basetest",
+        "//external:six",
     ],
 )
 
@@ -202,17 +216,6 @@ upvote_appengine_test(
         ":memcache_utils",
         "//common/testing:basetest",
         "//external:mock",
-    ],
-)
-
-upvote_appengine_test(
-    name = "template_utils_test",
-    size = "small",
-    srcs = ["template_utils_test.py"],
-    data = ["//upvote/gae/templates/test:templates"],
-    deps = [
-        ":template_utils",
-        "//common/testing:basetest",
     ],
 )
 
