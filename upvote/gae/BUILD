@@ -2,9 +2,9 @@ package(default_visibility = ["//upvote"])
 
 load(
     "//upvote:builddefs.bzl",
+    "py_appengine_binary_zip",
     "py_appengine_library",
     "upvote_appengine_binary",
-    "upvote_appengine_test",
 )
 
 exports_files(glob(["*.yaml"]))
