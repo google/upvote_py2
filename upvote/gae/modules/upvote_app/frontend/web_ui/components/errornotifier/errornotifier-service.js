@@ -123,12 +123,12 @@ upvote.errornotifier.ErrorService = class {
     let title = 'Error Encountered';
     let errorBody = 'An unexpected error has occurred.';
 
-    if (error.status && error.statusText) {
+    if (error.status || error.statusText) {
       // Handle configs returned by failed $http calls.
-      title = `HTTP Error ${error.status} ${error.statusText}`;
+      title += ` - HTTP Error ${error.status} ${error.statusText}`;
       let requestUrl = this.getHttpErrorUrl_(error);
       let body = error['data'];
-      errorBody = `URL: ${requestUrl}<br>Message: ${body}`;
+      errorBody += `<br><br>URL: ${requestUrl}<br>Message: ${body}`;
       this.createDialog(title, errorBody);
     } else if (error.message) {
       // Handle built-in Error types.
