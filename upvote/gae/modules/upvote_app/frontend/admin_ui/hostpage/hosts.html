@@ -1,9 +1,9 @@
 <!-- Search -->
 <div flex layout="row" layout-padding class="host-search">
   <!-- Search Box -->
-  <md-input-container>
-    <label>Hostname</label>
-    <input ng-model="hostCtrl.queryData.search"
+  <md-input-container><label>Hostname</label>
+    <input id="hostname-input"
+           ng-model="hostCtrl.queryData.search"
            ng-model-options="{ debounce: 1000 }"
            ng-focus="hostCtrl.searchSelected()" />
   </md-input-container>
