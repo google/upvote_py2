@@ -236,9 +236,7 @@ upvote.modifyprotectionpage.ModifyProtectionController = class {
    * @export
    */
   isMinimalProtectionInputDisabled() {
-    return (
-        this.isMinimalProtectionEnabled() || this.hasActiveRequest_() ||
-        this.hasPendingExemption_());
+    return (this.hasActiveRequest_() || this.hasPendingExemption_());
   }
 
   /**
@@ -248,8 +246,7 @@ upvote.modifyprotectionpage.ModifyProtectionController = class {
    */
   isMinimalProtectionButtonDisabled() {
     return (
-        this.isMinimalProtectionEnabled() || this.hasActiveRequest_() ||
-        this.hasPendingExemption_() ||
+        this.hasActiveRequest_() || this.hasPendingExemption_() ||
         this.scope_.minimalProtectionForm.$invalid);
   }
 
