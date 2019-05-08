@@ -54,15 +54,7 @@
           <uv-listing-cell>{{item.recordedDt | date:'mediumDate'}}</uv-listing-cell>
           <uv-listing-cell>{{item.candidateId}}</uv-listing-cell>
           <uv-listing-cell>{{item.candidateType}}</uv-listing-cell>
-          <uv-listing-cell>{{item.weight}}</uv-listing-cell>
-          <md-tooltip>
-            User: {{item.userEmail}},
-            Date: {{item.recordedDt | date:'mediumDate'}},
-            {{item.recordedDt | timeSince}},
-            Voting Weight: {{item.weight}},
-            Blockable: {{item.candidateId}},
-            Blockable Type: {{item.candidateType}}
-          </md-tooltip>
+          <uv-listing-cell><span ng-if="!item.wasYesVote">-</span>{{item.weight}}</uv-listing-cell>
         </uv-listing-row>
       </listing-body>
     </uv-listing>

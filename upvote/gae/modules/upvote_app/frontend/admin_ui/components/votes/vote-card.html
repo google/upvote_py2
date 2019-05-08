@@ -13,7 +13,7 @@
       Blockable Type: {{ card.candidateType }}
     </div>
     <div>
-      Vote Weight: {{ card.weight }}
+      Vote Weight: <span ng-if="!card.wasYesVote">-</span>{{ card.weight }}
     </div>
   </md-card-content>
 </md-card>
