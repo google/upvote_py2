@@ -4,7 +4,6 @@ load(
     "//upvote:builddefs.bzl",
     "py_appengine_library",
     "upvote_appengine_binary",
-    "upvote_appengine_test",
 )
 
 exports_files(glob(["*.yaml"]))
@@ -23,9 +22,6 @@ upvote_appengine_binary(
     ],
 )
 
-# MPMs
-# ==============================================================================
-
 # AppEngine Libraries
 # ==============================================================================
 
@@ -34,6 +30,7 @@ py_appengine_library(
     srcs = ["appengine_config.py"],
     deps = [
         ":settings",
+        "//common/monitoring",
         "//upvote/gae/datastore/models:utils",
     ],
 )

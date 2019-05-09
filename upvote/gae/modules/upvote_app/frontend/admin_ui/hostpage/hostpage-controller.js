@@ -152,6 +152,7 @@ upvote.admin.hostpage.HostController = class extends ModelController {
     return !!this.user && this.user['permissions'].includes('EDIT_HOSTS');
   }
 
+
   /**
    * Returns true if the host details are visible
    * @param {!string} hostId

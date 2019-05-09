@@ -131,7 +131,8 @@ describe('ErrorService', () => {
         rootScope.$apply();
 
         expect(mdDialogPreset.title)
-            .toHaveBeenCalledWith('HTTP Error 400 Bad Request');
+            .toHaveBeenCalledWith(
+                'Error Encountered - HTTP Error 400 Bad Request');
         expect(mdDialogPreset.htmlContent).toHaveBeenCalled();
         let msg = mdDialogPreset.htmlContent.calls.mostRecent().args[0];
         if (msg.includes('?a')) {
