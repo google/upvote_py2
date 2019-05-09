@@ -49,7 +49,7 @@ class ChangeLocalStateTest(bit9test.Bit9TestCase):
         binary, local_rule, bit9_constants.APPROVAL_STATE.APPROVED)
 
     self.assertFalse(local_rule.key.get().is_fulfilled)
-    self.assertNoBigQueryInsertions()
+    self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.RULE)
 
   def testNonWhitelist(self):
 
@@ -245,6 +245,7 @@ class CommitBlockableChangeSetTest(bit9test.Bit9TestCase):
     self.assertFalse(self.local_rule.key.get().is_fulfilled)
     self.assertTrue(self.local_rule.key.get().is_committed)
     self.assertIsNone(change.key.get())
+    self.assertBigQueryInsertion(constants.BIGQUERY_TABLE.RULE)
 
   def testWhitelist_LocalRule_Certificate(self):
     cert = test_utils.CreateBit9Certificate()
