@@ -82,11 +82,11 @@ py_library(
     name = "test_utils",
     srcs = ["test_utils.py"],
     deps = [
+        ":api",
+        ":constants",
         "//external:mock",
         "//external:requests",
         "//upvote/gae:settings",
-        "//upvote/gae/lib/bit9:api",
-        "//upvote/gae/lib/bit9:constants",
     ],
 )
 
@@ -122,11 +122,11 @@ py_appengine_library(
     name = "utils",
     srcs = ["utils.py"],
     deps = [
+        ":api",
         ":constants",
         "//common:context",
         "//upvote/gae:settings",
         "//upvote/gae/datastore/models:singleton",
-        "//upvote/gae/lib/bit9:api",
         "//upvote/gae/utils:env_utils",
     ],
 )

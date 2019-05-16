@@ -60,6 +60,7 @@ def ChangeLocalState(blockable, local_rule, new_state):
     logging.info('Local rule could not be fulfilled')
     local_rule.is_fulfilled = False
     local_rule.put()
+    local_rule.InsertBigQueryRow(comment='Missing fileInstance')
     return
 
   # Make the desired state change on each fileInstance retrieved.
