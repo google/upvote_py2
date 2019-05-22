@@ -18,18 +18,19 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import httplib
 import json
 
 import mock
 import requests
+import six
+import six.moves.http_client
 
 from upvote.gae import settings
 from upvote.gae.lib.bit9 import api
 from upvote.gae.lib.bit9 import constants as bit9_constants
 
 
-def GetTestResponse(data=None, status_code=httplib.OK):
+def GetTestResponse(data=None, status_code=six.moves.http_client.OK):
   response = mock.Mock(spec=requests.Response, status_code=status_code)
   response.text = json.dumps(data)
   response.json.return_value = data
@@ -159,7 +160,8 @@ def Expand(target_entity, property_, expanded_entity):
   # pylint: disable=protected-access
   expand_dict = {
       '{}_{}'.format(property_.name, key): value
-      for key, value in expanded_entity._obj_dict.iteritems()}
+      for key, value in six.iteritems(expanded_entity._obj_dict)
+  }
   entity_copy = target_entity.__class__()
   entity_copy._obj_dict.update(target_entity._obj_dict)
   entity_copy._obj_dict.update(expand_dict)
@@ -170,7 +172,8 @@ def Expand(target_entity, property_, expanded_entity):
 def _CreateModel(model_cls, **kwargs):
   defaults = {
       other or name: _ALL_DEFAULTS[name]
-      for name, other in _PROPERTY_MAP[model_cls].iteritems()}
+      for name, other in six.iteritems(_PROPERTY_MAP[model_cls])
+  }
   defaults.update(kwargs)
   return model_cls(**defaults)
 

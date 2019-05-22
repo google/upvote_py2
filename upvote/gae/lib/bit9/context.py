@@ -19,13 +19,16 @@ from __future__ import division
 from __future__ import print_function
 
 import abc
-import httplib
 import json
 import string
-import urlparse
 
 import requests
 import six
+from six.moves import map
+from six.moves import range
+import six.moves.http_client
+import six.moves.urllib.parse
+
 from upvote.gae.lib.bit9 import constants
 from upvote.gae.lib.bit9 import exceptions as excs
 from absl import logging
@@ -41,11 +44,11 @@ _ALLOW_TRANS = string.maketrans(_REPLACE_CHARS, (' ' * len(_REPLACE_CHARS)))
 _UNICODE_ALLOW_TRANS = {ord(c): u' ' for c in _REPLACE_CHARS}
 
 # Make a table of characters to delete from the string
-_DELETE_CHARS = ''.join(map(chr, xrange(128, 256)))
+_DELETE_CHARS = ''.join(map(chr, range(128, 256)))
 
 
 def UnicodeToAscii(value):
-  return ToAsciiStr(value) if isinstance(value, unicode) else value
+  return ToAsciiStr(value) if isinstance(value, six.text_type) else value
 
 
 def ToAsciiStr(s):
@@ -66,7 +69,7 @@ def ToAsciiStr(s):
   if s is None:
     return ''
 
-  if not isinstance(s, unicode) and not isinstance(s, str):
+  if not isinstance(s, six.text_type) and not isinstance(s, str):
     raise TypeError('expected a string or unicode object')
 
   if isinstance(s, str):
@@ -102,7 +105,7 @@ class BaseContext(six.with_metaclass(abc.ABCMeta)):
       NotFoundError: If the response returned a 404 (object not found).
       RequestError: The response had a failure status code.
     """
-    if response.status_code == httplib.NOT_FOUND:
+    if response.status_code == six.moves.http_client.NOT_FOUND:
       raise excs.NotFoundError('Object in request cannot be found')
     # All 300s and 100s should be resolved by the requests library.
     elif response.status_code >= 400:
@@ -121,14 +124,14 @@ class BaseContext(six.with_metaclass(abc.ABCMeta)):
 class Context(BaseContext):
   """Defines the configuration for communication with the API."""
 
-  def __init__(self,
+  def __init__(self,  # pylint: disable=super-init-not-called
                server_address,
                api_token,
                request_timeout,
                version=constants.VERSION.V1):
     if not server_address.startswith('http'):
       server_address = 'https://' + server_address
-    addr = urlparse.urlsplit(server_address)
+    addr = six.moves.urllib.parse.urlsplit(server_address)
     self.server_loc = addr.netloc
     self.server_path = addr.path.rstrip('/')
 
@@ -147,7 +150,7 @@ class Context(BaseContext):
 
     api_path = '{}/api/bit9platform/{}'.format(self.server_path, self.version)
     path = '{}/{}'.format(api_path, api_route) if api_route else api_path
-    return urlparse.urlunsplit(
+    return six.moves.urllib.parse.urlunsplit(
         ['https', self.server_loc, path, '&'.join(query_args), ''])
 
   def _GetApiHeaders(self):

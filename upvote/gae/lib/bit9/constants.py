@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Lint as: python2, python3
 """Constants for the Bit9 API."""
 
 from __future__ import absolute_import
