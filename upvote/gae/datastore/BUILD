@@ -20,7 +20,9 @@ py_appengine_library(
     name = "test_utils",
     srcs = ["test_utils.py"],
     deps = [
+        ":utils",
         "//external:mock",
+        "//external:six",
         "//upvote/gae:settings",
         "//upvote/gae/datastore/models:binary",
         "//upvote/gae/datastore/models:cert",
@@ -42,7 +44,10 @@ py_appengine_library(
     name = "utils",
     srcs = ["utils.py"],
     srcs_version = "PY2AND3",
-    deps = ["//external:six"],
+    deps = [
+        "//external:six",
+        "//upvote/shared:constants",
+    ],
 )
 
 # AppEngine Unit Tests
@@ -55,6 +60,7 @@ upvote_appengine_test(
     deps = [
         ":utils",
         "//external:mock",
+        "//external:six",
         "//upvote/gae/lib/testing:basetest",
         "@absl_git//absl/testing:absltest",
     ],

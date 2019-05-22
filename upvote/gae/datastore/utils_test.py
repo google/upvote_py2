@@ -14,16 +14,20 @@
 
 """Unit tests for datastore_utils.py."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import datetime
 import itertools
 import math
 
 import mock
+from six.moves import range
 
 from google.appengine.api import datastore_errors
 from google.appengine.ext import ndb
 from google.appengine.ext.ndb import polymodel
-
 from upvote.gae.datastore import utils as datastore_utils
 from upvote.gae.lib.testing import basetest
 from upvote.shared import constants
@@ -599,7 +603,7 @@ class GetMultiFutureTest(basetest.UpvoteTestCase):
     self.assertTrue(mf.done())
 
   def testManyFutures(self):
-    futures = [ndb.Future() for _ in xrange(3)]
+    futures = [ndb.Future() for _ in range(3)]
     mf = datastore_utils.GetMultiFuture(futures)
 
     self.assertFalse(any(f.done() for f in futures))
@@ -635,7 +639,7 @@ def CreateEntity(foo='foo', bar=0):
 
 
 def CreateEntities(count, **kwargs):
-  return [CreateEntity(**kwargs) for _ in xrange(count)]
+  return [CreateEntity(**kwargs) for _ in range(count)]
 
 
 _GLOBAL_CBK_MOCK = mock.MagicMock()
@@ -662,7 +666,7 @@ class PaginateTest(basetest.UpvoteTestCase):
   def testSuccess(self):
 
     page_size = 10
-    for entity_count in xrange(50):
+    for entity_count in range(50):
 
       # Create some number of entities.
       CreateEntities(entity_count)
@@ -693,7 +697,7 @@ class QueuedPaginatedBatchApply(basetest.UpvoteTestCase):
     datastore_utils.QueuedPaginatedBatchApply(
         TestModel.query(), CallMock, page_size=2)
 
-    for _ in xrange(3):
+    for _ in range(3):
       self.assertTaskCount(constants.TASK_QUEUE.DEFAULT, 1)
       self.RunDeferredTasks()
 
@@ -709,7 +713,7 @@ class QueuedPaginatedBatchApply(basetest.UpvoteTestCase):
         TestModel.query(), CallMock, extra_args=['a', 'b'],
         extra_kwargs={'c': 'c'})
 
-    for _ in xrange(2):
+    for _ in range(2):
       self.assertTaskCount(constants.TASK_QUEUE.DEFAULT, 1)
       self.RunDeferredTasks()
 
