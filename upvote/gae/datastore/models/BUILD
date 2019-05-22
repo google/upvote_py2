@@ -45,7 +45,6 @@ py_appengine_library(
         ":mixin",
         ":note",
         ":rule",
-        ":user",
         ":vote",
         "//upvote/gae/bigquery:tables",
         "//upvote/gae/datastore:utils",
@@ -73,8 +72,10 @@ py_appengine_library(
 py_appengine_library(
     name = "event",
     srcs = ["event.py"],
+    srcs_version = "PY2AND3",
     deps = [
         ":mixin",
+        "//upvote/shared:constants",
     ],
 )
 
@@ -85,7 +86,7 @@ py_appengine_library(
         ":mixin",
         "//upvote/gae/bigquery:tables",
         "//upvote/gae/lib/exemption:monitoring",
-        "//upvote/gae/taskqueue:utils",
+        "//upvote/shared:constants",
     ],
 )
 
@@ -94,10 +95,6 @@ py_appengine_library(
     srcs = ["host.py"],
     deps = [
         ":mixin",
-        "//upvote/gae/bigquery:tables",
-        "//upvote/gae/utils:env_utils",
-        "//upvote/gae/utils:mail_utils",
-        "//upvote/gae/utils:template_utils",
         "//upvote/shared:constants",
     ],
 )
@@ -105,8 +102,10 @@ py_appengine_library(
 py_appengine_library(
     name = "metrics",
     srcs = ["metrics.py"],
+    srcs_version = "PY2AND3",
     deps = [
         "//upvote/gae/lib/analysis/virustotal:constants",
+        "//upvote/shared:constants",
     ],
 )
 
@@ -123,9 +122,6 @@ py_appengine_library(
     name = "note",
     srcs = ["note.py"],
     srcs_version = "PY2AND3",
-    deps = [
-        "//upvote/shared:constants",
-    ],
 )
 
 py_appengine_library(
@@ -134,7 +130,6 @@ py_appengine_library(
     deps = [
         ":binary",
         ":mixin",
-        ":user",
         "//upvote/gae/bigquery:tables",
         "//upvote/gae/datastore:utils",
         "//upvote/shared:constants",
@@ -144,6 +139,7 @@ py_appengine_library(
 py_appengine_library(
     name = "policy",
     srcs = ["policy.py"],
+    srcs_version = "PY2AND3",
     deps = [
         ":mixin",
         "//upvote/shared:constants",
@@ -164,6 +160,7 @@ py_appengine_library(
 py_appengine_library(
     name = "singleton",
     srcs = ["singleton.py"],
+    srcs_version = "PY2AND3",
     deps = [
         "//common/cloud_kms:kms_ndb",
     ],
@@ -174,10 +171,9 @@ py_appengine_library(
     srcs = ["user.py"],
     deps = [
         ":mixin",
+        "//external:six",
         "//upvote/gae:settings",
         "//upvote/gae/bigquery:tables",
-        "//upvote/gae/datastore:utils",
-        "//upvote/gae/taskqueue:utils",
         "//upvote/gae/utils:mail_utils",
         "//upvote/gae/utils:template_utils",
         "//upvote/gae/utils:user_utils",
@@ -189,6 +185,7 @@ py_appengine_library(
     name = "utils",
     srcs = ["utils.py"],
     deps = [
+        ":binary",
         ":cert",
         ":event",
         ":exemption",
@@ -206,6 +203,7 @@ py_appengine_library(
     name = "vote",
     srcs = ["vote.py"],
     deps = [
+        ":mixin",
         ":user",
         "//upvote/gae/datastore:utils",
         "//upvote/shared:constants",
@@ -234,6 +232,7 @@ upvote_appengine_test(
         ":binary",
         ":cert",
         ":event",
+        ":utils",
         ":vote",
         "//common/testing:basetest",
         "//external:mock",
@@ -241,7 +240,6 @@ upvote_appengine_test(
         "//upvote/gae/bigquery:tables",
         "//upvote/gae/datastore:test_utils",
         "//upvote/gae/datastore:utils",
-        "//upvote/gae/datastore/models:utils",
         "//upvote/gae/lib/testing:basetest",
         "//upvote/shared:constants",
         "@absl_git//absl/testing:absltest",
@@ -253,11 +251,11 @@ upvote_appengine_test(
     size = "small",
     srcs = ["cert_test.py"],
     deps = [
+        ":binary",
         ":cert",
         "//external:mock",
         "//upvote/gae:settings",
         "//upvote/gae/datastore:test_utils",
-        "//upvote/gae/datastore/models:binary",
         "//upvote/gae/lib/testing:basetest",
         "//upvote/shared:constants",
         "@absl_git//absl/testing:absltest",
@@ -270,8 +268,8 @@ upvote_appengine_test(
     srcs = ["event_test.py"],
     deps = [
         ":event",
+        ":utils",
         "//upvote/gae/datastore:test_utils",
-        "//upvote/gae/datastore/models:utils",
         "//upvote/gae/lib/testing:basetest",
         "@absl_git//absl/testing:absltest",
     ],
@@ -392,6 +390,7 @@ upvote_appengine_test(
         ":rule",
         ":utils",
         "//external:mock",
+        "//external:six",
         "//upvote/gae:settings",
         "//upvote/gae/datastore:test_utils",
         "//upvote/gae/datastore:utils",

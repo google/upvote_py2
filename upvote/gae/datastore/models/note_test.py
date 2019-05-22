@@ -32,4 +32,3 @@ class NoteTest(basetest.UpvoteTestCase):
     key = note_models.Note.GenerateKey('fake_message', self.blockable.key)
     self.assertEqual(key.parent(), self.blockable.key)
     self.assertLen(key.id(), 64)
-

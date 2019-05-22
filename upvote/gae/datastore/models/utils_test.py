@@ -14,12 +14,16 @@
 
 """Unit tests for utils.py."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import datetime
 
 import mock
+from six.moves import range
 
 from google.appengine.ext import ndb
-
 from upvote.gae import settings
 from upvote.gae.datastore import test_utils
 from upvote.gae.datastore import utils as datastore_utils
@@ -353,7 +357,7 @@ class GetUsersAssociatedWithSantaHostTest(basetest.UpvoteTestCase):
         blockable, host_id=host_id, executing_user='user2')
 
     # Multiple Events for one user.
-    for _ in xrange(3):
+    for _ in range(3):
       test_utils.CreateSantaEvent(
           blockable, host_id=host_id, executing_user='user3')
 

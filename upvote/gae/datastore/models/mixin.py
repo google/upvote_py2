@@ -62,4 +62,3 @@ class Santa(Base):
 
   def GetClientName(self):
     return constants.CLIENT.SANTA
-
