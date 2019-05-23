@@ -18,10 +18,10 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import httplib
-
 import mock
 import requests
+import six.moves.http_client
+
 from upvote.gae.lib.bit9 import context
 from upvote.gae.lib.bit9 import exceptions as excs
 from upvote.gae.lib.bit9 import test_utils
@@ -108,7 +108,7 @@ class ContextTest(absltest.TestCase):
 
   def testClientError(self, mock_req):
     mock_req.return_value = test_utils.GetTestResponse(
-        status_code=httplib.BAD_REQUEST)
+        status_code=six.moves.http_client.BAD_REQUEST)
 
     ctx = context.Context('foo.corn', 'foo', 1)
     with self.assertRaises(excs.RequestError):
@@ -116,7 +116,7 @@ class ContextTest(absltest.TestCase):
 
   def testServerError(self, mock_req):
     mock_req.return_value = test_utils.GetTestResponse(
-        status_code=httplib.INTERNAL_SERVER_ERROR)
+        status_code=six.moves.http_client.INTERNAL_SERVER_ERROR)
 
     ctx = context.Context('foo.corn', 'foo', 1)
     with self.assertRaises(excs.RequestError):
@@ -124,14 +124,15 @@ class ContextTest(absltest.TestCase):
 
   def testNotFound(self, mock_req):
     mock_req.return_value = test_utils.GetTestResponse(
-        status_code=httplib.NOT_FOUND)
+        status_code=six.moves.http_client.NOT_FOUND)
 
     ctx = context.Context('foo.corn', 'foo', 1)
     with self.assertRaises(excs.NotFoundError):
       ctx.ExecuteRequest('GET')
 
   def testEmptyResponse(self, mock_req):
-    mock_req.return_value = test_utils.GetTestResponse(status_code=httplib.OK)
+    mock_req.return_value = test_utils.GetTestResponse(
+        status_code=six.moves.http_client.OK)
     mock_req.return_value.text = None
 
     ctx = context.Context('foo.corn', 'foo', 1)

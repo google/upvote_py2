@@ -12,11 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Lint as: python2, python3
 """Client for interacting with the VirusTotal binary service."""
 
 import json
 import logging
-import urllib
+from six.moves import urllib
 
 from google.appengine.api import urlfetch
 
@@ -72,9 +73,10 @@ def Lookup(binary_hash):
   # exception bubble up to binary_health._PerformLookup().
   vt_auth = singleton.VirusTotalApiAuth.GetInstance()
 
-  payload = urllib.urlencode({
+  payload = urllib.parse.urlencode({
       'apikey': vt_auth.api_key,
-      'resource': binary_hash})
+      'resource': binary_hash
+  })
 
   # Perform the VirusTotal query.
   response_obj = urlfetch.fetch(
@@ -101,7 +103,7 @@ def Lookup(binary_hash):
   # Include verbose response from VT API when unknown response code given.
   if ('response_code' in response_dict and
       response_dict['response_code'] not in _KNOWN_RESPONSE_CODES):
-    logging.warn('VirusTotal Error: %s', response_dict['verbose_msg'])
+    logging.warning('VirusTotal Error: %s', response_dict['verbose_msg'])
 
   # Only return scans from trusted antivirus scanners.
   scans = response_dict.get('scans')

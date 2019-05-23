@@ -6,6 +6,7 @@ package(default_visibility = ["//upvote"])
 py_library(
     name = "constants",
     srcs = ["constants.py"],
+    srcs_version = "PY2AND3",
 )
 
 # Unit Tests
@@ -15,9 +16,9 @@ py_test(
     name = "constants_test",
     size = "small",
     srcs = ["constants_test.py"],
-    python_version = "PY2",
     deps = [
         ":constants",
+        "//external:six",
         "@absl_git//absl/testing:absltest",
     ],
 )

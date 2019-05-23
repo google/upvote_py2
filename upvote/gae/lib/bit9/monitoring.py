@@ -14,9 +14,15 @@
 
 """Monitoring metrics for the bit9_api AppEngine module."""
 
+import six
+
 from upvote.gae.utils import monitoring_utils
 from upvote.monitoring import metrics
 
+
+# Remove once everything is PY3, where long == int
+if six.PY3:
+  long = int  # pylint: disable=redefined-builtin, invalid-name
 
 events_to_pull = monitoring_utils.Metric(metrics.BIT9_API.EVENTS_TO_PULL, long)
 events_pulled = monitoring_utils.Counter(metrics.BIT9_API.EVENTS_PULLED)

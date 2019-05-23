@@ -12,6 +12,7 @@ package(default_visibility = ["//upvote"])
 py_library(
     name = "api",
     srcs = ["api.py"],
+    srcs_version = "PY2AND3",
     deps = [
         ":constants",
         ":context",
@@ -32,6 +33,7 @@ py_library(
 py_library(
     name = "context",
     srcs = ["context.py"],
+    srcs_version = "PY2AND3",
     deps = [
         ":constants",
         ":exceptions",
@@ -50,6 +52,7 @@ py_library(
 py_library(
     name = "query",
     srcs = ["query.py"],
+    srcs_version = "PY2AND3",
     deps = [
         ":constants",
         ":exceptions",
@@ -61,6 +64,7 @@ py_library(
 py_library(
     name = "query_nodes",
     srcs = ["query_nodes.py"],
+    srcs_version = "PY2AND3",
     deps = [
         ":exceptions",
     ],
@@ -69,11 +73,13 @@ py_library(
 py_library(
     name = "model",
     srcs = ["model.py"],
+    srcs_version = "PY2AND3",
     deps = [
         ":constants",
         ":exceptions",
         ":query",
         ":query_nodes",
+        "//external:six",
         "@absl_git//absl:app",
     ],
 )
@@ -81,11 +87,13 @@ py_library(
 py_library(
     name = "test_utils",
     srcs = ["test_utils.py"],
+    srcs_version = "PY2AND3",
     deps = [
         ":api",
         ":constants",
         "//external:mock",
         "//external:requests",
+        "//external:six",
         "//upvote/gae:settings",
     ],
 )
@@ -113,6 +121,7 @@ py_appengine_library(
     name = "monitoring",
     srcs = ["monitoring.py"],
     deps = [
+        "//external:six",
         "//upvote/gae/utils:monitoring_utils",
         "//upvote/monitoring:metrics",
     ],

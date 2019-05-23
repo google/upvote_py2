@@ -14,16 +14,20 @@
 
 """Various bits of utility code to make model testing easier."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import datetime
 import random
 import string
 import uuid
 
 import mock
+from six.moves import range
 
 from google.appengine.api import users
 from google.appengine.ext import ndb
-
 from upvote.gae import settings
 from upvote.gae.datastore import utils as datastore_utils
 from upvote.gae.datastore.models import binary as binary_models
@@ -54,7 +58,7 @@ def RandomInt(low=1000, high=9999):
 
 
 def RandomString(source, length):
-  return ''.join(random.choice(source) for _ in xrange(length))
+  return ''.join(random.choice(source) for _ in range(length))
 
 
 def RandomLetters(length):
@@ -83,11 +87,11 @@ def RandomSHA1():
 
 
 def RandomStrings(size):
-  return [RandomLetters(8) for _ in xrange(size)]
+  return [RandomLetters(8) for _ in range(size)]
 
 
 def RandomInts(size):
-  return [RandomInt() for _ in xrange(size)]
+  return [RandomInt() for _ in range(size)]
 
 
 def RandomConstant(constant_namespace):
@@ -99,7 +103,7 @@ def RandomEmail():
 
 
 def RandomEmails(count):
-  return [RandomEmail() for _ in xrange(count)]
+  return [RandomEmail() for _ in range(count)]
 
 
 def RandomDatetime():
@@ -142,11 +146,11 @@ def RandomDatastoreEntity(model_cls, **kwargs):
     if value_func is not None and property_name != 'class':
 
       if prop._choices and prop._repeated:
-        random_value = [random.choice(list(prop._choices)) for _ in xrange(3)]
+        random_value = [random.choice(list(prop._choices)) for _ in range(3)]
       elif prop._choices:
         random_value = random.choice(list(prop._choices))
       elif prop._repeated:
-        random_value = [value_func() for _ in xrange(3)]
+        random_value = [value_func() for _ in range(3)]
       else:
         random_value = value_func()
 
@@ -158,7 +162,7 @@ def RandomDatastoreEntity(model_cls, **kwargs):
 
 
 def RandomDatastoreEntities(model_cls, count, **kwargs):
-  return [RandomDatastoreEntity(model_cls, **kwargs) for _ in xrange(count)]
+  return [RandomDatastoreEntity(model_cls, **kwargs) for _ in range(count)]
 
 
 def CreateAppEngineUser(email=None):
@@ -263,7 +267,7 @@ def CreateBit9Certificate(**kwargs):
 
 
 def CreateBit9Certificates(count, **kwargs):
-  return [CreateBit9Certificate(**kwargs) for _ in xrange(count)]
+  return [CreateBit9Certificate(**kwargs) for _ in range(count)]
 
 
 def CreateSantaBlockable(**kwargs):
@@ -283,11 +287,12 @@ def CreateSantaBundle(bundle_binaries=None, **kwargs):
   """Create a SantaBundle entity."""
   defaults = {
       'name': 'bundle_name_%s' % RandomLetters(3),
-      'bundle_id': '.'.join(RandomLetters(3) for _ in xrange(3)),
-      'version': '.'.join(RandomDigits(1) for _ in xrange(3)),
-      'short_version': '.'.join(RandomDigits(1) for _ in xrange(3)),
+      'bundle_id': '.'.join(RandomLetters(3) for _ in range(3)),
+      'version': '.'.join(RandomDigits(1) for _ in range(3)),
+      'short_version': '.'.join(RandomDigits(1) for _ in range(3)),
       'binary_count': len(bundle_binaries) if bundle_binaries else 1,
-      'uploaded_dt': Now()}
+      'uploaded_dt': Now()
+  }
   defaults.update(kwargs.copy())
 
   santa_bundle = CreateBlockableEntity(package_models.SantaBundle, **defaults)
@@ -318,12 +323,12 @@ def CreateBit9Binaries(count, **kwargs):
   Returns:
     A list of newly-created Bit9Binary entities.
   """
-  return [CreateBit9Binary(**kwargs) for _ in xrange(count)]
+  return [CreateBit9Binary(**kwargs) for _ in range(count)]
 
 
 def CreateSantaBlockables(count, **kwargs):
   """Creates a list of SantaBlockables."""
-  return [CreateSantaBlockable(**kwargs) for _ in xrange(count)]
+  return [CreateSantaBlockable(**kwargs) for _ in range(count)]
 
 
 def CreateVote(blockable, **kwargs):
@@ -364,7 +369,8 @@ def CreateVotes(blockable, count, **kwargs):
   """
   return [
       CreateVote(blockable, user_email=RandomEmail(), **kwargs)
-      for _ in xrange(count)]
+      for _ in range(count)
+  ]
 
 
 def _CreateEvent(event_cls, blockable, **kwargs):
@@ -427,15 +433,15 @@ def CreateEvents(blockable, event_count):
   Returns:
     The newly-created Event entities.
   """
-  return [CreateEvent(blockable) for _ in xrange(event_count)]
+  return [CreateEvent(blockable) for _ in range(event_count)]
 
 
 def CreateSantaEvents(blockable, event_count):
-  return [CreateSantaEvent(blockable) for _ in xrange(event_count)]
+  return [CreateSantaEvent(blockable) for _ in range(event_count)]
 
 
 def CreateBit9Events(blockable, event_count):
-  return [CreateBit9Event(blockable) for _ in xrange(event_count)]
+  return [CreateBit9Event(blockable) for _ in range(event_count)]
 
 
 @mock.patch.object(
@@ -471,7 +477,7 @@ def CreateUser(_, admin=False, **kwargs):
 
 
 def CreateUsers(user_count, **kwargs):
-  return [CreateUser(**kwargs) for _ in xrange(user_count)]
+  return [CreateUser(**kwargs) for _ in range(user_count)]
 
 
 def _GenerateUnusedEntityId(model_cls, id_gen_func):
@@ -534,12 +540,12 @@ def CreateBit9Host(**kwargs):
 
 def CreateSantaHosts(count, **kwargs):
   """Creates a list of SantaHosts."""
-  return [CreateSantaHost(**kwargs) for _ in xrange(count)]
+  return [CreateSantaHost(**kwargs) for _ in range(count)]
 
 
 def CreateBit9Hosts(count, **kwargs):
   """Creates a list of Bit9Hosts."""
-  return [CreateBit9Host(**kwargs) for _ in xrange(count)]
+  return [CreateBit9Host(**kwargs) for _ in range(count)]
 
 
 def CreateRuleEntity(rule_cls, blockable_key, **kwargs):
@@ -568,7 +574,7 @@ def CreateSantaRule(blockable_key, **kwargs):
 
 
 def CreateSantaRules(blockable_key, count, **kwargs):
-  return [CreateSantaRule(blockable_key, **kwargs) for _ in xrange(count)]
+  return [CreateSantaRule(blockable_key, **kwargs) for _ in range(count)]
 
 
 def CreateBit9Rule(blockable_key, **kwargs):
@@ -582,7 +588,7 @@ def CreateBit9Rule(blockable_key, **kwargs):
 
 
 def CreateBit9Rules(blockable_key, count, **kwargs):
-  return [CreateBit9Rule(blockable_key, **kwargs) for _ in xrange(count)]
+  return [CreateBit9Rule(blockable_key, **kwargs) for _ in range(count)]
 
 
 def CreateRuleChangeSet(blockable_key, **kwargs):

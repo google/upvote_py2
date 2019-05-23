@@ -131,7 +131,7 @@ def ExtractHostUsers(host_users_str):
   """
   pieces = host_users_str.split(',') if host_users_str else []
   extracted = (ExtractHostUser(piece) for piece in pieces)
-  return sorted(list(set(filter(None, extracted))))
+  return sorted(list(set([p for p in extracted if p])))
 
 
 def GetEffectiveInstallerState(file_flags):

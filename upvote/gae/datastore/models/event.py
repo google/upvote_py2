@@ -123,7 +123,7 @@ class Event(mixin.Base, polymodel.PolyModel):
         duped_event.Dedupe(event)
       else:
         distinct_events[event.key] = event
-    return distinct_events.values()
+    return list(distinct_events.values())
 
   def to_dict(self, include=None, exclude=None):  # pylint: disable=g-bad-name
     result = super(Event, self).to_dict(include=include, exclude=exclude)

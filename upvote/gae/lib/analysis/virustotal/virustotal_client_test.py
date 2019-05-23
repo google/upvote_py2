@@ -50,7 +50,7 @@ class ClientTest(basetest.AppEngineTestCase):
     self.assertEqual(0, response_dict['positives'])
     self.assertEqual(1, response_dict['total'])
     self.assertLen(response_dict['scans'], 1)
-    self.assertEqual('Microsoft', response_dict['scans'].keys()[0])
+    self.assertEqual('Microsoft', list(response_dict['scans'].keys())[0])
 
   def testLookup_BadResponse(self, mock_get_inst, mock_fetch):
     mock_get_inst.return_value.api_key = 'fake_api_key'

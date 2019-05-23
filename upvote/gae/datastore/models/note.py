@@ -41,4 +41,3 @@ class Note(polymodel.PolyModel):
   def GenerateKey(cls, message, parent):
     key_hash = hashlib.sha256(message).hexdigest()
     return ndb.Key(Note, key_hash, parent=parent)
-

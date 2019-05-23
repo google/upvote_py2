@@ -14,13 +14,18 @@
 
 """Model definitions for Upvote users."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import datetime
 import logging
 import random
 
+import six
+
 from google.appengine.api import users
 from google.appengine.ext import ndb
-
 from upvote.gae import settings
 from upvote.gae.bigquery import tables
 from upvote.gae.datastore.models import mixin
@@ -273,7 +278,9 @@ class User(mixin.Base, ndb.Model):
     """Returns the highest role for the user, by voting weight."""
     role_set = set(self.roles)
     for role, _ in sorted(
-        settings.VOTING_WEIGHTS.iteritems(), key=lambda t: t[1], reverse=True):
+        six.iteritems(settings.VOTING_WEIGHTS),
+        key=lambda t: t[1],
+        reverse=True):
       if role in role_set:
         return role
 

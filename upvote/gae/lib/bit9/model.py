@@ -20,6 +20,8 @@ from __future__ import print_function
 
 import datetime
 
+import six
+
 from upvote.gae.lib.bit9 import constants
 from upvote.gae.lib.bit9 import exceptions as excs
 from upvote.gae.lib.bit9 import query
@@ -113,7 +115,7 @@ class Property(object):
 class StringProperty(Property):
   """A String type property."""
 
-  _PYTHON_TYPE = basestring
+  _PYTHON_TYPE = six.string_types
 
 
 class _IntegerProperty(Property):
@@ -225,22 +227,20 @@ class _MetaModel(type):
         raise excs.Error('Models must define ROUTE property')
 
     all_properties = {}
-    for attr_name, attr in dct.iteritems():
+    for attr_name, attr in six.iteritems(dct):
       if isinstance(attr, Property):
         attr.model_cls_name = name
         all_properties[attr_name] = attr
 
     cls = super(_MetaModel, mcs).__new__(mcs, name, parents, dct)
     cls._KIND_MAP[name] = cls  # pylint: disable=protected-access
-    cls._PROPERTIES = all_properties  # pylint: disable=protected-access
+    cls._PROPERTIES = all_properties  # pylint: disable=protected-access,invalid-name
 
     return cls
 
 
-class Model(object):
+class Model(six.with_metaclass(_MetaModel, object)):
   """The base class for API object models."""
-
-  __metaclass__ = _MetaModel
 
   # Subclasses must override. Should be the string name used in the API route
   # for the API object. e.g. /api/v1/ROUTE/my_id
@@ -258,7 +258,7 @@ class Model(object):
     self._obj_dict = {}
     self._prefix = None
 
-    for key, val in kwargs.iteritems():
+    for key, val in six.iteritems(kwargs):
       prop = self._get_and_validate_property(key)
       self._obj_dict[prop.name] = val
 
@@ -338,15 +338,16 @@ class Model(object):
     """
     prop_map = {
         cls._get_and_validate_property(prop, require_updatable=True): val
-        for prop, val in updated_properties.iteritems()}
+        for prop, val in six.iteritems(updated_properties)
+    }
 
     update_str = ', '.join(
-        '{}="{}"'.format(prop, val) for prop, val in prop_map.iteritems())
+        '{}="{}"'.format(prop, val) for prop, val in six.iteritems(prop_map))
     logging.info(
         'Updating %s object (id=%s): %s', cls.__name__, id_, update_str)
 
     obj = cls.get(id_, context)
-    for prop, val in prop_map.iteritems():
+    for prop, val in six.iteritems(prop_map):
       setattr(obj, prop.name, val)
 
     return obj.put(context)
@@ -365,8 +366,10 @@ class Model(object):
       A new model instance representing the API response.
     """
     if extra_query_args:
-      args = ['{}={}'.format(key, val)
-              for key, val in extra_query_args.iteritems()]
+      args = [
+          '{}={}'.format(key, val)
+          for key, val in six.iteritems(extra_query_args)
+      ]
     else:
       args = None
 
@@ -443,8 +446,9 @@ class Model(object):
     """Returns a dict corresponding to this object's raw structure."""
     return {
         attr.name: attr.value_to_raw(getattr(self, name))
-        for name, attr in self._PROPERTIES.iteritems()
-        if attr.name in self._obj_dict}
+        for name, attr in six.iteritems(self._PROPERTIES)
+        if attr.name in self._obj_dict
+    }
 
   def _name_to_key(self, name):
     if self._prefix is not None:
@@ -478,8 +482,7 @@ class Model(object):
         cls_name=type(self).__name__, id_val=getattr(self, 'id'))
 
   def __repr__(self):
-    prop_lines = (
-        '\n    {}={!r}'.format(name, val)
-        for name, val in sorted(self.to_dict().iteritems()))
+    prop_lines = ('\n    {}={!r}'.format(name, val)
+                  for name, val in sorted(six.iteritems(self.to_dict())))
     return '{cls_name}({props})'.format(
         cls_name=type(self).__name__, props=','.join(prop_lines))
