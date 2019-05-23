@@ -83,6 +83,7 @@ py_appengine_library(
         "//upvote/gae/templates/email:templates",
         "//upvote/gae/templates/web:templates",
     ],
+    srcs_version = "PY2AND3",
 )
 
 py_appengine_library(
