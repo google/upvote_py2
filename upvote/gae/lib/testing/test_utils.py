@@ -22,7 +22,6 @@ from __future__ import print_function
 import datetime
 
 import mock
-from six.moves import range
 
 
 class PicklableMock(mock.MagicMock):
