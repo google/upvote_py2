@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Lint as: python2, python3
 """Unit tests for constants.py."""
 
 import itertools
@@ -173,7 +174,7 @@ class ConstantsTest(absltest.TestCase):
         constants.PERMISSIONS.SET_ADMINISTRATOR,
         constants.PERMISSIONS.SET_ALL]
 
-    for i in xrange(1, len(hierarchy)):
+    for i in range(1, len(hierarchy)):
 
       lesser_perms = hierarchy[i - 1]
       greater_perms = hierarchy[i]

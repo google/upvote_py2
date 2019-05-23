@@ -12,13 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Lint as: python2, python3
 """Constants for Upvote."""
 
 import string
 
 _INVALID_NAME_CHARS = string.punctuation + string.whitespace
-_VALUE_TO_NAME_TABLE = string.maketrans(
-    _INVALID_NAME_CHARS, '_' * len(_INVALID_NAME_CHARS))
+try:
+  _VALUE_TO_NAME_TABLE = string.maketrans(_INVALID_NAME_CHARS,
+                                          '_' * len(_INVALID_NAME_CHARS))
+except AttributeError:
+  _VALUE_TO_NAME_TABLE = str.maketrans(_INVALID_NAME_CHARS,
+                                       '_' * len(_INVALID_NAME_CHARS))
 
 
 class Error(Exception):
