@@ -131,6 +131,7 @@ py_appengine_library(
     name = "utils",
     srcs = ["utils.py"],
     deps = [
+        ":api",
         ":constants",
         "//common:context",
         "//upvote/gae:settings",
