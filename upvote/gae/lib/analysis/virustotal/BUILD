@@ -24,8 +24,10 @@ py_library(
 py_appengine_library(
     name = "virustotal_client",
     srcs = ["virustotal_client.py"],
+    srcs_version = "PY2AND3",
     deps = [
         ":constants",
+        "//external:six",
         "//upvote/gae/datastore/models:singleton",
         "//upvote/gae/utils:memcache_utils",
     ],
