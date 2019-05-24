@@ -314,7 +314,7 @@ class Bit9Binary(mixin.Bit9, Binary):
 
 
 class SantaBlockable(mixin.Santa, Binary):
-  """An binary that has been blocked by Santa.
+  """A binary that has been blocked by Santa.
 
   key = hash of blockable
 
