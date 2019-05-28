@@ -24,6 +24,8 @@ py_appengine_library(
     srcs = ["bit9_syncing.py"],
     deps = [
         "//common:datastore_locks",
+        "//common:memcache_decorator",
+        "//third_party/py/webapp2",
         "//upvote/gae:settings",
         "//upvote/gae/bigquery:tables",
         "//upvote/gae/datastore:utils",
@@ -32,6 +34,7 @@ py_appengine_library(
         "//upvote/gae/datastore/models:event",
         "//upvote/gae/datastore/models:host",
         "//upvote/gae/datastore/models:note",
+        "//upvote/gae/datastore/models:policy",
         "//upvote/gae/datastore/models:rule",
         "//upvote/gae/datastore/models:user",
         "//upvote/gae/datastore/models:utils",
@@ -53,10 +56,15 @@ py_appengine_library(
     name = "datastore_backup",
     srcs = ["datastore_backup.py"],
     deps = [
+        "//apphosting/api/app_identity",
+        "//external:six",
+        "//third_party/py/webapp2",
         "//upvote/gae/datastore/models:user",
+        "//upvote/gae/lib/cloud:google_cloud_lib_fixer",
         "//upvote/gae/utils:env_utils",
         "//upvote/gae/utils:handler_utils",
         "//upvote/gae/utils:monitoring_utils",
+        "//upvote/monitoring:metrics",
         "//upvote/shared:constants",
     ],
 )
@@ -65,6 +73,9 @@ py_appengine_library(
     name = "role_syncing",
     srcs = ["role_syncing.py"],
     deps = [
+        "//external:six",
+        "//third_party/py/webapp2",
+        "//upvote/gae:settings",
         "//upvote/gae/datastore:utils",
         "//upvote/gae/datastore/models:host",
         "//upvote/gae/datastore/models:user",
@@ -74,6 +85,7 @@ py_appengine_library(
         "//upvote/gae/utils:monitoring_utils",
         "//upvote/gae/utils:user_utils",
         "//upvote/monitoring:metrics",
+        "//upvote/shared:constants",
     ],
 )
 
@@ -81,6 +93,8 @@ py_appengine_library(
     name = "exemption_upkeep",
     srcs = ["exemption_upkeep.py"],
     deps = [
+        "//net/proto2/python/public",
+        "//third_party/py/webapp2",
         "//upvote/gae/datastore/models:exemption",
         "//upvote/gae/datastore/models:utils",
         "//upvote/gae/lib/exemption:api",
@@ -102,6 +116,7 @@ py_appengine_library(
         ":datastore_backup",
         ":exemption_upkeep",
         ":role_syncing",
+        "//third_party/py/webapp2",
     ],
 )
 

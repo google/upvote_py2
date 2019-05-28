@@ -14,18 +14,17 @@
 
 """Unit tests for datastore_backup.py."""
 
-import httplib
-
 import upvote.gae.lib.cloud.google_cloud_lib_fixer  # pylint: disable=unused-import
 # pylint: disable=g-bad-import-order,g-import-not-at-top
 
 import mock
+import six.moves.http_client
 import webapp2
 
 from google.appengine.api import urlfetch
+from upvote.gae import settings
 from upvote.gae.cron import datastore_backup
 from upvote.gae.lib.testing import basetest
-from upvote.gae import settings
 from upvote.gae.utils import env_utils
 
 
@@ -48,8 +47,10 @@ class DatastoreBackupTest(basetest.UpvoteTestCase):
   def testNotInProd(self):
     self.Patch(datastore_backup.env_utils, 'RunningInProd', return_value=False)
     self.testapp.get(
-        self.ROUTE, headers={'X-AppEngine-Cron': 'true'}, expect_errors=True,
-        status=httplib.FORBIDDEN)
+        self.ROUTE,
+        headers={'X-AppEngine-Cron': 'true'},
+        expect_errors=True,
+        status=six.moves.http_client.FORBIDDEN)
     self.mock_metric.Increment.assert_not_called()
 
   @mock.patch.object(datastore_backup.urlfetch, 'fetch')
@@ -58,11 +59,13 @@ class DatastoreBackupTest(basetest.UpvoteTestCase):
   @mock.patch.object(env_utils, 'RunningInProd', return_value=True)
   def testSuccessfulBackup(self, mock_prod, mock_env, mock_fetch):
 
-    mock_result = mock.Mock(status_code=httplib.OK)
+    mock_result = mock.Mock(status_code=six.moves.http_client.OK)
     mock_fetch.return_value = mock_result
 
     self.testapp.get(
-        self.ROUTE, headers={'X-AppEngine-Cron': 'true'}, status=httplib.OK)
+        self.ROUTE,
+        headers={'X-AppEngine-Cron': 'true'},
+        status=six.moves.http_client.OK)
 
     self.mock_metric.Increment.assert_called_once()
 
@@ -72,12 +75,13 @@ class DatastoreBackupTest(basetest.UpvoteTestCase):
   @mock.patch.object(env_utils, 'RunningInProd', return_value=True)
   def testUnsuccessfulBackup(self, mock_prod, mock_env, mock_fetch):
 
-    mock_result = mock.Mock(status_code=httplib.BAD_REQUEST)
+    mock_result = mock.Mock(status_code=six.moves.http_client.BAD_REQUEST)
     mock_fetch.return_value = mock_result
 
     self.testapp.get(
-        self.ROUTE, headers={'X-AppEngine-Cron': 'true'},
-        status=httplib.BAD_REQUEST)
+        self.ROUTE,
+        headers={'X-AppEngine-Cron': 'true'},
+        status=six.moves.http_client.BAD_REQUEST)
 
     self.mock_metric.Increment.assert_not_called()
 
@@ -90,8 +94,9 @@ class DatastoreBackupTest(basetest.UpvoteTestCase):
     mock_fetch.side_effect = urlfetch.Error
 
     self.testapp.get(
-        self.ROUTE, headers={'X-AppEngine-Cron': 'true'},
-        status=httplib.INTERNAL_SERVER_ERROR)
+        self.ROUTE,
+        headers={'X-AppEngine-Cron': 'true'},
+        status=six.moves.http_client.INTERNAL_SERVER_ERROR)
 
     self.mock_metric.Increment.assert_not_called()
 

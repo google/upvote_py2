@@ -15,14 +15,21 @@
 """Cron job for performing a scheduled Datastore backup."""
 
 import datetime
-import httplib
 import json
 import logging
 
+import six.moves.http_client
 import webapp2
 from webapp2_extras import routes
 
+from google.appengine.api import urlfetch
+from google.appengine.ext.ndb import metadata
 import upvote.gae.lib.cloud.google_cloud_lib_fixer  # pylint: disable=unused-import
+from upvote.gae.utils import env_utils
+from upvote.gae.utils import handler_utils
+from upvote.gae.utils import monitoring_utils
+from upvote.monitoring import metrics
+
 # pylint: disable=g-bad-import-order,g-import-not-at-top
 
 # pylint: disable=g-import-not-at-top
@@ -30,13 +37,6 @@ try:
   from google.appengine.api import app_identity
 except ImportError:
   app_identity = None
-
-from google.appengine.api import urlfetch
-from google.appengine.ext.ndb import metadata
-from upvote.gae.utils import monitoring_utils
-from upvote.gae.utils import env_utils
-from upvote.gae.utils import handler_utils
-from upvote.monitoring import metrics
 
 
 _DATASTORE_BACKUPS = monitoring_utils.Counter(metrics.DATASTORE.BACKUPS)
@@ -93,7 +93,7 @@ class DatastoreBackup(handler_utils.CronJobHandler):
           deadline=60,
           headers=headers)
 
-      if result.status_code == httplib.OK:
+      if result.status_code == six.moves.http_client.OK:
         logging.info(result.content)
         _DATASTORE_BACKUPS.Increment()
       else:
@@ -103,7 +103,7 @@ class DatastoreBackup(handler_utils.CronJobHandler):
 
     except urlfetch.Error:
       logging.exception('Datastore backup failed')
-      self.response.status_int = httplib.INTERNAL_SERVER_ERROR
+      self.response.status_int = six.moves.http_client.INTERNAL_SERVER_ERROR
 
 
 ROUTES = routes.PathPrefixRoute('/datastore', [

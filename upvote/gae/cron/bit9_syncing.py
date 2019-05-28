@@ -14,6 +14,10 @@
 
 """Cron handlers responsible for all Bit9 syncing."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import datetime
 import logging
 import random
@@ -152,7 +156,7 @@ def BuildEventSubtypeFilter():
     namespace=None)
 def _GetCertificate(cert_id):
   """Gets a certificate entity."""
-  for _ in xrange(_GET_CERT_ATTEMPTS):
+  for _ in range(_GET_CERT_ATTEMPTS):
     cert = api.Certificate.get(cert_id, bit9_utils.CONTEXT)
 
     # Attempt to parse the cert before caching it, in case the related

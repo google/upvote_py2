@@ -14,20 +14,20 @@
 
 """Unit tests for bit9_syncing.py."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import datetime
-import httplib
-import itertools
 import random
 
 import mock
+import six.moves.http_client
 import webapp2
 
 from google.appengine.api import memcache
-
 from google.appengine.ext import ndb
-
 from common import datastore_locks
-
 from upvote.gae import settings
 from upvote.gae.cron import bit9_syncing
 from upvote.gae.datastore import test_utils
@@ -63,11 +63,11 @@ def _CreateEventsAndCerts(
 
   # Create a generator for each type of ID, with each range starting where the
   # previous one left off.
-  id_gens = itertools.izip(
-      xrange(100 + (count * 0), 100 + (count * 1)),
-      xrange(100 + (count * 1), 100 + (count * 2)),
-      xrange(100 + (count * 2), 100 + (count * 3)),
-      xrange(100 + (count * 3), 100 + (count * 4)))
+  id_gens = zip(
+      range(100 + (count * 0), 100 + (count * 1)),
+      range(100 + (count * 1), 100 + (count * 2)),
+      range(100 + (count * 2), 100 + (count * 3)),
+      range(100 + (count * 3), 100 + (count * 4)))
 
   events = []
   certs = []
@@ -130,12 +130,12 @@ def _CreateUnsyncedEvents(host_count=1, events_per_host=-1):
   Returns:
     A sorted list of the randomly generated host IDs.
   """
-  computer_ids = range(host_count)
+  computer_ids = list(range(host_count))
 
   for computer_id in computer_ids:
     event_count = (
         random.randint(1, 5) if events_per_host == -1 else events_per_host)
-    for _ in xrange(event_count):
+    for _ in range(event_count):
       event, _ = _CreateEventAndCert(computer_kwargs={'id': computer_id})
       bit9_syncing._UnsyncedEvent.Generate(event, []).put()
 
@@ -545,7 +545,7 @@ class PullTest(SyncTestCase):
     batch_count = 3
     events_per_batch = 5
 
-    for _ in xrange(batch_count):
+    for _ in range(batch_count):
       events, certs = _CreateEventsAndCerts(count=events_per_batch)
       self._AppendMockApiResults(events, *certs)
 
@@ -739,7 +739,8 @@ class PersistBit9CertificatesTest(basetest.UpvoteTestCase):
     test_utils.CreateBit9Certificates(3)
     signing_chain = [
         bit9_test_utils.CreateCertificate(thumbprint=test_utils.RandomSHA1())
-        for _ in xrange(4)]
+        for _ in range(4)
+    ]
     bit9_test_utils.LinkSigningChain(*signing_chain)
 
     self.assertEntityCount(cert_models.Bit9Certificate, 3)
@@ -755,7 +756,8 @@ class GetCertKeyTest(basetest.UpvoteTestCase):
   def testWithSigningChain(self):
     signing_chain = [
         bit9_test_utils.CreateCertificate(thumbprint=test_utils.RandomSHA1())
-        for _ in xrange(4)]
+        for _ in range(4)
+    ]
     bit9_test_utils.LinkSigningChain(*signing_chain)
 
     expected_key = ndb.Key(
@@ -1438,10 +1440,10 @@ class PullEventsTest(bit9test.Bit9TestCase):
     super(PullEventsTest, self).setUp(wsgi_app=app)
 
   def testQueueFills(self):
-    for i in xrange(1, bit9_syncing._PULL_MAX_QUEUE_SIZE + 20):
+    for i in range(1, bit9_syncing._PULL_MAX_QUEUE_SIZE + 20):
       response = self.testapp.get(
           self.ROUTE, headers={'X-AppEngine-Cron': 'true'})
-      self.assertEqual(httplib.OK, response.status_int)
+      self.assertEqual(six.moves.http_client.OK, response.status_int)
       expected_queue_size = min(i, bit9_syncing._PULL_MAX_QUEUE_SIZE)
       self.assertTaskCount(constants.TASK_QUEUE.BIT9_PULL, expected_queue_size)
 
@@ -1457,13 +1459,13 @@ class CountEventsToProcessTest(bit9test.Bit9TestCase):
   @mock.patch.object(bit9_syncing.monitoring, 'events_to_process')
   def testSuccess(self, mock_metric):
     expected_length = 5
-    for _ in xrange(expected_length):
+    for _ in range(expected_length):
       bit9_syncing._UnsyncedEvent().put()
 
     response = self.testapp.get(
         self.ROUTE, headers={'X-AppEngine-Cron': 'true'})
 
-    self.assertEqual(httplib.OK, response.status_int)
+    self.assertEqual(six.moves.http_client.OK, response.status_int)
     actual_length = mock_metric.Set.call_args_list[0][0][0]
     self.assertEqual(expected_length, actual_length)
 
@@ -1477,10 +1479,10 @@ class ProcessEventsTest(bit9test.Bit9TestCase):
     super(ProcessEventsTest, self).setUp(wsgi_app=app)
 
   def testQueueFills(self):
-    for i in xrange(1, bit9_syncing._DISPATCH_MAX_QUEUE_SIZE + 20):
+    for i in range(1, bit9_syncing._DISPATCH_MAX_QUEUE_SIZE + 20):
       response = self.testapp.get(
           self.ROUTE, headers={'X-AppEngine-Cron': 'true'})
-      self.assertEqual(httplib.OK, response.status_int)
+      self.assertEqual(six.moves.http_client.OK, response.status_int)
       expected_queue_size = min(i, bit9_syncing._DISPATCH_MAX_QUEUE_SIZE)
       self.assertTaskCount(
           constants.TASK_QUEUE.BIT9_DISPATCH, expected_queue_size)

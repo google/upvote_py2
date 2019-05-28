@@ -14,14 +14,17 @@
 
 """Unit tests for exemptions.py."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import datetime
-import httplib
 
 import mock
+import six.moves.http_client
 import webapp2
 
 from google.appengine.api import memcache
-
 from upvote.gae.cron import exemption_upkeep
 from upvote.gae.datastore import test_utils
 from upvote.gae.lib.testing import basetest
@@ -50,7 +53,9 @@ class ProcessExemptionsTest(basetest.UpvoteTestCase):
       expected_exm_keys.append(exm_key)
 
     self.testapp.get(
-        self.ROUTE, headers={'X-AppEngine-Cron': 'true'}, status=httplib.OK)
+        self.ROUTE,
+        headers={'X-AppEngine-Cron': 'true'},
+        status=six.moves.http_client.OK)
     tasks = self.UnpackTaskQueue(queue_name=constants.TASK_QUEUE.EXEMPTIONS)
     actual_exm_keys = {args[0] for func, args, kwargs in tasks}
     self.assertSameElements(expected_exm_keys, actual_exm_keys)
@@ -65,7 +70,7 @@ class NotifyExpirationsInRangeTest(basetest.UpvoteTestCase):
   def testSuccess(self, mock_send):
 
     # Create a number of APPROVED Exemptions that expire at different times.
-    deactivation_dts = [datetime.datetime(2018, 12, 19, h) for h in xrange(10)]
+    deactivation_dts = [datetime.datetime(2018, 12, 19, h) for h in range(10)]
     for deactivation_dt in deactivation_dts:
       host = test_utils.CreateSantaHost()
       test_utils.CreateExemption(
@@ -90,7 +95,9 @@ class NotifyUpcomingExpirationsTest(basetest.UpvoteTestCase):
   def testSuccess(self):
     self.assertTaskCount(constants.TASK_QUEUE.EXEMPTIONS, 0)
     self.testapp.get(
-        self.ROUTE, headers={'X-AppEngine-Cron': 'true'}, status=httplib.OK)
+        self.ROUTE,
+        headers={'X-AppEngine-Cron': 'true'},
+        status=six.moves.http_client.OK)
     self.assertTaskCount(constants.TASK_QUEUE.EXEMPTIONS, 2)
 
 
@@ -121,7 +128,9 @@ class ExpireExemptionsTest(basetest.UpvoteTestCase):
       expired_exm_keys.append(exm_key)
 
     self.testapp.get(
-        self.ROUTE, headers={'X-AppEngine-Cron': 'true'}, status=httplib.OK)
+        self.ROUTE,
+        headers={'X-AppEngine-Cron': 'true'},
+        status=six.moves.http_client.OK)
     tasks = self.UnpackTaskQueue(queue_name=constants.TASK_QUEUE.EXEMPTIONS)
     # keys = {args[0] for func, args, kwargs in tasks}
     actual_exm_keys = {args[0] for func, args, kwargs in tasks}

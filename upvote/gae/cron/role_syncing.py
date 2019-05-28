@@ -14,15 +14,19 @@
 
 """Cron job to sync Upvote roles with external user groups."""
 
-import httplib
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import logging
 
+import six
+import six.moves.http_client
 import webapp2
 from webapp2_extras import routes
 
 from google.appengine.ext import deferred
 from google.appengine.ext import ndb
-
 from upvote.gae import settings
 from upvote.gae.datastore import utils as datastore_utils
 from upvote.gae.datastore.models import host as host_models
@@ -56,7 +60,7 @@ class SyncRoles(handler_utils.CronJobHandler):
       # Make sure the untrusted group actually exists first.
       if not group_client.DoesGroupExist(untrusted_group_name):
         logging.error('Untrusted group %s does not exist', untrusted_group_name)
-        self.abort(httplib.INTERNAL_SERVER_ERROR)
+        self.abort(six.moves.http_client.INTERNAL_SERVER_ERROR)
 
       untrusted_users |= set(group_client.AllMembers(untrusted_group_name))
 
@@ -76,7 +80,7 @@ class SyncRoles(handler_utils.CronJobHandler):
             'Skipping sync of role %s, group %s does not exist', role,
             group)
         _SYNCING_ERRORS.Increment()
-        self.response.set_status(httplib.NOT_FOUND)
+        self.response.set_status(six.moves.http_client.NOT_FOUND)
         skip_current_role = True
         break
 
@@ -161,7 +165,7 @@ class SyncRoles(handler_utils.CronJobHandler):
 
     # Iterate over the syncing dict, where each entry consists of a role key
     # which maps to a list of groups that should have that role.
-    for role, group_names in sorted(group_role_assignments.iteritems()):
+    for role, group_names in sorted(six.iteritems(group_role_assignments)):
       self._SyncRoleToGroups(group_client, role, group_names, untrusted_users)
 
 
@@ -195,7 +199,7 @@ class ClientModeChangeHandler(handler_utils.CronJobHandler):
       return
 
     for user_key_group in iter_utils.Grouper(user_keys, BATCH_SIZE):
-      user_key_group = filter(None, user_key_group)
+      user_key_group = [k for k in user_key_group if k]
       deferred.defer(
           _ChangeModeForHosts, mode, user_key_group, honor_lock,
           _queue=constants.TASK_QUEUE.DEFAULT)
