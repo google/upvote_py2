@@ -25,7 +25,6 @@ py_appengine_library(
     deps = [
         "//common:datastore_locks",
         "//common:memcache_decorator",
-        "//third_party/py/webapp2",
         "//upvote/gae:settings",
         "//upvote/gae/bigquery:tables",
         "//upvote/gae/datastore:utils",
@@ -58,7 +57,6 @@ py_appengine_library(
     deps = [
         "//apphosting/api/app_identity",
         "//external:six",
-        "//third_party/py/webapp2",
         "//upvote/gae/datastore/models:user",
         "//upvote/gae/lib/cloud:google_cloud_lib_fixer",
         "//upvote/gae/utils:env_utils",
@@ -74,7 +72,6 @@ py_appengine_library(
     srcs = ["role_syncing.py"],
     deps = [
         "//external:six",
-        "//third_party/py/webapp2",
         "//upvote/gae:settings",
         "//upvote/gae/datastore:utils",
         "//upvote/gae/datastore/models:host",
@@ -94,7 +91,6 @@ py_appengine_library(
     srcs = ["exemption_upkeep.py"],
     deps = [
         "//net/proto2/python/public",
-        "//third_party/py/webapp2",
         "//upvote/gae/datastore/models:exemption",
         "//upvote/gae/datastore/models:utils",
         "//upvote/gae/lib/exemption:api",
@@ -116,7 +112,6 @@ py_appengine_library(
         ":datastore_backup",
         ":exemption_upkeep",
         ":role_syncing",
-        "//third_party/py/webapp2",
     ],
 )
 
