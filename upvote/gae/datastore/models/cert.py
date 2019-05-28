@@ -74,7 +74,7 @@ class Bit9Certificate(mixin.Bit9, Certificate):
 class SantaCertificate(mixin.Santa, Certificate):
   """A certificate used to codesign at least one SantaBlockable.
 
-  key = SHA-256 hash of certificate
+  key = The SHA256 hash of the certificate
 
   Attributes:
     common_name: str, cert Common Name.
