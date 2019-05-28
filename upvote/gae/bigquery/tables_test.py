@@ -12,10 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Lint as: python2, python3
 """Unit tests for tables.py."""
+
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 
 import datetime
 import mock
+from six.moves import range
 
 from google.appengine.ext import ndb
 
@@ -335,7 +341,7 @@ class BigQueryTableTest(basetest.UpvoteTestCase):
 
     @ndb.transactional
     def _RepeatedInserts():
-      for _ in xrange(attempts):
+      for _ in range(attempts):
         now = datetime.datetime.utcnow()
         row_values = {'aaa': True, 'bbb': 4, 'timestamp': now}
         TEST_TABLE._DoInsertRow(**row_values)
@@ -350,7 +356,7 @@ class BigQueryTableTest(basetest.UpvoteTestCase):
 
     attempts = 3
 
-    for _ in xrange(attempts):
+    for _ in range(attempts):
       now = datetime.datetime.utcnow()
       row_values = {'aaa': True, 'bbb': 4, 'timestamp': now}
       TEST_TABLE._DoInsertRow(**row_values)

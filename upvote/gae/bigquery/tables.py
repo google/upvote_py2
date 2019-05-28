@@ -12,13 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Lint as: python2, python3
 """Representations of the BigQuery tables Upvote streams to."""
+
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 
 import collections
 import datetime
 import hashlib
 import logging
 import time
+
+import six
 
 import upvote.gae.lib.cloud.google_cloud_lib_fixer  # pylint: disable=unused-import
 # pylint: disable=g-bad-import-order,g-import-not-at-top
@@ -39,8 +46,8 @@ FIELD_TYPE = constants.UppercaseNamespace([
 
 FIELD_TYPE_MAP = {
     FIELD_TYPE.BOOLEAN: {bool},
-    FIELD_TYPE.INTEGER: {int, long},
-    FIELD_TYPE.STRING: {str, unicode},
+    FIELD_TYPE.INTEGER: {int, int},
+    FIELD_TYPE.STRING: {str, six.text_type},
     FIELD_TYPE.TIMESTAMP: {datetime.datetime},
 }
 
@@ -104,7 +111,7 @@ def _RowValueToStr(v):
   """
   if isinstance(v, list):
     return str([_RowValueToStr(i) for i in v])
-  elif isinstance(v, unicode):
+  elif isinstance(v, six.text_type):
     return v.encode('ascii', 'replace')
   else:
     return str(v)
@@ -177,7 +184,7 @@ def _SendToBigQuery(table, row_dict):
     # until the table creation fully propagates, so attempt the insertion a few
     # times with increasing delays before giving up and letting the taskqueue
     # retry it.
-    for mins in xrange(1, 6):
+    for mins in range(1, 6):
       logging.info(
           'Waiting %dm for table "%s" to be ready', mins, table.name)
       _Sleep(mins)
@@ -249,7 +256,7 @@ class BigQueryTable(object):
     if missing_columns:
       raise MissingColumnError(sorted(list(missing_columns)))
 
-    for k, v in kwargs.iteritems():
+    for k, v in six.iteritems(kwargs):
 
       column = column_map[k]
       expected_types = FIELD_TYPE_MAP[column.field_type]
@@ -325,7 +332,7 @@ class BigQueryTable(object):
 
         # Create a unique identifier based on all columns except 'timestamp'.
         memcache_key = self.CreateUniqueId(
-            **{k: v for k, v in kwargs.iteritems() if k != 'timestamp'})
+            **{k: v for k, v in six.iteritems(kwargs) if k != 'timestamp'})
 
         # If the key is already in memcache despite the extremely short timeout,
         # this is likely a repeat insertion due to a retry, so skip it.
