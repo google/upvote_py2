@@ -87,6 +87,40 @@ class GetRulesForBlockableTest(basetest.UpvoteTestCase):
     self.assertLen(api._GetRulesForBlockable(blockable), in_effect_rule_count)
 
 
+class CreateRuleForBlockableTest(basetest.UpvoteTestCase):
+
+  def testBit9(self):
+
+    self.assertNoEntitiesExist(rule_models.Bit9Rule)
+
+    bit9_binary = test_utils.CreateBit9Binary()
+    bit9_rule = api._CreateRuleForBlockable(
+        bit9_binary, policy=constants.RULE_POLICY.WHITELIST)
+    bit9_rule.put()
+
+    self.assertEntityCount(rule_models.Bit9Rule, 1)
+    self.assertLen(
+        rule_models.Bit9Rule.query(ancestor=bit9_binary.key).fetch(), 1)
+
+  def testSanta(self):
+
+    self.assertNoEntitiesExist(rule_models.SantaRule)
+
+    santa_blockable = test_utils.CreateSantaBlockable()
+    santa_rule = api._CreateRuleForBlockable(
+        santa_blockable, policy=constants.RULE_POLICY.WHITELIST)
+    santa_rule.put()
+
+    self.assertEntityCount(rule_models.SantaRule, 1)
+    self.assertLen(
+        rule_models.SantaRule.query(ancestor=santa_blockable.key).fetch(), 1)
+
+  def testUnsupportedClientError(self):
+    blockable = test_utils.CreateBlockable()
+    with self.assertRaises(api.UnsupportedClientError):
+      api._CreateRuleForBlockable(blockable)
+
+
 class IsVotingAllowedTest(basetest.UpvoteTestCase):
 
   def testBlockable_NotFound(self):

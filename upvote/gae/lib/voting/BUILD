@@ -20,7 +20,6 @@ py_appengine_library(
         "//upvote/gae/datastore/models:vote",
         "//upvote/gae/lib/analysis:metrics",
         "//upvote/gae/lib/bit9:change_set",
-        "//upvote/gae/taskqueue:utils",
         "//upvote/gae/utils:user_utils",
         "//upvote/shared:constants",
     ],

@@ -227,6 +227,34 @@ def _GetVotingProhibitedReason(blockable_key, current_user=None):
   return None
 
 
+def _CreateRuleForBlockable(blockable, **kwargs):
+  """Creates a Rule for the given Blockable.
+
+  Args:
+    blockable: The Blockable to create a new Rule for.
+    **kwargs: Arguments to be passed to the Rule constructor.
+
+  Returns:
+    An un-persisted Rule corresponding to the given Blockable.
+
+  Raises:
+    UnsupportedClientError: if the specified Blockable came from an unsupported
+        client.
+  """
+  client = blockable.GetClientName()
+
+  if client == constants.CLIENT.BIT9:
+    return rule_models.Bit9Rule(
+        parent=blockable.key, rule_type=blockable.rule_type, **kwargs)
+
+  elif client == constants.CLIENT.SANTA:
+    return rule_models.SantaRule(
+        parent=blockable.key, rule_type=blockable.rule_type, **kwargs)
+
+  else:
+    raise UnsupportedClientError(client)
+
+
 def IsVotingAllowed(blockable_key, current_user=None):
   """Checks if voting is allowed for the given Blockable.
 
@@ -551,17 +579,6 @@ class BallotBox(object):
     # won't be created until the transaction has been committed.
     self.blockable.put()
 
-  @abc.abstractmethod
-  def _GenerateRule(self, **kwargs):
-    """Generate the rule for the blockable being voted on.
-
-    Args:
-      **kwargs: Arguments to be passed to the Rule constructor for all returned
-          rules.
-    Returns:
-      An un-persisted Rule corresponding to the blockable being voted on.
-    """
-
   @ndb.transactional(xg=True)
   def Recount(self):
     """Checks votes, state, and rules for the target blockable."""
@@ -686,9 +703,8 @@ class BallotBox(object):
         changed_rules.append(rule)
 
     # Create the new globally whitelist rule.
-    whitelist_rule = self._GenerateRule(
-        policy=constants.RULE_POLICY.WHITELIST,
-        in_effect=True)
+    whitelist_rule = _CreateRuleForBlockable(
+        self.blockable, policy=constants.RULE_POLICY.WHITELIST, in_effect=True)
     whitelist_rule.InsertBigQueryRow()
 
     # Put all new/modified Rules.
@@ -740,11 +756,9 @@ class BallotBox(object):
         # Otherwise, create a new Rule to persist.
         else:
           logging.info('Creating new Rule for %s on %s', user_key.id(), host_id)
-          new_rule = self._GenerateRule(
-              policy=constants.RULE_POLICY.WHITELIST,
-              in_effect=True,
-              host_id=host_id,
-              user_key=user_key)
+          new_rule = _CreateRuleForBlockable(
+              self.blockable, policy=constants.RULE_POLICY.WHITELIST,
+              in_effect=True, host_id=host_id, user_key=user_key)
           new_rule.InsertBigQueryRow()
           new_rules.append(new_rule)
 
@@ -814,9 +828,8 @@ class BallotBox(object):
       changed_rules.append(rule)
 
     # Create global blacklist rule.
-    blacklist_rule = self._GenerateRule(
-        policy=constants.RULE_POLICY.BLACKLIST,
-        in_effect=True)
+    blacklist_rule = _CreateRuleForBlockable(
+        self.blockable, policy=constants.RULE_POLICY.BLACKLIST, in_effect=True)
     blacklist_rule.InsertBigQueryRow()
 
     # Put all new/modified Rules.
@@ -917,20 +930,6 @@ class SantaBallotBox(BallotBox):
   """Class that modifies the voting state of a SantaBlockable."""
 
 
-  def _GenerateRule(self, **kwargs):
-    """Generate the rule for the blockable being voted on.
-
-    Args:
-      **kwargs: Arguments to be passed to the SantaRule constructor for all
-          returned rules.
-    Returns:
-      An un-persisted SantaRule corresponding to the blockable being voted on.
-    """
-    return rule_models.SantaRule(
-        parent=self.blockable.key,
-        rule_type=self.blockable.rule_type,
-        **kwargs)
-
   def _GetHostsToWhitelist(self, user_key):
     """Returns hosts for which whitelist rules should be created for a user.
 
@@ -953,9 +952,8 @@ class SantaBallotBox(BallotBox):
     return future
 
   def _GenerateRemoveRules(self, unused_existing_rules):
-    removal_rule = self._GenerateRule(
-        policy=constants.RULE_POLICY.REMOVE,
-        in_effect=True)
+    removal_rule = _CreateRuleForBlockable(
+        self.blockable, policy=constants.RULE_POLICY.REMOVE, in_effect=True)
     removal_rule.put_async()
     removal_rule.InsertBigQueryRow()
 
@@ -992,19 +990,6 @@ class Bit9BallotBox(BallotBox):
 
   def _TriggerCommit(self):
     change_set.DeferCommitBlockableChangeSet(self.blockable.key)
-
-  def _GenerateRule(self, **kwargs):
-    """Generate the rule for the blockable being voted on.
-
-    Args:
-      **kwargs: Arguments to be passed to the Bit9Rule constructor.
-    Returns:
-      An un-persisted Bit9Rule corresponding to the blockable being voted on.
-    """
-    return rule_models.Bit9Rule(
-        parent=self.blockable.key,
-        rule_type=self.blockable.rule_type,
-        **kwargs)
 
   def _GloballyWhitelist(self):
     future = super(Bit9BallotBox, self)._GloballyWhitelist()
@@ -1045,8 +1030,9 @@ class Bit9BallotBox(BallotBox):
     host_ids = set(rule.host_id for rule in existing_rules)
     removal_rules = []
     for host_id in host_ids:
-      removal_rule = self._GenerateRule(
-          host_id=host_id, policy=constants.RULE_POLICY.REMOVE, in_effect=True)
+      removal_rule = _CreateRuleForBlockable(
+          self.blockable, host_id=host_id, policy=constants.RULE_POLICY.REMOVE,
+          in_effect=True)
       removal_rules.append(removal_rule)
       removal_rule.InsertBigQueryRow()
     put_futures = ndb.put_multi_async(removal_rules)
