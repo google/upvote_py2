@@ -113,6 +113,10 @@ def RandomDatetime():
   return Now() - datetime.timedelta(seconds=offset_seconds)
 
 
+def RandomTimestamp():
+  return int(RandomDatetime().strftime('%s'))
+
+
 _NDB_PROPERTY_VALUE_FUNCS = {
     ndb.StringProperty: lambda: RandomLetters(4),
     ndb.DateTimeProperty: RandomDatetime,
