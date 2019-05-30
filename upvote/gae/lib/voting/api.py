@@ -986,10 +986,9 @@ class Bit9BallotBox(BallotBox):
     # NOTE: If we're in a transaction, we should only send out the
     # request to Bit9 once the RuleChangeSet has been successfully created.
     # If we're not in a transaction, this executes immediately.
-    ndb.get_context().call_on_commit(self._TriggerCommit)
-
-  def _TriggerCommit(self):
-    change_set.DeferCommitBlockableChangeSet(self.blockable.key)
+    callback = lambda: change_set.DeferCommitBlockableChangeSet(  # pylint: disable=g-long-lambda
+        self.blockable.key)
+    ndb.get_context().call_on_commit(callback)
 
   def _GloballyWhitelist(self):
     future = super(Bit9BallotBox, self)._GloballyWhitelist()
