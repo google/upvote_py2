@@ -173,6 +173,29 @@ class CreateRuleForBlockableTest(basetest.UpvoteTestCase):
       api._CreateRuleForBlockable(blockable)
 
 
+class GetNewScoreTest(basetest.UpvoteTestCase):
+
+  def testHasNoVotes(self):
+    self.assertEqual(5, api._GetNewScore(5))
+
+  def testHasOldVote(self):
+    blockable = test_utils.CreateSantaBlockable()
+    old_vote = test_utils.CreateVote(blockable, weight=3)
+    self.assertEqual(2, api._GetNewScore(5, old_vote=old_vote))
+
+  def testHasNewVote(self):
+    blockable = test_utils.CreateSantaBlockable()
+    new_vote = test_utils.CreateVote(blockable, weight=10)
+    self.assertEqual(15, api._GetNewScore(5, new_vote=new_vote))
+
+  def testHasBoth(self):
+    blockable = test_utils.CreateSantaBlockable()
+    old_vote = test_utils.CreateVote(blockable, weight=3)
+    new_vote = test_utils.CreateVote(blockable, weight=10)
+    self.assertEqual(
+        12, api._GetNewScore(5, old_vote=old_vote, new_vote=new_vote))
+
+
 class IsVotingAllowedTest(basetest.UpvoteTestCase):
 
   def testBlockable_NotFound(self):

@@ -278,6 +278,25 @@ def _CreateRuleForBlockable(blockable, **kwargs):
     raise UnsupportedClientError(client)
 
 
+def _GetNewScore(initial_score, old_vote=None, new_vote=None):
+  """Calculates the expected score of a Blockable.
+
+  Args:
+    initial_score: int, The score of the Blockable prior to voting.
+    old_vote: The old Vote cast for the Blockable.
+    new_vote: The new Vote cast for the Blockable.
+
+  Returns:
+    int, The expected score of the Blockable.
+  """
+  current_score = initial_score
+  if old_vote is not None:
+    current_score -= old_vote.effective_weight
+  if new_vote is not None:
+    current_score += new_vote.effective_weight
+  return current_score
+
+
 def IsVotingAllowed(blockable_key, current_user=None):
   """Checks if voting is allowed for the given Blockable.
 
@@ -519,7 +538,8 @@ class BallotBox(object):
     self._CreateOrUpdateVote(was_yes_vote, vote_weight)
     assert self.new_vote is not None
 
-    new_score = self._GetNewScore(initial_score)
+    new_score = _GetNewScore(
+        initial_score, old_vote=self.old_vote, new_vote=self.new_vote)
     self._UpdateBlockable(new_score)
 
     return initial_state
@@ -557,22 +577,6 @@ class BallotBox(object):
         platform=self.blockable.GetPlatformName(),
         target_type=self.new_vote.candidate_type,
         voter=self.new_vote.user_email)
-
-  def _GetNewScore(self, initial_score):
-    """Calculates the expected score of the blockable.
-
-    Args:
-      initial_score: int, The score of the blockable prior to voting.
-
-    Returns:
-      int, The expected score of the blockable.
-    """
-    current_score = initial_score
-    if self.old_vote is not None:
-      current_score -= self.old_vote.effective_weight
-    if self.new_vote is not None:
-      current_score += self.new_vote.effective_weight
-    return current_score
 
   def _UpdateBlockable(self, new_score):
     """Modifies the blockable according to the updated vote score."""
