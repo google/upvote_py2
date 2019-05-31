@@ -14,10 +14,9 @@
 
 """Module containing all Exemption decision-making logic."""
 
+from concurrent import futures
 import datetime
 import logging
-
-from concurrent import futures
 
 from google.appengine.ext import ndb
 

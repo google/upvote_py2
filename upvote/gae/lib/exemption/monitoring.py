@@ -20,12 +20,12 @@ from upvote.monitoring import metrics
 
 enforcement_errors = monitoring_utils.Counter(metrics.EXEMPTION.ENFORCEMENT_ERRORS)
 expired_exemptions = monitoring_utils.Metric(
-    metrics.EXEMPTION.EXPIRED_EXEMPTIONS, long)
+    metrics.EXEMPTION.EXPIRED_EXEMPTIONS, int)
 policy_check_outcomes = monitoring_utils.Counter(
     metrics.EXEMPTION.POLICY_CHECK_OUTCOMES, fields=[(u'outcome', str)])
 processing_errors = monitoring_utils.Counter(metrics.EXEMPTION.PROCESSING_ERRORS)
 requested_exemptions = monitoring_utils.Metric(
-    metrics.EXEMPTION.REQUESTED_EXEMPTIONS, long)
+    metrics.EXEMPTION.REQUESTED_EXEMPTIONS, int)
 revocation_errors = monitoring_utils.Counter(metrics.EXEMPTION.REVOCATION_ERRORS)
 state_changes = monitoring_utils.Counter(
     metrics.EXEMPTION.STATE_CHANGES, fields=[(u'state', str)])

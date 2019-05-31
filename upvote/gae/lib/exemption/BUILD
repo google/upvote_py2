@@ -17,7 +17,6 @@ py_appengine_library(
         ":monitoring",
         ":notify",
         "//external:futures",
-        "//upvote/gae:settings",
         "//upvote/gae/bigquery:tables",
         "//upvote/gae/datastore/models:exemption",
         "//upvote/gae/datastore/models:host",
@@ -41,7 +40,6 @@ py_appengine_library(
         "//upvote/gae/datastore/models:utils",
         "//upvote/gae/utils:env_utils",
         "//upvote/gae/utils:group_utils",
-        "//upvote/gae/utils:user_utils",
         "//upvote/shared:constants",
     ],
 )
