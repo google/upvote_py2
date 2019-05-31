@@ -541,10 +541,11 @@ class EventUploadHandler(SantaRequestHandler):
         for cert, existing in zip(unique_cert_map.values(), existing_certs)
         if existing is None]
 
+    # Insert a row into the Certificate table. Allow the timestamp to be
+    # generated within InsertBigQueryRow(). The Blockable.recorded_dt Property
+    # is set to auto_now_add, but this isn't filled in until persist time.
     for cert_entity in unknown_certs:
-      # Insert a row into the Certificate table. Allow the timestamp to be
-      # generated within InsertBigQueryRow(). The Blockable.recorded_dt Property
-      # is set to auto_now_add, but this isn't filled in until persist time.
+      logging.info('New certificate encountered: %s', cert_entity.key.id())
       cert_entity.InsertBigQueryRow(constants.BLOCK_ACTION.FIRST_SEEN)
 
     yield ndb.put_multi_async(unknown_certs)
@@ -821,7 +822,7 @@ class EventUploadHandler(SantaRequestHandler):
 
     all_futures = []
     json_events = self.parsed_json.get(_EVENT_UPLOAD.EVENTS)
-    logging.info('Syncing %d events', len(json_events))
+    logging.info('Syncing %d event(s)', len(json_events))
 
     # Create cert entities for all signing chains if they don't already exist.
     all_futures.append(self._CreateCertificatesFromJsonEvents(json_events))
@@ -847,11 +848,11 @@ class EventUploadHandler(SantaRequestHandler):
     # Create bundle members for bundle upload events.
     bundle_member_future = datastore_utils.GetNoOpFuture()
     if bundle_upload_events:
-      logging.info('Syncing %d bundle events', len(bundle_upload_events))
+      logging.info('Syncing %d bundle event(s)', len(bundle_upload_events))
       bundle_member_future = self._CreateAllBundleBinaries(bundle_upload_events)
       all_futures.append(bundle_member_future)
 
-    # Create SantaEvent entites from the uploaded JSON events.
+    # Create SantaEvent entities from the uploaded JSON events.
     santa_events = []
     for json_event in normal_events:
       events = self._GenerateSantaEventsFromJsonEvent(json_event, self.host)
