@@ -14,6 +14,7 @@ py_appengine_library(
         "//common/testing:basetest",
         "//external:mock",
         "//external:oauth2client",
+        "//external:six",
         "//external:webob",
         "//external:webtest",
         "//upvote/gae:settings",
@@ -32,19 +33,9 @@ py_appengine_library(
     srcs = ["bit9test.py"],
     deps = [
         ":basetest",
-        "//common/testing:basetest",
         "//external:mock",
-        "//external:oauth2client",
-        "//external:webob",
-        "//external:webtest",
-        "//upvote/gae:settings",
-        "//upvote/gae/bigquery:tables",
-        "//upvote/gae/datastore:test_utils",
         "//upvote/gae/datastore/models:singleton",
         "//upvote/gae/lib/bit9:utils",
-        "//upvote/gae/utils:handler_utils",
-        "//upvote/gae/utils:xsrf_utils",
-        "//upvote/shared:constants",
     ],
 )
 
@@ -54,5 +45,6 @@ py_appengine_library(
     srcs_version = "PY2AND3",
     deps = [
         "//external:mock",
+        "//external:six",
     ],
 )

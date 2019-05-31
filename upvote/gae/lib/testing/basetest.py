@@ -14,6 +14,10 @@
 
 """Base TestCase for Upvote AppEngine unit tests."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import base64
 import collections
 import contextlib
@@ -23,6 +27,8 @@ import pickle
 
 import mock
 from oauth2client.contrib import xsrfutil
+import six
+from six.moves import filter
 import webapp2
 from webapp2_extras import routes
 import webtest
@@ -272,7 +278,7 @@ class UpvoteTestCase(basetest.AppEngineTestCase):
     call_args = [(c[0][0], c[0][1]) for c in calls]
     if reset_mock:
       self.mock_send_to_bigquery.reset_mock()
-    return filter(predicate, call_args)
+    return list(filter(predicate, call_args))
 
   def assertNoBigQueryInsertions(self):
     self.assertBigQueryInsertions([])
@@ -294,7 +300,7 @@ class UpvoteTestCase(basetest.AppEngineTestCase):
 
     # Override/set any settings provided as kwargs.
     if new_settings:
-      for name, value in new_settings.iteritems():
+      for name, value in six.iteritems(new_settings):
         setattr(new_env, name, value)
 
     self._env_patcher = mock.patch.object(
