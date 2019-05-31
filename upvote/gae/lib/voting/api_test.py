@@ -43,6 +43,58 @@ def CreateEvent(blockable, host, user):
       parent=datastore_utils.ConcatenateKeys(user.key, host.key, blockable.key))
 
 
+class CreateRuleChangeSetTest(basetest.UpvoteTestCase):
+
+  def testNoRules(self):
+
+    bit9_binary = test_utils.CreateBit9Binary()
+    rules_future = datastore_utils.GetNoOpFuture()
+
+    self.assertNoEntitiesExist(rule_models.RuleChangeSet)
+    self.assertNoEntitiesExist(rule_models.Bit9Rule)
+
+    api._CreateRuleChangeSet(
+        bit9_binary, rules_future, constants.RULE_POLICY.WHITELIST)
+
+    self.assertNoEntitiesExist(rule_models.RuleChangeSet)
+    self.assertNoEntitiesExist(rule_models.Bit9Rule)
+
+  @mock.patch.object(api.change_set, 'DeferCommitBlockableChangeSet')
+  def testOutsideTransaction(self, mock_defer):
+
+    bit9_binary = test_utils.CreateBit9Binary()
+    bit9_rules = test_utils.CreateBit9Rules(bit9_binary.key, 4)
+    rules_future = ndb.Future()
+    rules_future.set_result(bit9_rules)
+
+    self.assertNoEntitiesExist(rule_models.RuleChangeSet)
+
+    api._CreateRuleChangeSet(
+        bit9_binary, rules_future, constants.RULE_POLICY.WHITELIST)
+
+    self.assertEntityCount(rule_models.RuleChangeSet, 1)
+    self.assertEntityCount(rule_models.Bit9Rule, 4)
+    mock_defer.assert_called_once()
+
+  @mock.patch.object(api.change_set, 'DeferCommitBlockableChangeSet')
+  def testInsideTransaction(self, mock_defer):
+
+    bit9_binary = test_utils.CreateBit9Binary()
+    bit9_rules = test_utils.CreateBit9Rules(bit9_binary.key, 4)
+    rules_future = ndb.Future()
+    rules_future.set_result(bit9_rules)
+
+    self.assertNoEntitiesExist(rule_models.RuleChangeSet)
+
+    callback = lambda: api._CreateRuleChangeSet(  # pylint: disable=g-long-lambda
+        bit9_binary, rules_future, constants.RULE_POLICY.WHITELIST)
+    ndb.transaction(callback)
+
+    self.assertEntityCount(rule_models.RuleChangeSet, 1)
+    self.assertEntityCount(rule_models.Bit9Rule, 4)
+    mock_defer.assert_called_once()
+
+
 class GetBlockableTest(basetest.UpvoteTestCase):
 
   def testFound(self):

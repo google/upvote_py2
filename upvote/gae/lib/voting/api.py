@@ -59,6 +59,29 @@ class OperationNotAllowedError(Error):
   """Error raised when operation not permitted on the given blockable."""
 
 
+def _CreateRuleChangeSet(blockable, rules_future, new_policy):
+  """Creates a RuleChangeSet and trigger an attempted commit."""
+  rules = rules_future.get_result()
+
+  # If there are no rules to be created (rare but possible), we can just drop
+  # the change set entirely.
+  if not rules:
+    return
+
+  keys = [rule.key for rule in rules]
+  change = rule_models.RuleChangeSet(
+      rule_keys=keys, change_type=new_policy, parent=blockable.key)
+  change.put()
+
+  # Attempt to commit the change set in a deferred task.
+  # NOTE: If we're in a transaction, we should only send out the
+  # request to Bit9 once the RuleChangeSet has been successfully created.
+  # If we're not in a transaction, this executes immediately.
+  key = blockable.key
+  callback = lambda: change_set.DeferCommitBlockableChangeSet(key)
+  ndb.get_context().call_on_commit(callback)
+
+
 def _GetBlockable(sha256):
   blockable = binary_models.Blockable.get_by_id(sha256)
   if blockable is None:
@@ -969,31 +992,11 @@ class SantaBallotBox(BallotBox):
 class Bit9BallotBox(BallotBox):
   """Class that modifies the voting state of a Bit9Blockable."""
 
-  def _CreateRuleChangeSet(self, rules_future, new_policy):
-    """Creates a RuleChangeSet and trigger an attempted commit."""
-    rules = rules_future.get_result()
-    # If there are no rules to be created (rare but possible), we can just drop
-    # the change set entirely.
-    if not rules:
-      return
-
-    keys = [rule.key for rule in rules]
-    change = rule_models.RuleChangeSet(
-        rule_keys=keys, change_type=new_policy, parent=self.blockable.key)
-    change.put()
-
-    # Attempt to commit the change set in a deferred task.
-    # NOTE: If we're in a transaction, we should only send out the
-    # request to Bit9 once the RuleChangeSet has been successfully created.
-    # If we're not in a transaction, this executes immediately.
-    callback = lambda: change_set.DeferCommitBlockableChangeSet(  # pylint: disable=g-long-lambda
-        self.blockable.key)
-    ndb.get_context().call_on_commit(callback)
-
   def _GloballyWhitelist(self):
     future = super(Bit9BallotBox, self)._GloballyWhitelist()
     future.add_callback(
-        self._CreateRuleChangeSet, future, constants.RULE_POLICY.WHITELIST)
+        _CreateRuleChangeSet, self.blockable, future,
+        constants.RULE_POLICY.WHITELIST)
     return future
 
   def _GetHostsToWhitelist(self, user_key):
@@ -1015,13 +1018,15 @@ class Bit9BallotBox(BallotBox):
   def _LocallyWhitelist(self, user_keys=None):
     future = super(Bit9BallotBox, self)._LocallyWhitelist(user_keys=user_keys)
     future.add_callback(
-        self._CreateRuleChangeSet, future, constants.RULE_POLICY.WHITELIST)
+        _CreateRuleChangeSet, self.blockable, future,
+        constants.RULE_POLICY.WHITELIST)
     return future
 
   def _Blacklist(self):
     future = super(Bit9BallotBox, self)._Blacklist()
     future.add_callback(
-        self._CreateRuleChangeSet, future, constants.RULE_POLICY.BLACKLIST)
+        _CreateRuleChangeSet, self.blockable, future,
+        constants.RULE_POLICY.BLACKLIST)
     return future
 
   def _GenerateRemoveRules(self, existing_rules):
@@ -1037,7 +1042,8 @@ class Bit9BallotBox(BallotBox):
     put_futures = ndb.put_multi_async(removal_rules)
     future = datastore_utils.GetMultiFuture(put_futures)
     future.add_callback(
-        self._CreateRuleChangeSet, datastore_utils.GetNoOpFuture(removal_rules),
+        _CreateRuleChangeSet, self.blockable,
+        datastore_utils.GetNoOpFuture(removal_rules),
         constants.RULE_POLICY.REMOVE)
 
 
