@@ -14,17 +14,14 @@
 
 """Unit tests for handler_utils.py."""
 
-import httplib
-
 import mock
+import six.moves.http_client
 import webapp2
 from webob import exc
 import webtest
 
 from google.appengine.ext import ndb
-
 from common.testing import basetest as gae_basetest
-
 from upvote.gae.lib.testing import basetest
 from upvote.gae.utils import handler_utils
 from upvote.gae.utils import xsrf_utils
@@ -34,10 +31,10 @@ from upvote.shared import constants
 class FakeUpvoteRequestHandler(handler_utils.UpvoteRequestHandler):
 
   def get(self):
-    self.response.status_int = httplib.OK
+    self.response.status_int = six.moves.http_client.OK
 
   def error(self, msg):
-    self.abort(httplib.BAD_REQUEST, explanation=msg)
+    self.abort(six.moves.http_client.BAD_REQUEST, explanation=msg)
 
 
 class UpvoteRequestHandlerTest(basetest.UpvoteTestCase):
@@ -61,12 +58,13 @@ class UpvoteRequestHandlerTest(basetest.UpvoteTestCase):
 
     response = self.testapp.get('/', expect_errors=True)
 
-    self.assertEqual(httplib.BAD_REQUEST, response.status_int)
+    self.assertEqual(six.moves.http_client.BAD_REQUEST, response.status_int)
     self.assertEqual('foo', response.body)
     self.assertEqual(1, mock_get.call_count)
     self.assertEqual(2, mock_grc.call_count)
     self.assertEqual(1, mock_metric.Increment.call_count)
-    self.assertEqual(httplib.BAD_REQUEST, mock_metric.Increment.call_args[0][0])
+    self.assertEqual(six.moves.http_client.BAD_REQUEST,
+                     mock_metric.Increment.call_args[0][0])
 
   @mock.patch.object(
       FakeUpvoteRequestHandler, 'get', side_effect=exc.HTTPBadRequest)
@@ -74,7 +72,7 @@ class UpvoteRequestHandlerTest(basetest.UpvoteTestCase):
 
     response = self.testapp.get('/', expect_errors=True)
 
-    self.assertEqual(httplib.BAD_REQUEST, response.status_int)
+    self.assertEqual(six.moves.http_client.BAD_REQUEST, response.status_int)
     self.assertEqual(1, mock_get.call_count)
 
   @mock.patch.object(
@@ -93,7 +91,8 @@ class UpvoteRequestHandlerTest(basetest.UpvoteTestCase):
 
     response = self.testapp.get('/', expect_errors=True)
 
-    self.assertEqual(httplib.INTERNAL_SERVER_ERROR, response.status_int)
+    self.assertEqual(six.moves.http_client.INTERNAL_SERVER_ERROR,
+                     response.status_int)
     self.assertEqual(1, mock_get.call_count)
 
   @mock.patch.object(FakeUpvoteRequestHandler, 'RequestCounter',
@@ -114,12 +113,13 @@ class UpvoteRequestHandlerTest(basetest.UpvoteTestCase):
 
     response = self.testapp.get('/', expect_errors=True)
 
-    self.assertEqual(httplib.FORBIDDEN, response.status_int)
+    self.assertEqual(six.moves.http_client.FORBIDDEN, response.status_int)
     self.assertEqual(1, mock_dispatch.call_count)
     self.assertEqual(0, mock_handle_exception.call_count)
     self.assertEqual(1, mock_grc.call_count)
     self.assertEqual(1, mock_metric.Increment.call_count)
-    self.assertEqual(httplib.FORBIDDEN, mock_metric.Increment.call_args[0][0])
+    self.assertEqual(six.moves.http_client.FORBIDDEN,
+                     mock_metric.Increment.call_args[0][0])
 
   @mock.patch.object(handler_utils.UpvoteRequestHandler, 'handle_exception')
   @mock.patch.object(handler_utils.UpvoteRequestHandler, 'dispatch')
@@ -134,7 +134,7 @@ class UpvoteRequestHandlerTest(basetest.UpvoteTestCase):
 
     response = self.testapp.get('/', expect_errors=True)
 
-    self.assertEqual(httplib.FORBIDDEN, response.status_int)
+    self.assertEqual(six.moves.http_client.FORBIDDEN, response.status_int)
     self.assertEqual(1, mock_dispatch.call_count)
     self.assertEqual(0, mock_handle_exception.call_count)
 
@@ -143,25 +143,25 @@ class UpvoteRequestHandlerTest(basetest.UpvoteTestCase):
 
     # Verify that the intended error makes it through to the response, instead
     # of breakage within the error handling code resulting in a 500.
-    self.assertEqual(httplib.BAD_REQUEST, response.status_int)
+    self.assertEqual(six.moves.http_client.BAD_REQUEST, response.status_int)
     self.assertEqual('Error Msg', response.body)
 
   def testErrorHandling_EscapeXss(self):
     msg = '<img onerror=\'alert("1")\'>'
     response = self.testapp.get('/err/%s' % msg, expect_errors=True)
 
-    self.assertEqual(httplib.BAD_REQUEST, response.status_int)
+    self.assertEqual(six.moves.http_client.BAD_REQUEST, response.status_int)
     # Ensure the message is HTML escaped.
     self.assertNotEqual(msg, response.body)
     self.assertEqual(
-        '&lt;img onerror=&#39;alert(&quot;1&quot;)&#39;&gt;',
+        '&lt;img onerror=&#x27;alert(&quot;1&quot;)&#x27;&gt;',
         response.body)
 
 
 class FakeCronJobHandler(handler_utils.CronJobHandler):
 
   def get(self):
-    self.response.status_int = httplib.OK
+    self.response.status_int = six.moves.http_client.OK
 
 
 class CronJobHandlerTest(basetest.UpvoteTestCase):
@@ -173,13 +173,14 @@ class CronJobHandlerTest(basetest.UpvoteTestCase):
 
   def testHeaderMissing(self):
     self.Logout()  # Ensure there's not a human logged in.
-    self.testapp.get('/do-cron-thing', status=httplib.FORBIDDEN)
+    self.testapp.get('/do-cron-thing', status=six.moves.http_client.FORBIDDEN)
 
   def testSuccess(self):
     self.Logout()  # Ensure there's not a human logged in.
     self.testapp.get(
-        '/do-cron-thing', headers={'X-AppEngine-Cron': 'true'},
-        status=httplib.OK)
+        '/do-cron-thing',
+        headers={'X-AppEngine-Cron': 'true'},
+        status=six.moves.http_client.OK)
 
 
 class FakeUserFacingHandler(handler_utils.UserFacingHandler):
@@ -209,16 +210,16 @@ class UserFacingHandlerTest(basetest.UpvoteTestCase):
     with self.LoggedInUser(admin=True):
       response = self.testapp.get('/')
 
-    self.assertEqual(response.status_int, httplib.OK)
+    self.assertEqual(response.status_int, six.moves.http_client.OK)
     self.assertEqual(response.body, 'Content.')
     mock_generate_token.assert_called_once_with()
 
   def testAuthorityCheckFail(self):
     """Check if a non-admin is an admin."""
     with self.LoggedInUser():
-      response = self.testapp.get('/', status=httplib.FORBIDDEN)
+      response = self.testapp.get('/', status=six.moves.http_client.FORBIDDEN)
 
-    self.assertEqual(response.status_int, httplib.FORBIDDEN)
+    self.assertEqual(response.status_int, six.moves.http_client.FORBIDDEN)
 
   def testAuthorityCheckWithBadObject(self):
     """Check for ValueError if passed a non-handler."""
@@ -282,7 +283,7 @@ class UserFacingQueryHandlerTest(basetest.UpvoteTestCase):
 class FakeAdminOnlyHandler(handler_utils.AdminOnlyHandler):
 
   def get(self):
-    self.response.status_int = httplib.OK
+    self.response.status_int = six.moves.http_client.OK
 
 
 class AdminOnlyHandlerTest(basetest.UpvoteTestCase):
@@ -294,11 +295,12 @@ class AdminOnlyHandlerTest(basetest.UpvoteTestCase):
 
   def testUser(self):
     with self.LoggedInUser():
-      self.testapp.get('/do-admin-thing', status=httplib.FORBIDDEN)
+      self.testapp.get(
+          '/do-admin-thing', status=six.moves.http_client.FORBIDDEN)
 
   def testAdmin(self):
     with self.LoggedInUser(admin=True):
-      self.testapp.get('/do-admin-thing', status=httplib.OK)
+      self.testapp.get('/do-admin-thing', status=six.moves.http_client.OK)
 
 
 if __name__ == '__main__':

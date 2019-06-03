@@ -14,10 +14,9 @@
 
 """Tests for XSRF protection middleware."""
 
-import httplib
-
 import mock
 from oauth2client.contrib import xsrfutil
+import six.moves.http_client
 import webapp2
 
 from google.appengine.api import users
@@ -62,19 +61,19 @@ class XsrfTest(basetest.UpvoteTestCase):
     token = xsrf_utils.GenerateToken()
     response = self.testapp.post('', {}, {'X-XSRF-TOKEN': token})
 
-    self.assertEquals(httplib.OK, response.status_int)
+    self.assertEquals(six.moves.http_client.OK, response.status_int)
     self.assertEquals('called', response.body)
 
   def testRequireToken_RequestMissesToken(self):
     response = self.testapp.post('', expect_errors=True)
 
-    self.assertEquals(httplib.FORBIDDEN, response.status_int)
+    self.assertEquals(six.moves.http_client.FORBIDDEN, response.status_int)
 
   def testRequireToken_RequestWrongToken(self):
     response = self.testapp.post(
         '', {}, {'X-XSRF-TOKEN': 'fake token'}, expect_errors=True)
 
-    self.assertEquals(httplib.FORBIDDEN, response.status_int)
+    self.assertEquals(six.moves.http_client.FORBIDDEN, response.status_int)
 
   def testUnauthenticatedUser_BlankToken(self):
     self.Logout()

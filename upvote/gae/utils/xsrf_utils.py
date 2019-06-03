@@ -28,13 +28,12 @@ def post()
 """
 import datetime
 import functools
-import httplib
 import logging
 
 from oauth2client.contrib import xsrfutil
+import six.moves.http_client
 
 from google.appengine.api import users
-
 from upvote.gae.datastore.models import singleton
 
 # Token timeout in microseconds.
@@ -153,7 +152,7 @@ def RequireToken(method):
       ValidateToken(token)
     except Error as err:
       handler.abort(
-          httplib.FORBIDDEN,
+          six.moves.http_client.FORBIDDEN,
           explanation='Error processing the XSRF token',
           detail=repr(err))
     else:

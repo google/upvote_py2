@@ -24,10 +24,10 @@ py_library(
 py_appengine_library(
     name = "env_utils",
     srcs = ["env_utils.py"],
+    srcs_version = "PY2AND3",
     deps = [
         "//common:context",
         "//external:six",
-        "//upvote/shared:constants",
     ],
 )
 
@@ -39,6 +39,7 @@ py_appengine_library(
         ":json_utils",
         ":string_utils",
         ":xsrf_utils",
+        "//external:six",
         "//upvote/gae/datastore:utils",
         "//upvote/gae/datastore/models:user",
     ],
@@ -54,17 +55,17 @@ py_appengine_library(
 py_appengine_library(
     name = "mail_utils",
     srcs = ["mail_utils.py"],
+    srcs_version = "PY2AND3",
     deps = [
+        ":env_utils",
         ":user_utils",
-        "//common:memcache_decorator",
-        "//upvote/gae:settings",
-        "//upvote/gae/utils:env_utils",
     ],
 )
 
 py_appengine_library(
     name = "memcache_utils",
     srcs = ["memcache_utils.py"],
+    srcs_version = "PY2AND3",
     deps = [
         "//common:memcache_decorator",
     ],
@@ -73,7 +74,6 @@ py_appengine_library(
 py_appengine_library(
     name = "monitoring_utils",
     srcs = ["monitoring_utils.py"],
-    deps = ["//upvote/shared:constants"],
 )
 
 py_appengine_library(
@@ -89,6 +89,7 @@ py_appengine_library(
 py_appengine_library(
     name = "time_utils",
     srcs = ["time_utils.py"],
+    srcs_version = "PY2AND3",
     deps = [
         "//upvote/gae/lib/bit9:constants",
     ],
@@ -97,6 +98,7 @@ py_appengine_library(
 py_library(
     name = "user_utils",
     srcs = ["user_utils.py"],
+    srcs_version = "PY2AND3",
     deps = [
         "//upvote/gae:settings",
     ],
@@ -105,6 +107,7 @@ py_library(
 py_appengine_library(
     name = "xsrf_utils",
     srcs = ["xsrf_utils.py"],
+    srcs_version = "PY2AND3",
     deps = [
         "//external:oauth2client",
         "//upvote/gae/datastore/models:singleton",
@@ -125,7 +128,6 @@ py_test(
     srcs = ["iter_utils_test.py"],
     deps = [
         ":iter_utils",
-        "//upvote/shared:constants",
         "@absl_git//absl/testing:absltest",
     ],
 )
@@ -176,6 +178,7 @@ upvote_appengine_test(
     deps = [
         ":json_utils",
         "//common/testing:basetest",
+        "//external:six",
         "//upvote/gae/datastore/models:binary",
         "//upvote/gae/datastore/models:event",
         "//upvote/shared:constants",
@@ -214,6 +217,7 @@ upvote_appengine_test(
     deps = [
         ":template_utils",
         "//common/testing:basetest",
+        "//external:six",
     ],
 )
 
@@ -224,6 +228,7 @@ upvote_appengine_test(
     deps = [
         ":time_utils",
         "//external:mock",
+        "//external:six",
         "@absl_git//absl/testing:absltest",
     ],
 )

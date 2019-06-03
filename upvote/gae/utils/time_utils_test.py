@@ -14,6 +14,10 @@
 
 """Unit tests for bit9_utils.py."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import datetime
 import mock
 
@@ -27,7 +31,8 @@ class TimeUtilsTest(absltest.TestCase):
   def testTimeRemains(self, mock_now):
 
     mock_now.side_effect = [
-        datetime.datetime(2017, 1, 1, 1, 1, s) for s in xrange(3)]
+        datetime.datetime(2017, 1, 1, 1, 1, s) for s in range(3)
+    ]
     start_time = datetime.datetime(2017, 1, 1, 1, 1, 0)
     delta = datetime.timedelta(seconds=1)
 

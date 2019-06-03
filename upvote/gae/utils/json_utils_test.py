@@ -14,11 +14,17 @@
 
 """Tests for json_utils."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import datetime
 import json
 
-from google.appengine.ext import ndb
+import six
+from six.moves import zip
 
+from google.appengine.ext import ndb
 from common.testing import basetest
 from upvote.gae.datastore.models import binary as binary_models
 from upvote.gae.datastore.models import event as event_models
@@ -74,7 +80,7 @@ class BaseEncoderTest(basetest.AppEngineTestCase):
       # assertDictEqual would be more concise, but this keeps us from having to
       # update the expected dict every time there's a model change, e.g.
       # SantaEvent.
-      for key, value in expected.iteritems():
+      for key, value in six.iteritems(expected):
         self.assertIn(key, actual)
         self.assertEqual(value, actual[key])
 

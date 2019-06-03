@@ -14,7 +14,12 @@
 
 """Tests for the template_utils module."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import jinja2
+import six
 
 from upvote.gae.utils import template_utils
 from absl.testing import absltest
@@ -51,7 +56,7 @@ class RenderWebTemplateTest(absltest.TestCase):
   def testSuccess(self):
     content = template_utils.RenderWebTemplate(
         'user-index.html', debug=False, username='asdf')
-    self.assertIsInstance(content, unicode)
+    self.assertIsInstance(content, six.text_type)
 
 
 class RenderEmailTemplateTest(absltest.TestCase):
@@ -63,7 +68,7 @@ class RenderEmailTemplateTest(absltest.TestCase):
   def testSuccess(self):
     content = template_utils.RenderEmailTemplate(
         'exemption_expired.html', device_hostname='aaa', upvote_hostname='bbb')
-    self.assertIsInstance(content, unicode)
+    self.assertIsInstance(content, six.text_type)
 
 
 if __name__ == '__main__':

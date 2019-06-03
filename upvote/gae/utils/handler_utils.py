@@ -14,19 +14,31 @@
 
 """Common Webapp2 handlers."""
 
-import cgi
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
+
 import functools
-import httplib
 from inspect import isclass
 import logging
 import sys
 import traceback
+
+# pylint: disable=g-import-not-at-top, g-importing-member
+try:
+  # Python 3.2 adds html.escape() and deprecates cgi.escape().
+  from html import escape
+except ImportError:
+  from cgi import escape
+
+import six
+import six.moves.http_client
 import webapp2
 
 from google.appengine.api import modules
 from google.appengine.datastore.datastore_query import Cursor
 from google.appengine.ext import ndb
-
 from upvote.gae.datastore import utils as datastore_utils
 from upvote.gae.datastore.models import user as user_models
 from upvote.gae.utils import env_utils
@@ -36,8 +48,9 @@ from upvote.gae.utils import xsrf_utils
 
 
 _COMMON_ERROR_CODES = [
-    httplib.BAD_REQUEST, httplib.FORBIDDEN, httplib.NOT_FOUND,
-    httplib.INTERNAL_SERVER_ERROR]
+    six.moves.http_client.BAD_REQUEST, six.moves.http_client.FORBIDDEN,
+    six.moves.http_client.NOT_FOUND, six.moves.http_client.INTERNAL_SERVER_ERROR
+]
 
 
 class Error(Exception):
@@ -54,7 +67,7 @@ class QueryTypeError(QueryError):
 
 def _HtmlEscape(s):
   """Escape a string to make it HTML-safe."""
-  return cgi.escape(s, quote=True).replace("'", '&#39;')
+  return escape(s, quote=True)  # pylint: disable=deprecated-method
 
 
 def RequirePermission(permission):
@@ -70,7 +83,7 @@ def RequirePermission(permission):
         else:
           explanation = 'User %s doesn\'t have permission to %s' % (
               self.user.nickname, permission)
-          self.abort(httplib.FORBIDDEN, explanation=explanation)
+          self.abort(six.moves.http_client.FORBIDDEN, explanation=explanation)
       else:
         raise ValueError
     return _Check
@@ -145,12 +158,13 @@ class UpvoteRequestHandler(webapp2.RequestHandler):
       unused_debug_mode: True if the application is running in debug mode.
     """
     # Default to a 500.
-    http_status = httplib.INTERNAL_SERVER_ERROR
+    http_status = six.moves.http_client.INTERNAL_SERVER_ERROR
 
     # Calls to abort() raise a child class of HTTPException, so extract the
     # HTTP status and explanation if possible.
     if isinstance(exception, webapp2.HTTPException):
-      http_status = getattr(exception, 'code', httplib.INTERNAL_SERVER_ERROR)
+      http_status = getattr(exception, 'code',
+                            six.moves.http_client.INTERNAL_SERVER_ERROR)
 
       # Write out the exception's explanation to the response body
       escaped_explanation = _HtmlEscape(str(exception))
@@ -175,7 +189,8 @@ class UpvoteRequestHandler(webapp2.RequestHandler):
       response_json = self.json_encoder.encode(response_data)
     except TypeError as e:
       logging.error('Failed to serialize JSON response: %s', e)
-      self.abort(httplib.INTERNAL_SERVER_ERROR, 'Failed to serialize response')
+      self.abort(six.moves.http_client.INTERNAL_SERVER_ERROR,
+                 'Failed to serialize response')
     else:
       self.response.content_type = 'application/json'
       self.response.write(response_json)
@@ -190,7 +205,8 @@ class CronJobHandler(UpvoteRequestHandler):
 
   def dispatch(self):
     if 'X-AppEngine-Cron' not in self.request.headers:
-      self.abort(httplib.FORBIDDEN, 'X-AppEngine-Cron header is required')
+      self.abort(six.moves.http_client.FORBIDDEN,
+                 'X-AppEngine-Cron header is required')
     super(CronJobHandler, self).dispatch()
 
 
@@ -202,7 +218,7 @@ class UserFacingHandler(UpvoteRequestHandler):
 
     Overridden to set the XSRF cookie.
     Args:
-      request: The requst to handle.
+      request: The request to handle.
       response: The response of the handler.
     """
     super(UserFacingHandler, self).initialize(request, response)
@@ -247,7 +263,7 @@ class UserFacingHandler(UpvoteRequestHandler):
     """Check whether user has a given permission."""
     if not self.user.is_admin and not self.user.HasPermission(permission):
       self.abort(
-          httplib.FORBIDDEN,
+          six.moves.http_client.FORBIDDEN,
           explanation='User doesn\'t have permission to %s' % permission)
 
   def respond_with_page(self, content, cursor, has_more):
@@ -346,14 +362,13 @@ def _CoerceQueryParam(field, query_param):
     return query_param
 
 
-class UserFacingQueryHandler(UserFacingHandler):
+class UserFacingQueryHandler(
+    six.with_metaclass(_MetaUserFacingQueryHandler, UserFacingHandler)):
   """Base handler class for model queries.
 
   The primary use of this module is to access Upvote's stored Entities. This
   class provides a generic interface for this use-case.
   """
-  # Enforce MODEL_CLASS definition.
-  __metaclass__ = _MetaUserFacingQueryHandler
 
   # NOTE: This needs to be set to an ndb.Model on subclasses.
   MODEL_CLASS = None
@@ -400,7 +415,7 @@ class UserFacingQueryHandler(UserFacingHandler):
       # If either a search base or a search term are provided, both must be.
       if not (has_base and has_term):
         self.abort(
-            httplib.BAD_REQUEST,
+            six.moves.http_client.BAD_REQUEST,
             explanation='Both search and searchBase must be provided')
       search_dict = {search_base: search_term}
     else:
@@ -409,7 +424,7 @@ class UserFacingQueryHandler(UserFacingHandler):
     try:
       query = self._QueryModel(search_dict)
     except QueryError as e:
-      self.abort(httplib.BAD_REQUEST, explanation=str(e))
+      self.abort(six.moves.http_client.BAD_REQUEST, explanation=str(e))
     else:
       self.respond_with_query_page(query, callback)
 
@@ -468,9 +483,8 @@ class AdminOnlyHandler(UserFacingHandler):
 
   def dispatch(self):
     if not self.user.is_admin:
-      self.abort(
-          httplib.FORBIDDEN,
-          'User %s does not have admin privileges' % self.user.nickname)
+      self.abort(six.moves.http_client.FORBIDDEN,
+                 'User %s does not have admin privileges' % self.user.nickname)
     super(AdminOnlyHandler, self).dispatch()
 
 
@@ -478,7 +492,7 @@ class AckHandler(webapp2.RequestHandler):
   """Simple handler for responding with HTTP 200."""
 
   def get(self):
-    self.response.status = httplib.OK
+    self.response.status = six.moves.http_client.OK
     self.response.write('ACK (%s)' % modules.get_current_module_name())
 
 
