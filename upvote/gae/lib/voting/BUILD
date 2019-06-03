@@ -9,6 +9,7 @@ py_appengine_library(
     name = "api",
     srcs = ["api.py"],
     deps = [
+        "//external:six",
         "//upvote/gae:settings",
         "//upvote/gae/bigquery:tables",
         "//upvote/gae/datastore/models:binary",
@@ -35,6 +36,7 @@ upvote_appengine_test(
     deps = [
         ":api",
         "//external:mock",
+        "//external:six",
         "//upvote/gae:settings",
         "//upvote/gae/bigquery:tables",
         "//upvote/gae/datastore:test_utils",

@@ -14,10 +14,13 @@
 
 """Tests for voting logic."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import mock
 
 from google.appengine.ext import ndb
-
 from upvote.gae import settings
 from upvote.gae.datastore import test_utils
 from upvote.gae.datastore import utils as datastore_utils
@@ -601,7 +604,7 @@ class BallotBoxTest(basetest.UpvoteTestCase):
 
     # Create several inactive yes votes.
     vote.was_yes_vote = True
-    for _ in xrange(10):
+    for _ in range(10):
       vote.key = vote_models.Vote.GetKey(
           self.santa_blockable1.key, user.key, in_effect=False)
       vote.put()
@@ -961,7 +964,8 @@ class BallotBoxTest(basetest.UpvoteTestCase):
 
     user = test_utils.CreateUser()
     other_users = [
-        test_utils.CreateUser() for _ in xrange(self.local_threshold - 1)]
+        test_utils.CreateUser() for _ in range(self.local_threshold - 1)
+    ]
 
     blockable = test_utils.CreateSantaBlockable()
     test_utils.CreateSantaHost(primary_user=user.nickname)
@@ -997,8 +1001,7 @@ class BallotBoxTest(basetest.UpvoteTestCase):
     """Create rules for users who voted earlier."""
 
     user = test_utils.CreateUser()
-    other_users = [
-        test_utils.CreateUser() for _ in xrange(self.local_threshold)]
+    other_users = [test_utils.CreateUser() for _ in range(self.local_threshold)]
 
     blockable = test_utils.CreateSantaBlockable()
     test_utils.CreateSantaHost(primary_user=user.nickname)
@@ -1101,7 +1104,7 @@ class BallotBoxTest(basetest.UpvoteTestCase):
     # Simulate enough users voting that the local threshold is hit.
     voters = test_utils.CreateUsers(num_voters)
     for voter in voters:
-      for _ in xrange(num_hosts_per_voter):
+      for _ in range(num_hosts_per_voter):
         test_utils.CreateSantaHost(primary_user=voter.nickname)
       with self.LoggedInUser(user=voter):
         ballot_box.Vote(True, voter)
@@ -1303,7 +1306,7 @@ class BallotBoxTest(basetest.UpvoteTestCase):
     archived_vote = test_utils.CreateVote(
         santa_blockable, user_email=user.email, was_yes_vote=False)
     archived_vote.key.delete()
-    for _ in xrange(4):
+    for _ in range(4):
       archived_vote.key = vote_models.Vote.GetKey(
           santa_blockable.key, user.key, in_effect=False)
       archived_vote.put()

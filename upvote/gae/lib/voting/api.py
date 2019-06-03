@@ -14,11 +14,16 @@
 
 """Logic associated with voting."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import abc
 import logging
 
-from google.appengine.ext import ndb
+import six
 
+from google.appengine.ext import ndb
 from upvote.gae import settings
 from upvote.gae.bigquery import tables
 from upvote.gae.datastore import utils as datastore_utils
@@ -391,15 +396,13 @@ def Reset(sha256):
   ballot_box.Reset()
 
 
-class BallotBox(object):
+class BallotBox(six.with_metaclass(abc.ABCMeta, object)):
   """Class that modifies the voting state of a given Blockable.
 
   Args:
     blockable_id: str, The ID of the Blockable entity on which the vote methods
         will operate.
   """
-
-  __metaclass__ = abc.ABCMeta
 
   def __init__(self, blockable_id):
     self.blockable_id = blockable_id
@@ -767,7 +770,7 @@ class BallotBox(object):
 
     new_rules = []
 
-    for user_key, host_ids in local_rule_dict.iteritems():
+    for user_key, host_ids in six.iteritems(local_rule_dict):
 
       logging.info(
           'Locally whitelisting %s for %s, on the following hosts: %s',
