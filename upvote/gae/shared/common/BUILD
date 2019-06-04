@@ -24,6 +24,7 @@ py_library(
 py_appengine_library(
     name = "big_red",
     srcs = ["big_red.py"],
+    srcs_version = "PY2AND3",
     deps = [
         "//upvote/gae/datastore/models:cache",
     ],
