@@ -14,6 +14,10 @@
 
 """Tests for taskqueue_utils."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 from google.appengine.ext import deferred
 
 from upvote.gae.lib.testing import basetest
@@ -26,7 +30,7 @@ class QueueSizeTest(basetest.UpvoteTestCase):
   def testSuccess(self):
     self.assertEqual(0, utils.QueueSize())
     expected_size = 10
-    for _ in xrange(expected_size):
+    for _ in range(expected_size):
       deferred.defer(dir)
     self.assertEqual(expected_size, utils.QueueSize())
 
@@ -40,7 +44,7 @@ class CappedDeferTest(basetest.UpvoteTestCase):
 
     expected_results = [True] * max_size + [False] * (total_size - max_size)
     actual_results = [
-        utils.CappedDefer(dir, max_size) for _ in xrange(total_size)
+        utils.CappedDefer(dir, max_size) for _ in range(total_size)
     ]
 
     self.assertEqual(expected_results, actual_results)

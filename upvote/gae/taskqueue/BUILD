@@ -8,10 +8,7 @@ package(default_visibility = ["//upvote"])
 py_appengine_library(
     name = "utils",
     srcs = ["utils.py"],
-    deps = [
-        "//upvote/gae/datastore:utils",
-        "//upvote/shared:constants",
-    ],
+    deps = ["//upvote/shared:constants"],
 )
 
 # AppEngine Unit Tests
@@ -24,6 +21,7 @@ upvote_appengine_test(
     deps = [
         ":utils",
         "//common/testing:basetest",
+        "//external:six",
         "//upvote/gae/lib/testing:basetest",
     ],
 )
