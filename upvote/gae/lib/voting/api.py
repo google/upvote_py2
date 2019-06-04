@@ -101,6 +101,31 @@ def _GetClient(blockable):
   return client
 
 
+def _GetHostIDs(user_key, client):
+  """Returns Host IDs for the given user and client.
+
+  Args:
+    user_key: Key, The user whose hosts should be fetched.
+    client: The client whose hosts should be fetched.
+
+  Returns:
+    set<str>, IDs of the retrieved Host entities.
+
+  Raises:
+    UnsupportedClientError: if the specified client is unsupported.
+  """
+  username = user_utils.EmailToUsername(user_key.id())
+
+  if client == constants.CLIENT.BIT9:
+    query = host_models.Bit9Host.query(host_models.Bit9Host.users == username)
+
+  elif client == constants.CLIENT.SANTA:
+    query = host_models.SantaHost.query(
+        host_models.SantaHost.primary_user == username)
+
+  return {host_key.id() for host_key in query.fetch(keys_only=True)}
+
+
 def _GetUpvoters(blockable):
   # pylint: disable=g-explicit-bool-comparison, singleton-comparison
   upvotes_query = vote_models.Vote.query(
@@ -817,28 +842,18 @@ class BallotBox(six.with_metaclass(abc.ABCMeta, object)):
         self.blockable.key.id(),
         sorted([user_key.id() for user_key in user_keys]))
 
-    # For each user, retrieve a list of assoicated host_ids. Compose a dict
+    # For each user, retrieve a list of associated host_ids. Compose a dict
     # which maps the user to their host_ids. This has to be done outside of the
     # upcoming transaction, otherwise it would become cross-group.
+    client = _GetClient(self.blockable)
     local_rule_dict = {
-        user_key: sorted(list(self._GetHostsToWhitelist(user_key)))
+        user_key: sorted(list(_GetHostIDs(user_key, client)))
         for user_key in user_keys}
 
     # Initiate a transaction to retrieve any existing local whitelisting rules
     # for this blockable, and create any that are missing.
     return ndb.transaction_async(
         lambda: self._CreateNewLocalWhitelistingRules(local_rule_dict))
-
-  @abc.abstractmethod
-  def _GetHostsToWhitelist(self, user_key):
-    """Returns hosts for which whitelist rules should be created for a user.
-
-    Args:
-      user_key: Key, The user for whom hosts to whitelist should be fetched.
-
-    Returns:
-      set<str>, IDs of Hosts for which whitelist rules should be created.
-    """
 
   @ndb.tasklet
   def _Blacklist(self):
@@ -960,23 +975,6 @@ class SantaBallotBox(BallotBox):
   """Class that modifies the voting state of a SantaBlockable."""
 
 
-  def _GetHostsToWhitelist(self, user_key):
-    """Returns hosts for which whitelist rules should be created for a user.
-
-    The current policy is to only whitelist on Hosts where the User is listed as
-    the primary_user.
-
-    Args:
-      user_key: Key, The user for whom hosts to whitelist should be fetched.
-
-    Returns:
-      set<str>, IDs of Hosts for which whitelist rules should be created.
-    """
-    username = user_utils.EmailToUsername(user_key.id())
-    query = host_models.SantaHost.query(
-        host_models.SantaHost.primary_user == username)
-    return {host_key.id() for host_key in query.fetch(keys_only=True)}
-
   def _LocallyWhitelist(self, user_keys=None):
     future = super(SantaBallotBox, self)._LocallyWhitelist(user_keys=user_keys)
     return future
@@ -1005,22 +1003,6 @@ class Bit9BallotBox(BallotBox):
         _CreateRuleChangeSet, self.blockable, future,
         constants.RULE_POLICY.WHITELIST)
     return future
-
-  def _GetHostsToWhitelist(self, user_key):
-    """Returns hosts for which whitelist rules should be created for a user.
-
-    The current policy is to whitelist on Bit9Hosts where the User is listed in
-    the users field.
-
-    Args:
-      user_key: Key, The user for whom hosts to whitelist should be fetched.
-
-    Returns:
-      set<str>, IDs of Hosts for which whitelist rules should be created.
-    """
-    username = user_utils.EmailToUsername(user_key.id())
-    query = host_models.Bit9Host.query(host_models.Bit9Host.users == username)
-    return {host_key.id() for host_key in query.fetch(keys_only=True)}
 
   def _LocallyWhitelist(self, user_keys=None):
     future = super(Bit9BallotBox, self)._LocallyWhitelist(user_keys=user_keys)

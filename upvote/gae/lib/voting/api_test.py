@@ -125,6 +125,23 @@ class GetClientTest(basetest.UpvoteTestCase):
       api._GetClient(blockable)
 
 
+class GetHostIDsTest(basetest.UpvoteTestCase):
+
+  def testBit9(self):
+    user = test_utils.CreateUser()
+    test_utils.CreateBit9Hosts(3, users=[user.nickname])
+    test_utils.CreateSantaHosts(1, primary_user=user.nickname)
+    host_ids = api._GetHostIDs(user.key, constants.CLIENT.BIT9)
+    self.assertLen(host_ids, 3)
+
+  def testSanta(self):
+    user = test_utils.CreateUser()
+    test_utils.CreateBit9Hosts(3, users=[user.nickname])
+    test_utils.CreateSantaHosts(1, primary_user=user.nickname)
+    host_ids = api._GetHostIDs(user.key, constants.CLIENT.SANTA)
+    self.assertLen(host_ids, 1)
+
+
 class GetRulesForBlockableTest(basetest.UpvoteTestCase):
 
   def testSuccess(self):
@@ -820,8 +837,7 @@ class BallotBoxTest(basetest.UpvoteTestCase):
     ballot_box = api.SantaBallotBox(self.santa_bundle.key.id())
 
     users = test_utils.CreateUsers(self.local_threshold)
-    with mock.patch.object(
-        ballot_box, '_GetHostsToWhitelist', return_value={'a_host'}):
+    with mock.patch.object(api, '_GetHostIDs', return_value={'a_host'}):
       for user in users:
         ballot_box.Vote(True, user)
 
