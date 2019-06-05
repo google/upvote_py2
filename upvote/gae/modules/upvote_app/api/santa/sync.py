@@ -14,13 +14,19 @@
 
 """Request handlers for Santa clients to sync against."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import datetime
-import httplib
 import itertools
 import json
 import logging
 import zlib
 
+import six
+from six.moves import zip
+import six.moves.http_client
 import webapp2
 from webapp2_extras import routes
 
@@ -97,7 +103,7 @@ class XsrfHandler(handler_utils.UpvoteRequestHandler):
   def post(self, uuid):
     token = xsrf_utils.GenerateToken(action_id=_SANTA_ACTION, user_id=uuid)
     self.response.headers[xsrf_utils.DEFAULT_HEADER] = token
-    self.response.set_status(httplib.OK)
+    self.response.set_status(six.moves.http_client.OK)
 
 
 class SantaRequestHandler(handler_utils.UpvoteRequestHandler):
@@ -131,7 +137,9 @@ class SantaRequestHandler(handler_utils.UpvoteRequestHandler):
     """
     uuid = self.request.route_args[0] if self.request.route_args else None
     if not uuid:
-      self.abort(httplib.BAD_REQUEST, explanation='No client UUID provided')
+      self.abort(
+          six.moves.http_client.BAD_REQUEST,
+          explanation='No client UUID provided')
 
     # Validate the connecting client.
     mode = settings.SANTA_CLIENT_VALIDATION
@@ -146,7 +154,9 @@ class SantaRequestHandler(handler_utils.UpvoteRequestHandler):
         monitoring.client_validations.Success()
       else:
         monitoring.client_validations.Failure()
-        self.abort(httplib.FORBIDDEN, explanation='Failed to validate client.')
+        self.abort(
+            six.moves.http_client.FORBIDDEN,
+            explanation='Failed to validate client.')
 
     # Validate the client's XSRF token.
     if settings.SANTA_REQUIRE_XSRF:
@@ -154,14 +164,17 @@ class SantaRequestHandler(handler_utils.UpvoteRequestHandler):
       try:
         xsrf_utils.ValidateToken(token, action_id=_SANTA_ACTION, user_id=uuid)
       except xsrf_utils.Error:
-        self.abort(httplib.FORBIDDEN, explanation='XSRF token missing/invalid.')
+        self.abort(
+            six.moves.http_client.FORBIDDEN,
+            explanation='XSRF token missing/invalid.')
 
     self.host_key = ndb.Key('Host', uuid)
     self.host = self.host_key.get()
     if not self.host and self.REQUIRE_HOST_OBJECT:
       logging.warning('Host %s has not completed preflight', uuid)
       self.abort(
-          httplib.FORBIDDEN, explanation='Client has not completed preflight')
+          six.moves.http_client.FORBIDDEN,
+          explanation='Client has not completed preflight')
 
     if self.SHOULD_PARSE_JSON:
       try:
@@ -173,7 +186,8 @@ class SantaRequestHandler(handler_utils.UpvoteRequestHandler):
       except ValueError:
         logging.info('Rejecting client: failed to parse JSON.')
         logging.info('Malformed JSON: "%s"', body)
-        self.abort(httplib.BAD_REQUEST, explanation='Bad JSON body')
+        self.abort(
+            six.moves.http_client.BAD_REQUEST, explanation='Bad JSON body')
 
     super(SantaRequestHandler, self).dispatch()
 
@@ -535,11 +549,11 @@ class EventUploadHandler(SantaRequestHandler):
     certs = itertools.chain.from_iterable(
         cls._GenerateCertificatesFromJsonEvent(event) for event in json_events)
     unique_cert_map = {cert.key: cert for cert in certs}
-    existing_certs = yield ndb.get_multi_async(unique_cert_map.keys())
+    existing_certs = yield ndb.get_multi_async(list(unique_cert_map.keys()))
     unknown_certs = [
-        cert
-        for cert, existing in zip(unique_cert_map.values(), existing_certs)
-        if existing is None]
+        cert for cert, existing in zip(
+            list(unique_cert_map.values()), existing_certs) if existing is None
+    ]
 
     # Insert a row into the Certificate table. Allow the timestamp to be
     # generated within InsertBigQueryRow(). The Blockable.recorded_dt Property
@@ -662,7 +676,7 @@ class EventUploadHandler(SantaRequestHandler):
         cls._GetBundleKeyFromJsonEvent(json_event): json_event
         for json_event in json_events
         if cls._GetBundleKeyFromJsonEvent(json_event)}
-    all_keys = bundle_key_map.keys()
+    all_keys = list(bundle_key_map.keys())
     existing_bundles = yield ndb.get_multi_async(all_keys)
     now = datetime.datetime.utcnow()
     for key, bundle in zip(all_keys, existing_bundles):
@@ -767,7 +781,7 @@ class EventUploadHandler(SantaRequestHandler):
 
     # Save each bundle's group of binaries in its own transaction.
     now = datetime.datetime.utcnow()
-    for bundle_key, bundle_events in by_bundle_key.iteritems():
+    for bundle_key, bundle_events in six.iteritems(by_bundle_key):
       yield self._CreateBundleBinaries(bundle_key, bundle_events, now)
       yield self._UpdateBundleUploadStatus(bundle_key)
 
@@ -799,7 +813,7 @@ class EventUploadHandler(SantaRequestHandler):
     all_bundle_keys = [
         cls._GetBundleKeyFromJsonEvent(json_event)
         for json_event in json_events]
-    unique_bundle_keys = list(set(filter(None, all_bundle_keys)))
+    unique_bundle_keys = list(set([k for k in all_bundle_keys if k]))
 
     # NOTE: We're relying on a race condition here. All the Bundle
     # entity creations may not have finished by this point _but_ if we see that

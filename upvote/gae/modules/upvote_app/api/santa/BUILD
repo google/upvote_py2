@@ -18,11 +18,8 @@ py_appengine_library(
         "main.py",
     ],
     deps = [
-        ":auth",
-        ":monitoring",
         ":sync",
         "//upvote/gae/utils:handler_utils",
-        "//upvote/shared:constants",
     ],
 )
 
@@ -41,6 +38,7 @@ py_appengine_library(
     deps = [
         ":auth",
         ":monitoring",
+        "//external:six",
         "//upvote/gae:settings",
         "//upvote/gae/bigquery:tables",
         "//upvote/gae/datastore:utils",
@@ -99,6 +97,7 @@ upvote_appengine_test(
     deps = [
         ":sync",
         "//external:mock",
+        "//external:six",
         "//external:webtest",
         "//upvote/gae/datastore:test_utils",
         "//upvote/gae/datastore/models:cert",
