@@ -1708,19 +1708,17 @@ class RecountTest(basetest.UpvoteTestCase):
 
 class ResetTest(basetest.UpvoteTestCase):
 
-  def setUp(self):
-    super(ResetTest, self).setUp()
+  def testBundlesNotAllowed(self):
 
-    santa_blockable_1 = test_utils.CreateSantaBlockable()
-    santa_blockable_2 = test_utils.CreateSantaBlockable()
-    santa_bundle_blockables = (santa_blockable_1, santa_blockable_2)
-    self.santa_bundle = test_utils.CreateSantaBundle(
-        bundle_binaries=santa_bundle_blockables)
+    blockables = test_utils.CreateSantaBlockables(4)
+    bundle = test_utils.CreateSantaBundle(
+        bundle_binaries=blockables)
 
-    self.local_threshold = settings.VOTING_THRESHOLDS[
-        constants.STATE.APPROVED_FOR_LOCAL_WHITELISTING]
+    with self.assertRaises(api.OperationNotAllowedError):
+      api.Reset(bundle.key.id())
 
-  def testSuccess(self):
+  def testSanta(self):
+
     blockable = test_utils.CreateSantaBlockable(state=constants.STATE.SUSPECT)
     test_utils.CreateSantaRule(blockable.key)
     test_utils.CreateVotes(blockable, 11)
@@ -1743,19 +1741,18 @@ class ResetTest(basetest.UpvoteTestCase):
 
     self.assertBigQueryInsertions([TABLE.BINARY, TABLE.RULE])
 
-  def testBundles_NotAllowed(self):
-    with self.assertRaises(api.OperationNotAllowedError):
-      api.Reset(self.santa_bundle.key.id())
-
   def testBit9(self):
+
     binary = test_utils.CreateBit9Binary()
     user = test_utils.CreateUser()
     test_utils.CreateBit9Host(users=[user.nickname])
+    local_threshold = settings.VOTING_THRESHOLDS[
+        constants.STATE.APPROVED_FOR_LOCAL_WHITELISTING]
 
     with self.LoggedInUser(user=user):
-      api.Vote(user, binary.key.id(), True, self.local_threshold)
+      api.Vote(user, binary.key.id(), True, local_threshold)
 
-    self.assertEqual(self.local_threshold, binary.score)
+    self.assertEqual(local_threshold, binary.score)
     self.assertEntityCount(rule_models.Bit9Rule, 1)
     self.assertEntityCount(rule_models.RuleChangeSet, 1)
 

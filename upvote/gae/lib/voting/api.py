@@ -445,6 +445,7 @@ def Recount(sha256):
   ballot_box.Recount()
 
 
+@ndb.transactional
 def Reset(sha256):
   """Resets all policy (i.e. votes, rules, score) for the specified Blockable.
 
@@ -458,10 +459,37 @@ def Reset(sha256):
     OperationNotAllowedError: if a reset is not allowed for some reason.
   """
   blockable = _GetBlockable(sha256)
-  client = _GetClient(blockable)
 
-  ballot_box = _BALLOT_BOX_MAP[client](sha256)
-  ballot_box.Reset()
+  # Don't allow SantaBundles to be reset.
+  if isinstance(blockable, package_models.SantaBundle):
+    raise OperationNotAllowedError('Resetting not supported for Bundles')
+
+  logging.info('Resetting blockable: %s', sha256)
+  votes = blockable.GetVotes()
+
+  # Delete existing votes.
+  delete_futures = ndb.delete_multi_async(vote.key for vote in votes)
+
+  # Store old vote entities with a different key indicating that they are
+  # deactivated so they won't be counted towards the blockable's score.
+  archived_votes = votes
+  for vote in archived_votes:
+    vote.key = vote_models.Vote.GetKey(
+        vote.blockable_key, vote.user_key, in_effect=False)
+  ndb.put_multi_async(archived_votes)
+
+  # Disable all existing rules.
+  existing_rules = _GetRulesForBlockable(blockable)
+  for rule in existing_rules:
+    rule.MarkDisabled()
+  ndb.put_multi_async(existing_rules)
+
+  # Create REMOVE-type rules from the existing blockable rules.
+  _CreateRemovalRules(blockable, existing_rules=existing_rules)
+
+  # Ensure past votes are deleted and then reset the blockable score.
+  ndb.Future.wait_all(delete_futures)
+  blockable.ResetState()
 
 
 class BallotBox(six.with_metaclass(abc.ABCMeta, object)):
@@ -702,43 +730,6 @@ class BallotBox(six.with_metaclass(abc.ABCMeta, object)):
       return True
     else:
       return False
-
-  @ndb.transactional
-  def Reset(self):
-    """Resets all policy (i.e. votes, rules, score) for the target blockable.
-
-    Raises:
-      BlockableNotFoundError: The target blockable ID is not a known Blockable.
-    """
-    logging.info('Resetting blockable: %s', self.blockable_id)
-
-    self.blockable = binary_models.Blockable.get_by_id(self.blockable_id)
-
-    votes = self.blockable.GetVotes()
-
-    # Delete existing votes.
-    delete_futures = ndb.delete_multi_async(vote.key for vote in votes)
-
-    # Store old vote entities with a different key indicating that they are
-    # deactivated so they won't be counted towards the blockable's score.
-    archived_votes = votes
-    for vote in archived_votes:
-      vote.key = vote_models.Vote.GetKey(
-          vote.blockable_key, vote.user_key, in_effect=False)
-    ndb.put_multi_async(archived_votes)
-
-    # Disable all existing rules.
-    existing_rules = _GetRulesForBlockable(self.blockable)
-    for rule in existing_rules:
-      rule.MarkDisabled()
-    ndb.put_multi_async(existing_rules)
-
-    # Create REMOVE-type rules from the existing blockable rules.
-    _CreateRemovalRules(self.blockable, existing_rules=existing_rules)
-
-    # Ensure past votes are deleted and then reset the blockable score.
-    ndb.Future.wait_all(delete_futures)
-    self.blockable.ResetState()
 
   def _CheckAndSetBlockableState(self, score):
     """Checks a blockable's score and changes its state if needed."""
@@ -1017,14 +1008,6 @@ class SantaBallotBox(BallotBox):
   def _LocallyWhitelist(self, user_keys=None):
     future = super(SantaBallotBox, self)._LocallyWhitelist(user_keys=user_keys)
     return future
-
-  @ndb.transactional
-  def Reset(self):
-    self.blockable = binary_models.Blockable.get_by_id(self.blockable_id)
-    if isinstance(self.blockable, package_models.SantaBundle):
-      raise OperationNotAllowedError('Resetting not supported for Bundles')
-
-    super(SantaBallotBox, self).Reset()
 
 
 class Bit9BallotBox(BallotBox):
