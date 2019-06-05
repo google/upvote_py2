@@ -87,6 +87,49 @@ def _CreateRuleChangeSet(blockable, rules_future, new_policy):
   ndb.get_context().call_on_commit(callback)
 
 
+def _CreateRemovalRules(blockable, existing_rules=None):
+  """Creates removal Rules to undo all policy for the given Blockable.
+
+  Args:
+    blockable: The Blockable whose Rules need to be reversed.
+    existing_rules: The Rules to be reversed. Only applicable for Bit9Binaries.
+
+  Raises:
+    UnsupportedClientError: if the specified client is unsupported.
+  """
+  client = blockable.GetClientName()
+
+  if client == constants.CLIENT.BIT9:
+
+    # Create a REMOVE Rule to counter each existing Rule.
+    existing_rules = existing_rules or []
+    host_ids = set(rule.host_id for rule in existing_rules)
+    removal_rules = []
+    for host_id in host_ids:
+      removal_rule = _CreateRuleForBlockable(
+          blockable, host_id=host_id, policy=constants.RULE_POLICY.REMOVE,
+          in_effect=True)
+      removal_rules.append(removal_rule)
+      removal_rule.InsertBigQueryRow()
+
+    # Persist everything.
+    put_futures = ndb.put_multi_async(removal_rules)
+    future = datastore_utils.GetMultiFuture(put_futures)
+    future.add_callback(
+        _CreateRuleChangeSet, blockable,
+        datastore_utils.GetNoOpFuture(removal_rules),
+        constants.RULE_POLICY.REMOVE)
+
+  elif client == constants.CLIENT.SANTA:
+    removal_rule = _CreateRuleForBlockable(
+        blockable, policy=constants.RULE_POLICY.REMOVE, in_effect=True)
+    removal_rule.put_async()
+    removal_rule.InsertBigQueryRow()
+
+  else:
+    raise UnsupportedClientError(client)
+
+
 def _GetBlockable(sha256):
   blockable = binary_models.Blockable.get_by_id(sha256)
   if blockable is None:
@@ -660,10 +703,6 @@ class BallotBox(six.with_metaclass(abc.ABCMeta, object)):
     else:
       return False
 
-  @abc.abstractmethod
-  def _GenerateRemoveRules(self, existing_rules):
-    """Creates removal rules to undo all policy for the target blockable."""
-
   @ndb.transactional
   def Reset(self):
     """Resets all policy (i.e. votes, rules, score) for the target blockable.
@@ -695,7 +734,7 @@ class BallotBox(six.with_metaclass(abc.ABCMeta, object)):
     ndb.put_multi_async(existing_rules)
 
     # Create REMOVE-type rules from the existing blockable rules.
-    self._GenerateRemoveRules(existing_rules)
+    _CreateRemovalRules(self.blockable, existing_rules=existing_rules)
 
     # Ensure past votes are deleted and then reset the blockable score.
     ndb.Future.wait_all(delete_futures)
@@ -979,12 +1018,6 @@ class SantaBallotBox(BallotBox):
     future = super(SantaBallotBox, self)._LocallyWhitelist(user_keys=user_keys)
     return future
 
-  def _GenerateRemoveRules(self, unused_existing_rules):
-    removal_rule = _CreateRuleForBlockable(
-        self.blockable, policy=constants.RULE_POLICY.REMOVE, in_effect=True)
-    removal_rule.put_async()
-    removal_rule.InsertBigQueryRow()
-
   @ndb.transactional
   def Reset(self):
     self.blockable = binary_models.Blockable.get_by_id(self.blockable_id)
@@ -1017,23 +1050,6 @@ class Bit9BallotBox(BallotBox):
         _CreateRuleChangeSet, self.blockable, future,
         constants.RULE_POLICY.BLACKLIST)
     return future
-
-  def _GenerateRemoveRules(self, existing_rules):
-    # Create removal rules on each host for which a rule exists.
-    host_ids = set(rule.host_id for rule in existing_rules)
-    removal_rules = []
-    for host_id in host_ids:
-      removal_rule = _CreateRuleForBlockable(
-          self.blockable, host_id=host_id, policy=constants.RULE_POLICY.REMOVE,
-          in_effect=True)
-      removal_rules.append(removal_rule)
-      removal_rule.InsertBigQueryRow()
-    put_futures = ndb.put_multi_async(removal_rules)
-    future = datastore_utils.GetMultiFuture(put_futures)
-    future.add_callback(
-        _CreateRuleChangeSet, self.blockable,
-        datastore_utils.GetNoOpFuture(removal_rules),
-        constants.RULE_POLICY.REMOVE)
 
 
 _BALLOT_BOX_MAP = {

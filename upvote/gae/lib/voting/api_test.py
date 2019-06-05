@@ -98,6 +98,43 @@ class CreateRuleChangeSetTest(basetest.UpvoteTestCase):
     mock_defer.assert_called_once()
 
 
+class CreateRemovalRulesTest(basetest.UpvoteTestCase):
+
+  def testBit9(self):
+
+    bit9_binary = test_utils.CreateBit9Binary()
+    bit9_rules = [
+        test_utils.CreateBit9Rule(bit9_binary.key, host_id='host_%d' % i)
+        for i in range(5)]
+    self.assertEntityCount(rule_models.Bit9Rule, 5)
+    self.assertNoBigQueryInsertions()
+
+    # _CreateRemoveRules() is only ever called from within a transaction, so do
+    # the same here in order to avoid flakiness due to all the async calls.
+    callback = lambda: api._CreateRemovalRules(  # pylint: disable=g-long-lambda
+        bit9_binary, existing_rules=bit9_rules)
+    ndb.transaction(callback)
+
+    self.assertEntityCount(rule_models.Bit9Rule, 10)
+    self.assertEntityCount(rule_models.RuleChangeSet, 1)
+    self.assertBigQueryInsertions([TABLE.RULE] * 5)
+
+  def testSanta(self):
+
+    santa_blockable = test_utils.CreateSantaBlockable()
+    test_utils.CreateSantaRules(santa_blockable.key, 5)
+    self.assertEntityCount(rule_models.SantaRule, 5)
+    self.assertNoBigQueryInsertions()
+
+    # _CreateRemoveRules() is only ever called from within a transaction, so do
+    # the same here in order to avoid flakiness due to all the async calls.
+    callback = lambda: api._CreateRemovalRules(santa_blockable)
+    ndb.transaction(callback)
+
+    self.assertEntityCount(rule_models.SantaRule, 6)
+    self.assertBigQueryInsertion(TABLE.RULE)
+
+
 class GetBlockableTest(basetest.UpvoteTestCase):
 
   def testFound(self):
