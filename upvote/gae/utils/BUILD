@@ -165,7 +165,6 @@ upvote_appengine_test(
         ":handler_utils",
         "//common/testing:basetest",
         "//external:mock",
-        "//external:webob",
         "//external:webtest",
         "//upvote/gae/lib/testing:basetest",
     ],
