@@ -19,7 +19,6 @@ import datetime
 import mock
 
 from google.appengine.ext import deferred
-from google.appengine.ext import ndb
 
 from upvote.gae.datastore import test_utils
 from upvote.gae.datastore.models import rule as rule_models
@@ -130,15 +129,10 @@ class ChangeLocalStateTest(bit9test.Bit9TestCase):
         policy=constants.RULE_POLICY.WHITELIST, is_fulfilled=False)
 
     # Create a Bit9Event corresponding to the Bit9Rule.
-    pairs = [
-        ('User', user.email),
-        ('Host', '2222'),
-        ('Blockable', binary.key.id()),
-        ('Event', '1')]
-    event_key = ndb.Key(pairs=pairs)
     first_blocked_dt = datetime.datetime.utcnow() - datetime.timedelta(hours=3)
     test_utils.CreateBit9Event(
-        binary, key=event_key, first_blocked_dt=first_blocked_dt)
+        binary, executing_user=user.email, host_id='2222',
+        blockable_key=binary.key, first_blocked_dt=first_blocked_dt)
 
     # Mock out the Bit9 API interactions.
     file_instance = api.FileInstance(

@@ -39,6 +39,7 @@ from upvote.gae.datastore.models import package as package_models
 from upvote.gae.datastore.models import policy as policy_models
 from upvote.gae.datastore.models import rule as rule_models
 from upvote.gae.datastore.models import user as user_models
+from upvote.gae.datastore.models import utils as model_utils
 from upvote.gae.datastore.models import vote as vote_models
 from upvote.gae.utils import env_utils
 from upvote.gae.utils import user_utils
@@ -395,6 +396,9 @@ def _CreateEvent(event_cls, blockable, **kwargs):
       'host_id': str(RandomInt())}
   defaults.update(kwargs.copy())
   event = event_cls(**defaults)
+  keys = model_utils.GetEventKeysToInsert(event, [], [])
+  if keys:
+    event.key = keys[0]
   event.put()
   return event
 

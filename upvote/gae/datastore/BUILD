@@ -33,6 +33,7 @@ py_appengine_library(
         "//upvote/gae/datastore/models:policy",
         "//upvote/gae/datastore/models:rule",
         "//upvote/gae/datastore/models:user",
+        "//upvote/gae/datastore/models:utils",
         "//upvote/gae/datastore/models:vote",
         "//upvote/gae/utils:env_utils",
         "//upvote/gae/utils:user_utils",
