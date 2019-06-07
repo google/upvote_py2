@@ -12,10 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Lint as: python2, python3
 """Invokes html2js and appends goog.provide.
 
 https://www.npmjs.com/package/html2js
 """
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 import subprocess
 import sys
 
@@ -45,7 +49,7 @@ def main(argv):
     result.append(js)
 
   result.append("{} = angular.module('{}');".format(goog_provide, module_name))
-  print '\n'.join(result)
+  print('\n'.join(result))
 
 
 if __name__ == '__main__':

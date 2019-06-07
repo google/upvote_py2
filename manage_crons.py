@@ -1,4 +1,4 @@
-#!/usr/bin/python
+# Lint as: python2, python3
 """Command-line tool for enabling and disabling sections of cron jobs."""
 
 from __future__ import absolute_import
