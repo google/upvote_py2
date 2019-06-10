@@ -1004,7 +1004,6 @@ class BallotBox(six.with_metaclass(abc.ABCMeta, object)):
 class SantaBallotBox(BallotBox):
   """Class that modifies the voting state of a SantaBlockable."""
 
-
   def _LocallyWhitelist(self, user_keys=None):
     future = super(SantaBallotBox, self)._LocallyWhitelist(user_keys=user_keys)
     return future
