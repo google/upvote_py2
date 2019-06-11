@@ -38,6 +38,7 @@ py_appengine_library(
 py_appengine_library(
     name = "settings",
     srcs = ["settings.py"],
+    srcs_version = "PY2AND3",
     deps = [
         "//upvote/gae/utils:env_utils",
         "//upvote/shared:constants",
