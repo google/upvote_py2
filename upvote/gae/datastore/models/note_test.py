@@ -17,6 +17,7 @@
 from upvote.gae.datastore import test_utils
 from upvote.gae.datastore.models import note as note_models
 from upvote.gae.lib.testing import basetest
+from absl.testing import absltest
 
 
 class NoteTest(basetest.UpvoteTestCase):
@@ -32,3 +33,7 @@ class NoteTest(basetest.UpvoteTestCase):
     key = note_models.Note.GenerateKey('fake_message', self.blockable.key)
     self.assertEqual(key.parent(), self.blockable.key)
     self.assertLen(key.id(), 64)
+
+
+if __name__ == '__main__':
+  absltest.main()
