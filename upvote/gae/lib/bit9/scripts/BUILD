@@ -5,8 +5,8 @@ py_binary(
     srcs = ["build_from_docs.py"],
     python_version = "PY2",
     deps = [
+        "//external:six",
         "//upvote/gae/lib/bit9:utils",
-        "@absl_git//absl:app",
         "@beautifulsoup4_archive//:beautifulsoup4",
     ],
 )

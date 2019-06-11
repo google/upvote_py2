@@ -26,6 +26,7 @@ from __future__ import print_function
 import collections
 
 import bs4
+import six
 from upvote.gae.lib.bit9 import utils
 from absl import app
 from absl import flags
@@ -206,7 +207,7 @@ def main(unused_argv):
   # Filter out objects not present in objects_to_output.
   obj_names = FLAGS.objects_to_output
   filtered_objs = collections.OrderedDict()
-  for name, dict_ in api_objs.iteritems():
+  for name, dict_ in six.iteritems(api_objs):
     if name in obj_names:
       filtered_objs[name] = dict_
 
