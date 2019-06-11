@@ -444,12 +444,12 @@ def CreateEvents(blockable, event_count):
   return [CreateEvent(blockable) for _ in range(event_count)]
 
 
-def CreateSantaEvents(blockable, event_count):
-  return [CreateSantaEvent(blockable) for _ in range(event_count)]
+def CreateSantaEvents(blockable, event_count, **kwargs):
+  return [CreateSantaEvent(blockable, **kwargs) for _ in range(event_count)]
 
 
-def CreateBit9Events(blockable, event_count):
-  return [CreateBit9Event(blockable) for _ in range(event_count)]
+def CreateBit9Events(blockable, event_count, **kwargs):
+  return [CreateBit9Event(blockable, **kwargs) for _ in range(event_count)]
 
 
 @mock.patch.object(
