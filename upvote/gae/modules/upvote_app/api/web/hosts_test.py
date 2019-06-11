@@ -15,9 +15,9 @@
 """Unit tests for Hosts handlers."""
 
 import datetime
-import httplib
 
 import mock
+import six.moves.http_client
 import webapp2
 
 from upvote.gae.datastore import test_utils
@@ -101,7 +101,7 @@ class HostQueryHandlerTest(HostsTest):
   def testUserGetListNoPermissions(self):
     """Unprivileged user attempts to get a list of all hosts."""
     with self.LoggedInUser():
-      self.testapp.get(self.ROUTE, status=httplib.FORBIDDEN)
+      self.testapp.get(self.ROUTE, status=six.moves.http_client.FORBIDDEN)
 
   def testAdminGetQuery(self):
     """Admin queries for a host."""
@@ -142,7 +142,8 @@ class HostQueryHandlerTest(HostsTest):
         'searchBase': 'NotAField'}
 
     with self.LoggedInUser(admin=True):
-      self.testapp.get(self.ROUTE, params, status=httplib.BAD_REQUEST)
+      self.testapp.get(
+          self.ROUTE, params, status=six.moves.http_client.BAD_REQUEST)
 
 
 class HostHandlerTest(HostsTest):
@@ -209,7 +210,8 @@ class HostHandlerTest(HostsTest):
 
     with self.LoggedInUser() as other_user:
       self.assertFalse(model_utils.IsHostAssociatedWithUser(host, other_user))
-      self.testapp.get(self.ROUTE % host.key.id(), status=httplib.FORBIDDEN)
+      self.testapp.get(
+          self.ROUTE % host.key.id(), status=six.moves.http_client.FORBIDDEN)
 
   def testGet_Admin(self):
 
@@ -228,7 +230,8 @@ class HostHandlerTest(HostsTest):
 
   def testGet_Admin_UnknownID(self):
     with self.LoggedInUser(admin=True):
-      self.testapp.get(self.ROUTE % 'UnknownID', status=httplib.NOT_FOUND)
+      self.testapp.get(
+          self.ROUTE % 'UnknownID', status=six.moves.http_client.NOT_FOUND)
 
   def testPost_Admin(self):
 
@@ -246,7 +249,8 @@ class HostHandlerTest(HostsTest):
 
   def testPost_Admin_UnknownID(self):
     with self.LoggedInUser(admin=True):
-      self.testapp.post(self.ROUTE % 'UnknownID', status=httplib.NOT_FOUND)
+      self.testapp.post(
+          self.ROUTE % 'UnknownID', status=six.moves.http_client.NOT_FOUND)
 
   def testPost_Admin_Update(self):
 
@@ -302,12 +306,14 @@ class AssociatedHostHandlerTest(HostsTest):
     other_user_id = test_utils.CreateUser().key.id()
     with self.LoggedInUser():
       self.testapp.get(
-          self.USER_ID_ROUTE % other_user_id, status=httplib.FORBIDDEN)
+          self.USER_ID_ROUTE % other_user_id,
+          status=six.moves.http_client.FORBIDDEN)
 
   def testGetByUserId_UnknownUser(self):
     with self.LoggedInUser(admin=True):
       self.testapp.get(
-          self.USER_ID_ROUTE % 'NotAUser', status=httplib.NOT_FOUND)
+          self.USER_ID_ROUTE % 'NotAUser',
+          status=six.moves.http_client.NOT_FOUND)
 
   def testGetByUserId_WithExemption(self):
 
@@ -445,7 +451,7 @@ class BooleanPropertyHandlerTest(basetest.UpvoteTestCase):
   def testDispatch_HostNotFound(self):
     with self.LoggedInUser():
       url = self.ROUTE % ('missing_host_id', 'false')
-      self.testapp.put(url, status=httplib.NOT_FOUND)
+      self.testapp.put(url, status=six.moves.http_client.NOT_FOUND)
 
   def testDispatch_UserNotAssociated(self):
 
@@ -455,7 +461,7 @@ class BooleanPropertyHandlerTest(basetest.UpvoteTestCase):
 
     with self.LoggedInUser(user=user):
       url = self.ROUTE % (host.key.id(), 'false')
-      self.testapp.put(url, status=httplib.FORBIDDEN)
+      self.testapp.put(url, status=six.moves.http_client.FORBIDDEN)
 
   def testDispatch_InvalidNewValue(self):
 
@@ -465,7 +471,7 @@ class BooleanPropertyHandlerTest(basetest.UpvoteTestCase):
 
     with self.LoggedInUser(user=user):
       url = self.ROUTE % (host.key.id(), 'blah')
-      self.testapp.put(url, status=httplib.BAD_REQUEST)
+      self.testapp.put(url, status=six.moves.http_client.BAD_REQUEST)
 
 
 class VisibilityHandlerTest(basetest.UpvoteTestCase):
@@ -484,7 +490,7 @@ class VisibilityHandlerTest(basetest.UpvoteTestCase):
 
     with self.LoggedInUser(user=user):
       url = self.ROUTE % (host.key.id(), 'true')
-      self.testapp.put(url, status=httplib.OK)
+      self.testapp.put(url, status=six.moves.http_client.OK)
     self.assertTrue(host.key.get().hidden)
 
   def testReveal(self):
@@ -494,7 +500,7 @@ class VisibilityHandlerTest(basetest.UpvoteTestCase):
 
     with self.LoggedInUser(user=user):
       url = self.ROUTE % (host.key.id(), 'false')
-      self.testapp.put(url, status=httplib.OK)
+      self.testapp.put(url, status=six.moves.http_client.OK)
     self.assertFalse(host.key.get().hidden)
 
 
@@ -516,7 +522,7 @@ class TransitiveHandlerTest(basetest.UpvoteTestCase):
 
     with self.LoggedInUser(user=user):
       url = self.ROUTE % (host.key.id(), 'false')
-      response = self.testapp.put(url, status=httplib.OK)
+      response = self.testapp.put(url, status=six.moves.http_client.OK)
 
     output = response.json
 
@@ -534,7 +540,7 @@ class TransitiveHandlerTest(basetest.UpvoteTestCase):
 
     with self.LoggedInUser(user=user):
       url = self.ROUTE % (host.key.id(), 'false')
-      response = self.testapp.put(url, status=httplib.OK)
+      response = self.testapp.put(url, status=six.moves.http_client.OK)
 
     output = response.json
 

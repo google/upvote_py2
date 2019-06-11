@@ -64,7 +64,6 @@ py_library(
     name = "emergency",
     srcs = ["emergency.py"],
     deps = [
-        "//upvote/gae/datastore/models:cache",
         "//upvote/gae/shared/common:big_red",
         "//upvote/gae/utils:handler_utils",
         "//upvote/gae/utils:xsrf_utils",
@@ -218,7 +217,6 @@ py_appengine_library(
     deps = [
         "//upvote/gae/utils:handler_utils",
         "//upvote/gae/utils:template_utils",
-        "//upvote/gae/utils:xsrf_utils",
         "//upvote/shared:constants",
     ],
 )

@@ -13,9 +13,9 @@
 # limitations under the License.
 
 """Handlers related to Users."""
-import httplib
 import logging
 
+import six.moves.http_client
 import webapp2
 from webapp2_extras import routes
 
@@ -59,7 +59,7 @@ class UserHandler(handler_utils.UserFacingHandler):
       })
       self.respond_json(user_info)
     else:
-      self.abort(httplib.NOT_FOUND, explanation='User not found')
+      self.abort(six.moves.http_client.NOT_FOUND, explanation='User not found')
 
   @handler_utils.RequirePermission(constants.PERMISSIONS.VIEW_OTHER_USERS)
   def _get_another_user(self, user_id):

@@ -14,8 +14,8 @@
 
 """Tests for the index module."""
 
-import httplib
 import mock
+import six.moves.http_client
 import webapp2
 
 from upvote.gae.lib.testing import basetest
@@ -84,7 +84,7 @@ class AdminIndexHandlerTest(basetest.UpvoteTestCase):
   def testGet_AsAdmin_TrailingSlash(self, mock_render):
 
     with self.LoggedInUser(admin=True):
-      self.testapp.get('/admin/', status=httplib.OK)
+      self.testapp.get('/admin/', status=six.moves.http_client.OK)
 
     mock_render.assert_called_once_with(
         index.AdminIndexHandler.TEMPLATE_NAME, debug=False, username=mock.ANY)
@@ -93,7 +93,7 @@ class AdminIndexHandlerTest(basetest.UpvoteTestCase):
   def testGet_AsAdmin_NoTrailingSlash(self, mock_render):
 
     with self.LoggedInUser(admin=True):
-      self.testapp.get('/admin', status=httplib.OK)
+      self.testapp.get('/admin', status=six.moves.http_client.OK)
 
     mock_render.assert_called_once_with(
         index.AdminIndexHandler.TEMPLATE_NAME, debug=False, username=mock.ANY)
@@ -102,7 +102,7 @@ class AdminIndexHandlerTest(basetest.UpvoteTestCase):
   def testGet_AsUser(self, mock_render):
 
     with self.LoggedInUser(admin=False):
-      self.testapp.get('/admin', status=httplib.FORBIDDEN)
+      self.testapp.get('/admin', status=six.moves.http_client.FORBIDDEN)
 
     mock_render.assert_not_called()
 
@@ -117,7 +117,7 @@ class UserIndexHandlerTest(basetest.UpvoteTestCase):
   def testGetRoot(self, mock_render):
 
     with self.LoggedInUser(admin=False):
-      self.testapp.get('/', status=httplib.OK)
+      self.testapp.get('/', status=six.moves.http_client.OK)
 
     mock_render.assert_called_once_with(
         index.UserIndexHandler.TEMPLATE_NAME, debug=False, username=mock.ANY)
@@ -126,7 +126,7 @@ class UserIndexHandlerTest(basetest.UpvoteTestCase):
   def testGetBlockableList(self, mock_render):
 
     with self.LoggedInUser(admin=False):
-      self.testapp.get('/blockables', status=httplib.OK)
+      self.testapp.get('/blockables', status=six.moves.http_client.OK)
 
     mock_render.assert_called_once_with(
         index.UserIndexHandler.TEMPLATE_NAME, debug=False, username=mock.ANY)

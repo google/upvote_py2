@@ -14,9 +14,9 @@
 
 """Handlers for looking up extra info on binaries."""
 
-import httplib
 import logging
 
+import six.moves.http_client
 import webapp2
 from webapp2_extras import routes
 
@@ -40,7 +40,8 @@ class Lookup(handler_utils.UserFacingHandler):
   def check_virus_total(self, blockable_id):
     blockable = binary_models.Blockable.get_by_id(blockable_id)
     if not blockable:
-      self.abort(httplib.NOT_FOUND, explanation='Blockable not found')
+      self.abort(
+          six.moves.http_client.NOT_FOUND, explanation='Blockable not found')
 
     if isinstance(blockable, package_models.SantaBundle):
       keys = package_models.SantaBundle.GetBundleBinaryKeys(blockable.key)
@@ -73,7 +74,7 @@ class Lookup(handler_utils.UserFacingHandler):
         results = analysis_api.VirusTotalLookup(blockable_id)
       except analysis_api.FailedLookupError as e:  # pylint: disable=broad-except
         logging.exception(str(e))
-        self.abort(httplib.NOT_FOUND)
+        self.abort(six.moves.http_client.NOT_FOUND)
       else:
         self.respond_json(results)
 

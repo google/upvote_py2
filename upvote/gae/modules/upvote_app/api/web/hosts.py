@@ -15,15 +15,14 @@
 """Views related to hosts."""
 
 import datetime
-import httplib
 import logging
 import re
 
+import six.moves.http_client
 import webapp2
 from webapp2_extras import routes
 
 from google.appengine.ext import ndb
-
 from upvote.gae.datastore.models import exemption as exemption_models
 from upvote.gae.datastore.models import host as host_models
 from upvote.gae.datastore.models import user as user_models
@@ -66,7 +65,7 @@ class HostHandler(handler_utils.UserFacingHandler):
     host = host_models.Host.get_by_id(host_id)
 
     if host is None:
-      self.abort(httplib.NOT_FOUND, explanation='Host not found')
+      self.abort(six.moves.http_client.NOT_FOUND, explanation='Host not found')
     elif not model_utils.IsHostAssociatedWithUser(host, self.user):
       self.RequirePermission(constants.PERMISSIONS.VIEW_OTHER_HOSTS)
 
@@ -86,7 +85,7 @@ class HostHandler(handler_utils.UserFacingHandler):
 
     host = host_models.Host.get_by_id(host_id)
     if host is None:
-      self.abort(httplib.NOT_FOUND, explanation='Host not found')
+      self.abort(six.moves.http_client.NOT_FOUND, explanation='Host not found')
 
     if self.request.get('clientMode'):
       host.client_mode = self.request.get('clientMode')
@@ -142,7 +141,7 @@ class AssociatedHostHandler(handler_utils.UserFacingHandler):
     logging.info('Getting associated Hosts for user_id=%s', user_id)
     user = user_models.User.GetById(user_id)
     if user is None:
-      self.abort(httplib.NOT_FOUND, explanation='User not found')
+      self.abort(six.moves.http_client.NOT_FOUND, explanation='User not found')
 
     hosts = self._GetAssociatedHosts(user)
     self.respond_json(hosts)
@@ -164,29 +163,35 @@ class BooleanPropertyHandler(handler_utils.UserFacingHandler):
     # Make sure a host_id is provided.
     host_id = self.request.route_kwargs.get('host_id')
     if not host_id:
-      self.abort(httplib.BAD_REQUEST, explanation='No host_id provided')
+      self.abort(
+          six.moves.http_client.BAD_REQUEST, explanation='No host_id provided')
 
     # Make sure the Host actually exists.
     self._normalized_host_id = host_models.Host.NormalizeId(host_id)
     host = self._GetHost()
     if not host:
-      self.abort(httplib.NOT_FOUND, explanation='Host %s not found' % host_id)
+      self.abort(
+          six.moves.http_client.NOT_FOUND,
+          explanation='Host %s not found' % host_id)
 
     # Make sure the Host is associated with the current user.
     if not model_utils.IsHostAssociatedWithUser(host, self.user):
       explanation = 'Host %s not associated with user %s' % (
           host.hostname, self.user.nickname)
-      self.abort(httplib.FORBIDDEN, explanation=explanation)
+      self.abort(six.moves.http_client.FORBIDDEN, explanation=explanation)
 
     # Make sure a new_value is provided.
     new_value = self.request.route_kwargs.get('new_value')
     if not new_value:
-      self.abort(httplib.BAD_REQUEST, explanation='No new_value provided')
+      self.abort(
+          six.moves.http_client.BAD_REQUEST,
+          explanation='No new_value provided')
 
     # Make sure the new_value is an explicit boolean string.
     if re.match('^(true|false)$', new_value, flags=re.IGNORECASE) is None:
       self.abort(
-          httplib.BAD_REQUEST, explanation='Invalid new_value: %s' % new_value)
+          six.moves.http_client.BAD_REQUEST,
+          explanation='Invalid new_value: %s' % new_value)
 
     super(BooleanPropertyHandler, self).dispatch()
 

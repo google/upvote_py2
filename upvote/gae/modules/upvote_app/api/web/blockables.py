@@ -14,14 +14,13 @@
 
 """Views related to Blockables."""
 import datetime
-import httplib
 import logging
 
+import six.moves.http_client
 import webapp2
 from webapp2_extras import routes
 
 from google.appengine.ext import ndb
-
 from upvote.gae.bigquery import tables
 from upvote.gae.datastore.models import binary as binary_models
 from upvote.gae.datastore.models import cert as cert_models
@@ -92,19 +91,18 @@ class BlockableQueryHandler(handler_utils.UserFacingQueryHandler):
     # Set the target Model to query against based on the URL arguments.
     platform_map = _MODEL_MAP.get(normalized_platform)
     if not platform_map:
-      self.abort(
-          httplib.BAD_REQUEST, 'Unknown platform: %s' % normalized_platform)
+      self.abort(six.moves.http_client.BAD_REQUEST,
+                 'Unknown platform: %s' % normalized_platform)
     elif normalized_blockable_type not in platform_map:
-      self.abort(
-          httplib.BAD_REQUEST,
-          'Unknown Blockable type: %s' % normalized_blockable_type)
+      self.abort(six.moves.http_client.BAD_REQUEST,
+                 'Unknown Blockable type: %s' % normalized_blockable_type)
 
     blockable_class = platform_map.get(normalized_blockable_type)
     if not blockable_class:
       self.abort(
-          httplib.BAD_REQUEST,
-          'Unsupported platform-type pair: %s, %s' % (
-              normalized_platform, normalized_blockable_type))
+          six.moves.http_client.BAD_REQUEST,
+          'Unsupported platform-type pair: %s, %s' %
+          (normalized_platform, normalized_blockable_type))
 
     BlockableQueryHandler.MODEL_CLASS = blockable_class
 
@@ -176,7 +174,8 @@ class BlockableHandler(handler_utils.UserFacingHandler):
         'Blockable handler get method called with ID: %s', blockable_id)
     blockable = binary_models.Blockable.get_by_id(blockable_id)
     if not blockable:
-      self.abort(httplib.NOT_FOUND, explanation='Blockable not found')
+      self.abort(
+          six.moves.http_client.NOT_FOUND, explanation='Blockable not found')
 
     # Augment the response dict with related voting data.
     blockable_dict = blockable.to_dict()
@@ -196,11 +195,14 @@ class BlockableHandler(handler_utils.UserFacingHandler):
       try:
         voting_api.Recount(blockable_id)
       except voting_api.BlockableNotFoundError:
-        self.abort(httplib.NOT_FOUND, explanation='Blockable not found')
+        self.abort(
+            six.moves.http_client.NOT_FOUND, explanation='Blockable not found')
       except voting_api.UnsupportedClientError:
-        self.abort(httplib.BAD_REQUEST, explanation='Unsupported client')
+        self.abort(
+            six.moves.http_client.BAD_REQUEST, explanation='Unsupported client')
       except Exception as e:  # pylint: disable=broad-except
-        self.abort(httplib.INTERNAL_SERVER_ERROR, explanation=e.message)
+        self.abort(
+            six.moves.http_client.INTERNAL_SERVER_ERROR, explanation=e.message)
       else:
         blockable = binary_models.Blockable.get_by_id(blockable_id)
         self.respond_json(blockable)
@@ -224,12 +226,12 @@ class BlockableHandler(handler_utils.UserFacingHandler):
 
     if not model_class:
       self.abort(
-          httplib.BAD_REQUEST,
+          six.moves.http_client.BAD_REQUEST,
           explanation='No Model class found for "%s"' % blockable_type)
 
     elif model_class.get_by_id(blockable_id):
       self.abort(
-          httplib.CONFLICT,
+          six.moves.http_client.CONFLICT,
           explanation='Blockable "%s" already exists' % blockable_id)
 
     else:
@@ -264,13 +266,15 @@ class BlockableHandler(handler_utils.UserFacingHandler):
     try:
       voting_api.Reset(blockable_id)
     except voting_api.BlockableNotFoundError:
-      self.abort(httplib.NOT_FOUND)
+      self.abort(six.moves.http_client.NOT_FOUND)
     except voting_api.UnsupportedClientError:
-      self.abort(httplib.BAD_REQUEST, explanation='Unsupported client')
+      self.abort(
+          six.moves.http_client.BAD_REQUEST, explanation='Unsupported client')
     except voting_api.OperationNotAllowedError as e:
-      self.abort(httplib.FORBIDDEN, explanation=e.message)
+      self.abort(six.moves.http_client.FORBIDDEN, explanation=e.message)
     except Exception as e:  # pylint: disable=broad-except
-      self.abort(httplib.INTERNAL_SERVER_ERROR, explanation=e.message)
+      self.abort(
+          six.moves.http_client.INTERNAL_SERVER_ERROR, explanation=e.message)
     else:
       blockable = binary_models.Blockable.get_by_id(blockable_id)
       self.respond_json(blockable)
@@ -282,14 +286,15 @@ class PackageContentsHandler(handler_utils.UserFacingHandler):
   def get(self, package_id):
     blockable = binary_models.Blockable.get_by_id(package_id)
     if not blockable:
-      self.abort(httplib.NOT_FOUND, explanation='Package not found.')
+      self.abort(
+          six.moves.http_client.NOT_FOUND, explanation='Package not found.')
     elif not isinstance(blockable, package_models.Package):
       self.abort(
-          httplib.BAD_REQUEST,
+          six.moves.http_client.BAD_REQUEST,
           explanation='Blockable is not a Package: %s' % blockable)
     elif not isinstance(blockable, package_models.SantaBundle):
       self.abort(
-          httplib.BAD_REQUEST,
+          six.moves.http_client.BAD_REQUEST,
           explanation='Only SantaBundles currently supported')
 
     # Order by the rel_path first, and then by the file_name which should
@@ -310,7 +315,8 @@ class PendingStateChangeHandler(handler_utils.UserFacingHandler):
     blockable_id = blockable_id.lower()
     blockable = binary_models.Blockable.get_by_id(blockable_id)
     if not blockable:
-      self.abort(httplib.NOT_FOUND, explanation='Blockable not found.')
+      self.abort(
+          six.moves.http_client.NOT_FOUND, explanation='Blockable not found.')
 
     platform = blockable.GetPlatformName()
     if platform != constants.PLATFORM.WINDOWS:
@@ -342,7 +348,8 @@ class PendingInstallerStateChangeHandler(handler_utils.UserFacingHandler):
     blockable_id = blockable_id.lower()
     blockable = binary_models.Blockable.get_by_id(blockable_id)
     if not blockable:
-      self.abort(httplib.NOT_FOUND, explanation='Blockable not found.')
+      self.abort(
+          six.moves.http_client.NOT_FOUND, explanation='Blockable not found.')
 
     if blockable.GetPlatformName() != constants.PLATFORM.WINDOWS:
       self.respond_json(False)
@@ -423,15 +430,21 @@ class SetInstallerStateHandler(handler_utils.UserFacingHandler):
     blockable_id = blockable_id.lower()
     blockable = binary_models.Blockable.get_by_id(blockable_id)
     if not blockable:
-      self.abort(httplib.NOT_FOUND, explanation='Blockable not found.')
+      self.abort(
+          six.moves.http_client.NOT_FOUND, explanation='Blockable not found.')
     elif blockable.GetPlatformName() != constants.PLATFORM.WINDOWS:
-      self.abort(httplib.BAD_REQUEST, explanation='Must be a Bit9 blockable')
+      self.abort(
+          six.moves.http_client.BAD_REQUEST,
+          explanation='Must be a Bit9 blockable')
     elif not isinstance(blockable, binary_models.Binary):
-      self.abort(httplib.BAD_REQUEST, explanation='Must be a Binary')
+      self.abort(
+          six.moves.http_client.BAD_REQUEST, explanation='Must be a Binary')
 
     force_installer = self.request.get('value', None)
     if force_installer is None:
-      self.abort(httplib.BAD_REQUEST, explanation='No installer state provided')
+      self.abort(
+          six.moves.http_client.BAD_REQUEST,
+          explanation='No installer state provided')
 
     new_policy = (
         constants.RULE_POLICY.FORCE_INSTALLER

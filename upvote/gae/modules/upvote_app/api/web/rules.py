@@ -13,14 +13,13 @@
 # limitations under the License.
 
 """Handlers related to rules."""
-import httplib
 import logging
 
+import six.moves.http_client
 import webapp2
 from webapp2_extras import routes
 
 from google.appengine.ext import ndb
-
 from upvote.gae.datastore import utils as datastore_utils
 from upvote.gae.datastore.models import binary as binary_models
 from upvote.gae.datastore.models import rule as rule_models
@@ -67,7 +66,7 @@ class RuleHandler(handler_utils.UserFacingHandler):
     key = datastore_utils.GetKeyFromUrlsafe(rule_key)
     if not key:
       self.abort(
-          httplib.BAD_REQUEST,
+          six.moves.http_client.BAD_REQUEST,
           explanation='Rule key %s could not be parsed' % rule_key)
 
     rule = key.get()
@@ -76,7 +75,7 @@ class RuleHandler(handler_utils.UserFacingHandler):
       response['target_id'] = rule.key.parent().id()
       self.respond_json(response)
     else:
-      self.abort(httplib.NOT_FOUND, explanation='Rule not found')
+      self.abort(six.moves.http_client.NOT_FOUND, explanation='Rule not found')
 
 
 # The Webapp2 routes defined for these handlers.

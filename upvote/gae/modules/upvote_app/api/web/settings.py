@@ -14,9 +14,9 @@
 
 """Handlers related to Settings."""
 
-import httplib
 import logging
 
+import six.moves.http_client
 import webapp2
 from webapp2_extras import routes
 
@@ -45,7 +45,7 @@ class Settings(handler_utils.UserFacingHandler):
       value = getattr(settings, formatted_setting.upper())
     except AttributeError as e:
       logging.info('Unable to retrieve setting.')
-      self.abort(httplib.NOT_FOUND, explanation=str(e))
+      self.abort(six.moves.http_client.NOT_FOUND, explanation=str(e))
     else:
       self.respond_json(value)
 
@@ -60,14 +60,16 @@ class ApiKeys(handler_utils.AdminOnlyHandler):
 
     value = self.request.get('value', None)
     if value is None:
-      self.abort(httplib.BAD_REQUEST, explanation='No value provided')
+      self.abort(
+          six.moves.http_client.BAD_REQUEST, explanation='No value provided')
 
     if key_name == 'virustotal':
       singleton.VirusTotalApiAuth.SetInstance(api_key=value)
     elif key_name == 'bit9':
       singleton.Bit9ApiAuth.SetInstance(api_key=value)
     else:
-      self.abort(httplib.BAD_REQUEST, explanation='Invalid key name')
+      self.abort(
+          six.moves.http_client.BAD_REQUEST, explanation='Invalid key name')
 
 
 # The Webapp2 routes defined for these handlers.

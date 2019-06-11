@@ -14,8 +14,9 @@
 
 """A module for the index handler."""
 
-import httplib
 import logging
+
+import six.moves.http_client
 import webapp2
 
 from google.appengine.api import users
@@ -39,7 +40,7 @@ class IndexHandler(handler_utils.UserFacingHandler):
     # Write the jinja2 template rendering to the handler's repsonse.
     response_string = template_utils.RenderWebTemplate(
         self.TEMPLATE_NAME, debug=debug, username=users.get_current_user())
-    self.response.set_status(httplib.OK)
+    self.response.set_status(six.moves.http_client.OK)
     self.response.write(response_string)
 
 

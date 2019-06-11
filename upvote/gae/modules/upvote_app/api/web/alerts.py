@@ -15,15 +15,14 @@
 """Request handlers for Alert entities."""
 
 import datetime
-import httplib
 import logging
 
+import six.moves.http_client
 import webapp2
 from webapp2_extras import routes
 
 from google.appengine.api import memcache
 from google.appengine.ext import ndb
-
 from upvote.gae.datastore.models import alert as alert_models
 from upvote.gae.utils import handler_utils
 from upvote.gae.utils import xsrf_utils
@@ -50,10 +49,11 @@ class AlertHandler(handler_utils.UserFacingHandler):
   def _ValidateRouteParams(self, scope, platform):
 
     if not SITE_ALERT_SCOPE.Contains(scope, ignore_case=True):
-      self.abort(httplib.BAD_REQUEST, 'Invalid scope: %s' % scope)
+      self.abort(six.moves.http_client.BAD_REQUEST, 'Invalid scope: %s' % scope)
 
     if not SITE_ALERT_PLATFORM.Contains(platform, ignore_case=True):
-      self.abort(httplib.BAD_REQUEST, 'Invalid platform: %s' % platform)
+      self.abort(six.moves.http_client.BAD_REQUEST,
+                 'Invalid platform: %s' % platform)
 
     scope = SITE_ALERT_SCOPE.Get(scope)
     platform = SITE_ALERT_PLATFORM.Get(platform)
@@ -147,8 +147,8 @@ class AlertHandler(handler_utils.UserFacingHandler):
     # any further.
     for request_arg in ('message', 'start_date', 'severity'):
       if not self.request.get(request_arg).strip():
-        self.abort(
-            httplib.BAD_REQUEST, 'Missing request argument: %s' % request_arg)
+        self.abort(six.moves.http_client.BAD_REQUEST,
+                   'Missing request argument: %s' % request_arg)
 
     alert_models.Alert.Insert(
         message=self.request.get('message'),

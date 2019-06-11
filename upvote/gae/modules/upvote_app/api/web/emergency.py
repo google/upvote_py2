@@ -13,9 +13,9 @@
 # limitations under the License.
 
 """Handlers related to Big Red Button."""
-import httplib
 import logging
 
+import six.moves.http_client
 import webapp2
 
 from upvote.gae.shared.common import big_red
@@ -57,7 +57,8 @@ class Emergency(handler_utils.AdminOnlyHandler):
       big_red_button.turn_on_go2()
     else:
       self.abort(
-          httplib.BAD_REQUEST, explanation='Improper switch or value set.')
+          six.moves.http_client.BAD_REQUEST,
+          explanation='Improper switch or value set.')
 
     self.respond_json(big_red_button.get_button_status())
 

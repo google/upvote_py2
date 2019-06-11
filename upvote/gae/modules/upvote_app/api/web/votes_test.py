@@ -14,13 +14,11 @@
 
 """Unit tests for Votes handlers."""
 
-import httplib
 import mock
-
+import six.moves.http_client
 import webapp2
 
 from google.appengine.ext import ndb
-
 from upvote.gae.datastore import test_utils
 from upvote.gae.datastore import utils as datastore_utils
 from upvote.gae.datastore.models import user as user_models
@@ -103,7 +101,7 @@ class VoteQueryHandlerTest(VotesTest):
   def testUserGetList_NoPermissions(self):
     """Normal user attempts to retrieve all users."""
     with self.LoggedInUser(email_addr=self.user_1.email):
-      self.testapp.get(self.ROUTE, status=httplib.FORBIDDEN)
+      self.testapp.get(self.ROUTE, status=six.moves.http_client.FORBIDDEN)
 
   def testAdminGetQuery(self):
     """Admin queries a user."""
@@ -130,7 +128,8 @@ class VoteQueryHandlerTest(VotesTest):
         'searchBase': 'userEmail'}
 
     with self.LoggedInUser(email_addr=self.user_1.email):
-      self.testapp.get(self.ROUTE, params, status=httplib.FORBIDDEN)
+      self.testapp.get(
+          self.ROUTE, params, status=six.moves.http_client.FORBIDDEN)
 
 
 class VoteHandlerTest(VotesTest):
@@ -152,20 +151,22 @@ class VoteHandlerTest(VotesTest):
   def testAdminGetBadKey(self):
     """Admin gets a vote by an invalid key."""
     with self.LoggedInUser(admin=True):
-      self.testapp.get(self.ROUTE % 'BadKey', status=httplib.BAD_REQUEST)
+      self.testapp.get(
+          self.ROUTE % 'BadKey', status=six.moves.http_client.BAD_REQUEST)
 
   def testAdminGetUnknownID(self):
     """Admin gets a vote by an unknown ID."""
     key = self.vote_3.key.urlsafe()
     self.vote_3.key.delete()
     with self.LoggedInUser(admin=True):
-      self.testapp.get(self.ROUTE % key, status=httplib.NOT_FOUND)
+      self.testapp.get(self.ROUTE % key, status=six.moves.http_client.NOT_FOUND)
 
   def testUserGetID(self):
     """Normal user attempts to get a vote by ID."""
     with self.LoggedInUser(email_addr=self.user_1.email):
       self.testapp.get(
-          self.ROUTE % self.vote_1.key.urlsafe(), status=httplib.FORBIDDEN)
+          self.ROUTE % self.vote_1.key.urlsafe(),
+          status=six.moves.http_client.FORBIDDEN)
 
 
 class VoteCastHandlerTest(VotesTest):
@@ -236,16 +237,18 @@ class VoteCastHandlerTest(VotesTest):
 
     with self.LoggedInUser(admin=True):
       self.testapp.post(
-          self.ROUTE % self.santa_blockable.key.id(), params,
-          status=httplib.BAD_REQUEST)
+          self.ROUTE % self.santa_blockable.key.id(),
+          params,
+          status=six.moves.http_client.BAD_REQUEST)
 
   def testPost_User_AsRole_NotAuthorized(self):
     params = {'wasYesVote': 'true', 'asRole': constants.USER_ROLE.TRUSTED_USER}
 
     with self.LoggedInUser(email_addr=self.user_2.email):
       self.testapp.post(
-          self.ROUTE % self.santa_blockable.key.id(), params,
-          status=httplib.FORBIDDEN)
+          self.ROUTE % self.santa_blockable.key.id(),
+          params,
+          status=six.moves.http_client.FORBIDDEN)
 
   def testPost_User_Success(self):
     """Normal user posts a vote."""
@@ -273,15 +276,18 @@ class VoteCastHandlerTest(VotesTest):
           self.ROUTE % self.santa_blockable.key.id(), params)
 
       self.testapp.post(
-          self.ROUTE % self.santa_blockable.key.id(), params,
-          status=httplib.CONFLICT)
+          self.ROUTE % self.santa_blockable.key.id(),
+          params,
+          status=six.moves.http_client.CONFLICT)
 
   def testPost_User_UnknownBlockable(self):
     params = {'wasYesVote': 'true'}
 
     with self.LoggedInUser(email_addr=self.user_2.email):
       self.testapp.post(
-          self.ROUTE % 'notablockable', params, status=httplib.NOT_FOUND)
+          self.ROUTE % 'notablockable',
+          params,
+          status=six.moves.http_client.NOT_FOUND)
 
   def testPost_User_Cert(self):
     """Normal user posts a vote."""
@@ -289,8 +295,9 @@ class VoteCastHandlerTest(VotesTest):
 
     with self.LoggedInUser(email_addr=self.user_2.email):
       self.testapp.post(
-          self.ROUTE % self.santa_certificate.key.id(), params,
-          status=httplib.FORBIDDEN)
+          self.ROUTE % self.santa_certificate.key.id(),
+          params,
+          status=six.moves.http_client.FORBIDDEN)
 
   @mock.patch.object(
       votes.voting_api, 'Vote', side_effect=voting_api.BlockableNotFoundError)
@@ -299,7 +306,7 @@ class VoteCastHandlerTest(VotesTest):
       self.testapp.post(
           self.ROUTE % test_utils.RandomSHA256(),
           params={'wasYesVote': 'true'},
-          status=httplib.NOT_FOUND)
+          status=six.moves.http_client.NOT_FOUND)
 
   @mock.patch.object(
       votes.voting_api, 'Vote', side_effect=voting_api.UnsupportedClientError)
@@ -308,7 +315,7 @@ class VoteCastHandlerTest(VotesTest):
       self.testapp.post(
           self.ROUTE % test_utils.RandomSHA256(),
           params={'wasYesVote': 'true'},
-          status=httplib.BAD_REQUEST)
+          status=six.moves.http_client.BAD_REQUEST)
 
   @mock.patch.object(
       votes.voting_api, 'Vote', side_effect=voting_api.InvalidVoteWeightError)
@@ -317,7 +324,7 @@ class VoteCastHandlerTest(VotesTest):
       self.testapp.post(
           self.ROUTE % test_utils.RandomSHA256(),
           params={'wasYesVote': 'true'},
-          status=httplib.BAD_REQUEST)
+          status=six.moves.http_client.BAD_REQUEST)
 
   @mock.patch.object(
       votes.voting_api, 'Vote', side_effect=voting_api.DuplicateVoteError)
@@ -326,7 +333,7 @@ class VoteCastHandlerTest(VotesTest):
       self.testapp.post(
           self.ROUTE % test_utils.RandomSHA256(),
           params={'wasYesVote': 'true'},
-          status=httplib.CONFLICT)
+          status=six.moves.http_client.CONFLICT)
 
   @mock.patch.object(
       votes.voting_api, 'Vote', side_effect=voting_api.OperationNotAllowedError)
@@ -335,7 +342,7 @@ class VoteCastHandlerTest(VotesTest):
       self.testapp.post(
           self.ROUTE % test_utils.RandomSHA256(),
           params={'wasYesVote': 'true'},
-          status=httplib.FORBIDDEN)
+          status=six.moves.http_client.FORBIDDEN)
 
   @mock.patch.object(votes.voting_api, 'Vote', side_effect=Exception)
   def testPost_Exception(self, mock_vote):
@@ -343,7 +350,7 @@ class VoteCastHandlerTest(VotesTest):
       self.testapp.post(
           self.ROUTE % test_utils.RandomSHA256(),
           params={'wasYesVote': 'true'},
-          status=httplib.INTERNAL_SERVER_ERROR)
+          status=six.moves.http_client.INTERNAL_SERVER_ERROR)
 
   def testPost_CaseMismatch(self):
 
@@ -375,7 +382,7 @@ class VoteCastHandlerTest(VotesTest):
     with self.LoggedInUser(user=user):
       self.testapp.post(
           self.ROUTE % test_utils.RandomSHA256(),
-          status=httplib.INTERNAL_SERVER_ERROR)
+          status=six.moves.http_client.INTERNAL_SERVER_ERROR)
     self.assertIsNone(user.last_vote_dt)
 
   def testGet_User(self):

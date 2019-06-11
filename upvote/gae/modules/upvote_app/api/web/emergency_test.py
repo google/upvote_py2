@@ -14,9 +14,8 @@
 
 """Unit tests for emergency.py."""
 
-import httplib
 import mock
-
+import six.moves.http_client
 import webapp2
 
 from upvote.gae.lib.testing import basetest
@@ -34,7 +33,7 @@ class EmergencyTest(basetest.UpvoteTestCase):
 
   def testForbidden(self):
     with self.LoggedInUser():
-      self.testapp.get('/emergency', status=httplib.FORBIDDEN)
+      self.testapp.get('/emergency', status=six.moves.http_client.FORBIDDEN)
 
   def testGet(self):
     mock_brb = mock.MagicMock()

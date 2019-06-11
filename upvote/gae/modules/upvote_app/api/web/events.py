@@ -14,14 +14,13 @@
 
 """Handlers related to Events."""
 
-import httplib
 import logging
 
+import six.moves.http_client
 import webapp2
 from webapp2_extras import routes
 
 from google.appengine.ext import ndb
-
 from upvote.gae.datastore import utils as datastore_utils
 from upvote.gae.datastore.models import binary as binary_models
 from upvote.gae.datastore.models import cert as cert_models
@@ -175,7 +174,7 @@ class EventHandler(handler_utils.UserFacingHandler):
     # See https://github.com/googlecloudplatform/datastore-ndb-python/issues/143
     except:  # pylint: disable=bare-except
       self.abort(
-          httplib.BAD_REQUEST,
+          six.moves.http_client.BAD_REQUEST,
           explanation='Event key %s could not be parsed' % event_key)
     else:
       event = key.get()
@@ -186,7 +185,8 @@ class EventHandler(handler_utils.UserFacingHandler):
           self.RequirePermission(constants.PERMISSIONS.VIEW_OTHER_EVENTS)
         self.respond_json(response_data)
       else:
-        self.abort(httplib.NOT_FOUND, explanation='Event not found')
+        self.abort(
+            six.moves.http_client.NOT_FOUND, explanation='Event not found')
 
 
 class RecentEventHandler(handler_utils.UserFacingHandler):
@@ -195,7 +195,8 @@ class RecentEventHandler(handler_utils.UserFacingHandler):
   def get(self, blockable_id):  # pylint: disable=g-bad-name
     blockable = binary_models.Blockable.get_by_id(blockable_id)
     if not blockable:
-      self.abort(httplib.NOT_FOUND, explanation='Blockable not found')
+      self.abort(
+          six.moves.http_client.NOT_FOUND, explanation='Blockable not found')
 
     username = self.request.get('asUser')
     if username:

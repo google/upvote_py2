@@ -14,9 +14,8 @@
 
 """Unit tests for Exemptions handlers."""
 
-import httplib
 import mock
-
+import six.moves.http_client
 import webapp2
 
 from upvote.gae.datastore import test_utils
@@ -48,7 +47,8 @@ class GetExemptionHandlerTest(ExemptionsTest):
     test_utils.CreateExemption(host.key.id())
 
     with self.LoggedInUser(user=user):
-      self.testapp.get(self.ROUTE % host.key.id(), status=httplib.OK)
+      self.testapp.get(
+          self.ROUTE % host.key.id(), status=six.moves.http_client.OK)
 
   def testGet_AsUser_Forbidden(self):
 
@@ -57,7 +57,8 @@ class GetExemptionHandlerTest(ExemptionsTest):
     test_utils.CreateExemption(host.key.id())
 
     with self.LoggedInUser():  # Without arguments, will log in as a new user.
-      self.testapp.get(self.ROUTE % host.key.id(), status=httplib.FORBIDDEN)
+      self.testapp.get(
+          self.ROUTE % host.key.id(), status=six.moves.http_client.FORBIDDEN)
 
   def testGet_AsAdmin_Success(self):
 
@@ -66,11 +67,14 @@ class GetExemptionHandlerTest(ExemptionsTest):
     test_utils.CreateExemption(host.key.id())
 
     with self.LoggedInUser(admin=True):
-      self.testapp.get(self.ROUTE % host.key.id(), status=httplib.OK)
+      self.testapp.get(
+          self.ROUTE % host.key.id(), status=six.moves.http_client.OK)
 
   def testGet_HostNotFound(self):
     with self.LoggedInUser():
-      self.testapp.get(self.ROUTE % 'invalid_host_id', status=httplib.NOT_FOUND)
+      self.testapp.get(
+          self.ROUTE % 'invalid_host_id',
+          status=six.moves.http_client.NOT_FOUND)
 
   def testGet_ExemptionNotFound(self):
 
@@ -78,7 +82,8 @@ class GetExemptionHandlerTest(ExemptionsTest):
     host = test_utils.CreateSantaHost(primary_user=user.nickname)
 
     with self.LoggedInUser(user=user):
-      self.testapp.get(self.ROUTE % host.key.id(), status=httplib.NOT_FOUND)
+      self.testapp.get(
+          self.ROUTE % host.key.id(), status=six.moves.http_client.NOT_FOUND)
 
 
 class RequestExemptionHandlerTest(ExemptionsTest):
@@ -93,13 +98,15 @@ class RequestExemptionHandlerTest(ExemptionsTest):
     user = test_utils.CreateUser(roles=[constants.USER_ROLE.UNTRUSTED_USER])
     host = test_utils.CreateSantaHost(primary_user=user.nickname)
     with self.LoggedInUser(user=user):
-      self.testapp.post(self.ROUTE % host.key.id(), status=httplib.FORBIDDEN)
+      self.testapp.post(
+          self.ROUTE % host.key.id(), status=six.moves.http_client.FORBIDDEN)
     self.mock_process.assert_not_called()
 
   def testPost_HostNotFound(self):
     with self.LoggedInUser():
       self.testapp.post(
-          self.ROUTE % 'invalid_host_id', status=httplib.NOT_FOUND)
+          self.ROUTE % 'invalid_host_id',
+          status=six.moves.http_client.NOT_FOUND)
     self.mock_process.assert_not_called()
 
   def testPost_UnsupportedPlatformError(self):
@@ -110,7 +117,8 @@ class RequestExemptionHandlerTest(ExemptionsTest):
 
     with self.LoggedInUser(user=user):
       self.testapp.post(
-          self.ROUTE % host.key.id(), status=httplib.NOT_IMPLEMENTED)
+          self.ROUTE % host.key.id(),
+          status=six.moves.http_client.NOT_IMPLEMENTED)
     self.mock_process.assert_not_called()
 
   def testPost_WindowsNotSupported(self):
@@ -120,7 +128,8 @@ class RequestExemptionHandlerTest(ExemptionsTest):
 
     with self.LoggedInUser(user=user):
       self.testapp.post(
-          self.ROUTE % host.key.id(), status=httplib.NOT_IMPLEMENTED)
+          self.ROUTE % host.key.id(),
+          status=six.moves.http_client.NOT_IMPLEMENTED)
     self.mock_process.assert_not_called()
 
   def testPost_Forbidden(self):
@@ -129,7 +138,8 @@ class RequestExemptionHandlerTest(ExemptionsTest):
     host = test_utils.CreateSantaHost(primary_user=user.nickname)
 
     with self.LoggedInUser():  # Without arguments, will log in as a new user.
-      self.testapp.post(self.ROUTE % host.key.id(), status=httplib.FORBIDDEN)
+      self.testapp.post(
+          self.ROUTE % host.key.id(), status=six.moves.http_client.FORBIDDEN)
     self.mock_process.assert_not_called()
 
   def testPost_BadRequest_NoReasonProvided(self):
@@ -141,7 +151,9 @@ class RequestExemptionHandlerTest(ExemptionsTest):
 
     with self.LoggedInUser(user=user):
       self.testapp.post(
-          self.ROUTE % host.key.id(), params=params, status=httplib.BAD_REQUEST)
+          self.ROUTE % host.key.id(),
+          params=params,
+          status=six.moves.http_client.BAD_REQUEST)
     self.mock_process.assert_not_called()
 
   def testPost_BadRequest_InvalidReasonErrorProvided(self):
@@ -155,7 +167,9 @@ class RequestExemptionHandlerTest(ExemptionsTest):
 
     with self.LoggedInUser(user=user):
       self.testapp.post(
-          self.ROUTE % host.key.id(), params=params, status=httplib.BAD_REQUEST)
+          self.ROUTE % host.key.id(),
+          params=params,
+          status=six.moves.http_client.BAD_REQUEST)
     self.mock_process.assert_not_called()
 
   def testPost_BadRequest_NoOtherExplanationProvided(self):
@@ -169,7 +183,9 @@ class RequestExemptionHandlerTest(ExemptionsTest):
 
     with self.LoggedInUser(user=user):
       self.testapp.post(
-          self.ROUTE % host.key.id(), params=params, status=httplib.BAD_REQUEST)
+          self.ROUTE % host.key.id(),
+          params=params,
+          status=six.moves.http_client.BAD_REQUEST)
     self.mock_process.assert_not_called()
 
   def testPost_BadRequest_NoDurationProvided(self):
@@ -182,7 +198,9 @@ class RequestExemptionHandlerTest(ExemptionsTest):
 
     with self.LoggedInUser(user=user):
       self.testapp.post(
-          self.ROUTE % host.key.id(), params=params, status=httplib.BAD_REQUEST)
+          self.ROUTE % host.key.id(),
+          params=params,
+          status=six.moves.http_client.BAD_REQUEST)
     self.mock_process.assert_not_called()
 
   def testPost_BadRequest_InvalidDurationErrorProvided(self):
@@ -196,7 +214,9 @@ class RequestExemptionHandlerTest(ExemptionsTest):
 
     with self.LoggedInUser(user=user):
       self.testapp.post(
-          self.ROUTE % host.key.id(), params=params, status=httplib.BAD_REQUEST)
+          self.ROUTE % host.key.id(),
+          params=params,
+          status=six.moves.http_client.BAD_REQUEST)
     self.mock_process.assert_not_called()
 
   def testPost_BadRequest_InvalidRenewalError(self):
@@ -210,9 +230,13 @@ class RequestExemptionHandlerTest(ExemptionsTest):
 
     with self.LoggedInUser(user=user):
       self.testapp.post(
-          self.ROUTE % host.key.id(), params=params, status=httplib.OK)
+          self.ROUTE % host.key.id(),
+          params=params,
+          status=six.moves.http_client.OK)
       self.testapp.post(
-          self.ROUTE % host.key.id(), params=params, status=httplib.BAD_REQUEST)
+          self.ROUTE % host.key.id(),
+          params=params,
+          status=six.moves.http_client.BAD_REQUEST)
 
     exm = exemption_models.Exemption.Get(host.key.id())
     self.assertEqual(constants.EXEMPTION_STATE.REQUESTED, exm.state)
@@ -230,7 +254,9 @@ class RequestExemptionHandlerTest(ExemptionsTest):
 
     with self.LoggedInUser(user=user):
       response = self.testapp.post(
-          self.ROUTE % host.key.id(), params=params, status=httplib.OK)
+          self.ROUTE % host.key.id(),
+          params=params,
+          status=six.moves.http_client.OK)
 
     output = response.json
     exm = exemption_models.Exemption.Get(host.key.id())
@@ -255,7 +281,9 @@ class RequestExemptionHandlerTest(ExemptionsTest):
 
     with self.LoggedInUser(admin=True):
       response = self.testapp.post(
-          self.ROUTE % host.key.id(), params=params, status=httplib.OK)
+          self.ROUTE % host.key.id(),
+          params=params,
+          status=six.moves.http_client.OK)
 
     output = response.json
     exm = exemption_models.Exemption.Get(host.key.id())
@@ -286,7 +314,8 @@ class EscalateExemptionHandlerTest(ExemptionsTest):
   def testPost_Success(self):
 
     with self.LoggedInUser(user=self.user):
-      response = self.testapp.post(self.ROUTE % self.host_id, status=httplib.OK)
+      response = self.testapp.post(
+          self.ROUTE % self.host_id, status=six.moves.http_client.OK)
 
     output = response.json
     exm = exemption_models.Exemption.Get(self.host_id)
@@ -300,7 +329,8 @@ class EscalateExemptionHandlerTest(ExemptionsTest):
   def testPost_HostNotFound(self):
     with self.LoggedInUser(user=self.user):
       self.testapp.post(
-          self.ROUTE % 'invalid_host_id', status=httplib.NOT_FOUND)
+          self.ROUTE % 'invalid_host_id',
+          status=six.moves.http_client.NOT_FOUND)
 
   def testPost_ExemptionNotFound(self):
 
@@ -309,7 +339,8 @@ class EscalateExemptionHandlerTest(ExemptionsTest):
     other_host_id = other_host_key.id()
 
     with self.LoggedInUser(user=self.user):
-      self.testapp.post(self.ROUTE % other_host_id, status=httplib.NOT_FOUND)
+      self.testapp.post(
+          self.ROUTE % other_host_id, status=six.moves.http_client.NOT_FOUND)
 
   def testPost_Forbidden_Pending(self):
 
@@ -319,14 +350,16 @@ class EscalateExemptionHandlerTest(ExemptionsTest):
     test_utils.CreateExemption(other_host_id, initial_state=_STATE.PENDING)
 
     with self.LoggedInUser(user=self.user):
-      self.testapp.post(self.ROUTE % other_host_id, status=httplib.FORBIDDEN)
+      self.testapp.post(
+          self.ROUTE % other_host_id, status=six.moves.http_client.FORBIDDEN)
 
   @mock.patch.object(
       exemptions.exemption_api, 'Escalate', side_effect=Exception)
   def testPost_Exception(self, mock_escalate):
     with self.LoggedInUser(user=self.user):
       self.testapp.post(
-          self.ROUTE % self.host_id, status=httplib.INTERNAL_SERVER_ERROR)
+          self.ROUTE % self.host_id,
+          status=six.moves.http_client.INTERNAL_SERVER_ERROR)
 
 
 class ApproveExemptionHandlerTest(ExemptionsTest):
@@ -347,7 +380,7 @@ class ApproveExemptionHandlerTest(ExemptionsTest):
     with self.LoggedInUser(admin=True):
       params = {'justification': 'I want to'}
       response = self.testapp.post(
-          self.ROUTE % self.host_id, params, status=httplib.OK)
+          self.ROUTE % self.host_id, params, status=six.moves.http_client.OK)
 
     output = response.json
 
@@ -368,7 +401,8 @@ class ApproveExemptionHandlerTest(ExemptionsTest):
       params = {'justification': 'I want to'}
       self.testapp.post(
           self.ROUTE % self.host_id,
-          params, status=httplib.INTERNAL_SERVER_ERROR)
+          params,
+          status=six.moves.http_client.INTERNAL_SERVER_ERROR)
 
     self.assertEqual(
         constants.EXEMPTION_STATE.ESCALATED, self.exm_key.get().state)
@@ -379,7 +413,9 @@ class ApproveExemptionHandlerTest(ExemptionsTest):
     with self.LoggedInUser():
       params = {'justification': 'I want to'}
       self.testapp.post(
-          self.ROUTE % self.host_id, params, status=httplib.FORBIDDEN)
+          self.ROUTE % self.host_id,
+          params,
+          status=six.moves.http_client.FORBIDDEN)
 
     self.assertEqual(
         constants.EXEMPTION_STATE.ESCALATED, self.exm_key.get().state)
@@ -387,7 +423,8 @@ class ApproveExemptionHandlerTest(ExemptionsTest):
   def testPost_BadRequest_JustificationMissing(self):
 
     with self.LoggedInUser(admin=True):
-      self.testapp.post(self.ROUTE % self.host_id, status=httplib.BAD_REQUEST)
+      self.testapp.post(
+          self.ROUTE % self.host_id, status=six.moves.http_client.BAD_REQUEST)
 
     self.assertEqual(
         constants.EXEMPTION_STATE.ESCALATED, self.exm_key.get().state)
@@ -395,7 +432,8 @@ class ApproveExemptionHandlerTest(ExemptionsTest):
   def testPost_HostNotFound(self):
     with self.LoggedInUser():
       self.testapp.post(
-          self.ROUTE % 'invalid_host_id', status=httplib.NOT_FOUND)
+          self.ROUTE % 'invalid_host_id',
+          status=six.moves.http_client.NOT_FOUND)
 
   def testPost_Forbidden_Pending(self):
 
@@ -404,7 +442,8 @@ class ApproveExemptionHandlerTest(ExemptionsTest):
     test_utils.CreateExemption(other_host_id, initial_state=_STATE.PENDING)
 
     with self.LoggedInUser(admin=True):
-      self.testapp.post(self.ROUTE % other_host_id, status=httplib.FORBIDDEN)
+      self.testapp.post(
+          self.ROUTE % other_host_id, status=six.moves.http_client.FORBIDDEN)
 
   def testPost_ExemptionNotFound(self):
 
@@ -412,7 +451,8 @@ class ApproveExemptionHandlerTest(ExemptionsTest):
     other_host_id = other_host_key.id()
 
     with self.LoggedInUser(admin=True):
-      self.testapp.post(self.ROUTE % other_host_id, status=httplib.NOT_FOUND)
+      self.testapp.post(
+          self.ROUTE % other_host_id, status=six.moves.http_client.NOT_FOUND)
 
 
 class DenyExemptionHandlerTest(ExemptionsTest):
@@ -432,7 +472,7 @@ class DenyExemptionHandlerTest(ExemptionsTest):
     with self.LoggedInUser(admin=True):
       params = {'justification': 'I want to'}
       response = self.testapp.post(
-          self.ROUTE % self.host_id, params, status=httplib.OK)
+          self.ROUTE % self.host_id, params, status=six.moves.http_client.OK)
 
     output = response.json
 
@@ -448,8 +488,9 @@ class DenyExemptionHandlerTest(ExemptionsTest):
     with self.LoggedInUser(admin=True):
       params = {'justification': 'I want to'}
       self.testapp.post(
-          self.ROUTE % self.host_id, params,
-          status=httplib.INTERNAL_SERVER_ERROR)
+          self.ROUTE % self.host_id,
+          params,
+          status=six.moves.http_client.INTERNAL_SERVER_ERROR)
 
     self.assertEqual(
         constants.EXEMPTION_STATE.ESCALATED, self.exm_key.get().state)
@@ -461,7 +502,9 @@ class DenyExemptionHandlerTest(ExemptionsTest):
     with self.LoggedInUser():
       params = {'justification': 'I want to'}
       self.testapp.post(
-          self.ROUTE % self.host_id, params, status=httplib.FORBIDDEN)
+          self.ROUTE % self.host_id,
+          params,
+          status=six.moves.http_client.FORBIDDEN)
 
     self.assertEqual(
         constants.EXEMPTION_STATE.ESCALATED, self.exm_key.get().state)
@@ -469,7 +512,8 @@ class DenyExemptionHandlerTest(ExemptionsTest):
   def testPost_BadRequest_JustificationMissing(self):
 
     with self.LoggedInUser(admin=True):
-      self.testapp.post(self.ROUTE % self.host_id, status=httplib.BAD_REQUEST)
+      self.testapp.post(
+          self.ROUTE % self.host_id, status=six.moves.http_client.BAD_REQUEST)
 
     self.assertEqual(
         constants.EXEMPTION_STATE.ESCALATED, self.exm_key.get().state)
@@ -477,7 +521,8 @@ class DenyExemptionHandlerTest(ExemptionsTest):
   def testPost_HostNotFound(self):
     with self.LoggedInUser():
       self.testapp.post(
-          self.ROUTE % 'invalid_host_id', status=httplib.NOT_FOUND)
+          self.ROUTE % 'invalid_host_id',
+          status=six.moves.http_client.NOT_FOUND)
 
   def testPost_Forbidden_Pending(self):
 
@@ -486,7 +531,8 @@ class DenyExemptionHandlerTest(ExemptionsTest):
     test_utils.CreateExemption(other_host_id, initial_state=_STATE.PENDING)
 
     with self.LoggedInUser(admin=True):
-      self.testapp.post(self.ROUTE % other_host_id, status=httplib.FORBIDDEN)
+      self.testapp.post(
+          self.ROUTE % other_host_id, status=six.moves.http_client.FORBIDDEN)
 
   def testPost_ExemptionNotFound(self):
 
@@ -494,7 +540,8 @@ class DenyExemptionHandlerTest(ExemptionsTest):
     other_host_id = other_host_key.id()
 
     with self.LoggedInUser(admin=True):
-      self.testapp.post(self.ROUTE % other_host_id, status=httplib.NOT_FOUND)
+      self.testapp.post(
+          self.ROUTE % other_host_id, status=six.moves.http_client.NOT_FOUND)
 
 
 class RevokeExemptionHandlerTest(ExemptionsTest):
@@ -515,7 +562,7 @@ class RevokeExemptionHandlerTest(ExemptionsTest):
     with self.LoggedInUser(admin=True):
       params = {'justification': 'I want to'}
       response = self.testapp.post(
-          self.ROUTE % self.host_id, params, status=httplib.OK)
+          self.ROUTE % self.host_id, params, status=six.moves.http_client.OK)
 
     output = response.json
 
@@ -535,8 +582,9 @@ class RevokeExemptionHandlerTest(ExemptionsTest):
     with self.LoggedInUser(admin=True):
       params = {'justification': 'I want to'}
       self.testapp.post(
-          self.ROUTE % self.host_id, params,
-          status=httplib.INTERNAL_SERVER_ERROR)
+          self.ROUTE % self.host_id,
+          params,
+          status=six.moves.http_client.INTERNAL_SERVER_ERROR)
 
     self.assertEqual(
         constants.EXEMPTION_STATE.APPROVED, self.exm_key.get().state)
@@ -548,7 +596,9 @@ class RevokeExemptionHandlerTest(ExemptionsTest):
     with self.LoggedInUser():
       params = {'justification': 'I want to'}
       self.testapp.post(
-          self.ROUTE % self.host_id, params, status=httplib.FORBIDDEN)
+          self.ROUTE % self.host_id,
+          params,
+          status=six.moves.http_client.FORBIDDEN)
 
     self.assertEqual(
         constants.EXEMPTION_STATE.APPROVED, self.exm_key.get().state)
@@ -556,7 +606,8 @@ class RevokeExemptionHandlerTest(ExemptionsTest):
   def testPost_BadRequest_JustificationMissing(self):
 
     with self.LoggedInUser(admin=True):
-      self.testapp.post(self.ROUTE % self.host_id, status=httplib.BAD_REQUEST)
+      self.testapp.post(
+          self.ROUTE % self.host_id, status=six.moves.http_client.BAD_REQUEST)
 
     self.assertEqual(
         constants.EXEMPTION_STATE.APPROVED, self.exm_key.get().state)
@@ -564,7 +615,8 @@ class RevokeExemptionHandlerTest(ExemptionsTest):
   def testPost_HostNotFound(self):
     with self.LoggedInUser():
       self.testapp.post(
-          self.ROUTE % 'invalid_host_id', status=httplib.NOT_FOUND)
+          self.ROUTE % 'invalid_host_id',
+          status=six.moves.http_client.NOT_FOUND)
 
   def testPost_ExemptionNotFound(self):
 
@@ -572,7 +624,8 @@ class RevokeExemptionHandlerTest(ExemptionsTest):
     other_host_id = other_host_key.id()
 
     with self.LoggedInUser(admin=True):
-      self.testapp.post(self.ROUTE % other_host_id, status=httplib.NOT_FOUND)
+      self.testapp.post(
+          self.ROUTE % other_host_id, status=six.moves.http_client.NOT_FOUND)
 
 
 class CancelExemptionHandlerTest(ExemptionsTest):
@@ -594,7 +647,7 @@ class CancelExemptionHandlerTest(ExemptionsTest):
 
     with self.LoggedInUser(user=self.valid_user):
       response = self.testapp.post(
-          self.ROUTE % self.host_id, status=httplib.OK)
+          self.ROUTE % self.host_id, status=six.moves.http_client.OK)
 
     output = response.json
 
@@ -612,7 +665,8 @@ class CancelExemptionHandlerTest(ExemptionsTest):
 
     invalid_user = test_utils.CreateUser()
     with self.LoggedInUser(user=invalid_user):
-      self.testapp.post(self.ROUTE % self.host_id, status=httplib.FORBIDDEN)
+      self.testapp.post(
+          self.ROUTE % self.host_id, status=six.moves.http_client.FORBIDDEN)
 
     self.assertEqual(
         constants.EXEMPTION_STATE.APPROVED, self.exm_key.get().state)
@@ -621,7 +675,8 @@ class CancelExemptionHandlerTest(ExemptionsTest):
   def testPost_InvalidUser_Admin(self):
 
     with self.LoggedInUser(admin=True):
-      self.testapp.post(self.ROUTE % self.host_id, status=httplib.FORBIDDEN)
+      self.testapp.post(
+          self.ROUTE % self.host_id, status=six.moves.http_client.FORBIDDEN)
 
     self.assertEqual(
         constants.EXEMPTION_STATE.APPROVED, self.exm_key.get().state)
@@ -632,7 +687,8 @@ class CancelExemptionHandlerTest(ExemptionsTest):
 
     with self.LoggedInUser(user=self.valid_user):
       self.testapp.post(
-          self.ROUTE % self.host_id, status=httplib.INTERNAL_SERVER_ERROR)
+          self.ROUTE % self.host_id,
+          status=six.moves.http_client.INTERNAL_SERVER_ERROR)
 
     mock_cancel.assert_called_once()
     self.assertEqual(
@@ -643,7 +699,8 @@ class CancelExemptionHandlerTest(ExemptionsTest):
   def testPost_ValidUser(self, mock_enable):
 
     with self.LoggedInUser(user=self.valid_user):
-      self.testapp.post(self.ROUTE % self.host_id, status=httplib.OK)
+      self.testapp.post(
+          self.ROUTE % self.host_id, status=six.moves.http_client.OK)
 
     self.assertEqual(
         constants.EXEMPTION_STATE.CANCELLED, self.exm_key.get().state)
@@ -653,7 +710,8 @@ class CancelExemptionHandlerTest(ExemptionsTest):
   def testPost_HostNotFound(self):
     with self.LoggedInUser():
       self.testapp.post(
-          self.ROUTE % 'invalid_host_id', status=httplib.NOT_FOUND)
+          self.ROUTE % 'invalid_host_id',
+          status=six.moves.http_client.NOT_FOUND)
 
   def testPost_ExemptionNotFound(self):
 
@@ -661,7 +719,8 @@ class CancelExemptionHandlerTest(ExemptionsTest):
     other_host_id = other_host_key.id()
 
     with self.LoggedInUser(admin=True):
-      self.testapp.post(self.ROUTE % other_host_id, status=httplib.NOT_FOUND)
+      self.testapp.post(
+          self.ROUTE % other_host_id, status=six.moves.http_client.NOT_FOUND)
 
 
 if __name__ == '__main__':

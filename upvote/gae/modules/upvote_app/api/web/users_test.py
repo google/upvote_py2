@@ -14,7 +14,7 @@
 
 """Unit tests for users.py."""
 
-import httplib
+import six.moves.http_client
 
 import webapp2
 
@@ -72,7 +72,7 @@ class UserQueryHandlerTest(UsersTest):
   def testUserGetListNoPermissions(self):
     """Normal user attempts to retrieve all users."""
     with self.LoggedInUser():
-      self.testapp.get(self.ROUTE, status=httplib.FORBIDDEN)
+      self.testapp.get(self.ROUTE, status=six.moves.http_client.FORBIDDEN)
 
   def testAdminGetQuery(self):
     """Admin queries a user."""
@@ -95,7 +95,8 @@ class UserQueryHandlerTest(UsersTest):
     params = {'search': 1, 'searchBase': 'voteWeight'}
 
     with self.LoggedInUser():
-      self.testapp.get(self.ROUTE, params, status=httplib.FORBIDDEN)
+      self.testapp.get(
+          self.ROUTE, params, status=six.moves.http_client.FORBIDDEN)
 
 
 class UserHandlerTest(UsersTest):
@@ -131,13 +132,15 @@ class UserHandlerTest(UsersTest):
     """Admin attempting to get information on an unknown user."""
     with self.LoggedInUser(admin=True):
       unknown_user = user_utils.UsernameToEmail('blahblahblah')
-      self.testapp.get(self.ROUTE % unknown_user, status=httplib.NOT_FOUND)
+      self.testapp.get(
+          self.ROUTE % unknown_user, status=six.moves.http_client.NOT_FOUND)
 
   def testUserGetOtherUser(self):
     """Normal user trying to get information on another user."""
     user = test_utils.CreateUser()
     with self.LoggedInUser():
-      self.testapp.get(self.ROUTE % user.email, status=httplib.FORBIDDEN)
+      self.testapp.get(
+          self.ROUTE % user.email, status=six.moves.http_client.FORBIDDEN)
 
 
 if __name__ == '__main__':

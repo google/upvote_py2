@@ -14,14 +14,13 @@
 
 """Request handlers for restricting access to new features."""
 
-import httplib
 import logging
 
+import six.moves.http_client
 import webapp2
 from webapp2_extras import routes
 
 from google.appengine.api import memcache
-
 from upvote.gae.utils import group_utils
 from upvote.gae.utils import handler_utils
 from upvote.gae.utils import user_utils
@@ -43,7 +42,7 @@ class FeatureHandler(handler_utils.UserFacingHandler):
     # If requesting an unknown feature, fail closed.
     if feature not in _SUPPORTED_FEATURES:
       logging.error('Unsupported feature: %s', feature)
-      self.abort(httplib.FORBIDDEN)
+      self.abort(six.moves.http_client.FORBIDDEN)
 
     # See if memcache already has an entry for this feature.
     memcache_key = 'feature_%s' % feature
@@ -67,7 +66,7 @@ class FeatureHandler(handler_utils.UserFacingHandler):
           # If a group isn't found, fail closed.
           if not group_manager.DoesGroupExist(group):
             logging.error('Unknown group: %s', group)
-            self.abort(httplib.FORBIDDEN)
+            self.abort(six.moves.http_client.FORBIDDEN)
 
           approved_users |= set(
               user_utils.EmailToUsername(member)
@@ -83,10 +82,10 @@ class FeatureHandler(handler_utils.UserFacingHandler):
       # message.
       except Exception:  # pylint: disable=broad-except
         logging.exception('Unexpected error while retrieving group members')
-        self.abort(httplib.FORBIDDEN)
+        self.abort(six.moves.http_client.FORBIDDEN)
 
     approved = self.user.nickname in approved_users
-    self.response.status = httplib.OK if approved else httplib.FORBIDDEN
+    self.response.status = six.moves.http_client.OK if approved else six.moves.http_client.FORBIDDEN
 
 
 # The Webapp2 routes defined for these handlers.

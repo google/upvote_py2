@@ -14,9 +14,9 @@
 
 """Handlers related to exemptions."""
 
-import httplib
 import logging
 
+import six.moves.http_client
 import webapp2
 from webapp2_extras import routes
 
@@ -37,7 +37,8 @@ class ExemptionHandler(handler_utils.UserFacingHandler):
     # All handlers require a host_id, so make sure one was provided.
     host_id = self.request.route_kwargs.get('host_id')
     if not host_id:
-      self.abort(httplib.BAD_REQUEST, explanation='No host ID provided')
+      self.abort(
+          six.moves.http_client.BAD_REQUEST, explanation='No host ID provided')
 
     # Retrieve the corresponding Host entity. Bail if it doesn't exist.
     host_id = host_models.Host.NormalizeId(host_id)
@@ -45,21 +46,21 @@ class ExemptionHandler(handler_utils.UserFacingHandler):
     if self.host is None:
       message = 'Host %s does not exist' % host_id
       logging.error(message)
-      self.abort(httplib.NOT_FOUND, explanation=message)
+      self.abort(six.moves.http_client.NOT_FOUND, explanation=message)
 
     # Make sure the Host has a valid platform, otherwise things will break.
     platform = self.host.GetPlatformName()
     if platform not in constants.PLATFORM.SET_ALL:
       message = 'Platform "%s" is not supported' % platform
       logging.error(message)
-      self.abort(httplib.NOT_IMPLEMENTED, explanation=message)
+      self.abort(six.moves.http_client.NOT_IMPLEMENTED, explanation=message)
 
     # Disable all Exemption-related requests for Windows hosts until that
     # platform is fully supported.
     if platform == constants.PLATFORM.WINDOWS:
       message = 'Windows is not currently supported'
       logging.error(message)
-      self.abort(httplib.NOT_IMPLEMENTED, explanation=message)
+      self.abort(six.moves.http_client.NOT_IMPLEMENTED, explanation=message)
 
     # Load the Exemption entity for use within the handlers. It's possible that
     # one doesn't yet exist.
@@ -95,11 +96,12 @@ class GetExemptionHandler(ExemptionHandler):
           'User %s is not authorized to access Exemption for host %s',
           self.user.nickname, host_id)
       self.abort(
-          httplib.FORBIDDEN,
+          six.moves.http_client.FORBIDDEN,
           explanation='Host not associated with user %s' % self.user.nickname)
 
     if self.exm is None:
-      self.abort(httplib.NOT_FOUND, explanation='Exemption not found')
+      self.abort(
+          six.moves.http_client.NOT_FOUND, explanation='Exemption not found')
 
     self.respond_json(self.exm)
 
@@ -119,39 +121,42 @@ class RequestExemptionHandler(ExemptionHandler):
           'User %s is not authorized to request an Exemption for host %s',
           self.user.nickname, host_id)
       self.abort(
-          httplib.FORBIDDEN,
+          six.moves.http_client.FORBIDDEN,
           explanation='Host not associated with user %s' % self.user.nickname)
 
     # Extract and validate the exemption reason.
     reason = self.request.get('reason')
     other_text = self.request.get('otherText') or None
     if not reason:
-      self.abort(httplib.BAD_REQUEST, explanation='No reason provided')
+      self.abort(
+          six.moves.http_client.BAD_REQUEST, explanation='No reason provided')
     elif reason == constants.EXEMPTION_REASON.OTHER and not other_text:
       self.abort(
-          httplib.BAD_REQUEST,
+          six.moves.http_client.BAD_REQUEST,
           explanation='No explanation for "Other" reason provided')
 
     # Extract and validate the exemption duration.
     duration = self.request.get('duration')
     if not duration:
       self.abort(
-          httplib.BAD_REQUEST, explanation='Exemption term not provided')
+          six.moves.http_client.BAD_REQUEST,
+          explanation='Exemption term not provided')
 
     # Request a new Exemption, and bail if something goes wrong.
     try:
       exemption_api.Request(host_id, reason, other_text, duration)
     except exemption_api.InvalidRenewalError:
-      self.abort(httplib.BAD_REQUEST, 'Request cannot be renewed at this time')
+      self.abort(six.moves.http_client.BAD_REQUEST,
+                 'Request cannot be renewed at this time')
     except exemption_api.InvalidReasonError:
-      self.abort(httplib.BAD_REQUEST, 'Invalid reason provided')
+      self.abort(six.moves.http_client.BAD_REQUEST, 'Invalid reason provided')
     except exemption_api.InvalidDurationError:
-      self.abort(httplib.BAD_REQUEST, 'Invalid duration provided')
+      self.abort(six.moves.http_client.BAD_REQUEST, 'Invalid duration provided')
     except Exception:  # pylint: disable=broad-except
       logging.exception(
           'Error encountered while escalating Exemption for host %s', host_id)
       self.abort(
-          httplib.INTERNAL_SERVER_ERROR,
+          six.moves.http_client.INTERNAL_SERVER_ERROR,
           explanation='Error while escalating exemption')
 
     # Start processing the Exemption right away, rather than waiting for the
@@ -172,13 +177,15 @@ class EscalateExemptionHandler(ExemptionHandler):
   def post(self, host_id):
 
     if not self.exm:
-      self.abort(httplib.NOT_FOUND, explanation='Exemption not found')
+      self.abort(
+          six.moves.http_client.NOT_FOUND, explanation='Exemption not found')
 
     # Humans should never trigger the transition from PENDING to ESCALATED, only
     # api.Process() should.
     if self.exm.key.get().state == constants.EXEMPTION_STATE.PENDING:
       self.abort(
-          httplib.FORBIDDEN, explanation='Cannot escalate a pending request')
+          six.moves.http_client.FORBIDDEN,
+          explanation='Cannot escalate a pending request')
 
     try:
       exemption_api.Escalate(self.exm.key)
@@ -186,7 +193,7 @@ class EscalateExemptionHandler(ExemptionHandler):
       logging.exception(
           'Error encountered while escalating Exemption for host %s', host_id)
       self.abort(
-          httplib.INTERNAL_SERVER_ERROR,
+          six.moves.http_client.INTERNAL_SERVER_ERROR,
           explanation='Error while escalating exemption')
 
     self.respond_json(self.exm.key.get())
@@ -199,19 +206,21 @@ class ApproveExemptionHandler(ExemptionHandler):
   def post(self, host_id):
 
     if not self.exm:
-      self.abort(httplib.NOT_FOUND, explanation='Exemption not found')
+      self.abort(
+          six.moves.http_client.NOT_FOUND, explanation='Exemption not found')
 
     # Humans should never trigger the transition from PENDING to APPROVED, only
     # api.Process() should.
     if self.exm.key.get().state == constants.EXEMPTION_STATE.PENDING:
       self.abort(
-          httplib.FORBIDDEN, explanation='Cannot approve a pending request')
+          six.moves.http_client.FORBIDDEN,
+          explanation='Cannot approve a pending request')
 
     # Extract and validate POST data fields.
     justification = self.request.get('justification')
     if not justification:
       self.abort(
-          httplib.BAD_REQUEST,
+          six.moves.http_client.BAD_REQUEST,
           explanation='No justification for approval provided')
 
     try:
@@ -220,7 +229,7 @@ class ApproveExemptionHandler(ExemptionHandler):
       logging.exception(
           'Error encountered while approving Exemption for host %s', host_id)
       self.abort(
-          httplib.INTERNAL_SERVER_ERROR,
+          six.moves.http_client.INTERNAL_SERVER_ERROR,
           explanation='Error while approving exemption')
 
     self._RespondWithExemptionAndTransitiveState(self.exm.key)
@@ -233,17 +242,20 @@ class DenyExemptionHandler(ExemptionHandler):
   def post(self, host_id):
 
     if not self.exm:
-      self.abort(httplib.NOT_FOUND, explanation='Exemption not found')
+      self.abort(
+          six.moves.http_client.NOT_FOUND, explanation='Exemption not found')
 
     # Humans should never trigger the transition from PENDING to DENIED, only
     # api.Process() should.
     if self.exm.key.get().state == constants.EXEMPTION_STATE.PENDING:
-      self.abort(httplib.FORBIDDEN, explanation='Cannot deny a pending request')
+      self.abort(
+          six.moves.http_client.FORBIDDEN,
+          explanation='Cannot deny a pending request')
 
     justification = self.request.get('justification')
     if not justification:
       self.abort(
-          httplib.BAD_REQUEST,
+          six.moves.http_client.BAD_REQUEST,
           explanation='No justification for denial provided')
 
     try:
@@ -252,7 +264,7 @@ class DenyExemptionHandler(ExemptionHandler):
       logging.exception(
           'Error encountered while denying Exemption for host %s', host_id)
       self.abort(
-          httplib.INTERNAL_SERVER_ERROR,
+          six.moves.http_client.INTERNAL_SERVER_ERROR,
           explanation='Error while denying exemption')
 
     self.respond_json(self.exm.key.get())
@@ -265,13 +277,14 @@ class RevokeExemptionHandler(ExemptionHandler):
   def post(self, host_id):
 
     if not self.exm:
-      self.abort(httplib.NOT_FOUND, explanation='Exemption not found')
+      self.abort(
+          six.moves.http_client.NOT_FOUND, explanation='Exemption not found')
 
     # Extract and validate POST data fields.
     justification = self.request.get('justification')
     if not justification:
       self.abort(
-          httplib.BAD_REQUEST,
+          six.moves.http_client.BAD_REQUEST,
           explanation='No justification for revoking exemption provided')
 
     try:
@@ -280,7 +293,7 @@ class RevokeExemptionHandler(ExemptionHandler):
       logging.exception(
           'Error encountered while revoking Exemption for host %s', host_id)
       self.abort(
-          httplib.INTERNAL_SERVER_ERROR,
+          six.moves.http_client.INTERNAL_SERVER_ERROR,
           explanation='Error while revoking exemption')
 
     self._RespondWithExemptionAndTransitiveState(self.exm.key)
@@ -292,7 +305,8 @@ class CancelExemptionHandler(ExemptionHandler):
   def post(self, host_id):
 
     if not self.exm:
-      self.abort(httplib.NOT_FOUND, explanation='Exemption not found')
+      self.abort(
+          six.moves.http_client.NOT_FOUND, explanation='Exemption not found')
 
     # Verify that the current user is associated with the Host.
     # NOTE: Admins don't get a pass here, they can (and should) use the
@@ -301,7 +315,7 @@ class CancelExemptionHandler(ExemptionHandler):
       logging.error(
           'Host %s not associated with user %s', host_id, self.user.nickname)
       self.abort(
-          httplib.FORBIDDEN,
+          six.moves.http_client.FORBIDDEN,
           explanation='Host not associated with requesting user')
 
     try:
@@ -310,7 +324,7 @@ class CancelExemptionHandler(ExemptionHandler):
       logging.exception(
           'Error encountered while cancelling Exemption for host %s', host_id)
       self.abort(
-          httplib.INTERNAL_SERVER_ERROR,
+          six.moves.http_client.INTERNAL_SERVER_ERROR,
           explanation='Failed to cancel exemption')
 
     self._RespondWithExemptionAndTransitiveState(self.exm.key)

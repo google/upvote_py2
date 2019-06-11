@@ -14,9 +14,8 @@
 
 """Tests for lookups.py."""
 
-import httplib
-
 import mock
+import six.moves.http_client
 import webapp2
 
 from upvote.gae import settings
@@ -144,7 +143,7 @@ class LookupsTest(basetest.UpvoteTestCase):
     with self.LoggedInUser():
       self.testapp.get(
           self.VIRUSTOTAL_ROUTE % self.santa_blockable1.key.id(),
-          status=httplib.NOT_FOUND)
+          status=six.moves.http_client.NOT_FOUND)
 
 
 if __name__ == '__main__':

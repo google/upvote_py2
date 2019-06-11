@@ -15,7 +15,7 @@
 """Unit tests for events.py."""
 
 import datetime
-import httplib
+import six.moves.http_client
 
 import webapp2
 
@@ -216,7 +216,8 @@ class EventQueryHandlerTest(EventsTest):
     params = {'asAdmin': 'true'}
 
     with self.LoggedInUser(user=self.user_1):
-      self.testapp.get(self.ROUTE, params, status=httplib.FORBIDDEN)
+      self.testapp.get(
+          self.ROUTE, params, status=six.moves.http_client.FORBIDDEN)
 
   def testUserGetListOwnEvents(self):
     """Normal user getting list of their events."""
@@ -263,7 +264,7 @@ class EventQueryHandlerTest(EventsTest):
     event1 = [
         dict_ for dict_ in content
         if dict_['blockable']['id'] == self.santa_blockable1.key.id()][0]
-    self.assertLen(event1.keys(), 5)
+    self.assertLen(list(event1.keys()), 5)
     self.assertEqual(
         self.santa_event2_from_user1.host_id, event1['host']['id'])
     blockable_key = ndb.Key(urlsafe=event1['event']['blockableKey'])
@@ -307,7 +308,7 @@ class EventQueryHandlerTest(EventsTest):
     self.assertLen(output['content'], 2)
 
     event_with_context = output['content'][0]
-    self.assertLen(event_with_context.keys(), 5)
+    self.assertLen(list(event_with_context.keys()), 5)
     self.assertEqual(
         event_with_context['host']['id'], event_with_context['event']['hostId'])
     blockable_key = ndb.Key(urlsafe=event_with_context['event']['blockableKey'])
@@ -359,7 +360,10 @@ class EventQueryHandlerTest(EventsTest):
               'asAdmin': True}
 
     with self.LoggedInUser(admin=True):
-      self.testapp.get(self.ROUTE + '/bit9', params, status=httplib.BAD_REQUEST)
+      self.testapp.get(
+          self.ROUTE + '/bit9',
+          params,
+          status=six.moves.http_client.BAD_REQUEST)
 
   def testAdminGetQueryNoSearch(self):
     """Admin searching with no search term."""
@@ -367,7 +371,8 @@ class EventQueryHandlerTest(EventsTest):
               'asAdmin': True}
 
     with self.LoggedInUser(admin=True):
-      self.testapp.get(self.ROUTE, params, status=httplib.BAD_REQUEST)
+      self.testapp.get(
+          self.ROUTE, params, status=six.moves.http_client.BAD_REQUEST)
 
   def testAdminGetQueryNoSearchBase(self):
     """Admin searching with no searchBase param."""
@@ -375,7 +380,8 @@ class EventQueryHandlerTest(EventsTest):
               'asAdmin': True}
 
     with self.LoggedInUser(admin=True):
-      self.testapp.get(self.ROUTE, params, status=httplib.BAD_REQUEST)
+      self.testapp.get(
+          self.ROUTE, params, status=six.moves.http_client.BAD_REQUEST)
 
   def testAdminGetQueryInvalidSearchBase(self):
     """Admin searching with invalid searchBase param."""
@@ -384,7 +390,8 @@ class EventQueryHandlerTest(EventsTest):
               'asAdmin': True}
 
     with self.LoggedInUser(admin=True):
-      self.testapp.get(self.ROUTE, params, status=httplib.BAD_REQUEST)
+      self.testapp.get(
+          self.ROUTE, params, status=six.moves.http_client.BAD_REQUEST)
 
 
 class EventHandlerTest(EventsTest):
@@ -492,21 +499,23 @@ class EventHandlerTest(EventsTest):
   def testUserGetBadKey(self):
     """Getting an event of the requesting user's by key."""
     with self.LoggedInUser(user=self.user_1):
-      self.testapp.get(self.ROUTE % 'NotARealKey', status=httplib.BAD_REQUEST)
+      self.testapp.get(
+          self.ROUTE % 'NotARealKey', status=six.moves.http_client.BAD_REQUEST)
 
   def testUserGetUnknownKey(self):
     """Getting an event of the requesting user's by key."""
     unknown_key = ndb.Key('Event', 'NotARealId')
     with self.LoggedInUser(user=self.user_1):
       self.testapp.get(
-          self.ROUTE % unknown_key.urlsafe(), status=httplib.NOT_FOUND)
+          self.ROUTE % unknown_key.urlsafe(),
+          status=six.moves.http_client.NOT_FOUND)
 
   def testUserGetOthersEvent(self):
     """Getting another user's event by id without permission."""
     with self.LoggedInUser(user=self.user_1):
       self.testapp.get(
           self.ROUTE % self.santa_event1_from_user2.key.urlsafe(),
-          status=httplib.FORBIDDEN)
+          status=six.moves.http_client.FORBIDDEN)
 
   def testAdminGetOthersEvent(self):
     """Getting another user's event by id."""
@@ -619,14 +628,15 @@ class RecentEventHandlerTest(EventsTest):
 
   def testUser_GetUnknownBlockable(self):
     with self.LoggedInUser(user=self.user_1):
-      self.testapp.get(self.ROUTE % 'NotARealId', status=httplib.NOT_FOUND)
+      self.testapp.get(
+          self.ROUTE % 'NotARealId', status=six.moves.http_client.NOT_FOUND)
 
   def testUser_GetOthersEvent(self):
     with self.LoggedInUser(user=self.user_1):
       self.testapp.get(
           self.ROUTE % self.santa_blockable1.key.id(),
           params={'asUser': self.user_2.nickname},
-          status=httplib.FORBIDDEN)
+          status=six.moves.http_client.FORBIDDEN)
 
   def testAdmin_GetOthersEvent(self):
     """Getting another user's event by id."""

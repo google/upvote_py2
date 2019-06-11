@@ -14,9 +14,8 @@
 
 """Unit tests for settings.py."""
 
-import httplib
-
 import mock
+import six.moves.http_client
 import webapp2
 
 from upvote.gae.lib.testing import basetest
@@ -52,7 +51,8 @@ class SettingsTest(basetest.UpvoteTestCase):
 
     with self.LoggedInUser():
       self.testapp.get(
-          self.ROUTE % 'spidey_sense_tingling', status=httplib.NOT_FOUND)
+          self.ROUTE % 'spidey_sense_tingling',
+          status=six.moves.http_client.NOT_FOUND)
 
 
 class ApiKeysTest(basetest.UpvoteTestCase):
@@ -83,18 +83,20 @@ class ApiKeysTest(basetest.UpvoteTestCase):
   def testBadValue(self):
     with self.LoggedInUser(admin=True):
       self.testapp.post(
-          self.ROUTE % 'virustotal', {}, status=httplib.BAD_REQUEST)
+          self.ROUTE % 'virustotal', {},
+          status=six.moves.http_client.BAD_REQUEST)
 
   def testBadKeyName(self):
     with self.LoggedInUser(admin=True):
       self.testapp.post(
           self.ROUTE % 'not-a-key', {'value': 'good-value'},
-          status=httplib.BAD_REQUEST)
+          status=six.moves.http_client.BAD_REQUEST)
 
   def testInsufficientPermissions(self):
     with self.LoggedInUser():
       self.testapp.post(
-          self.ROUTE % 'bit9', {'value': 'abc'}, status=httplib.FORBIDDEN)
+          self.ROUTE % 'bit9', {'value': 'abc'},
+          status=six.moves.http_client.FORBIDDEN)
 
 
 if __name__ == '__main__':

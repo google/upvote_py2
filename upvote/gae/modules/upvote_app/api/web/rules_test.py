@@ -14,7 +14,7 @@
 
 """Unit tests for Rule handlers."""
 
-import httplib
+import six.moves.http_client
 
 import webapp2
 
@@ -86,7 +86,7 @@ class RuleQueryHandler(RulesTest):
   def testUserGetListNoPermissions(self):
     """Normal user attempts to retrieve all rules."""
     with self.LoggedInUser():
-      self.testapp.get(self.QUERY_ROUTE, status=httplib.FORBIDDEN)
+      self.testapp.get(self.QUERY_ROUTE, status=six.moves.http_client.FORBIDDEN)
 
   def testAdminGetQuery(self):
     """Admin queries a rule."""
@@ -123,7 +123,8 @@ class RuleQueryHandler(RulesTest):
         'searchBase': 'targetId'}
 
     with self.LoggedInUser():
-      self.testapp.get(self.QUERY_ROUTE, params, status=httplib.FORBIDDEN)
+      self.testapp.get(
+          self.QUERY_ROUTE, params, status=six.moves.http_client.FORBIDDEN)
 
 
 class RuleHandler(RulesTest):
@@ -143,20 +144,22 @@ class RuleHandler(RulesTest):
   def testAdminGetBadKey(self):
     """Admin gets a single rule by a bad key."""
     with self.LoggedInUser(admin=True):
-      self.testapp.get(self.ROUTE % 'BadKey', status=httplib.BAD_REQUEST)
+      self.testapp.get(
+          self.ROUTE % 'BadKey', status=six.moves.http_client.BAD_REQUEST)
 
   def testAdminGetUnknownKey(self):
     """Admin gets a single rule by an unknown ID."""
     key = self.rule_3.key.urlsafe()
     self.rule_3.key.delete()
     with self.LoggedInUser(admin=True):
-      self.testapp.get(self.ROUTE % key, status=httplib.NOT_FOUND)
+      self.testapp.get(self.ROUTE % key, status=six.moves.http_client.NOT_FOUND)
 
   def testUserGetNoPermissions(self):
     """User gets a single rule by ID."""
     with self.LoggedInUser():
       self.testapp.get(
-          self.ROUTE % self.rule_1.key.id(), status=httplib.FORBIDDEN)
+          self.ROUTE % self.rule_1.key.id(),
+          status=six.moves.http_client.FORBIDDEN)
 
 
 if __name__ == '__main__':

@@ -14,13 +14,12 @@
 
 """Unit tests for blockable handlers."""
 import datetime
-import httplib
 
 import mock
+import six.moves.http_client
 import webapp2
 
 from google.appengine.ext import ndb
-
 from upvote.gae.datastore import test_utils
 from upvote.gae.datastore import utils as datastore_utils
 from upvote.gae.datastore.models import binary as binary_models
@@ -89,19 +88,22 @@ class BlockableQueryHandlerTest(BlockablesTest):
     """Normal user getting a list of all blockables."""
 
     with self.LoggedInUser():
-      self.testapp.get('/blockables/all/all', status=httplib.FORBIDDEN)
+      self.testapp.get(
+          '/blockables/all/all', status=six.moves.http_client.FORBIDDEN)
 
   def testUserGetFlaggedBlockables(self):
     """Normal user getting a list of flagged blockables."""
     params = {'filter': 'flagged'}
     with self.LoggedInUser():
-      self.testapp.get('/blockables/all/all', params, status=httplib.FORBIDDEN)
+      self.testapp.get(
+          '/blockables/all/all', params, status=six.moves.http_client.FORBIDDEN)
 
   def testUserGetSuspectBlockables(self):
     """Normal user getting a list of suspect blockables."""
     params = {'filter': 'suspect'}
     with self.LoggedInUser():
-      self.testapp.get('/blockables/all/all', params, status=httplib.FORBIDDEN)
+      self.testapp.get(
+          '/blockables/all/all', params, status=six.moves.http_client.FORBIDDEN)
 
   def testUserGetOwnBlockables(self):
 
@@ -246,7 +248,9 @@ class BlockableQueryHandlerTest(BlockablesTest):
 
     with self.LoggedInUser(admin=True):
       self.testapp.get(
-          '/blockables/all/all', params, status=httplib.BAD_REQUEST)
+          '/blockables/all/all',
+          params,
+          status=six.moves.http_client.BAD_REQUEST)
 
   def testAdminGetQueryBadPlatform(self):
     """Admin searching by a property not valid for the specified platform."""
@@ -254,7 +258,9 @@ class BlockableQueryHandlerTest(BlockablesTest):
 
     with self.LoggedInUser(admin=True):
       self.testapp.get(
-          '/blockables/bit9/binaries', params, status=httplib.BAD_REQUEST)
+          '/blockables/bit9/binaries',
+          params,
+          status=six.moves.http_client.BAD_REQUEST)
 
 
 class BlockableHandlerTest(BlockablesTest):
@@ -268,8 +274,10 @@ class BlockableHandlerTest(BlockablesTest):
         id=sha256, id_type=constants.ID_TYPE.SHA256, file_name='some_binary')
 
     with self.LoggedInUser():
-      self.testapp.get(self.ROUTE % sha256.lower(), status=httplib.OK)
-      self.testapp.get(self.ROUTE % sha256.upper(), status=httplib.OK)
+      self.testapp.get(
+          self.ROUTE % sha256.lower(), status=six.moves.http_client.OK)
+      self.testapp.get(
+          self.ROUTE % sha256.upper(), status=six.moves.http_client.OK)
 
   def testGet_User_Generic(self):
     """Normal user querying for a blockable by hash."""
@@ -337,7 +345,8 @@ class BlockableHandlerTest(BlockablesTest):
 
   def testGet_User_UnknownId_Santa(self):
     with self.LoggedInUser():
-      self.testapp.get(self.ROUTE % 'Nonexistent', status=httplib.NOT_FOUND)
+      self.testapp.get(
+          self.ROUTE % 'Nonexistent', status=six.moves.http_client.NOT_FOUND)
 
   def testPost_Admin_InsertUnknownType(self):
     """Admin tries to inject a blockable of unknown type."""
@@ -345,7 +354,8 @@ class BlockableHandlerTest(BlockablesTest):
     params = {'type': 'Unknown', 'hash': sha256}
 
     with self.LoggedInUser(admin=True):
-      self.testapp.post(self.ROUTE % sha256, params, status=httplib.BAD_REQUEST)
+      self.testapp.post(
+          self.ROUTE % sha256, params, status=six.moves.http_client.BAD_REQUEST)
 
     self.assertNoBigQueryInsertions()
 
@@ -356,7 +366,8 @@ class BlockableHandlerTest(BlockablesTest):
     params = {'type': constants.BLOCKABLE_TYPE.SANTA_BINARY, 'hash': sha256}
 
     with self.LoggedInUser(admin=True):
-      self.testapp.post(self.ROUTE % sha256, params, status=httplib.CONFLICT)
+      self.testapp.post(
+          self.ROUTE % sha256, params, status=six.moves.http_client.CONFLICT)
 
     self.assertNoBigQueryInsertions()
 
@@ -471,7 +482,7 @@ class BlockableHandlerTest(BlockablesTest):
       self.testapp.post(
           self.ROUTE % test_utils.RandomSHA256(),
           params={'recount': 'recount'},
-          status=httplib.NOT_FOUND)
+          status=six.moves.http_client.NOT_FOUND)
 
   @mock.patch.object(
       blockables.voting_api, 'Recount',
@@ -481,7 +492,7 @@ class BlockableHandlerTest(BlockablesTest):
       self.testapp.post(
           self.ROUTE % test_utils.RandomSHA256(),
           params={'recount': 'recount'},
-          status=httplib.BAD_REQUEST)
+          status=six.moves.http_client.BAD_REQUEST)
 
   @mock.patch.object(blockables.voting_api, 'Recount', side_effect=Exception)
   def testPost_Admin_Recount_Exception(self, mock_recount):
@@ -489,7 +500,7 @@ class BlockableHandlerTest(BlockablesTest):
       self.testapp.post(
           self.ROUTE % test_utils.RandomSHA256(),
           params={'recount': 'recount'},
-          status=httplib.INTERNAL_SERVER_ERROR)
+          status=six.moves.http_client.INTERNAL_SERVER_ERROR)
 
   def testPost_Admin_Reset_Success(self):
     """Admin requesting a blockable be reset."""
@@ -512,8 +523,10 @@ class BlockableHandlerTest(BlockablesTest):
     params = {'reset': 'reset'}
 
     with self.LoggedInUser(admin=True):
-      self.testapp.post(self.ROUTE % sha256.lower(), params, status=httplib.OK)
-      self.testapp.post(self.ROUTE % sha256.upper(), params, status=httplib.OK)
+      self.testapp.post(
+          self.ROUTE % sha256.lower(), params, status=six.moves.http_client.OK)
+      self.testapp.post(
+          self.ROUTE % sha256.upper(), params, status=six.moves.http_client.OK)
       self.assertEqual(2, mock_reset.call_count)
 
   @mock.patch.object(
@@ -524,7 +537,7 @@ class BlockableHandlerTest(BlockablesTest):
       self.testapp.post(
           self.ROUTE % test_utils.RandomSHA256(),
           params={'reset': 'reset'},
-          status=httplib.NOT_FOUND)
+          status=six.moves.http_client.NOT_FOUND)
 
   @mock.patch.object(
       blockables.voting_api, 'Reset',
@@ -534,7 +547,7 @@ class BlockableHandlerTest(BlockablesTest):
       self.testapp.post(
           self.ROUTE % test_utils.RandomSHA256(),
           params={'reset': 'reset'},
-          status=httplib.BAD_REQUEST)
+          status=six.moves.http_client.BAD_REQUEST)
 
   @mock.patch.object(
       blockables.voting_api, 'Reset',
@@ -544,7 +557,7 @@ class BlockableHandlerTest(BlockablesTest):
       self.testapp.post(
           self.ROUTE % test_utils.RandomSHA256(),
           params={'reset': 'reset'},
-          status=httplib.FORBIDDEN)
+          status=six.moves.http_client.FORBIDDEN)
 
   @mock.patch.object(blockables.voting_api, 'Reset', side_effect=Exception)
   def testPost_Admin_Reset_Exception(self, mock_reset):
@@ -552,7 +565,7 @@ class BlockableHandlerTest(BlockablesTest):
       self.testapp.post(
           self.ROUTE % test_utils.RandomSHA256(),
           params={'reset': 'reset'},
-          status=httplib.INTERNAL_SERVER_ERROR)
+          status=six.moves.http_client.INTERNAL_SERVER_ERROR)
 
 
 class PackageContentsHandlerTest(BlockablesTest):
@@ -603,19 +616,22 @@ class PackageContentsHandlerTest(BlockablesTest):
 
   def testGet_NotFound(self):
     with self.LoggedInUser():
-      self.testapp.get(self.ROUTE % 'DoesntExist', status=httplib.NOT_FOUND)
+      self.testapp.get(
+          self.ROUTE % 'DoesntExist', status=six.moves.http_client.NOT_FOUND)
 
   def testGet_NotAPackage(self):
     blockable = test_utils.CreateSantaBlockable()
     with self.LoggedInUser():
       self.testapp.get(
-          self.ROUTE % blockable.key.id(), status=httplib.BAD_REQUEST)
+          self.ROUTE % blockable.key.id(),
+          status=six.moves.http_client.BAD_REQUEST)
 
   def testGet_NotASantaBundle(self):
     package_key = package_models.Package(id='foo', id_type='SHA256').put()
     with self.LoggedInUser():
       self.testapp.get(
-          self.ROUTE % package_key.id(), status=httplib.BAD_REQUEST)
+          self.ROUTE % package_key.id(),
+          status=six.moves.http_client.BAD_REQUEST)
 
 
 class PendingStateChangeHandlerTest(BlockablesTest):
@@ -703,7 +719,8 @@ class PendingStateChangeHandlerTest(BlockablesTest):
   def testGet_UnknownBlockable(self):
     with self.LoggedInUser():
       self.testapp.get(
-          self.ROUTE % 'not-a-real-blockable', status=httplib.NOT_FOUND)
+          self.ROUTE % 'not-a-real-blockable',
+          status=six.moves.http_client.NOT_FOUND)
 
   def testGet_CaseInsensitiveID(self):
 
@@ -712,8 +729,10 @@ class PendingStateChangeHandlerTest(BlockablesTest):
     sha256 = self.bit9_blockable.key.id()
 
     with self.LoggedInUser():
-      self.testapp.get(self.ROUTE % sha256.lower(), status=httplib.OK)
-      self.testapp.get(self.ROUTE % sha256.upper(), status=httplib.OK)
+      self.testapp.get(
+          self.ROUTE % sha256.lower(), status=six.moves.http_client.OK)
+      self.testapp.get(
+          self.ROUTE % sha256.upper(), status=six.moves.http_client.OK)
 
 
 class PendingInstallerStateChangeHandlerTest(BlockablesTest):
@@ -776,7 +795,7 @@ class PendingInstallerStateChangeHandlerTest(BlockablesTest):
     with self.LoggedInUser():
       self.testapp.get(
           '/blockables/not-a-real-blockable/pending-installer-state-change',
-          status=httplib.NOT_FOUND)
+          status=six.moves.http_client.NOT_FOUND)
 
   def testGet_CaseInsensitiveID(self):
 
@@ -787,8 +806,10 @@ class PendingInstallerStateChangeHandlerTest(BlockablesTest):
     sha256 = self.bit9_blockable.key.id()
 
     with self.LoggedInUser():
-      self.testapp.get(self.ROUTE % sha256.lower(), status=httplib.OK)
-      self.testapp.get(self.ROUTE % sha256.upper(), status=httplib.OK)
+      self.testapp.get(
+          self.ROUTE % sha256.lower(), status=six.moves.http_client.OK)
+      self.testapp.get(
+          self.ROUTE % sha256.upper(), status=six.moves.http_client.OK)
 
 
 class SetInstallerStateHandlerTest(BlockablesTest):
@@ -852,13 +873,13 @@ class SetInstallerStateHandlerTest(BlockablesTest):
     with self.LoggedInUser():
       self.testapp.post(
           self.ROUTE % self.santa_blockable.key.id(), {'value': 'false'},
-          status=httplib.BAD_REQUEST)
+          status=six.moves.http_client.BAD_REQUEST)
 
   def testPost_UnknownBlockable(self):
     with self.LoggedInUser():
       self.testapp.post(
           self.ROUTE % 'not-a-real-blockable', {'value': 'false'},
-          status=httplib.NOT_FOUND)
+          status=six.moves.http_client.NOT_FOUND)
 
   def testPost_CaseInsensitiveID(self):
 

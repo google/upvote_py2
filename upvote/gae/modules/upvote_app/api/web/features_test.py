@@ -14,12 +14,11 @@
 
 """Unit tests for feature handlers."""
 
-import httplib
 import mock
+import six.moves.http_client
 import webapp2
 
 from google.appengine.api import memcache
-
 from upvote.gae.datastore import test_utils
 from upvote.gae.lib.testing import basetest
 from upvote.gae.modules.upvote_app.api.web import features
@@ -50,17 +49,20 @@ class FeatureHandlerTest(basetest.UpvoteTestCase):
 
   def testGet_UnknownFeature(self):
     with self.LoggedInUser():
-      self.testapp.get(self.ROUTE % 'invalid', status=httplib.FORBIDDEN)
+      self.testapp.get(
+          self.ROUTE % 'invalid', status=six.moves.http_client.FORBIDDEN)
 
   def testGet_UnknownGroup(self):
     self.mock_group_manager.DoesGroupExist.return_value = False
     with self.LoggedInUser():
-      self.testapp.get(self.ROUTE % 'valid', status=httplib.FORBIDDEN)
+      self.testapp.get(
+          self.ROUTE % 'valid', status=six.moves.http_client.FORBIDDEN)
 
   def testGet_UnexpectedException(self):
     self.mock_group_manager.DoesGroupExist.side_effect = Exception
     with self.LoggedInUser():
-      self.testapp.get(self.ROUTE % 'valid', status=httplib.FORBIDDEN)
+      self.testapp.get(
+          self.ROUTE % 'valid', status=six.moves.http_client.FORBIDDEN)
 
   def testGet_MemcacheMiss_Approved(self):
 
@@ -70,7 +72,7 @@ class FeatureHandlerTest(basetest.UpvoteTestCase):
 
     user = test_utils.CreateUser(email='ccc@blah.blah')
     with self.LoggedInUser(user=user):
-      self.testapp.get(self.ROUTE % 'valid', status=httplib.OK)
+      self.testapp.get(self.ROUTE % 'valid', status=six.moves.http_client.OK)
 
     self.assertEqual(2, self.mock_group_manager.DoesGroupExist.call_count)
     self.assertEqual(2, self.mock_group_manager.AllMembers.call_count)
@@ -84,7 +86,8 @@ class FeatureHandlerTest(basetest.UpvoteTestCase):
 
     user = test_utils.CreateUser(email='ddd@blah.blah')
     with self.LoggedInUser(user=user):
-      self.testapp.get(self.ROUTE % 'valid', status=httplib.FORBIDDEN)
+      self.testapp.get(
+          self.ROUTE % 'valid', status=six.moves.http_client.FORBIDDEN)
 
     self.assertEqual(2, self.mock_group_manager.DoesGroupExist.call_count)
     self.assertEqual(2, self.mock_group_manager.AllMembers.call_count)
@@ -96,7 +99,7 @@ class FeatureHandlerTest(basetest.UpvoteTestCase):
 
     user = test_utils.CreateUser(email='ccc@blah.blah')
     with self.LoggedInUser(user=user):
-      self.testapp.get(self.ROUTE % 'valid', status=httplib.OK)
+      self.testapp.get(self.ROUTE % 'valid', status=six.moves.http_client.OK)
 
     self.mock_group_manager.DoesGroupExist.assert_not_called()
     self.mock_group_manager.AllMembers.assert_not_called()
@@ -108,7 +111,8 @@ class FeatureHandlerTest(basetest.UpvoteTestCase):
 
     user = test_utils.CreateUser(email='ddd@blah.blah')
     with self.LoggedInUser(user=user):
-      self.testapp.get(self.ROUTE % 'valid', status=httplib.FORBIDDEN)
+      self.testapp.get(
+          self.ROUTE % 'valid', status=six.moves.http_client.FORBIDDEN)
 
     self.mock_group_manager.DoesGroupExist.assert_not_called()
     self.mock_group_manager.AllMembers.assert_not_called()

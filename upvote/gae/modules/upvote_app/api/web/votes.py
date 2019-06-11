@@ -14,14 +14,13 @@
 
 """Views related to votes."""
 import datetime
-import httplib
 import logging
 
+import six.moves.http_client
 import webapp2
 from webapp2_extras import routes
 
 from google.appengine.ext import ndb
-
 from upvote.gae import settings
 from upvote.gae.datastore import utils as datastore_utils
 from upvote.gae.datastore.models import binary as binary_models
@@ -77,7 +76,7 @@ class VoteHandler(handler_utils.UserFacingHandler):
     key = datastore_utils.GetKeyFromUrlsafe(vote_key)
     if not key:
       self.abort(
-          httplib.BAD_REQUEST,
+          six.moves.http_client.BAD_REQUEST,
           explanation='Vote key %s could not be parsed' % vote_key)
 
     vote = key.get()
@@ -86,7 +85,7 @@ class VoteHandler(handler_utils.UserFacingHandler):
       response['candidate_id'] = vote.key.parent().parent().id()
       self.respond_json(response)
     else:
-      self.abort(httplib.NOT_FOUND, explanation='Vote not found.')
+      self.abort(six.moves.http_client.NOT_FOUND, explanation='Vote not found.')
 
 
 class VoteCastHandler(handler_utils.UserFacingHandler):
@@ -100,15 +99,15 @@ class VoteCastHandler(handler_utils.UserFacingHandler):
     vote_weight = role_weights.get(role)
     if vote_weight is None:
       self.abort(
-          httplib.BAD_REQUEST,
+          six.moves.http_client.BAD_REQUEST,
           explanation='Invalid role provided: %s' % role)
 
     valid_access = role in self.user.roles or self.user.is_admin
     if not valid_access:
       self.abort(
-          httplib.FORBIDDEN,
-          explanation='User "%s" does not have role: %s' % (
-              self.user.nickname, role))
+          six.moves.http_client.FORBIDDEN,
+          explanation='User "%s" does not have role: %s' %
+          (self.user.nickname, role))
 
     return vote_weight
 
@@ -128,17 +127,23 @@ class VoteCastHandler(handler_utils.UserFacingHandler):
     try:
       vote = voting_api.Vote(self.user, blockable_id, was_yes_vote, vote_weight)
     except voting_api.BlockableNotFoundError:
-      self.abort(httplib.NOT_FOUND, explanation='Application not found')
+      self.abort(
+          six.moves.http_client.NOT_FOUND, explanation='Application not found')
     except voting_api.UnsupportedClientError:
-      self.abort(httplib.BAD_REQUEST, explanation='Unsupported client')
+      self.abort(
+          six.moves.http_client.BAD_REQUEST, explanation='Unsupported client')
     except voting_api.InvalidVoteWeightError:
-      self.abort(httplib.BAD_REQUEST, explanation='Invalid voting weight')
+      self.abort(
+          six.moves.http_client.BAD_REQUEST,
+          explanation='Invalid voting weight')
     except voting_api.DuplicateVoteError:
-      self.abort(httplib.CONFLICT, explanation='Vote already exists')
+      self.abort(
+          six.moves.http_client.CONFLICT, explanation='Vote already exists')
     except voting_api.OperationNotAllowedError as e:
-      self.abort(httplib.FORBIDDEN, explanation=e.message)
+      self.abort(six.moves.http_client.FORBIDDEN, explanation=e.message)
     except Exception as e:  # pylint: disable=broad-except
-      self.abort(httplib.INTERNAL_SERVER_ERROR, explanation=e.message)
+      self.abort(
+          six.moves.http_client.INTERNAL_SERVER_ERROR, explanation=e.message)
     else:
 
       # Update the user's last vote date

@@ -15,13 +15,13 @@
 """Unit tests for alert handlers."""
 
 import datetime
-import httplib
 import json
+
+import six.moves.http_client
 import webapp2
 
 from google.appengine.api import memcache
 from google.appengine.ext import ndb
-
 from upvote.gae.datastore.models import alert
 from upvote.gae.lib.testing import basetest
 from upvote.gae.modules.upvote_app.api.web import alerts
@@ -78,14 +78,14 @@ class AlertHandlerTest(basetest.UpvoteTestCase):
       response = self.testapp.get(
           '/alerts/blah/macos', expect_errors=True)
 
-    self.assertEqual(httplib.BAD_REQUEST, response.status_int)
+    self.assertEqual(six.moves.http_client.BAD_REQUEST, response.status_int)
     self.assertMemcacheLacks(alerts._CreateMemcacheKey('blah', 'macos'))
 
   def testGet_InvalidPlatform(self):
     with self.LoggedInUser():
       response = self.testapp.get('/alerts/appdetail/xbox', expect_errors=True)
 
-    self.assertEqual(httplib.BAD_REQUEST, response.status_int)
+    self.assertEqual(six.moves.http_client.BAD_REQUEST, response.status_int)
     self.assertMemcacheLacks(alerts._CreateMemcacheKey('appdetail', 'xbox'))
 
   def testGet_InMemcache(self):
@@ -97,7 +97,7 @@ class AlertHandlerTest(basetest.UpvoteTestCase):
     with self.LoggedInUser():
       response = self.testapp.get(self.ROUTE)
 
-    self.assertEqual(httplib.OK, response.status_int)
+    self.assertEqual(six.moves.http_client.OK, response.status_int)
     self.assertResponseContains(response, alert_dict)
 
   def testGet_InPast(self):
@@ -112,7 +112,7 @@ class AlertHandlerTest(basetest.UpvoteTestCase):
     self.assertEntityCount(alert.Alert, 0)
     self.assertMemcacheContains(
         alerts._CreateMemcacheKey('appdetail', 'windows'), {})
-    self.assertEqual(httplib.OK, response.status_int)
+    self.assertEqual(six.moves.http_client.OK, response.status_int)
     self.assertResponseContains(response, {})
 
   def testGet_InFuture(self):
@@ -127,7 +127,7 @@ class AlertHandlerTest(basetest.UpvoteTestCase):
     self.assertEntityCount(alert.Alert, 1)
     self.assertMemcacheContains(
         alerts._CreateMemcacheKey('appdetail', 'windows'), {})
-    self.assertEqual(httplib.OK, response.status_int)
+    self.assertEqual(six.moves.http_client.OK, response.status_int)
     self.assertResponseContains(response, {})
 
   def testGet_Active_LimitedDuration(self):
@@ -145,7 +145,7 @@ class AlertHandlerTest(basetest.UpvoteTestCase):
     self.assertEntityCount(alert.Alert, 1)
     self.assertMemcacheContains(
         alerts._CreateMemcacheKey('appdetail', 'windows'), alert_dict)
-    self.assertEqual(httplib.OK, response.status_int)
+    self.assertEqual(six.moves.http_client.OK, response.status_int)
     self.assertResponseContains(response, alert_dict)
 
   def testGet_Active_IndefiniteDuration(self):
@@ -163,7 +163,7 @@ class AlertHandlerTest(basetest.UpvoteTestCase):
     self.assertEntityCount(alert.Alert, 1)
     self.assertMemcacheContains(
         alerts._CreateMemcacheKey('appdetail', 'windows'), alert_dict)
-    self.assertEqual(httplib.OK, response.status_int)
+    self.assertEqual(six.moves.http_client.OK, response.status_int)
     self.assertResponseContains(response, alert_dict)
 
   def testGet_Active_MultipleOverlapping(self):
@@ -182,7 +182,7 @@ class AlertHandlerTest(basetest.UpvoteTestCase):
     self.assertEntityCount(alert.Alert, 2)
     self.assertMemcacheContains(
         alerts._CreateMemcacheKey('appdetail', 'windows'), alert_dict)
-    self.assertEqual(httplib.OK, response.status_int)
+    self.assertEqual(six.moves.http_client.OK, response.status_int)
     self.assertResponseContains(response, alert_dict)
 
   def testGet_Active_AllScopes(self):
@@ -200,7 +200,7 @@ class AlertHandlerTest(basetest.UpvoteTestCase):
 
       self.assertMemcacheContains(
           alerts._CreateMemcacheKey(scope, 'windows'), alert_dict)
-      self.assertEqual(httplib.OK, response.status_int)
+      self.assertEqual(six.moves.http_client.OK, response.status_int)
       self.assertResponseContains(response, alert_dict)
 
   def testGet_Active_AllPlatforms(self):
@@ -218,27 +218,27 @@ class AlertHandlerTest(basetest.UpvoteTestCase):
 
       self.assertMemcacheContains(
           alerts._CreateMemcacheKey('appdetail', platform), alert_dict)
-      self.assertEqual(httplib.OK, response.status_int)
+      self.assertEqual(six.moves.http_client.OK, response.status_int)
       self.assertResponseContains(response, alert_dict)
 
   def testPost_NotAdmin(self):
     with self.LoggedInUser(admin=False):
       response = self.testapp.post('/alerts/macos/hosts', expect_errors=True)
 
-    self.assertEqual(httplib.FORBIDDEN, response.status_int)
+    self.assertEqual(six.moves.http_client.FORBIDDEN, response.status_int)
 
   def testPost_InvalidScope(self):
     with self.LoggedInUser(admin=True):
       response = self.testapp.post('/alerts/macos/blah', expect_errors=True)
 
-    self.assertEqual(httplib.BAD_REQUEST, response.status_int)
+    self.assertEqual(six.moves.http_client.BAD_REQUEST, response.status_int)
 
   def testPost_InvalidPlatform(self):
     with self.LoggedInUser(admin=True):
       response = self.testapp.post(
           '/alerts/xbox/applications', expect_errors=True)
 
-    self.assertEqual(httplib.BAD_REQUEST, response.status_int)
+    self.assertEqual(six.moves.http_client.BAD_REQUEST, response.status_int)
 
   def testPost_MissingRequestArgument(self):
     params = {
@@ -248,7 +248,7 @@ class AlertHandlerTest(basetest.UpvoteTestCase):
     with self.LoggedInUser(admin=True):
       response = self.testapp.post(self.ROUTE, params, expect_errors=True)
 
-    self.assertEqual(httplib.BAD_REQUEST, response.status_int)
+    self.assertEqual(six.moves.http_client.BAD_REQUEST, response.status_int)
 
   def testPost_NewAlert(self):
     params = {
@@ -261,7 +261,7 @@ class AlertHandlerTest(basetest.UpvoteTestCase):
     with self.LoggedInUser(admin=True):
       response = self.testapp.post(self.ROUTE, params)
 
-    self.assertEqual(httplib.OK, response.status_int)
+    self.assertEqual(six.moves.http_client.OK, response.status_int)
     self.assertEntityCount(alert.Alert, 1)
 
   def testPost_ExistingAlert(self):
@@ -283,7 +283,7 @@ class AlertHandlerTest(basetest.UpvoteTestCase):
     with self.LoggedInUser(admin=True):
       response = self.testapp.post(self.ROUTE, params)
 
-    self.assertEqual(httplib.OK, response.status_int)
+    self.assertEqual(six.moves.http_client.OK, response.status_int)
     self.assertEntityCount(alert.Alert, 1)
 
     # Populate memcache with a subsequent GET.
@@ -303,7 +303,7 @@ class AlertHandlerTest(basetest.UpvoteTestCase):
     with self.LoggedInUser(admin=True):
       response = self.testapp.post(self.ROUTE, params)
 
-    self.assertEqual(httplib.OK, response.status_int)
+    self.assertEqual(six.moves.http_client.OK, response.status_int)
     self.assertEntityCount(alert.Alert, 2)
     self.assertMemcacheLacks(alerts._CreateMemcacheKey('appdetail', 'windows'))
 
