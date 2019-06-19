@@ -19,7 +19,7 @@ from google.appengine.ext import ndb
 
 from common.testing import basetest
 from common.cloud_kms import cloud_kms
-from common.cloud_kms import kms_ndb
+from upvote.gae.datastore.models import kms
 
 
 class EncryptedBlobPropertyTest(basetest.AppEngineTestCase):
@@ -32,7 +32,7 @@ class EncryptedBlobPropertyTest(basetest.AppEngineTestCase):
       side_effect=lambda data, a2, a3, **kwargs: unicode(data))
   def testCorrectKey(self, encrypt_mock, decrypt_mock):
     class Foo(ndb.Model):
-      foo = kms_ndb.EncryptedBlobProperty('a', 'b', 'c')
+      foo = kms.EncryptedBlobProperty('a', 'b', 'c')
 
     key = Foo(foo='abcd').put()
     encrypt_mock.assert_called_once_with('abcd', 'a', 'b', key_location='c')
@@ -42,7 +42,7 @@ class EncryptedBlobPropertyTest(basetest.AppEngineTestCase):
 
   def testOtherProperties(self):
     class Foo(ndb.Model):
-      foo = kms_ndb.EncryptedBlobProperty('a', 'b', 'c', required=True)
+      foo = kms.EncryptedBlobProperty('a', 'b', 'c', required=True)
 
     with self.assertRaises(db.BadValueError):
       Foo().put()

@@ -19,7 +19,7 @@ import os
 from google.appengine.ext import ndb
 
 from google.appengine.ext.ndb import polymodel
-from common.cloud_kms import kms_ndb
+from upvote.gae.datastore.models import kms
 
 
 class Singleton(polymodel.PolyModel):
@@ -53,7 +53,7 @@ class Bit9ApiAuth(Singleton):
   This class is intended to be a singleton as there should only be a single
   Bit9 API key associated with a project.
   """
-  api_key = kms_ndb.EncryptedBlobProperty('bit9', 'ring', 'global')
+  api_key = kms.EncryptedBlobProperty('bit9', 'ring', 'global')
 
 
 class VirusTotalApiAuth(Singleton):
@@ -62,7 +62,7 @@ class VirusTotalApiAuth(Singleton):
   This class is intended to be a singleton as there should only be a single
   VirusTotal API key associated with a project.
   """
-  api_key = kms_ndb.EncryptedBlobProperty('virustotal', 'ring', 'global')
+  api_key = kms.EncryptedBlobProperty('virustotal', 'ring', 'global')
 
 
 class SiteXsrfSecret(Singleton):

@@ -162,7 +162,7 @@ py_appengine_library(
     srcs = ["singleton.py"],
     srcs_version = "PY2AND3",
     deps = [
-        "//common/cloud_kms:kms_ndb",
+        ":kms",
     ],
 )
 
@@ -210,6 +210,14 @@ py_appengine_library(
     ],
 )
 
+py_library(
+    name = "kms",
+    srcs = [
+        "kms.py",
+    ],
+    deps = ["//common/cloud_kms"],
+)
+
 # AppEngine Unit Tests
 # ==============================================================================
 
@@ -221,6 +229,17 @@ upvote_appengine_test(
         ":alert",
         "//upvote/gae/lib/testing:basetest",
         "@absl_git//absl/testing:absltest",
+    ],
+)
+
+upvote_appengine_test(
+    name = "kms_test",
+    size = "small",
+    srcs = ["kms_test.py"],
+    deps = [
+        ":kms",
+        "//common/testing:basetest",
+        "//external:mock",
     ],
 )
 

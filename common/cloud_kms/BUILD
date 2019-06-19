@@ -5,29 +5,10 @@ load("//upvote:builddefs.bzl", "upvote_appengine_test")
 py_library(
     name = "cloud_kms",
     srcs = ["cloud_kms.py"],
+    deprecation = "Please use google-cloud-kms library.",
     deps = [
         "//external:googleapiclient",
         "//external:httplib2",
         "//external:oauth2client",
-    ],
-)
-
-py_library(
-    name = "kms_ndb",
-    srcs = [
-        "kms_ndb.py",
-    ],
-    deps = [":cloud_kms"],
-)
-
-upvote_appengine_test(
-    name = "kms_ndb_test",
-    size = "small",
-    srcs = ["kms_ndb_test.py"],
-    deps = [
-        ":cloud_kms",
-        ":kms_ndb",
-        "//common/testing:basetest",
-        "//external:mock",
     ],
 )

@@ -22,7 +22,7 @@ consult the security team.
 Example Usage:
 # KEY_NAME, KEYRING, and KEY_LOCATION are explained in README
 class SimpleApiKey(ndb.Model):
-  api_key = kms_ndb.EncryptedBlobProperty(KEY_NAME, KEYRING, KEY_LOCATION)
+  api_key = kms.EncryptedBlobProperty(KEY_NAME, KEYRING, KEY_LOCATION)
 
 Using with googleapiclient[https://developers.google.com/api-client-library]:
 

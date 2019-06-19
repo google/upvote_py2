@@ -34,10 +34,10 @@ class Bit9TestCase(basetest.UpvoteTestCase):
         'upvote/gae/lib/bit9',
         'fake_credentials.json')
     self.Patch(
-        bit9_utils.singleton.kms_ndb.EncryptedBlobProperty, '_Encrypt',
+        bit9_utils.singleton.kms.EncryptedBlobProperty, '_Encrypt',
         return_value='blah')
     self.Patch(
-        bit9_utils.singleton.kms_ndb.EncryptedBlobProperty, '_Decrypt',
+        bit9_utils.singleton.kms.EncryptedBlobProperty, '_Decrypt',
         return_value='blah')
     singleton.Bit9ApiAuth.SetInstance(api_key='blah')
 
