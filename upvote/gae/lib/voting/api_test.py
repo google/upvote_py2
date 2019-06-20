@@ -46,6 +46,43 @@ def CreateEvent(blockable, host, user):
       parent=datastore_utils.ConcatenateKeys(user.key, host.key, blockable.key))
 
 
+class CreateOrUpdateVoteTest(basetest.UpvoteTestCase):
+
+  def testOldVoteExists_DuplicateVote(self):
+
+    blockable = test_utils.CreateSantaBlockable()
+    user = test_utils.CreateUser()
+    test_utils.CreateVote(
+        blockable, user_email=user.email, was_yes_vote=True)
+
+    with self.assertRaises(api.DuplicateVoteError):
+      api._CreateOrUpdateVote(blockable, user, True, 3)
+
+  def testOldVoteExists_ChangingVote(self):
+
+    blockable = test_utils.CreateSantaBlockable()
+    user = test_utils.CreateUser()
+    test_utils.CreateVote(
+        blockable, user_email=user.email, was_yes_vote=True, weight=1)
+
+    new_vote = api._CreateOrUpdateVote(blockable, user, False, -25)
+
+    self.assertFalse(new_vote.was_yes_vote)
+    self.assertEqual(-25, new_vote.weight)
+    self.assertBigQueryInsertion(TABLE.VOTE)
+
+  def testFirstVote(self):
+
+    blockable = test_utils.CreateSantaBlockable()
+    user = test_utils.CreateUser()
+
+    new_vote = api._CreateOrUpdateVote(blockable, user, True, 1)
+
+    self.assertTrue(new_vote.was_yes_vote)
+    self.assertEqual(1, new_vote.weight)
+    self.assertBigQueryInsertion(TABLE.VOTE)
+
+
 class CreateRuleChangeSetTest(basetest.UpvoteTestCase):
 
   def testNoRules(self):

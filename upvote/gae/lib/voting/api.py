@@ -64,6 +64,62 @@ class OperationNotAllowedError(Error):
   """Error raised when operation not permitted on the given blockable."""
 
 
+def _CreateOrUpdateVote(blockable, user, was_yes_vote, vote_weight):
+  """Creates a new vote or updates an existing one.
+
+  Args:
+    blockable: The Blockable being voted for.
+    user: The user who cast the vote.
+    was_yes_vote: Whether the vote cast was an upvote or downvote.
+    vote_weight: The weight of the vote cast.
+
+  Returns:
+    The newly-created Vote entity.
+
+  Raises:
+    DuplicateVoteError: if the user is attempting to re-cast an identical vote.
+  """
+  # Retrieve the prior Vote, if one exists.
+  vote_key = vote_models.Vote.GetKey(blockable.key, user.key)
+  old_vote = vote_key.get()
+
+  # If user has already voted, do one of two things.
+  if old_vote:
+
+    # If they're trying to re-vote in the same direction, bail.
+    if old_vote.was_yes_vote == was_yes_vote:
+      message = 'User %s has already voted for blockable %s' % (
+          user.email, blockable.key.id())
+      logging.error(message)
+      raise DuplicateVoteError(message)
+
+    # Otherwise, archive the previous vote.
+    old_vote.key = vote_models.Vote.GetKey(
+        blockable.key, user.key, in_effect=False)
+    old_vote.put()
+
+  # Create a new Vote entity.
+  new_vote = vote_models.Vote(
+      key=vote_key,
+      user_email=user.email,
+      was_yes_vote=was_yes_vote,
+      weight=vote_weight,
+      candidate_type=blockable.rule_type)
+  new_vote.put()
+
+  # Log the vote in BigQuery.
+  tables.VOTE.InsertRow(
+      sha256=blockable.key.id(),
+      timestamp=new_vote.recorded_dt,
+      upvote=new_vote.was_yes_vote,
+      weight=new_vote.weight,
+      platform=blockable.GetPlatformName(),
+      target_type=new_vote.candidate_type,
+      voter=new_vote.user_email)
+
+  return new_vote
+
+
 def _CreateRuleChangeSet(blockable, rules_future, new_policy):
   """Creates a RuleChangeSet and trigger an attempted commit."""
   rules = rules_future.get_result()
@@ -634,7 +690,8 @@ class BallotBox(six.with_metaclass(abc.ABCMeta, object)):
     logging.info('Initial blockable state: %s', initial_state)
 
     initial_score = self.blockable.score
-    self._CreateOrUpdateVote(was_yes_vote, vote_weight)
+    self.new_vote = _CreateOrUpdateVote(
+        self.blockable, self.user, was_yes_vote, vote_weight)
     assert self.new_vote is not None
 
     new_score = _GetNewScore(
@@ -642,40 +699,6 @@ class BallotBox(six.with_metaclass(abc.ABCMeta, object)):
     self._UpdateBlockable(new_score)
 
     return initial_state
-
-  def _CreateOrUpdateVote(self, was_yes_vote, vote_weight):
-    """Creates a new vote or updates an existing one."""
-    vote_key = vote_models.Vote.GetKey(self.blockable.key, self.user.key)
-    self.old_vote = vote_key.get()
-
-    # If user has already voted, archive the previous vote.
-    if self.old_vote is not None:
-      if self.old_vote.was_yes_vote == was_yes_vote:
-        raise DuplicateVoteError(
-            'The user %s has already cast a %s vote for blockable %s' % (
-                self.user.email, was_yes_vote, self.blockable.key.id()))
-
-      # Archive the previous vote.
-      self.old_vote.key = vote_models.Vote.GetKey(
-          self.blockable.key, self.user.key, in_effect=False)
-      self.old_vote.put()
-
-    self.new_vote = vote_models.Vote(
-        key=vote_key,
-        user_email=self.user.email,
-        was_yes_vote=was_yes_vote,
-        weight=vote_weight,
-        candidate_type=self.blockable.rule_type)
-    self.new_vote.put()
-
-    tables.VOTE.InsertRow(
-        sha256=self.blockable.key.id(),
-        timestamp=self.new_vote.recorded_dt,
-        upvote=self.new_vote.was_yes_vote,
-        weight=self.new_vote.weight,
-        platform=self.blockable.GetPlatformName(),
-        target_type=self.new_vote.candidate_type,
-        voter=self.new_vote.user_email)
 
   def _UpdateBlockable(self, new_score):
     """Modifies the blockable according to the updated vote score."""
