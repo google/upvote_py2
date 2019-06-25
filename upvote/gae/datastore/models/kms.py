@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Lint as: python2, python3
 """Use this module to store things that need to be encrypted.
 
 Provides EncryptedBlobProperty which is used for transperent encryption

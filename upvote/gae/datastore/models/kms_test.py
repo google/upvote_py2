@@ -12,11 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Lint as: python2, python3
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import mock
+import six
 
 from google.appengine.ext import db
 from google.appengine.ext import ndb
-
 from common.testing import basetest
 from common.cloud_kms import cloud_kms
 from upvote.gae.datastore.models import kms
@@ -28,8 +33,9 @@ class EncryptedBlobPropertyTest(basetest.AppEngineTestCase):
       cloud_kms, 'Decrypt',
       side_effect=lambda data, a2, a3, **kwargs: data)
   @mock.patch.object(
-      cloud_kms, 'Encrypt',
-      side_effect=lambda data, a2, a3, **kwargs: unicode(data))
+      cloud_kms,
+      'Encrypt',
+      side_effect=lambda data, a2, a3, **kwargs: six.text_type(data))
   def testCorrectKey(self, encrypt_mock, decrypt_mock):
     class Foo(ndb.Model):
       foo = kms.EncryptedBlobProperty('a', 'b', 'c')

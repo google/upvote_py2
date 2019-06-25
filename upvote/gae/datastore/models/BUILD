@@ -93,6 +93,7 @@ py_appengine_library(
 py_appengine_library(
     name = "host",
     srcs = ["host.py"],
+    srcs_version = "PY2AND3",
     deps = [
         ":mixin",
         "//upvote/shared:constants",
@@ -215,6 +216,7 @@ py_library(
     srcs = [
         "kms.py",
     ],
+    srcs_version = "PY2AND3",
     deps = ["//common/cloud_kms"],
 )
 
@@ -240,6 +242,7 @@ upvote_appengine_test(
         ":kms",
         "//common/testing:basetest",
         "//external:mock",
+        "//external:six",
     ],
 )
 
