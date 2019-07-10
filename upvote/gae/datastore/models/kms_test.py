@@ -20,8 +20,9 @@ from __future__ import print_function
 import mock
 import six
 
-from google.appengine.ext import db
+from google.appengine.api import datastore_errors
 from google.appengine.ext import ndb
+
 from common.testing import basetest
 from common.cloud_kms import cloud_kms
 from upvote.gae.datastore.models import kms
@@ -50,7 +51,7 @@ class EncryptedBlobPropertyTest(basetest.AppEngineTestCase):
     class Foo(ndb.Model):
       foo = kms.EncryptedBlobProperty('a', 'b', 'c', required=True)
 
-    with self.assertRaises(db.BadValueError):
+    with self.assertRaises(datastore_errors.BadValueError):
       Foo().put()
 
 
