@@ -36,7 +36,6 @@ import six
 import six.moves.http_client
 import webapp2
 
-from google.appengine.api import modules
 from google.appengine.datastore.datastore_query import Cursor
 from google.appengine.ext import ndb
 from upvote.gae.datastore import utils as datastore_utils
@@ -493,7 +492,7 @@ class AckHandler(webapp2.RequestHandler):
 
   def get(self):
     self.response.status = six.moves.http_client.OK
-    self.response.write('ACK (%s)' % modules.get_current_module_name())
+    self.response.write('ACK')
 
 
 def _GetHandlerFromRequest(request):
