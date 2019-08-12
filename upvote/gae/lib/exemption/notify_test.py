@@ -14,8 +14,10 @@
 
 """Unit tests for notify.py."""
 
+import datetime
 import mock
 
+from upvote.gae import settings
 from upvote.gae.datastore import test_utils
 from upvote.gae.lib.exemption import notify
 from upvote.gae.lib.testing import basetest
@@ -38,7 +40,8 @@ class SendEmailTest(basetest.UpvoteTestCase):
     host_id = host.key.id()
     exm_key = test_utils.CreateExemption(host_id)
     notify._SendEmail(exm_key, 'body')
-    expected_subject = 'Lockdown exemption update: %s' % host.hostname
+    device_name = notify._GetDeviceName(host)
+    expected_subject = 'Bit9 exemption update for %s' % device_name
     self.mock_send.assert_called_once_with(
         expected_subject, 'body', to=users, html=True)
 
@@ -47,7 +50,8 @@ class SendEmailTest(basetest.UpvoteTestCase):
     host_id = host.key.id()
     exm_key = test_utils.CreateExemption(host_id)
     notify._SendEmail(exm_key, 'body')
-    expected_subject = 'Lockdown exemption update: %s' % host.hostname
+    device_name = notify._GetDeviceName(host)
+    expected_subject = 'Santa exemption update for %s' % device_name
     self.mock_send.assert_called_once_with(
         expected_subject, 'body', to=['aaaa'], html=True)
 
@@ -64,7 +68,8 @@ class SendUpdateEmailTest(basetest.UpvoteTestCase):
     host_id = host.key.id()
     exm_key = test_utils.CreateExemption(host_id)
     notify.SendUpdateEmail(exm_key, _STATE.APPROVED)
-    expected_subject = 'Lockdown exemption update: %s' % host.hostname
+    device_name = notify._GetDeviceName(host)
+    expected_subject = 'Bit9 exemption update for %s' % device_name
     self.mock_send.assert_called_once_with(
         expected_subject, mock.ANY, to=users, html=True)
 
@@ -73,7 +78,8 @@ class SendUpdateEmailTest(basetest.UpvoteTestCase):
     host_id = host.key.id()
     exm_key = test_utils.CreateExemption(host_id)
     notify.SendUpdateEmail(exm_key, _STATE.APPROVED)
-    expected_subject = 'Lockdown exemption update: %s' % host.hostname
+    device_name = notify._GetDeviceName(host)
+    expected_subject = 'Santa exemption update for %s' % device_name
     self.mock_send.assert_called_once_with(
         expected_subject, mock.ANY, to=['aaaa'], html=True)
 
@@ -101,23 +107,51 @@ class SendExpirationEmailTest(basetest.UpvoteTestCase):
     self.mock_send = self.Patch(notify.mail_utils, 'Send')
 
   def testWindows(self):
+
     users = ['aaaa', 'bbbb']
     host = test_utils.CreateBit9Host(users=users)
     host_id = host.key.id()
     exm_key = test_utils.CreateExemption(host_id)
     notify.SendExpirationEmail(exm_key)
-    expected_subject = 'Lockdown exemption update: %s' % host.hostname
+
+    device_name = notify._GetDeviceName(host)
+    expected_subject = 'Bit9 exemption update for %s' % device_name
     self.mock_send.assert_called_once_with(
         expected_subject, mock.ANY, to=users, html=True)
 
   def testMacOs(self):
-    host = test_utils.CreateSantaHost(primary_user='aaaa')
+
+    host = test_utils.CreateSantaHost(
+        primary_user='aaaa', last_postflight_dt=datetime.datetime.utcnow())
     host_id = host.key.id()
     exm_key = test_utils.CreateExemption(host_id)
     notify.SendExpirationEmail(exm_key)
-    expected_subject = 'Lockdown exemption update: %s' % host.hostname
+
+    device_name = notify._GetDeviceName(host)
+    expected_subject = 'Santa exemption update for %s' % device_name
     self.mock_send.assert_called_once_with(
         expected_subject, mock.ANY, to=['aaaa'], html=True)
+
+  def testDontSend_NoPostflight(self):
+
+    host = test_utils.CreateSantaHost(
+        primary_user='aaaa', last_postflight_dt=None)
+    host_id = host.key.id()
+    exm_key = test_utils.CreateExemption(host_id)
+    notify.SendExpirationEmail(exm_key)
+
+    self.mock_send.assert_not_called()
+
+  def testDontSend_InactiveHost(self):
+
+    inactive_dt = datetime.datetime.utcnow() - datetime.timedelta(
+        days=settings.HOST_INACTIVITY_THRESHOLD + 1)
+    host = test_utils.CreateSantaHost(last_postflight_dt=inactive_dt)
+    host_id = host.key.id()
+    exm_key = test_utils.CreateExemption(host_id)
+    notify.SendExpirationEmail(exm_key)
+
+    self.mock_send.assert_not_called()
 
 
 if __name__ == '__main__':

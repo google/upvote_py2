@@ -101,38 +101,6 @@ describe('Modify Protection Controller', () => {
 
       expect(ctrl.isDeveloperModeAvailable()).toBe(false);
     });
-
-    it('when the feature is available', () => {
-      const hostData = {
-        'id': 'fakeId',
-        'class_': ['Host', 'SantaHost'],
-        'operatingSystemFamily': upvote.app.constants.PLATFORMS.MACOS,
-      };
-      hostService.get['and']['callFake'](() => q.when({'data': hostData}));
-      featureService.available['and']['callFake'](
-          () => q.when({'status': 200}));
-
-      ctrl = buildController();
-      rootScope.$apply();
-
-      expect(ctrl.isDeveloperModeAvailable()).toBe(true);
-    });
-
-    it('when the feature is not available', () => {
-      const hostData = {
-        'id': 'fakeId',
-        'class_': ['Host', 'SantaHost'],
-        'operatingSystemFamily': upvote.app.constants.PLATFORMS.MACOS,
-      };
-      hostService.get['and']['callFake'](() => q.when({'data': hostData}));
-      featureService.available['and']['callFake'](
-          () => q.when({'status': 403}));
-
-      ctrl = buildController();
-      rootScope.$apply();
-
-      expect(ctrl.isDeveloperModeAvailable()).toBe(false);
-    });
   });
 
   describe('should indicate if a given protection level is', () => {

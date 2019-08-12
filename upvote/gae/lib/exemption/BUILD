@@ -48,6 +48,7 @@ py_appengine_library(
     name = "notify",
     srcs = ["notify.py"],
     deps = [
+        "//upvote/gae:settings",
         "//upvote/gae/datastore/models:exemption",
         "//upvote/gae/utils:env_utils",
         "//upvote/gae/utils:mail_utils",
@@ -92,6 +93,7 @@ upvote_appengine_test(
     srcs = ["notify_test.py"],
     deps = [
         ":notify",
+        "//upvote/gae:settings",
         "//upvote/gae/datastore:test_utils",
         "//upvote/gae/lib/testing:basetest",
         "//upvote/shared:constants",

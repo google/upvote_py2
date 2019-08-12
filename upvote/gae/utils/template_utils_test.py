@@ -67,7 +67,11 @@ class RenderEmailTemplateTest(absltest.TestCase):
 
   def testSuccess(self):
     content = template_utils.RenderEmailTemplate(
-        'exemption_expired.html', device_hostname='aaa', upvote_hostname='bbb')
+        'exemption_expired.html',
+        client_name='aaa',
+        device_id='bbb',
+        device_name='ccc',
+        upvote_hostname='ddd')
     self.assertIsInstance(content, six.text_type)
 
 

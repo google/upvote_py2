@@ -71,8 +71,6 @@ upvote.modifyprotectionpage.ModifyProtectionController = class {
     this.developerModeRequested = false;
     /** @export {boolean} */
     this.minimalProtectionRequested = false;
-    /** @export {boolean} */
-    this.twFeatureAvailable = false;
 
     /** @const @export {!Object<string, string>} */
     this.durations = {};
@@ -115,19 +113,6 @@ upvote.modifyprotectionpage.ModifyProtectionController = class {
         .then((response) => {
           this.host = response['data'];
           this.page_.title = 'Modify Protection: ' + this.host.hostname;
-
-          // Delay the 'Developer Mode' card from rendering until everything
-          // else is done, otherwise it interferes with the vertical scrolling
-          // and jumps down halfway through the 'Modify Protection' page. This
-          // will be scrapped once 'Developer Mode' is made available for all
-          // users.
-          this.featureService_.available('transitive_whitelisting')
-              .then((response) => {
-                this.twFeatureAvailable = response['status'] == 200;
-              })
-              .catch((response) => {
-                this.twFeatureAvailable = false;
-              });
         })
         .catch((response) => {
           this.errorService_.createDialogFromError(response);
@@ -140,9 +125,9 @@ upvote.modifyprotectionpage.ModifyProtectionController = class {
    * @export
    */
   isDeveloperModeAvailable() {
-    return (
-        this.host !== null && this.hostService_.isSantaHost(this.host) &&
-        this.twFeatureAvailable);
+    let available =
+        (this.host !== null && this.hostService_.isSantaHost(this.host));
+    return available;
   }
 
   /**

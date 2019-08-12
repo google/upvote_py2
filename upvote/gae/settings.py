@@ -133,6 +133,11 @@ GROUP_ROLE_ASSIGNMENTS = {
 }
 
 
+# Threshold (in days) after which a Host is considered inactive. Currently only
+# applies to SantaHosts, and is measured from the last_postflight_dt.
+HOST_INACTIVITY_THRESHOLD = 90
+
+
 # A namedtuple for defining critical Rules that must be present in Datastore.
 CriticalRule = collections.namedtuple(
     'CriticalRule', ['sha256', 'platform', 'rule_type', 'rule_policy'])

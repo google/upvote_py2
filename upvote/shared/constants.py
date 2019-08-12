@@ -206,6 +206,11 @@ CLIENT = UppercaseNamespace([
     'BIT9',
     'SANTA',
     'UNKNOWN'])
+CLIENT.DefineMap('TO_COMMON_NAME', {
+    CLIENT.BIT9: 'Bit9',
+    CLIENT.SANTA: 'Santa',
+    CLIENT.UNKNOWN: 'Unknown',
+})
 
 
 USER_ROLE = UppercaseNamespace([

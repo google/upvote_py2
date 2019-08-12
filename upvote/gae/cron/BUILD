@@ -12,10 +12,23 @@ package(default_visibility = ["//upvote"])
 py_appengine_library(
     name = "all",
     deps = [
+        ":autohide_hosts",
         ":bit9_syncing",
         ":datastore_backup",
         ":main",
         ":role_syncing",
+    ],
+)
+
+py_appengine_library(
+    name = "autohide_hosts",
+    srcs = ["autohide_hosts.py"],
+    deps = [
+        "//upvote/gae:settings",
+        "//upvote/gae/datastore:utils",
+        "//upvote/gae/datastore/models:host",
+        "//upvote/gae/utils:handler_utils",
+        "//upvote/shared:constants",
     ],
 )
 
@@ -117,6 +130,21 @@ py_appengine_library(
 
 # AppEngine Unit Tests
 # ==============================================================================
+
+upvote_appengine_test(
+    name = "autohide_hosts_test",
+    srcs = ["autohide_hosts_test.py"],
+    deps = [
+        ":autohide_hosts",
+        "//external:mock",
+        "//external:six",
+        "//upvote/gae:settings",
+        "//upvote/gae/datastore:test_utils",
+        "//upvote/gae/datastore/models:host",
+        "//upvote/gae/lib/testing:basetest",
+        "//upvote/shared:constants",
+    ],
+)
 
 upvote_appengine_test(
     name = "bit9_syncing_test",

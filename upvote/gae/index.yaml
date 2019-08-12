@@ -250,6 +250,12 @@ indexes:
   - name: primary_user
   - name: last_postflight_dt
 
+- kind: Host
+  properties:
+  - name: class
+  - name: hidden
+  - name: last_postflight_dt
+
 - kind: Rule
   properties:
   - name: class

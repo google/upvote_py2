@@ -14,6 +14,11 @@
 
 cron:
 
+- description: Autohide inactive hosts
+  url: /cron/hosts/autohide
+  schedule: every 12 hours
+  target: default
+
 #### BEGIN:daily_backup ####
 # Cron jobs handled by the upvote_app module.
 - description: daily datastore backup

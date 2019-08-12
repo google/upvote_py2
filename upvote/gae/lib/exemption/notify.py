@@ -14,7 +14,10 @@
 
 """Module containing Exemption-related notification logic."""
 
+import datetime
+
 from google.appengine.ext import deferred
+from upvote.gae import settings
 from upvote.gae.datastore.models import exemption as exemption_models
 from upvote.gae.utils import env_utils
 from upvote.gae.utils import mail_utils
@@ -42,6 +45,31 @@ class UnsupportedPlatformError(Error):
   """Raised if an Exemption with an unsupported platform is encountered."""
 
 
+def _GetDeviceName(host):
+  """Helper function for getting a user-friendly device name from a Host.
+
+  Args:
+    host: The Host entity we want a name from.
+
+  Returns:
+    A user-friendly device name.
+  """
+  # Only take the first dot-separated piece of the hostname.
+  return host.hostname.split('.')[0]
+
+
+def _GetClientName(host):
+  """Helper function for getting a user-friendly client name from a Host.
+
+  Args:
+    host: The Host entity we want a name from.
+
+  Returns:
+    A user-friendly client name.
+  """
+  return constants.CLIENT.MAP_TO_COMMON_NAME[host.GetClientName()]
+
+
 def _SendEmail(exm_key, body):
   """Helper function for sending an Exemption-related email.
 
@@ -57,7 +85,8 @@ def _SendEmail(exm_key, body):
   host_key = exm_key.parent()
   host = host_key.get()
 
-  subject = 'Lockdown exemption update: %s' % host.hostname
+  subject = '%s exemption update for %s' % (
+      _GetClientName(host), _GetDeviceName(host))
 
   # Figure out who the email should be sent to.
   if platform == constants.PLATFORM.WINDOWS:
@@ -83,11 +112,17 @@ def SendUpdateEmail(exm_key, new_state, details=None):
     UnsupportedPlatformError: if the platform of the corresponding Host is
         unsupported.
   """
-  # Compose the body.
   template_name = _EMAIL_TEMPLATE_MAP[new_state]
-  hostname = exm_key.parent().get().hostname
+
+  host_key = exm_key.parent()
+  host = host_key.get()
+
   body = template_utils.RenderEmailTemplate(
-      template_name, details=details, device_hostname=hostname,
+      template_name,
+      client_name=_GetClientName(host),
+      details=details,
+      device_id=host_key.id(),
+      device_name=_GetDeviceName(host),
       upvote_hostname=env_utils.ENV.HOSTNAME)
 
   _SendEmail(exm_key, body)
@@ -109,12 +144,28 @@ def SendExpirationEmail(exm_key):
     UnsupportedPlatformError: if the platform of the corresponding Host is
         unsupported.
   """
-  # Compose the body.
-  deactivation_dt = exm_key.get().deactivation_dt
+  exm = exm_key.get()
+  deactivation_dt = exm.deactivation_dt
   expiration_str = deactivation_dt.strftime('%B %d, %Y at %I:%M%p (UTC)')
-  hostname = exm_key.parent().get().hostname
-  body = template_utils.RenderEmailTemplate(
-      'exemption_will_expire.html', expiration_str=expiration_str,
-      device_hostname=hostname, upvote_hostname=env_utils.ENV.HOSTNAME)
 
-  _SendEmail(exm_key, body)
+  host_key = exm_key.parent()
+  host = host_key.get()
+
+  send_email = True
+
+  # For SantaHosts, don't bother sending the expiration email if there hasn't
+  # been a sync in a sufficiently long period of time.
+  if host.GetClientName() == constants.CLIENT.SANTA:
+    now = datetime.datetime.utcnow()
+    cutoff = now - datetime.timedelta(days=settings.HOST_INACTIVITY_THRESHOLD)
+    send_email = host.last_postflight_dt and host.last_postflight_dt > cutoff
+
+  if send_email:
+    body = template_utils.RenderEmailTemplate(
+        'exemption_will_expire.html',
+        client_name=_GetClientName(host),
+        device_id=host_key.id(),
+        device_name=_GetDeviceName(host),
+        expiration_str=expiration_str,
+        upvote_hostname=env_utils.ENV.HOSTNAME)
+    _SendEmail(exm_key, body)
