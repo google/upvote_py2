@@ -1,8 +1,13 @@
-dist: trusty
+dist: focal
 
 language: python
 python:
   - "2.7"
+  - "3.9"
+
+jobs:
+  allow_failures:
+    - python: 3.9"
 
 addons:
   apt:
@@ -35,10 +40,11 @@ before_install:
   - rm bazel_0.23.2-linux-x86_64.deb
 
     # Install App Engine test dependency
-  - pip install Pillow
+  - pip install flake8 Pillow
 
 # Shard test execution to avoid Bazel failing with OOM/OOS on the Travis VM.
 # Without sharding, failure occurred after ~25 tests.
+before_script: flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
 script: "./run_tests.sh $GROUP $TOTAL_GROUPS"
 env:
     global:
