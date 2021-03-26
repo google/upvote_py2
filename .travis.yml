@@ -1,9 +1,9 @@
-dist: focal
+dist: xenial
 
 language: python
 python:
   - "2.7"
-  - "3.9"
+  - "3.5"
 
 addons:
   apt:
@@ -13,8 +13,8 @@ addons:
       - wget
       - pkg-config
 
-# virtualenv:
-#  system_site_packages: true
+virtualenv:
+  system_site_packages: true
 
 branches:
   only:
