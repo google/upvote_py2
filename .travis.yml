@@ -1,3 +1,4 @@
+os: linux
 dist: xenial
 
 language: python
@@ -50,5 +51,5 @@ env:
         - GROUP=1
         - GROUP=2
         - GROUP=3
-    allow_failures:
-        - python: 3.5"
+        allow_failures:
+            - python: "3.5"
