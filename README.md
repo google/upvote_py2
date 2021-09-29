@@ -1,3 +1,18 @@
+**Note: upvote_py2 is being archived**
+
+After thoughtful discussion, Upvote maintainers have decided to stop updating the Upvote codebase in Github, now named upvote_py2.
+The decision came down to our moving away from the App Engine Python 2 runtime. We have developed substantial new Python 3 code that would take more effort to port back to this environment than we can spend while focused on developing new features internally for Google.
+
+To those still actively using Upvote: we are hopeful that someone else will take on the work of porting and maintaining a Python 3 version of Upvote to share with the community. If that happens we would be interested in contributing code and ideas from our internal version of Upvote. Development of Santa is not affected by this.
+
+Social allowlisting works at Google. We hope it will continue to work for other organizations that need to scale allowlist management. We look forward to sharing ideas and improvements despite not having the resources at this time to support an external codebase.
+
+Thanks, 
+
+Ben, on behalf of the Upvote team
+
+
+
 <!-- mdformat off(GitHub header) -->
 Upvote
 [![Build Status](https://travis-ci.com/google/upvote.svg?token=s6uTQfwvqCpdWthaypND&branch=master)](https://travis-ci.com/google/upvote)
